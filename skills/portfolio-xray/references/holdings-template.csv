@@ -1,0 +1,7 @@
+asset_id,name,market,asset_type,value_krw,fx_exposure,sector,note
+005930,삼성전자,KR,STOCK,5000000,,반도체,
+069500,KODEX 200,KR,ETF,3000000,,,
+360750,TIGER 미국S&P500,KR,ETF,4000000,USD,,언헤지형 - 확인 필요
+VOO,Vanguard S&P 500 ETF,US,ETF,6000000,,,USD 1380 기준 환산
+NVDA,NVIDIA,US,STOCK,2000000,,반도체,USD 1380 기준 환산
+CASH_KRW,원화 예수금,KR,CASH,1000000,,,

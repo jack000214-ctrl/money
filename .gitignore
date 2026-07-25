@@ -1,0 +1,11 @@
+.env
+.env.*
+data/raw/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 포트폴리오 개인 데이터
+knowledge/portfolio/holdings.csv
+knowledge/portfolio/trades/
+knowledge/portfolio/decisions/
