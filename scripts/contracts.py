@@ -138,9 +138,32 @@ def validate_ips(data: dict[str, Any]) -> list[str]:
     if not isinstance(limits, dict):
         errors.append("position_limits: 객체가 필요하다")
         limits = {}
-    for key in ("total_assets_pct", "equity_sleeve_pct", "risk_assets_pct"):
+    for key in ("equity_sleeve_pct", "risk_assets_pct"):
         _number(limits.get(key), f"position_limits.{key}", errors,
-                minimum=0, maximum=100, allow_null=status != "APPROVED")
+                minimum=0, maximum=100, allow_null=True)
+
+    by_class = limits.get("by_risk_class")
+    if not isinstance(by_class, dict):
+        errors.append("position_limits.by_risk_class: 위험등급별 한도 객체가 필요하다")
+    elif status == "APPROVED" and not by_class:
+        errors.append("position_limits.by_risk_class: 승인 IPS는 위험등급을 "
+                      "하나 이상 정의해야 한다")
+    else:
+        for name, entry in by_class.items():
+            field = f"position_limits.by_risk_class.{name}"
+            if not _nonempty(name, f"{field}: 등급명", errors):
+                continue
+            if not isinstance(entry, dict):
+                errors.append(f"{field}: 객체가 필요하다")
+                continue
+            standard = _number(entry.get("standard_pct"), f"{field}.standard_pct",
+                               errors, minimum=0, maximum=100,
+                               allow_null=status != "APPROVED")
+            ceiling = _number(entry.get("hard_ceiling_pct"), f"{field}.hard_ceiling_pct",
+                              errors, minimum=0, maximum=100,
+                              allow_null=status != "APPROVED")
+            if standard is not None and ceiling is not None and standard > ceiling:
+                errors.append(f"{field}: standard_pct는 hard_ceiling_pct보다 클 수 없다")
 
     portfolio = data.get("portfolio_limits")
     if not isinstance(portfolio, dict):
@@ -162,14 +185,40 @@ def validate_ips(data: dict[str, Any]) -> list[str]:
         if number is not None and not number.is_integer():
             errors.append(f"data_freshness.{key}: 정수여야 한다")
 
+    quality = data.get("data_quality")
+    if not isinstance(quality, dict):
+        errors.append("data_quality: 객체가 필요하다")
+        quality = {}
+    _number(quality.get("price_max_deviation_pct"),
+            "data_quality.price_max_deviation_pct", errors,
+            minimum=0, maximum=100, allow_null=status != "APPROVED")
+    reference_age = _number(quality.get("price_reference_max_age_days"),
+                            "data_quality.price_reference_max_age_days", errors,
+                            minimum=0, allow_null=status != "APPROVED")
+    if reference_age is not None and not reference_age.is_integer():
+        errors.append("data_quality.price_reference_max_age_days: 정수여야 한다")
+
     costs = data.get("costs")
     if not isinstance(costs, dict):
         errors.append("costs: 객체가 필요하다")
         costs = {}
-    for key in ("buy_commission_bps", "sell_commission_bps", "sell_tax_bps",
-                "fx_cost_bps", "slippage_bps"):
-        _number(costs.get(key), f"costs.{key}", errors,
-                minimum=0, allow_null=status != "APPROVED")
+    by_market = costs.get("by_market")
+    if not isinstance(by_market, dict):
+        errors.append("costs.by_market: 시장별 비용 객체가 필요하다")
+    elif status == "APPROVED" and not by_market:
+        errors.append("costs.by_market: 승인 IPS는 시장을 하나 이상 정의해야 한다")
+    else:
+        for market, entry in by_market.items():
+            field = f"costs.by_market.{market}"
+            if not _nonempty(market, f"{field}: 시장코드", errors):
+                continue
+            if not isinstance(entry, dict):
+                errors.append(f"{field}: 객체가 필요하다")
+                continue
+            for key in ("buy_commission_bps", "sell_commission_bps", "sell_tax_bps",
+                        "fx_cost_bps", "slippage_bps"):
+                _number(entry.get(key), f"{field}.{key}", errors,
+                        minimum=0, allow_null=status != "APPROVED")
 
     policy = data.get("decision_policy")
     if not isinstance(policy, dict):

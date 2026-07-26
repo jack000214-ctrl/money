@@ -75,14 +75,23 @@ def valid_ips(status="APPROVED"):
         "approved_by": "USER" if approved else None,
         "approved_at": "2026-07-25T00:00:00+09:00" if approved else None,
         "position_limits": {
-            "total_assets_pct": 30.0 if approved else None,
+            "by_risk_class": {
+                "STOCK": {
+                    "standard_pct": 30.0 if approved else None,
+                    "hard_ceiling_pct": 50.0 if approved else None,
+                },
+                "BROAD_ETF": {
+                    "standard_pct": 40.0 if approved else None,
+                    "hard_ceiling_pct": 50.0 if approved else None,
+                },
+            },
             "equity_sleeve_pct": 70.0 if approved else None,
             "risk_assets_pct": 70.0 if approved else None,
         },
         "portfolio_limits": {
             "top10_total_assets_pct": 70.0,
             "sector_total_assets_pct": 40.0,
-            "currency_total_assets_pct": 80.0,
+            "currency_total_assets_pct": 100.0,
             "unclassified_total_assets_pct": 20.0,
         },
         "data_freshness": {
@@ -90,12 +99,20 @@ def valid_ips(status="APPROVED"):
             "analysis_max_age_days": 7 if approved else None,
             "price_max_age_minutes": 60 if approved else None,
         },
+        "data_quality": {
+            "price_max_deviation_pct": 30.0 if approved else None,
+            "price_reference_max_age_days": 3 if approved else None,
+        },
         "costs": {
-            "buy_commission_bps": 0.0 if approved else None,
-            "sell_commission_bps": 0.0 if approved else None,
-            "sell_tax_bps": 0.0 if approved else None,
-            "fx_cost_bps": 0.0 if approved else None,
-            "slippage_bps": 0.0 if approved else None,
+            "by_market": {
+                "KR": {
+                    "buy_commission_bps": 0.0 if approved else None,
+                    "sell_commission_bps": 0.0 if approved else None,
+                    "sell_tax_bps": 0.0 if approved else None,
+                    "fx_cost_bps": 0.0 if approved else None,
+                    "slippage_bps": 0.0 if approved else None,
+                },
+            },
         },
         "decision_policy": {
             "required_expected_return_pct": 10.0 if approved else None,
@@ -198,11 +215,33 @@ class TestAnalysisContract(unittest.TestCase):
 class TestIpsContract(unittest.TestCase):
     def test_approved_ips_requires_complete_values(self):
         data = valid_ips()
-        data["position_limits"]["total_assets_pct"] = None
+        data["position_limits"]["by_risk_class"]["STOCK"]["standard_pct"] = None
+        self.assertTrue(validate_ips(data))
+
+    def test_standard_limit_cannot_exceed_the_hard_ceiling(self):
+        data = valid_ips()
+        data["position_limits"]["by_risk_class"]["STOCK"] = {
+            "standard_pct": 60.0, "hard_ceiling_pct": 50.0,
+        }
+        errors = validate_ips(data)
+        self.assertTrue(any("hard_ceiling_pct보다 클 수 없다" in error for error in errors))
+
+    def test_approved_ips_must_define_at_least_one_risk_class(self):
+        data = valid_ips()
+        data["position_limits"]["by_risk_class"] = {}
         self.assertTrue(validate_ips(data))
 
     def test_draft_ips_can_hold_null_decisions(self):
         self.assertEqual(validate_ips(valid_ips("DRAFT")), [])
+
+    def test_approved_ips_must_set_a_price_deviation_limit(self):
+        """승인 IPS에 예정가 허용 괴리가 없으면 가격 검증이 조용히 꺼진다."""
+        data = valid_ips()
+        data["data_quality"]["price_max_deviation_pct"] = None
+        self.assertTrue(validate_ips(data))
+
+        del data["data_quality"]
+        self.assertTrue(validate_ips(data))
 
 
 if __name__ == "__main__":

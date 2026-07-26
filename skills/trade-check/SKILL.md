@@ -29,9 +29,12 @@ CLI 종료 코드는 `PROCEED=0`, `CAUTION=1`, `RESEARCH_REQUIRED=2`,
 2. 승인 IPS `knowledge/portfolio/ips.json`
    - `status: APPROVED`
    - 승인자·승인시각
-   - 총자산·주식 슬리브·위험자산별 단일 종목 한도
+   - 위험등급별 단일 종목 한도 (`standard_pct`와 `hard_ceiling_pct`)
+   - 상위 10종목·섹터·통화·미분류 포트폴리오 한도
    - 데이터 최대 허용 지연
-   - 비용·세금·슬리피지 가정
+   - 예정가의 최대 허용 괴리 `data_quality.price_max_deviation_pct`
+   - 기준가의 최대 허용 경과일 `data_quality.price_reference_max_age_days`
+   - 시장별 비용·세금·슬리피지 가정 (`costs.by_market`)
    - 요구수익률과 대안 우위 기준
 3. 검증된 분석 JSON
    - `scripts/contracts.py`의 분석 계약을 통과해야 한다.
@@ -39,6 +42,12 @@ CLI 종료 코드는 `PROCEED=0`, `CAUTION=1`, `RESEARCH_REQUIRED=2`,
    - 모든 분석은 `snapshot_id`와 입력 SHA-256을 가진다.
    - 논지, 기대수익의 약세·기준·강세 범위, 대안을 포함한다.
 4. 예정 수량·가격과 가격 기준시각
+5. 예정가를 대조할 기준가
+   - 1순위는 보유내역의 내재단가 `value_krw / quantity`. 정의상 기준통화
+     환산값이라 환율 모호성이 없다.
+   - 보유하지 않은 종목은 `scripts/price_fetch.py history`로 수집한
+     시세 스냅샷. 스냅샷 통화가 기준통화와 다르면 환율을 지어내지 않고
+     "대조 불가"로 처리한다.
 
 하나라도 없으면 가격만 보고 빈칸을 채우지 않는다.
 
@@ -63,6 +72,16 @@ python3 scripts/trade_check.py {asset_id} {buy|sell} {수량} \
   --json
 ```
 
+보유하지 않은 신규 종목이라 기준가가 없으면, 먼저 시세를 수집한다.
+
+```bash
+python3 scripts/price_fetch.py history {심볼}   # 214450.KQ / IBM
+```
+
+그래도 대조가 불가능한 경우에만 `--price-unverified-reason "{확인 경로}"`로
+사유를 남긴다. 사유는 `CAUTION`으로 기록될 뿐 `PROCEED`를 만들지 않으며,
+기준가와 어긋나는 가격은 사유로 해제되지 않는다.
+
 ### 3. 다섯 축을 모두 설명한다
 
 - **논지 변화:** 강화·중립·약화·무효화와 근거 claim ID
@@ -78,13 +97,58 @@ python3 scripts/trade_check.py {asset_id} {buy|sell} {수량} \
 
 - 수량 또는 가격이 0 이하
 - 보유량을 초과한 매도
+- 예정가가 기준가 대비 IPS의 허용 괴리를 초과 (`PRICE_DEVIATION`)
+- 대조할 기준가가 없는데 사유도 없음 (`PRICE_UNVERIFIED`)
+- 기준가가 IPS의 허용 경과일 초과 (`PRICE_REFERENCE_STALE`)
 - 매수금과 추정 비용이 현금을 초과
-- 승인된 세 분모 중 하나라도 단일 종목 한도 초과
+- 거래 후 비중이 위험등급의 절대 상한 초과 (`POSITION_HARD_CEILING`, 사유로도 해제 불가)
+- 표준 한도 초과인데 집중 사유가 없음 (`POSITION_LIMIT_TOTAL_ASSETS`)
+- 거래 대상의 위험등급에 대한 승인 한도가 IPS에 없음 (`RISK_CLASS_LIMIT_MISSING`)
+- 거래 시장의 비용 모형이 IPS에 없음 (`COST_MODEL_MISSING`)
+- 주식 슬리브·위험자산 한도가 설정돼 있는데 초과
+- 이 거래가 포트폴리오 한도를 새로 넘기거나, 이미 넘긴 값을 더 악화
 - 보유내역, 가격, 분석이 IPS의 신선도 기준 초과
 - 종목과 분석 대상 불일치
 - 분석 스키마 또는 출처·주장 ID 참조 오류
 - 무효화 조건이 발생한 종목의 신규·추가 매수
 - IPS가 차단하도록 정한 요구수익률 미달 매수
+
+## 위험등급과 2단계 한도
+
+한도는 `asset_type`이 아니라 보유내역의 `risk_class`로 건다. ETF라는
+껍데기는 위험을 말해주지 않기 때문이다.
+
+| 등급 | 뜻 | 예 |
+|---|---|---|
+| `STOCK` | 개별 주식 | 파마리서치, IBM |
+| `BROAD_ETF` | 광역 분산 ETF | SCHD (배당성장주 100여 종목, 연 1회 리밸런싱) |
+| `DERIVATIVE_ETF` | 단일 기초자산 파생 ETF | MSTY (MSTR 100% 노출, 상승 캡·하락 그대로) |
+
+각 등급은 두 값을 갖는다.
+
+- `standard_pct` — 여기까지는 그냥 통과
+- `hard_ceiling_pct` — 절대 넘지 못하는 선
+
+표준과 상한 사이 구간은 기본 `BLOCKED`이고,
+`--concentration-override-reason "{사유}"`로 사유를 남기면 `CAUTION`으로
+통과한다. 사유는 결과 JSON과 결정 스냅샷에 함께 기록된다. 절대 상한은
+사유로 해제되지 않는다.
+
+등급이 IPS에 정의돼 있지 않으면 기본값으로 때우지 않고 `BLOCKED`다.
+
+## 포트폴리오 집중도의 한계
+
+엔진이 계산하는 섹터·통화·상위10 비중은 **ETF 룩스루를 반영하지 않은 직접
+비중**이다. ETF가 품고 있는 섹터 노출은 `섹터 미분류`로 격리되며, 따라서
+개별 섹터 비중은 언제나 하한이다. IPS의 `unclassified_total_assets_pct`가
+이 사각지대의 크기를 제한한다. 실제 룩스루 집중도가 필요하면
+portfolio-xray SKILL을 쓴다.
+
+단일 종목 한도와 달리 포트폴리오 한도는 거래하지 않은 다른 종목 때문에도
+초과할 수 있다. 이미 초과했다는 이유로 모든 거래를 막으면 위험을 줄이는
+거래까지 불가능해지므로, 엔진은 **이 거래가 한도를 새로 넘기거나 이미 넘긴
+값을 더 악화시킬 때만** `BLOCKED`로 처리하고, 악화시키지 않는 초과는
+`CAUTION`으로 남긴다.
 
 ## 매수 해석
 
@@ -122,6 +186,12 @@ BLOCKED | RESEARCH_REQUIRED | CAUTION | PROCEED
 ## 거래와 데이터 기준
 수량 / 예정가 / 가격시각 / 보유기준일 / 분석 snapshot_id
 
+## 예정가 검증
+기준가 출처 / 기준가와 기준일 / 괴리와 허용 한도
+
+## 포트폴리오 집중도
+상위 10종목 / 섹터 / 통화 / 미분류 각각의 거래 전후 비중
+
 ## 비중
 총자산 / 주식 슬리브 / 위험자산 각각의 분모와 거래 전후 비중
 
@@ -138,6 +208,7 @@ decision_snapshot_id
 ## 금지
 
 - 가격대만으로 `PROCEED` 판정
+- 대조하지 않은 예정가로 비중·현금 검사 통과
 - 승인되지 않은 기본 비중 한도 사용
 - 오래된 데이터를 최신인 것처럼 사용
 - 출처 ID가 없는 주장을 매매 근거로 사용

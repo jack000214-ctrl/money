@@ -34,11 +34,13 @@ from contracts import (
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_HOLDINGS = ROOT / "knowledge" / "portfolio" / "holdings.csv"
 DEFAULT_IPS = ROOT / "knowledge" / "portfolio" / "ips.json"
-ENGINE_VERSION = "2.0.0"
+PRICE_DIR = ROOT / "knowledge" / "prices"
+ENGINE_VERSION = "2.1.0"
 RESULT_SCHEMA_VERSION = "1.0.0"
 
 EQUITY_TYPES = {"STOCK", "ETF", "REIT"}
 NON_RISK_TYPES = {"CASH", "CASH_EQUIVALENT", "BOND"}
+MARKET_TO_CURRENCY = {"KR": "KRW", "US": "USD"}
 VERDICT_ORDER = {"PROCEED": 0, "CAUTION": 1, "RESEARCH_REQUIRED": 2, "BLOCKED": 3}
 VERDICT_EXIT_CODE = {"PROCEED": 0, "CAUTION": 1, "RESEARCH_REQUIRED": 2, "BLOCKED": 3}
 
@@ -145,6 +147,65 @@ def portfolio_denominators(rows: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
+def resolve_risk_class(row: dict[str, Any]) -> str:
+    """위험등급은 명시값이 우선, 없으면 자산 유형으로 떨어진다.
+
+    ETF라는 껍데기는 위험을 말해주지 않는다. 광역 분산 ETF와 단일 기초자산
+    파생 ETF는 같은 `asset_type`을 갖지만 위험이 전혀 다르므로, 한도는
+    `asset_type`이 아니라 이 등급으로 건다.
+    """
+    explicit = (row.get("risk_class") or "").strip().upper()
+    return explicit or (row.get("asset_type") or "").strip().upper()
+
+
+def resolve_currency(market: str, explicit: str | None) -> str:
+    """통화는 명시값이 우선, 없으면 시장에서 추론한다.
+
+    lookthrough.py의 같은 이름 함수와 규칙을 맞춘다.
+    """
+    if explicit:
+        return explicit.strip().upper()
+    return MARKET_TO_CURRENCY.get(market, "UNKNOWN")
+
+
+def portfolio_concentration(rows: list[dict[str, Any]], total: float) -> dict[str, Any] | None:
+    """총자산 대비 직접 비중 기준 집중도.
+
+    ETF 룩스루는 반영하지 않는다. 따라서 섹터 비중은 하한이며, ETF가 품고
+    있는 섹터 노출은 `unclassified_pct`로 격리된다. IPS의
+    `unclassified_total_assets_pct`가 이 사각지대의 크기를 제한한다.
+    실제 룩스루 집중도는 portfolio-xray SKILL이 계산한다.
+    """
+    if total <= 0:
+        return None
+    positions = [r for r in rows if r["asset_type"] not in {"CASH", "CASH_EQUIVALENT"}]
+    ranked = sorted(positions, key=lambda r: -r["value_krw"])
+
+    sector: dict[str, float] = {}
+    unclassified = 0.0
+    for row in positions:
+        name = (row.get("sector") or "").strip()
+        if name:
+            sector[name] = sector.get(name, 0.0) + row["value_krw"]
+        else:
+            unclassified += row["value_krw"]
+
+    currency: dict[str, float] = {}
+    for row in rows:
+        code = resolve_currency(row["market"], row.get("fx_exposure"))
+        currency[code] = currency.get(code, 0.0) + row["value_krw"]
+
+    return {
+        "top10_pct": sum(r["value_krw"] for r in ranked[:10]) / total * 100,
+        "sector_pct": {k: v / total * 100 for k, v in sector.items()},
+        "currency_pct": {
+            k: v / total * 100 for k, v in currency.items() if k != "UNKNOWN"
+        },
+        "unclassified_pct": unclassified / total * 100,
+        "lookthrough_applied": False,
+    }
+
+
 def _weight(value: float, denominator: float) -> float | None:
     return value / denominator * 100 if denominator > 0 else None
 
@@ -167,26 +228,175 @@ def _weights(position_value: float, denominators: dict[str, float]) -> dict[str,
 
 
 def _costs(ips: dict[str, Any] | None, side: str, gross: float, market: str) -> dict[str, float | None]:
+    """시장별 비용 모형. 국내와 해외는 세금·환전 구조가 달라 값을 섞지 않는다."""
+    empty = {
+        "commission_krw": None,
+        "tax_krw": None,
+        "slippage_krw": None,
+        "fx_cost_krw": None,
+        "total_krw": None,
+        "market": market,
+    }
     if not ips or ips.get("status") != "APPROVED":
-        return {
-            "commission_krw": None,
-            "tax_krw": None,
-            "slippage_krw": None,
-            "fx_cost_krw": None,
-            "total_krw": None,
-        }
-    policy = ips["costs"]
-    commission_bps = policy["buy_commission_bps"] if side == "buy" else policy["sell_commission_bps"]
+        return empty
+    policy = (ips["costs"].get("by_market") or {}).get(market)
+    if not policy:
+        return empty
+    commission_bps = policy["buy_commission_bps"] if side == "buy" \
+        else policy["sell_commission_bps"]
     tax_bps = 0 if side == "buy" else policy["sell_tax_bps"]
-    fx_bps = policy["fx_cost_bps"] if market and market != "KR" else 0
     values = {
         "commission_krw": gross * commission_bps / 10000,
         "tax_krw": gross * tax_bps / 10000,
         "slippage_krw": gross * policy["slippage_bps"] / 10000,
-        "fx_cost_krw": gross * fx_bps / 10000,
+        "fx_cost_krw": gross * policy["fx_cost_bps"] / 10000,
     }
     values["total_krw"] = sum(values.values())
+    values["market"] = market
     return values
+
+
+def _snapshot_candidates(asset_id: str, market: str) -> list[str]:
+    """price_fetch.py가 저장하는 심볼 표기를 시장별로 추정한다."""
+    if market == "KR":
+        return [f"{asset_id}.KQ", f"{asset_id}.KS", asset_id]
+    return [asset_id]
+
+
+def _read_price_snapshot(asset_id: str, market: str, price_dir: Path) -> dict[str, Any] | None:
+    """price_fetch.py가 저장한 시세 스냅샷의 최근 종가와 통화를 읽는다."""
+    for symbol in _snapshot_candidates(asset_id, market):
+        path = Path(price_dir) / f"{symbol.replace('.', '_')}.csv"
+        if not path.exists():
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8-sig").splitlines()
+        except OSError:
+            continue
+        currency = None
+        for line in lines:
+            if line.lstrip().startswith("#"):
+                match = re.search(r"통화\s+(\S+)", line)
+                if match:
+                    currency = match.group(1).upper()
+        data_lines = [line for line in lines if not line.lstrip().startswith("#")]
+        rows = [row for row in csv.DictReader(data_lines)
+                if (row.get("close") or "").strip()]
+        if not rows:
+            continue
+        close = _number(rows[-1].get("close"))
+        if close is None or close <= 0:
+            continue
+        return {
+            "symbol": symbol,
+            "close": close,
+            "currency": currency,
+            "date": (rows[-1].get("date") or "").strip(),
+        }
+    return None
+
+
+def resolve_price_reference(
+    target: dict[str, Any],
+    base_currency: str,
+    *,
+    price_dir: str | Path = PRICE_DIR,
+    holdings_as_of: str | None = None,
+) -> dict[str, Any]:
+    """입력 예정가를 대조할 기준가를 찾는다.
+
+    보유내역의 내재단가는 정의상 기준통화 환산값이라 환율 모호성이 없어
+    1순위로 쓴다. 시세 스냅샷은 통화가 기준통화와 같을 때만 대조에 쓴다.
+    환율을 임의로 지어내 비교하지 않는다.
+
+    기준가에는 항상 그 근거의 기준일을 함께 싣는다. 기준가가 낡을수록
+    허용 괴리는 시세 변동까지 흡수해야 하므로 검증력이 떨어진다.
+    """
+    value = target.get("value_krw")
+    quantity = target.get("quantity")
+    if value and quantity and value > 0 and quantity > 0:
+        return {
+            "source": "HOLDINGS_IMPLIED",
+            "price_krw": value / quantity,
+            "as_of": holdings_as_of,
+            "detail": f"보유 평가금액 {value:,.0f} ÷ 보유수량 {quantity:g}",
+        }
+
+    snapshot = _read_price_snapshot(target["asset_id"], target["market"], price_dir)
+    if snapshot is None:
+        return {
+            "source": "NONE",
+            "price_krw": None,
+            "as_of": None,
+            "detail": "보유 내재단가도 시세 스냅샷도 없다",
+        }
+    if snapshot["currency"] != base_currency.upper():
+        return {
+            "source": "SNAPSHOT_CURRENCY_MISMATCH",
+            "price_krw": None,
+            "as_of": snapshot["date"] or None,
+            "detail": f"스냅샷 통화 {snapshot['currency'] or '미상'}가 기준통화 "
+                      f"{base_currency.upper()}와 달라 환율 없이는 대조할 수 없다",
+        }
+    return {
+        "source": "PRICE_SNAPSHOT",
+        "price_krw": snapshot["close"],
+        "as_of": snapshot["date"] or None,
+        "detail": f"{snapshot['symbol']} {snapshot['date']} 종가",
+    }
+
+
+def _denominator_limits(ips: dict[str, Any], risk_class: str) -> dict[str, float | None]:
+    """분모별로 적용되는 단일 종목 한도. 총자산 한도는 위험등급에서 온다."""
+    limits = ips["position_limits"]
+    class_limit = (limits.get("by_risk_class") or {}).get(risk_class) or {}
+    return {
+        "total_assets": class_limit.get("standard_pct"),
+        "equity_sleeve": limits.get("equity_sleeve_pct"),
+        "risk_assets": limits.get("risk_assets_pct"),
+    }
+
+
+def _check_portfolio_limits(
+    issues: list[dict[str, str]],
+    limits: dict[str, Any],
+    before: dict[str, Any],
+    after: dict[str, Any],
+):
+    """포트폴리오 수준 집중도 한도.
+
+    단일 종목 한도와 달리 이 지표들은 거래하지 않은 다른 종목 때문에도
+    초과할 수 있다. 이미 초과한 상태를 이유로 모든 거래를 막으면 포트폴리오가
+    잠기고 위험을 줄이는 거래마저 불가능해진다. 따라서 이 거래가 한도를
+    새로 넘기거나 이미 넘긴 값을 더 악화시킬 때만 BLOCKED로 다룬다.
+    """
+    def judge(code: str, limit: float | None, before_pct: float,
+              after_pct: float, label: str):
+        if limit is None or after_pct <= limit + 1e-9:
+            return
+        if before_pct <= limit + 1e-9:
+            _issue(issues, "BLOCKED", code,
+                   f"이 거래가 {label}을 {before_pct:.2f}%에서 {after_pct:.2f}%로 "
+                   f"올려 승인 한도 {limit:.2f}%를 넘긴다")
+        elif after_pct > before_pct + 1e-9:
+            _issue(issues, "BLOCKED", f"{code}_WORSENED",
+                   f"{label}이 이미 한도 {limit:.2f}%를 넘은 상태에서 "
+                   f"{before_pct:.2f}% → {after_pct:.2f}%로 더 악화된다")
+        else:
+            _issue(issues, "CAUTION", f"{code}_STILL_OVER",
+                   f"{label} {after_pct:.2f}%가 아직 한도 {limit:.2f}%를 넘는다 "
+                   f"(거래 전 {before_pct:.2f}%, 이 거래가 악화시키지는 않는다)")
+
+    judge("TOP10_CONCENTRATION", limits["top10_total_assets_pct"],
+          before["top10_pct"], after["top10_pct"], "상위 10종목 비중")
+    judge("UNCLASSIFIED_CONCENTRATION", limits["unclassified_total_assets_pct"],
+          before["unclassified_pct"], after["unclassified_pct"], "섹터 미분류 비중")
+    for name, pct in sorted(after["sector_pct"].items()):
+        judge("SECTOR_CONCENTRATION", limits["sector_total_assets_pct"],
+              before["sector_pct"].get(name, 0.0), pct, f"{name} 섹터 비중")
+    for code, pct in sorted(after["currency_pct"].items()):
+        judge("CURRENCY_CONCENTRATION", limits["currency_total_assets_pct"],
+              before["currency_pct"].get(code, 0.0), pct, f"{code} 비중")
 
 
 def _load_contract(path: str | Path | None, kind: str, issues: list[dict[str, str]]):
@@ -219,6 +429,10 @@ def evaluate_trade(
     new_asset_name: str | None = None,
     new_asset_type: str = "STOCK",
     new_asset_market: str = "KR",
+    new_asset_risk_class: str | None = None,
+    price_unverified_reason: str | None = None,
+    concentration_override_reason: str | None = None,
+    price_dir: str | Path = PRICE_DIR,
 ) -> dict[str, Any]:
     evaluated_at = (evaluated_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
     issues: list[dict[str, str]] = []
@@ -274,9 +488,11 @@ def evaluate_trade(
                 _issue(issues, "RESEARCH_REQUIRED", "THESIS_NOT_APPROVED",
                        "투자논지가 사용자 승인 상태가 아니다")
 
+    approved_ips = (
+        ips is not None and not validate_ips(ips) and ips.get("status") == "APPROVED"
+    )
+
     if price_as_of is None:
-        approved_ips = ips is not None and not validate_ips(ips) \
-            and ips.get("status") == "APPROVED"
         _issue(issues, "BLOCKED" if approved_ips else "RESEARCH_REQUIRED",
                "PRICE_TIMESTAMP_MISSING",
                "예정가의 기준시각이 없어 신선도를 판단할 수 없다")
@@ -287,7 +503,7 @@ def evaluate_trade(
         for message in price_errors:
             _issue(issues, "BLOCKED", "PRICE_TIMESTAMP_INVALID", message)
 
-    if ips and not validate_ips(ips) and ips.get("status") == "APPROVED":
+    if approved_ips:
         max_holdings_days = ips["data_freshness"]["holdings_max_age_days"]
         holdings_date = holdings_meta.get("as_of")
         if not holdings_date:
@@ -339,6 +555,7 @@ def evaluate_trade(
             "name": new_asset_name or asset_id,
             "market": new_asset_market.upper(),
             "asset_type": new_asset_type.upper(),
+            "risk_class": (new_asset_risk_class or new_asset_type).upper(),
             "value_krw": 0.0,
             "quantity": 0.0,
         }
@@ -358,9 +575,64 @@ def evaluate_trade(
             _issue(issues, "BLOCKED", "OVERSELL",
                    f"보유 {held_quantity:g}주보다 많은 {quantity:g}주를 매도할 수 없다")
 
+    # 예정가는 사용자가 주장한 값이다. 대조하지 않으면 수량 한도·현금 검사가
+    # 통째로 무력화된다 (과소입력 한 번이면 모든 비중이 작아 보인다).
+    base_currency = (ips.get("base_currency") if ips else None) or "KRW"
+    price_reference = resolve_price_reference(
+        target, base_currency, price_dir=price_dir,
+        holdings_as_of=holdings_meta.get("as_of"))
+    if approved_ips and price_reference["price_krw"] and price_reference["as_of"]:
+        max_reference_age = ips["data_quality"]["price_reference_max_age_days"]
+        try:
+            reference_age_days = (
+                evaluated_at.date()
+                - datetime.fromisoformat(price_reference["as_of"]).date()
+            ).days
+            price_reference["age_days"] = reference_age_days
+            if reference_age_days > max_reference_age:
+                _issue(issues, "BLOCKED", "PRICE_REFERENCE_STALE",
+                       f"기준가가 {reference_age_days}일 경과해 예정가를 검증할 수 없다 "
+                       f"(허용 {max_reference_age:.0f}일)")
+        except ValueError:
+            _issue(issues, "BLOCKED", "PRICE_REFERENCE_TIMESTAMP_INVALID",
+                   f"기준가 기준일이 올바르지 않다: {price_reference['as_of']}")
+    deviation_pct = None
+    if price_valid and price_reference["price_krw"]:
+        deviation_pct = abs(price / price_reference["price_krw"] - 1) * 100
+        if approved_ips:
+            max_deviation = ips["data_quality"]["price_max_deviation_pct"]
+            if deviation_pct > max_deviation + 1e-9:
+                _issue(issues, "BLOCKED", "PRICE_DEVIATION",
+                       f"예정가 {price:,.0f}이 기준가 {price_reference['price_krw']:,.0f}"
+                       f"({price_reference['detail']}) 대비 {deviation_pct:.1f}% 벗어났다 "
+                       f"(허용 {max_deviation:.1f}%)")
+    elif price_valid:
+        if price_unverified_reason:
+            _issue(issues, "CAUTION", "PRICE_UNVERIFIED_ACCEPTED",
+                   f"대조할 기준가가 없으나 사용자가 사유를 명시했다: "
+                   f"{price_unverified_reason}")
+        else:
+            _issue(issues, "BLOCKED" if approved_ips else "RESEARCH_REQUIRED",
+                   "PRICE_UNVERIFIED",
+                   f"예정가를 대조할 기준가가 없다 ({price_reference['detail']}). "
+                   f"price_fetch.py로 시세를 수집하거나 사유를 명시해야 한다")
+    price_reference = {
+        **price_reference,
+        "input_price_krw": price if price_valid else None,
+        "deviation_pct": deviation_pct,
+        "max_deviation_pct": (
+            ips["data_quality"]["price_max_deviation_pct"] if approved_ips else None
+        ),
+        "override_reason": price_unverified_reason,
+    }
+
     gross = quantity * price if quantity_valid and price_valid else 0.0
     trade_costs = _costs(ips, side, gross, target["market"])
     cost_total = trade_costs["total_krw"] or 0.0
+    if approved_ips and trade_costs["total_krw"] is None:
+        _issue(issues, "BLOCKED", "COST_MODEL_MISSING",
+               f"시장 {target['market'] or '미지정'}의 비용 모형이 IPS에 없다. "
+               f"수수료·세금을 0으로 가정하고 판정하지 않는다")
     before_denoms = portfolio_denominators(holdings)
 
     if side == "buy":
@@ -398,13 +670,41 @@ def evaluate_trade(
     before_weights = _weights(target["value_krw"], before_denoms)
     after_weights = _weights(max(0.0, after_position), after_denoms)
 
-    if ips and not validate_ips(ips) and ips.get("status") == "APPROVED":
-        limit_map = {
-            "total_assets": ips["position_limits"]["total_assets_pct"],
-            "equity_sleeve": ips["position_limits"]["equity_sleeve_pct"],
-            "risk_assets": ips["position_limits"]["risk_assets_pct"],
-        }
-        for denominator, limit in limit_map.items():
+    risk_class = resolve_risk_class(target)
+    if approved_ips:
+        position_limits = ips["position_limits"]
+        class_limit = (position_limits.get("by_risk_class") or {}).get(risk_class)
+        total_pct = after_weights["total_assets"]["position_pct"]
+        if total_pct is None:
+            _issue(issues, "BLOCKED", "DENOMINATOR_ZERO",
+                   "total_assets 분모가 0이라 비중을 검증할 수 없다")
+        elif class_limit is None:
+            _issue(issues, "BLOCKED", "RISK_CLASS_LIMIT_MISSING",
+                   f"위험등급 {risk_class or '미지정'}에 대한 승인 한도가 IPS에 없다. "
+                   f"등급을 분류하지 않고 기본값으로 판정하지 않는다")
+        else:
+            standard = class_limit["standard_pct"]
+            ceiling = class_limit["hard_ceiling_pct"]
+            if total_pct > ceiling + 1e-9:
+                _issue(issues, "BLOCKED", "POSITION_HARD_CEILING",
+                       f"거래 후 {risk_class} 비중 {total_pct:.2f}%가 절대 상한 "
+                       f"{ceiling:.2f}%를 초과한다. 사유로도 해제되지 않는다")
+            elif total_pct > standard + 1e-9:
+                if concentration_override_reason:
+                    _issue(issues, "CAUTION", "POSITION_LIMIT_OVERRIDDEN",
+                           f"{risk_class} 비중 {total_pct:.2f}%가 표준 한도 "
+                           f"{standard:.2f}%를 넘지만 사유가 기록됐다: "
+                           f"{concentration_override_reason}")
+                else:
+                    _issue(issues, "BLOCKED", "POSITION_LIMIT_TOTAL_ASSETS",
+                           f"거래 후 {risk_class} 비중 {total_pct:.2f}%가 표준 한도 "
+                           f"{standard:.2f}%를 초과한다 (절대 상한 {ceiling:.2f}%). "
+                           f"넘기려면 사유를 명시해야 한다")
+
+        for denominator in ("equity_sleeve", "risk_assets"):
+            limit = position_limits.get(f"{denominator}_pct")
+            if limit is None:
+                continue
             after_pct = after_weights[denominator]["position_pct"]
             if after_pct is None:
                 _issue(issues, "BLOCKED", "DENOMINATOR_ZERO",
@@ -413,6 +713,28 @@ def evaluate_trade(
                 _issue(issues, "BLOCKED", f"POSITION_LIMIT_{denominator.upper()}",
                        f"거래 후 {denominator} 기준 비중 {after_pct:.2f}%가 "
                        f"승인 한도 {limit:.2f}%를 초과한다")
+
+    # 거래 후 행을 만들 때 현금을 함께 움직이지 않으면 분자와 분모가 어긋나
+    # 통화 비중이 100%를 넘는 값이 나온다.
+    cash_delta = -(gross + cost_total) if side == "buy" else (gross - cost_total)
+    cash_before = before_denoms["cash"]
+    after_rows = []
+    for row in holdings:
+        projected = dict(row)
+        if row["asset_id"] == asset_id:
+            projected["value_krw"] = max(0.0, after_position)
+        elif row["asset_type"] in {"CASH", "CASH_EQUIVALENT"} and cash_before > 0:
+            share = row["value_krw"] / cash_before
+            projected["value_krw"] = max(0.0, row["value_krw"] + cash_delta * share)
+        after_rows.append(projected)
+    if all(row["asset_id"] != asset_id for row in holdings):
+        after_rows.append({**target, "value_krw": max(0.0, after_position)})
+    before_concentration = portfolio_concentration(holdings, before_denoms["total_assets"])
+    after_concentration = portfolio_concentration(after_rows, after_denoms["total_assets"])
+
+    if approved_ips and before_concentration and after_concentration:
+        _check_portfolio_limits(
+            issues, ips["portfolio_limits"], before_concentration, after_concentration)
 
     decision_basis = {
         "thesis": None,
@@ -436,7 +758,7 @@ def evaluate_trade(
             _issue(issues, "BLOCKED", "THESIS_INVALIDATED_FOR_BUY",
                    "무효화 조건이 발생한 종목은 신규·추가 매수할 수 없다")
 
-        if ips and not validate_ips(ips) and ips.get("status") == "APPROVED":
+        if approved_ips:
             policy = ips["decision_policy"]
             required = policy["required_expected_return_pct"]
             if abs(expected["required_return_pct"] - required) > 1e-9:
@@ -469,14 +791,16 @@ def evaluate_trade(
                     sell_drivers.append("논지 훼손")
                 if expected["base_pct"] < required:
                     sell_drivers.append("기대수익 하한 미달")
+                denominator_limits = _denominator_limits(ips, risk_class)
                 if any(
-                    before_weights[key]["position_pct"] is not None
-                    and before_weights[key]["position_pct"] > ips["position_limits"][f"{key}_pct"]
+                    limit is not None
+                    and before_weights[key]["position_pct"] is not None
+                    and before_weights[key]["position_pct"] > limit
                     and (
                         after_weights[key]["position_pct"] is None
                         or after_weights[key]["position_pct"] < before_weights[key]["position_pct"]
                     )
-                    for key in ("total_assets", "equity_sleeve", "risk_assets")
+                    for key, limit in denominator_limits.items()
                 ):
                     sell_drivers.append("집중도 축소")
                 if best_alternative and (
@@ -487,6 +811,16 @@ def evaluate_trade(
                 if not sell_drivers:
                     _issue(issues, "CAUTION", "SELL_DRIVER_NOT_ESTABLISHED",
                            "논지·기대수익·집중도·대안에서 매도 근거가 확인되지 않았다")
+
+    # 성립하지 않는 주문의 "거래 후" 숫자는 의미가 없다. -905주나 970조 같은
+    # 값을 출력하면 차단 사유보다 그 숫자가 먼저 읽힌다.
+    blocking_codes = {issue["code"] for issue in issues}
+    projection_reliable = not (
+        blocking_codes & {
+            "INVALID_QUANTITY", "INVALID_PRICE", "INVALID_SIDE", "OVERSELL",
+            "POSITION_NOT_FOUND", "POSITION_QUANTITY_UNKNOWN", "HOLDINGS_INVALID",
+        }
+    )
 
     verdict = _verdict(issues)
     snapshot_payload = {
@@ -527,9 +861,10 @@ def evaluate_trade(
             "held_quantity_before": held_quantity,
             "held_quantity_after": (
                 held_quantity + quantity
-                if quantity_valid and side == "buy" and held_quantity is not None
+                if projection_reliable and quantity_valid and side == "buy"
+                and held_quantity is not None
                 else held_quantity - quantity
-                if quantity_valid and held_quantity is not None
+                if projection_reliable and quantity_valid and held_quantity is not None
                 else None
             ),
         },
@@ -552,6 +887,15 @@ def evaluate_trade(
             "after_krw": after_denoms,
         },
         "weights": {"before": before_weights, "after": after_weights},
+        "projection_reliable": projection_reliable,
+        "concentration": {
+            "before": before_concentration,
+            "after": after_concentration,
+            "note": "ETF 룩스루 미반영 직접 비중. 섹터 비중은 하한이며 "
+                    "ETF가 품은 섹터는 미분류로 격리된다",
+        },
+        "risk_class": risk_class,
+        "price_reference": price_reference,
         "decision_basis": decision_basis,
         "issues": sorted(issues, key=lambda i: -VERDICT_ORDER[i["severity"]]),
     }
@@ -574,9 +918,14 @@ def render_text(result: dict[str, Any]) -> str:
     add("=" * 78)
     add(f"매매 점검 — {trade['name']} ({trade['asset_id']})")
     add("=" * 78)
+    reliable = result["projection_reliable"]
+    after_quantity = (
+        trade["held_quantity_after"] if reliable else "산출 불가"
+    )
     add(f"판정          {decision['verdict']} — {decision['meaning']}")
     add(f"거래          {trade['side']} {quantity_display}주 @ {price_display} KRW")
-    add(f"보유수량      {trade['held_quantity_before']} → {trade['held_quantity_after']}")
+    add(f"위험등급      {result['risk_class'] or '미지정'}")
+    add(f"보유수량      {trade['held_quantity_before']} → {after_quantity}")
     add("")
     add("[ 비중 — 분모를 섞지 않는다 ]")
     labels = {
@@ -584,13 +933,60 @@ def render_text(result: dict[str, Any]) -> str:
         "equity_sleeve": "주식 슬리브",
         "risk_assets": "위험자산",
     }
+    if not reliable:
+        add("  주문이 성립하지 않아 거래 후 비중을 산출하지 않는다.")
     for key, label in labels.items():
         before = result["weights"]["before"][key]
         after = result["weights"]["after"][key]
         bp = "N/A" if before["position_pct"] is None else f"{before['position_pct']:.2f}%"
+        if not reliable:
+            add(f"  {label:<12}{bp:>9} → {'—':>9}  "
+                f"(분모 {before['denominator_krw']:,.0f} KRW)")
+            continue
         ap = "N/A" if after["position_pct"] is None else f"{after['position_pct']:.2f}%"
         add(f"  {label:<12}{bp:>9} → {ap:>9}  "
             f"(분모 {before['denominator_krw']:,.0f} → {after['denominator_krw']:,.0f} KRW)")
+    add("")
+    concentration = result["concentration"]
+    if concentration["before"] and concentration["after"]:
+        add("[ 포트폴리오 집중도 — 총자산 대비 직접 비중 ]")
+        before_c, after_c = concentration["before"], concentration["after"]
+        pairs = [
+            ("상위 10종목", before_c["top10_pct"], after_c["top10_pct"]),
+            ("섹터 미분류", before_c["unclassified_pct"], after_c["unclassified_pct"]),
+        ]
+        for name in sorted(set(before_c["sector_pct"]) | set(after_c["sector_pct"])):
+            pairs.append((f"섹터 {name}", before_c["sector_pct"].get(name, 0.0),
+                          after_c["sector_pct"].get(name, 0.0)))
+        for code in sorted(set(before_c["currency_pct"]) | set(after_c["currency_pct"])):
+            pairs.append((f"통화 {code}", before_c["currency_pct"].get(code, 0.0),
+                          after_c["currency_pct"].get(code, 0.0)))
+        for name, before_pct, after_pct in pairs:
+            tail = f"{after_pct:>8.2f}%" if reliable else f"{'—':>9}"
+            add(f"  {name:<16}{before_pct:>8.2f}% → {tail}")
+        add(f"  ※ {concentration['note']}")
+        add("")
+    add("[ 예정가 검증 ]")
+    reference = result["price_reference"]
+    labels_source = {
+        "HOLDINGS_IMPLIED": "보유내역 내재단가",
+        "PRICE_SNAPSHOT": "시세 스냅샷",
+        "SNAPSHOT_CURRENCY_MISMATCH": "대조 불가",
+        "NONE": "대조 불가",
+    }
+    add(f"  기준가 출처  {labels_source.get(reference['source'], reference['source'])}"
+        f" — {reference['detail']}")
+    if reference["price_krw"] is None:
+        add("  기준가       없음 — 예정가를 검증하지 못했다")
+    else:
+        age = reference.get("age_days")
+        add(f"  기준가       {reference['price_krw']:,.0f} KRW"
+            + (f"  (기준일 {reference['as_of']}"
+               + (f", {age}일 경과)" if age is not None else ")")
+               if reference["as_of"] else ""))
+        add(f"  괴리         {reference['deviation_pct']:.1f}%"
+            + ("" if reference["max_deviation_pct"] is None
+               else f"  (허용 {reference['max_deviation_pct']:.1f}%)"))
     add("")
     add("[ 비용·세금 추정 ]")
     costs = result["decision_basis"]["costs_and_tax"]
@@ -625,7 +1021,15 @@ def main():
     p.add_argument("--name", help="신규 종목명")
     p.add_argument("--asset-type", default="STOCK")
     p.add_argument("--market", default="KR")
+    p.add_argument("--risk-class",
+                   help="신규 종목 위험등급 (STOCK / BROAD_ETF / DERIVATIVE_ETF 등). "
+                        "생략하면 --asset-type을 쓴다")
     p.add_argument("--evaluated-at", help="재현 테스트용 평가시각 ISO-8601")
+    p.add_argument("--price-unverified-reason",
+                   help="대조할 기준가가 없을 때 예정가를 받아들이는 사유. "
+                        "괴리 초과는 이 사유로 해제되지 않는다")
+    p.add_argument("--concentration-override-reason",
+                   help="표준 한도를 넘겨 집중하는 사유. 절대 상한은 해제되지 않는다")
     p.add_argument("--json", action="store_true")
     a = p.parse_args()
 
@@ -651,6 +1055,9 @@ def main():
         new_asset_name=a.name,
         new_asset_type=a.asset_type,
         new_asset_market=a.market,
+        new_asset_risk_class=a.risk_class,
+        price_unverified_reason=a.price_unverified_reason,
+        concentration_override_reason=a.concentration_override_reason,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2) if a.json else render_text(result))
     return exit_code_for_verdict(result["decision"]["verdict"])
