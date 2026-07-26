@@ -73,6 +73,17 @@ class TestTTMSeries(unittest.TestCase):
         }
         self.assertEqual(ttm_series(quarterly), [])
 
+    def test_known_from_is_latest_filing_in_the_window(self):
+        """이전 분기 정정이 늦게 나오면 정정 공개 전에는 새 TTM을 쓰지 않는다."""
+        quarterly = {
+            "2025-03": q(100, "2025-05-01"),
+            "2025-06": q(110, "2026-06-01"),
+            "2025-09": q(120, "2025-11-01"),
+            "2025-12": q(130, "2026-03-01"),
+        }
+        out = ttm_series(quarterly)
+        self.assertEqual(out[0]["known_from"], "2026-06-01")
+
 
 class TestPerHistoryPointInTime(unittest.TestCase):
     def test_uses_only_already_published_eps(self):

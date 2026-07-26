@@ -2,7 +2,9 @@
 
 ## 1. 목적
 
-배치, 계산 엔진, SKILL, 앱, 실행 계층이 같은 의미의 데이터를 사용하도록 하는 논리 계약이다. 실제 구현 시 언어별 타입과 API 스키마로 변환한다.
+배치, 계산 엔진, SKILL, 앱, 실행 계층이 같은 의미의 데이터를 사용하도록 하는
+논리 계약이다. 현재 최소 실행 계약은 `scripts/contracts.py`에 구현돼 있으며,
+`scripts/validate_analysis.py`가 저장 전 검증 경계다.
 
 ## 2. 공통 규칙
 
@@ -27,7 +29,10 @@ metadata:
 - 기간 값은 시작일과 종료일을 가진다.
 - 추정과 실제를 구분한다.
 - 모든 공식 분석 결과는 하나 이상의 스냅샷을 참조한다.
+- 모든 주장 출처 ID는 해당 분석 스냅샷의 출처 목록에 포함돼야 한다.
+- 해시는 64자리 16진수 SHA-256이어야 한다.
 - 상태를 삭제하거나 덮어쓰지 않고 새 버전을 만든다.
+- 스키마 검증에 실패한 분석은 새 파일을 만들거나 기존 파일을 덮어쓰지 않는다.
 
 ## 3. 근거 참조
 
@@ -81,7 +86,16 @@ PortfolioSnapshot:
       market_price: number
       market_value: number
       currency: string
-      weight: number
+      weights:
+        total_assets:
+          value: number
+          denominator_value: number
+        equity_sleeve:
+          value: number
+          denominator_value: number
+        risk_assets:
+          value: number
+          denominator_value: number
       cost_basis: number | null
       unrealized_pnl: number | null
       thesis_id: uuid | null
@@ -194,10 +208,23 @@ Recommendation:
   state: DRAFT | PROPOSED | BLOCKED | APPROVED | REJECTED | EXPIRED
   action: NO_ACTION | RESEARCH_REQUIRED | WATCH | ENTER_PROPOSAL |
           ADD_PROPOSAL | HOLD | TRIM_PROPOSAL | EXIT_PROPOSAL
-  current_weight: number
-  proposed_weight_range:
-    min: number
-    max: number
+  current_weights:
+    total_assets: {}
+    equity_sleeve: {}
+    risk_assets: {}
+  proposed_weight_ranges:
+    total_assets:
+      min: number
+      max: number
+      denominator_value: number
+    equity_sleeve:
+      min: number
+      max: number
+      denominator_value: number
+    risk_assets:
+      min: number
+      max: number
+      denominator_value: number
   reasons: []
   counterarguments: []
   scenarios:
@@ -224,6 +251,14 @@ Recommendation:
 
 정책 검사에서 하나라도 `FAIL`이면 상태는 `BLOCKED`다.
 
+현재 구현은 다음을 추가로 강제한다.
+
+- 분석에는 논지 변화, 약세·기준·강세 기대수익, 계산 ID, 하나 이상의 대안이 필요하다.
+- 출처·주장 ID 중복과 끊어진 참조를 거부한다.
+- 분석·출처 회수·스냅샷 생성 시각의 역전을 거부한다.
+- `NaN`과 무한대를 포함한 비유한 숫자를 거부한다.
+- 저장은 검증 성공 뒤 같은 디렉터리의 임시 파일을 원자적으로 교체한다.
+
 ## 10. 사용자 결정
 
 ```yaml
@@ -232,7 +267,10 @@ UserDecision:
   recommendation_id: uuid
   decided_at: datetime
   decision: APPROVE | REJECT | MODIFY | DEFER
-  modified_weight: number | null
+  modified_weights:
+    total_assets: number | null
+    equity_sleeve: number | null
+    risk_assets: number | null
   reason_code: string
   note: string | null
   policy_override_requested: boolean
@@ -308,11 +346,23 @@ SkillAnalysis:
   validator_results: []
 ```
 
-## 14. 검토가 필요한 결정
+## 14. 현재 실행 파일
+
+| 계약 | 파일 |
+|---|---|
+| IPS | `knowledge/portfolio/ips.json` |
+| 분석 예시 | `knowledge/research/analysis-template.json` |
+| 검증기 | `scripts/contracts.py`, `scripts/validate_analysis.py` |
+| 매매 점검 결과 | `scripts/trade_check.py` |
+
+현재 IPS는 `DRAFT`다. 구체 수치를 승인하기 전에는 매매 결과가
+`RESEARCH_REQUIRED`여야 하며 임의 기본값으로 승격할 수 없다.
+
+## 15. 검토가 필요한 결정
 
 - 통화 금액 표현 방식
 - 확률 값의 허용 범위와 보정 버전 관리
 - 투자논지 승인 단위
 - 추천과 주문 의도의 만료시간
 - 세금 추정치의 표현
-- API 계약에 사용할 구체 스키마 언어
+- 수동 검증기를 JSON Schema 또는 타입 생성 계약과 병행할지

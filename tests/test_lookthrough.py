@@ -27,6 +27,23 @@ AAA,알파,KR,STOCK,1000000
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["asset_id"], "AAA")
 
+    def test_non_finite_value_is_rejected(self):
+        path = write_csv("""
+asset_id,name,market,asset_type,value_krw
+AAA,알파,KR,STOCK,nan
+""")
+        with self.assertRaises(SystemExit):
+            load_holdings(path)
+
+    def test_duplicate_asset_id_is_rejected(self):
+        path = write_csv("""
+asset_id,name,market,asset_type,value_krw
+AAA,알파,KR,STOCK,100
+AAA,알파중복,KR,STOCK,200
+""")
+        with self.assertRaises(SystemExit):
+            load_holdings(path)
+
 
 class TestLookThrough(unittest.TestCase):
     def setUp(self):
@@ -60,6 +77,12 @@ ETF1,BBB,베타,30.0,KR,자동차
         r = analyze(self.holdings, self.cons, LIMITS)
         # ETF 커버리지 50% → 나머지 50% × 비중 50% = 25%
         self.assertAlmostEqual(r["unclassified_pct"], 25.0, places=2)
+        remainder = next(
+            e for e in r["exposures"]
+            if e["asset_id"].startswith("UNCLASSIFIED::")
+        )
+        self.assertAlmostEqual(remainder["equity_sleeve_pct"], 25.0)
+        self.assertAlmostEqual(remainder["risk_assets_pct"], 25.0)
 
     def test_top10_excludes_unclassified_rows(self):
         r = analyze(self.holdings, self.cons, LIMITS)
@@ -77,6 +100,15 @@ ETF1,BBB,베타,30.0,KR,자동차
         total = sum(e["effective_pct"] for e in r["exposures"])
         self.assertAlmostEqual(total, 100.0, places=1)
 
+    def test_all_three_denominators_are_explicit(self):
+        r = analyze(self.holdings, self.cons, LIMITS)
+        aaa = next(e for e in r["exposures"] if e["asset_id"] == "AAA")
+        self.assertEqual(r["denominators_krw"]["total_assets"], 10_000_000)
+        self.assertEqual(r["denominators_krw"]["equity_sleeve"], 10_000_000)
+        self.assertAlmostEqual(aaa["total_assets_pct"], 60.0)
+        self.assertAlmostEqual(aaa["equity_sleeve_pct"], 60.0)
+        self.assertAlmostEqual(aaa["risk_assets_pct"], 60.0)
+
 
 class TestWarnings(unittest.TestCase):
     def test_single_name_limit_breach_detected(self):
@@ -88,6 +120,23 @@ SMALL,소형,KR,STOCK,1000000
         r = analyze(holdings, {}, LIMITS)
         codes = [w["code"] for w in r["warnings"]]
         self.assertIn("SINGLE_NAME_CONCENTRATION", codes)
+
+    def test_cash_is_not_a_single_name_or_top10_position(self):
+        holdings = load_holdings(write_csv("""
+asset_id,name,market,asset_type,value_krw
+CASH,예수금,KR,CASH,9000000
+AAA,알파,KR,STOCK,1000000
+"""))
+        r = analyze(holdings, {}, LIMITS)
+        single_ids = [
+            w.get("asset_id") for w in r["warnings"]
+            if w["code"] == "SINGLE_NAME_CONCENTRATION"
+        ]
+        self.assertNotIn("CASH", single_ids)
+        self.assertAlmostEqual(r["top10_effective_pct"], 10.0)
+        cash = next(e for e in r["exposures"] if e["asset_id"] == "CASH")
+        self.assertIsNone(cash["equity_sleeve_pct"])
+        self.assertIsNone(cash["risk_assets_pct"])
 
 
 if __name__ == "__main__":

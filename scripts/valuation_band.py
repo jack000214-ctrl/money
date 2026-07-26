@@ -175,9 +175,10 @@ def ttm_series(quarterly):
         if any(quarterly[k]["eps"] is None for k in window):
             skipped.append(window[-1])
             continue
-        filed = quarterly[keys[i]].get("filed")
-        if not filed:
+        filing_dates = [quarterly[k].get("filed") for k in window]
+        if any(not filed for filed in filing_dates):
             continue
+        filed = max(filing_dates)
         out.append({
             "as_of": keys[i],
             "eps_ttm": sum(quarterly[k]["eps"] for k in window),

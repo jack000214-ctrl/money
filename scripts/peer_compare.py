@@ -23,7 +23,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from edgar_fetch import (CONCEPT, OPINC_TAGS, REVENUE_TAGS, resolve, user_agent)  # noqa: E402
+from edgar_fetch import (CONCEPT, OPINC_TAGS, REVENUE_TAGS, resolve,  # noqa: E402
+                         trailing_four_quarters, user_agent)
 
 NETINC_TAGS = ["NetIncomeLoss", "ProfitLoss"]
 GROSS_TAGS = ["GrossProfit"]
@@ -68,23 +69,26 @@ def periods(points, lo, hi):
             continue
         days = (datetime.fromisoformat(p["end"]) - datetime.fromisoformat(p["start"])).days
         if lo <= days <= hi:
-            out[(p["start"], p["end"])] = p
+            key = (p["start"], p["end"])
+            if key not in out or (p.get("filed") or "") >= (out[key].get("filed") or ""):
+                out[key] = p
     return sorted(out.values(), key=lambda p: p["end"])
 
 
 def ttm(points):
-    """최근 4분기 합. 4분기 구간이 없으면 연간에서 역산해 채운다."""
-    q = {p["end"]: p["val"] for p in periods(points, 80, 100)}
+    """연속 최근 4분기 합. 복원할 수 없으면 최신 FY로 명확히 폴백한다."""
+    value, quarters = trailing_four_quarters(points)
+    if value is not None:
+        return value, quarters[-1]["end"], "TTM"
     fy = periods(points, 350, 380)
-    for f in fy:
-        y_end = f["end"]
-        same_year = [e for e in q if e[:4] == y_end[:4] and e <= y_end]
-        if len(same_year) == 3:
-            q.setdefault(y_end, f["val"] - sum(q[e] for e in same_year))
-    if len(q) < 4:
-        return (fy[-1]["val"], fy[-1]["end"], "FY") if fy else (None, None, None)
-    last4 = sorted(q)[-4:]
-    return sum(q[e] for e in last4), last4[-1], "TTM"
+    return (fy[-1]["val"], fy[-1]["end"], "FY") if fy else (None, None, None)
+
+
+def align_period(value, end, basis, reference_end, reference_basis):
+    """서로 다른 기간·산출기준의 손익 항목을 한 비율에 섞지 않는다."""
+    if end != reference_end or basis != reference_basis:
+        return None
+    return value
 
 
 def latest_instant(points):
@@ -112,9 +116,15 @@ def gather(ticker, ua):
     _, gp_pts = concept_ns(cik, GROSS_TAGS, ua)
 
     row["revenue"], row["as_of"], row["basis"] = ttm(rev_pts)
-    row["opinc"], _, _ = ttm(op_pts)
-    row["gross"], _, _ = ttm(gp_pts)
-    row["netinc"], _, _ = ttm(ni_pts)
+    opinc, op_as_of, op_basis = ttm(op_pts)
+    gross, gross_as_of, gross_basis = ttm(gp_pts)
+    netinc, net_as_of, net_basis = ttm(ni_pts)
+    row["opinc"] = align_period(
+        opinc, op_as_of, op_basis, row["as_of"], row["basis"])
+    row["gross"] = align_period(
+        gross, gross_as_of, gross_basis, row["as_of"], row["basis"])
+    row["netinc"] = align_period(
+        netinc, net_as_of, net_basis, row["as_of"], row["basis"])
     row["shares"], _ = latest_instant(sh_pts)
     row["equity"], _ = latest_instant(eq_pts)
 
@@ -159,16 +169,17 @@ def main():
         except Exception as e:
             print(f"  {t}: 수집 실패 — {type(e).__name__} {e}", file=sys.stderr)
 
-    print("=" * 96)
+    print("=" * 116)
     print(f"동종업계 비교 — 기준 {a.target.upper()}   (재무: SEC EDGAR / 주가: Yahoo)")
-    print("=" * 96)
-    print(f"{'티커':<7}{'회사':<24}{'매출(TTM,$M)':>14}{'GPM':>8}{'OPM':>8}{'매출YoY':>9}"
-          f"{'PER':>8}{'PSR':>7}{'PBR':>7}")
-    print("-" * 96)
+    print("=" * 116)
+    print(f"{'티커':<7}{'회사':<24}{'매출(TTM/FY,$M)':>17}{'기준일':>12}{'방식':>6}"
+          f"{'GPM':>8}{'OPM':>8}{'매출YoY':>9}{'PER':>8}{'PSR':>7}{'PBR':>7}")
+    print("-" * 116)
     for r in rows:
         mark = "▶ " if r["ticker"] == a.target.upper() else "  "
         print(f"{mark}{r['ticker']:<5}{r['name']:<24}"
-              f"{fmt(r['revenue'] / 1e6 if r['revenue'] else None, '>14,.0f', width=14)}"
+              f"{fmt(r['revenue'] / 1e6 if r['revenue'] else None, '>17,.0f', width=17)}"
+              f"{(r['as_of'] or '—'):>12}{(r['basis'] or '—'):>6}"
               f"{fmt(r['gpm'], '>7.1f', width=8)}{'%' if r['gpm'] is not None else ''}"
               f"{fmt(r['opm'], '>7.1f', width=8)}{'%' if r['opm'] is not None else ''}"
               f"{fmt(r['growth'], '>+8.1f', width=9)}{'%' if r['growth'] is not None else ''}"
@@ -180,9 +191,9 @@ def main():
     if not tgt or not peers:
         return
 
-    print("\n" + "=" * 96)
+    print("\n" + "=" * 116)
     print("상대 위치")
-    print("=" * 96)
+    print("=" * 116)
     for label, key, better_low in [("PER", "per", True), ("PSR", "psr", True),
                                    ("PBR", "pbr", True), ("매출총이익률", "gpm", False),
                                    ("영업이익률", "opm", False),
@@ -202,8 +213,9 @@ def main():
         print(f"{label:<12}{mine:>8.1f}   중앙값 {med:>7.1f}   "
               f"{gap:>+7.1f}%   {rank}/{len(vals)+1}위   {verdict}")
 
-    print("\n※ TTM = 최근 4분기 합. 4분기 구간이 없는 회사는 연간(FY)에서 역산했다.")
-    print("※ 회계연도가 다른 회사끼리는 기준일이 어긋난다. '기준' 열의 날짜를 확인한다.")
+    print("\n※ TTM = 복원 가능한 연속 최근 4분기 합. 불가능하면 최신 FY를 별도 표시한다.")
+    print("※ 매출과 기간·방식이 다른 이익 항목은 마진·PER 계산에 섞지 않고 '—'로 둔다.")
+    print("※ 회계연도가 다른 회사끼리는 기준일이 어긋난다. '기준일' 열을 확인한다.")
     print("※ 밸류에이션이 낮은 데는 이유가 있다. 싸다는 것과 매력적이라는 것은 다르다.")
 
 

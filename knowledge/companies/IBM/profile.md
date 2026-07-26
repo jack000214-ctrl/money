@@ -12,8 +12,9 @@ updated_by: company-research
 position:
   held: true
   quantity: 25
-  weight_pct_stocks: 7.55
   weight_pct_total_assets: 2.58
+  weight_pct_equity_sleeve: 7.55
+  weight_pct_risk_assets: 7.55
   value_krw: 7852025
   avg_cost_krw: 336388
   price_krw: 314081
@@ -22,15 +23,22 @@ thesis:
   status: DRAFT
   owner: AI_DRAFT
   approved_by_user_at: null
-evidence_level: VERIFIED_FINANCIALS
+analysis:
+  analysis_id: null
+  snapshot_id: null
+  contract_status: LEGACY_UNVALIDATED
+evidence_level: MIXED
 data_freshness:
   news_scanned_at: 2026-07-26
   filings_verified_at: 2026-07-26
+  financials_verified_at: 2026-07-26
 ---
 
 # IBM
 
-> ✅ 재무는 SEC EDGAR 원문(XBRL)에서 검증됨. `scripts/edgar_fetch.py`
+> ⚠️ 매출 수치는 SEC EDGAR 원문(XBRL)에서 확인했지만, 이 문서는 `analysis.json`
+> 계약 도입 전 레거시 분석이다. 주장 ID·출처 ID·스냅샷을 갖춘 재검증 전에는 매매
+> 근거로 승격하지 않는다. 특히 최근 4분기 OCF는 연속 분기 복원 로직으로 재산출해야 한다.
 
 ## 사건 — 2026-07-14 사상 최악의 하루
 
@@ -79,14 +87,14 @@ DART의 4분기 문제와 동일하며, 필요하면 연간에서 1~3분기를 �
 |---|---|
 | 현금성자산 | **$7,172M** |
 | 장기차입금 | **$56,212M** |
-| 영업현금흐름 (최근 4분기) | $17,481M |
+| 영업현금흐름 (과거 산출값) | $17,481M — 연속 4분기 재검증 필요 |
 
 ### ⚠️ "현금이 많은 회사"는 사실이 아니다
 
 순차입금이 약 **$49B**다. IBM은 현금 부자가 아니라 **차입이 많은 회사**다.
 
-정확한 표현은 "현금이 많다"가 아니라 **"현금창출력이 좋다"**이다 (연 $17.5B).
-배당과 이자를 감당하기에 충분하지만, 위기에 쓸 실탄이 두둑한 상태와는 다르다.
+정확한 표현은 "현금이 많다"가 아니라 **"차입이 많은 회사"**다. 현금창출력과
+배당·이자 감당 능력은 수정된 연속 4분기 계산으로 재검증하기 전까지 결론을 보류한다.
 
 ## 양자컴퓨터 — 규모와 시점을 확인해야 한다
 
@@ -108,7 +116,7 @@ DART의 4분기 문제와 동일하며, 필요하면 연간에서 1~3분기를 �
 | 조건 | 관측 지표 | 임계값 | 상태 |
 |---|---|---|---|
 | 소프트웨어 성장 둔화 | 소프트웨어 매출 YoY | 2개 분기 연속 +3% 미만 | NOT_TESTED (현재 +5%) |
-| 영업현금흐름 훼손 | 최근 4분기 OCF | $15B 미만 | SAFE ($17.5B) |
+| 영업현금흐름 훼손 | 최근 4분기 OCF | $15B 미만 | NOT_TESTED (연속 4분기 재산출 필요) |
 | 가이던스 추가 하향 | 분기 가이던스 | 재하향 시 | **WARNING** (1회 발생) |
 | 인프라 하락 지속 | 인프라 매출 YoY | 2개 분기 연속 -5% 초과 | NOT_TESTED |
 | AI 자본지출 잠식 지속 | 전체 매출 YoY | 2개 분기 연속 +3% 미만 | NOT_TESTED (2Q26 +1.1%) |

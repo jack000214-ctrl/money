@@ -43,10 +43,13 @@ ETF를 관통해서 보면 자산 개수와 베팅 개수는 거의 항상 다�
 ### 3. 계산
 
 ```bash
-python scripts/lookthrough.py --holdings holdings.csv --constituents constituents.csv
+python scripts/lookthrough.py --holdings holdings.csv \
+  --constituents constituents.csv \
+  --ips knowledge/portfolio/ips.json
 ```
 
-JSON이 필요하면 `--json`. 경고 기준선을 바꾸려면 `--single-limit`, `--top10-limit`.
+JSON이 필요하면 `--json`. 한도는 승인 IPS에서 읽는다. 승인 IPS가 없으면
+계산은 하되 한도 판정은 하지 않는다. 임의 기본값을 사용하지 않는다.
 
 **출력의 숫자만 인용한다.** 스크립트가 못 낸 숫자는 없는 숫자다.
 
@@ -69,7 +72,7 @@ JSON이 필요하면 `--json`. 경고 기준선을 바꾸려면 `--single-limit`
  각 항목: 어느 자산들을 통해 겹쳤는지 경로를 밝힌다.)
 
 ## 실효 종목 노출 상위 10
-(스크립트 출력 표 그대로)
+(총자산 / 주식 슬리브 / 위험자산 분모를 함께 표시한 스크립트 출력)
 
 ## 통화·지역 노출
 (KRW/USD 비율, 환헤지 여부 확인 필요 항목)

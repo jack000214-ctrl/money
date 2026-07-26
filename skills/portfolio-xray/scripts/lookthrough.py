@@ -15,9 +15,11 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 
 SCHEMA_VERSION = "1.0.0"
 COMPONENT = "portfolio-xray/lookthrough"
@@ -49,9 +51,12 @@ def read_csv(path, required):
 
 def to_number(raw, path, field, line):
     try:
-        return float(str(raw).replace(",", "").strip())
+        number = float(str(raw).replace(",", "").strip())
     except (ValueError, AttributeError):
         fail(f"{path} {line}행 {field}: 숫자로 읽을 수 없다 ({raw!r})")
+    if not math.isfinite(number):
+        fail(f"{path} {line}행 {field}: 유한한 숫자가 아니다 ({raw!r})")
+    return number
 
 
 def calculation_id(holdings_rows, constituent_rows):
@@ -67,13 +72,20 @@ def calculation_id(holdings_rows, constituent_rows):
 def load_holdings(path):
     rows = read_csv(path, {"asset_id", "name", "market", "asset_type", "value_krw"})
     holdings = []
+    seen = set()
     for i, r in enumerate(rows, start=2):
+        asset_id = r["asset_id"].strip()
+        if not asset_id:
+            fail(f"{path} {i}행: asset_id가 비어 있다")
+        if asset_id in seen:
+            fail(f"{path} {i}행: 중복 asset_id {asset_id}")
+        seen.add(asset_id)
         value = to_number(r["value_krw"], path, "value_krw", i)
         if value < 0:
             fail(f"{path} {i}행: 평가금액이 음수다. 공매도·차입은 이 계산이 지원하지 않는다")
         holdings.append(
             {
-                "asset_id": r["asset_id"].strip(),
+                "asset_id": asset_id,
                 "name": r["name"].strip(),
                 "market": r["market"].strip().upper(),
                 "asset_type": r["asset_type"].strip().upper(),
@@ -107,6 +119,7 @@ def _load_constituent_file(path, by_etf):
                 "weight_pct": weight,
                 "market": (r.get("market") or "").strip().upper() or None,
                 "sector": (r.get("sector") or "").strip() or None,
+                "asset_type": (r.get("asset_type") or "").strip().upper() or "EQUITY",
                 "as_of": (r.get("as_of") or "").strip() or None,
             }
         )
@@ -125,7 +138,9 @@ def analyze(holdings, constituents, limits):
     if total <= 0:
         fail("포트폴리오 평가금액 합계가 0 이하다")
 
-    exposure = defaultdict(lambda: {"name": "", "value_krw": 0.0, "paths": []})
+    exposure = defaultdict(
+        lambda: {"name": "", "asset_type": None, "value_krw": 0.0, "paths": []}
+    )
     currency = defaultdict(float)
     sector = defaultdict(float)
     fx_inferred = []
@@ -144,6 +159,7 @@ def analyze(holdings, constituents, limits):
                 )
             e = exposure[h["asset_id"]]
             e["name"] = h["name"]
+            e["asset_type"] = h["asset_type"]
             e["value_krw"] += h["value_krw"]
             e["paths"].append({"via": "DIRECT", "value_krw": h["value_krw"]})
 
@@ -162,7 +178,8 @@ def analyze(holdings, constituents, limits):
                  "reason": "구성종목 데이터 없음"}
             )
             exposure[f"UNCLASSIFIED::{h['asset_id']}"].update(
-                name=f"{h['name']} (구성 미확보)", value_krw=h["value_krw"]
+                name=f"{h['name']} (구성 미확보)", asset_type="ETF",
+                value_krw=h["value_krw"]
             )
             cur, how = resolve_currency(h["market"], h["fx_exposure"])
             currency[cur] += h["value_krw"]
@@ -179,6 +196,7 @@ def analyze(holdings, constituents, limits):
             value = h["value_krw"] * share
             e = exposure[m["holding_id"]]
             e["name"] = e["name"] or m["holding_name"]
+            e["asset_type"] = e["asset_type"] or m["asset_type"]
             e["value_krw"] += value
             e["paths"].append(
                 {"via": h["asset_id"], "via_name": h["name"],
@@ -196,7 +214,8 @@ def analyze(holdings, constituents, limits):
         uncovered = max(0.0, 100.0 - coverage) / 100.0 * h["value_krw"]
         if uncovered > 0:
             exposure[f"UNCLASSIFIED::{h['asset_id']}"].update(
-                name=f"{h['name']} 잔여분", value_krw=uncovered
+                name=f"{h['name']} 잔여분", asset_type="ETF",
+                value_krw=uncovered
             )
             cur, _ = resolve_currency(h["market"], h["fx_exposure"])
             currency[cur] += uncovered
@@ -220,16 +239,37 @@ def analyze(holdings, constituents, limits):
 def build_result(holdings, exposure, currency, sector, total,
                  etf_reports, unresolved_etfs, fx_inferred, limits):
     nominal = {h["asset_id"]: h["value_krw"] for h in holdings if h["asset_type"] != "ETF"}
+    equity_total = sum(
+        h["value_krw"] for h in holdings if h["asset_type"] in {"STOCK", "ETF", "REIT"}
+    )
+    risk_total = sum(
+        h["value_krw"] for h in holdings
+        if h["asset_type"] not in {"CASH", "CASH_EQUIVALENT", "BOND"}
+    )
 
     rows = []
     for asset_id, e in exposure.items():
         eff_pct = e["value_krw"] / total * 100
         nom_pct = nominal.get(asset_id, 0.0) / total * 100
+        is_equity = e["asset_type"] in {"STOCK", "ETF", "REIT", "EQUITY"}
+        is_risk = e["asset_type"] not in {
+            "CASH", "CASH_EQUIVALENT", "BOND", "UNCLASSIFIED"
+        }
         rows.append(
             {
                 "asset_id": asset_id,
                 "name": e["name"],
+                "asset_type": e["asset_type"] or "UNKNOWN",
                 "effective_pct": round(eff_pct, 3),
+                "total_assets_pct": round(eff_pct, 3),
+                "equity_sleeve_pct": (
+                    round(e["value_krw"] / equity_total * 100, 3)
+                    if is_equity and equity_total > 0 else None
+                ),
+                "risk_assets_pct": (
+                    round(e["value_krw"] / risk_total * 100, 3)
+                    if is_risk and risk_total > 0 else None
+                ),
                 "nominal_pct": round(nom_pct, 3),
                 "hidden_pct": round(eff_pct - nom_pct, 3),
                 "value_krw": round(e["value_krw"]),
@@ -243,30 +283,35 @@ def build_result(holdings, exposure, currency, sector, total,
         r["effective_pct"] for r in rows if r["asset_id"].startswith("UNCLASSIFIED::")
     )
     real = [r for r in rows if not r["asset_id"].startswith("UNCLASSIFIED::")]
-    top10_pct = sum(r["effective_pct"] for r in real[:10])
+    concentration_positions = [
+        r for r in real if r["asset_type"] not in {"CASH", "CASH_EQUIVALENT"}
+    ]
+    top10_pct = sum(r["effective_pct"] for r in concentration_positions[:10])
 
     warnings = []
-    for r in real:
-        if r["effective_pct"] > limits["single"]:
+    for r in concentration_positions:
+        if limits.get("single") is not None and r["effective_pct"] > limits["single"]:
             warnings.append(
                 {"code": "SINGLE_NAME_CONCENTRATION", "asset_id": r["asset_id"],
                  "name": r["name"], "value_pct": r["effective_pct"],
                  "limit_pct": limits["single"], "path_count": r["path_count"]}
             )
-    if top10_pct > limits["top10"]:
+    if limits.get("top10") is not None and top10_pct > limits["top10"]:
         warnings.append({"code": "TOP10_CONCENTRATION",
                          "value_pct": round(top10_pct, 2), "limit_pct": limits["top10"]})
     for cur, val in currency.items():
         pct = val / total * 100
-        if cur != "UNKNOWN" and pct > limits["currency"]:
+        if (limits.get("currency") is not None and cur != "UNKNOWN"
+                and pct > limits["currency"]):
             warnings.append({"code": "CURRENCY_CONCENTRATION", "currency": cur,
                              "value_pct": round(pct, 2), "limit_pct": limits["currency"]})
     for sec, val in sector.items():
         pct = val / total * 100
-        if pct > limits["sector"]:
+        if limits.get("sector") is not None and pct > limits["sector"]:
             warnings.append({"code": "SECTOR_CONCENTRATION", "sector": sec,
                              "value_pct": round(pct, 2), "limit_pct": limits["sector"]})
-    if unclassified_pct > limits["unclassified"]:
+    if (limits.get("unclassified") is not None
+            and unclassified_pct > limits["unclassified"]):
         warnings.append({"code": "LOW_COVERAGE",
                          "value_pct": round(unclassified_pct, 2),
                          "limit_pct": limits["unclassified"],
@@ -280,6 +325,16 @@ def build_result(holdings, exposure, currency, sector, total,
     return {
         "total_value_krw": round(total),
         "base_currency": "KRW",
+        "denominators_krw": {
+            "total_assets": round(total),
+            "equity_sleeve": round(equity_total),
+            "risk_assets": round(risk_total),
+        },
+        "denominator_definitions": {
+            "total_assets": "현금을 포함한 전체 평가자산",
+            "equity_sleeve": "STOCK·ETF·REIT 평가자산",
+            "risk_assets": "CASH·CASH_EQUIVALENT·BOND를 제외한 평가자산",
+        },
         "asset_count": len(holdings),
         "effective_position_count": len(real),
         "exposures": rows,
@@ -310,21 +365,25 @@ def render_text(result, meta):
     w(f"기준시각      : {meta['as_of']}")
     w(f"계산 ID       : {meta['calculation_id']}  (동일 입력 = 동일 ID)")
     w(f"평가금액 합계 : {result['total_value_krw']:,} KRW")
+    w(f"주식 슬리브   : {result['denominators_krw']['equity_sleeve']:,} KRW")
+    w(f"위험자산      : {result['denominators_krw']['risk_assets']:,} KRW")
     w(f"보유 자산 수  : {result['asset_count']}개")
     w(f"실효 종목 수  : {result['effective_position_count']}개")
     w("")
 
     w("[ 실효 노출 상위 15 ]   (※ = 관통 못 한 ETF 잔여분, 개별 종목 아님)")
-    w(f"{'종목':<34}{'실효%':>9}{'명목%':>9}{'숨은%':>9}{'경로':>6}")
-    w("-" * 76)
+    w(f"{'종목':<29}{'총자산%':>9}{'주식%':>9}{'위험%':>9}{'경로':>6}")
+    w("-" * 72)
     for r in result["exposures"][:15]:
         unclassified = r["asset_id"].startswith("UNCLASSIFIED::")
         label = ("※ " if unclassified else "") + (r["name"] or r["asset_id"])
         if len(label) > 32:
             label = label[:31] + "…"
-        pad = 34 - sum(2 if ord(c) > 0x1100 else 1 for c in label)
-        w(f"{label}{' ' * max(1, pad)}{r['effective_pct']:>9.2f}"
-          f"{r['nominal_pct']:>9.2f}{r['hidden_pct']:>9.2f}"
+        pad = 29 - sum(2 if ord(c) > 0x1100 else 1 for c in label)
+        eq = "-" if r["equity_sleeve_pct"] is None else f"{r['equity_sleeve_pct']:.2f}"
+        risk = "-" if r["risk_assets_pct"] is None else f"{r['risk_assets_pct']:.2f}"
+        w(f"{label}{' ' * max(1, pad)}{r['total_assets_pct']:>9.2f}"
+          f"{eq:>9}{risk:>9}"
           f"{'-' if unclassified else r['path_count']:>6}")
     w("")
 
@@ -372,7 +431,9 @@ def render_text(result, meta):
         w("")
 
     w("[ 한도 검토 ]")
-    if not result["warnings"]:
+    if not any(v is not None for v in result["limits_applied"].values()):
+        w("  승인 IPS 또는 명시적 한도가 없어 판정하지 않음")
+    elif not result["warnings"]:
         w("  검토 기준선을 넘는 항목 없음")
     for warn in result["warnings"]:
         code = warn["code"]
@@ -400,11 +461,12 @@ def main():
                    help="ETF 구성종목 CSV (여러 개 가능: knowledge/etfs/*/holdings-*.csv)")
     p.add_argument("--json", action="store_true", help="JSON으로 출력")
     p.add_argument("--as-of", help="기준시각 (기본: 현재 UTC)")
-    p.add_argument("--single-limit", type=float, default=10.0)
-    p.add_argument("--top10-limit", type=float, default=50.0)
-    p.add_argument("--sector-limit", type=float, default=30.0)
-    p.add_argument("--currency-limit", type=float, default=70.0)
-    p.add_argument("--unclassified-limit", type=float, default=20.0)
+    p.add_argument("--ips", help="승인된 IPS JSON. 없으면 한도 판정을 생략한다")
+    p.add_argument("--single-limit", type=float)
+    p.add_argument("--top10-limit", type=float)
+    p.add_argument("--sector-limit", type=float)
+    p.add_argument("--currency-limit", type=float)
+    p.add_argument("--unclassified-limit", type=float)
     args = p.parse_args()
 
     holdings = load_holdings(args.holdings)
@@ -417,6 +479,28 @@ def main():
         "currency": args.currency_limit,
         "unclassified": args.unclassified_limit,
     }
+    ips_status = None
+    if args.ips:
+        project_root = Path(__file__).resolve().parents[3]
+        sys.path.insert(0, str(project_root / "scripts"))
+        from contracts import load_json, validate_ips
+        try:
+            ips = load_json(args.ips)
+            errors = validate_ips(ips)
+            ips_status = ips.get("status")
+            if errors:
+                fail("IPS 스키마 오류: " + "; ".join(errors))
+            if ips_status == "APPROVED":
+                portfolio_limits = ips["portfolio_limits"]
+                limits = {
+                    "single": ips["position_limits"]["total_assets_pct"],
+                    "top10": portfolio_limits["top10_total_assets_pct"],
+                    "sector": portfolio_limits["sector_total_assets_pct"],
+                    "currency": portfolio_limits["currency_total_assets_pct"],
+                    "unclassified": portfolio_limits["unclassified_total_assets_pct"],
+                }
+        except FileNotFoundError:
+            fail(f"IPS 파일을 찾을 수 없다: {args.ips}")
 
     result = analyze(holdings, constituents, limits)
     meta = {
@@ -425,6 +509,7 @@ def main():
         "as_of": args.as_of or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "calculation_id": calculation_id(holdings, constituents),
         "inputs": {"holdings": args.holdings, "constituents": args.constituents},
+        "ips_status": ips_status,
     }
 
     if args.json:

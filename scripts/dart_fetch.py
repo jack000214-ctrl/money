@@ -11,6 +11,7 @@ DART 공시검색 화면은 JavaScript 기반이라 웹 도구로 목록을 가�
 """
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -142,6 +143,10 @@ def fetch_is(corp_code, year, reprt, fs, key):
 def save_raw(name, payload):
     """원본을 수집시각과 함께 보존한다."""
     stamp = datetime.now(timezone.utc)
+    canonical = json.dumps(
+        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+        allow_nan=False,
+    )
     out = RAW_DIR / stamp.strftime("%Y-%m-%d")
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{name}_{stamp.strftime('%H%M%S')}.json"
@@ -150,6 +155,7 @@ def save_raw(name, payload):
             {
                 "fetched_at": stamp.isoformat(timespec="seconds"),
                 "source": "opendart.fss.or.kr",
+                "payload_sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
                 "payload": payload,
             },
             ensure_ascii=False,
