@@ -96,5 +96,129 @@ date,side,quantity,price_krw
                          ["2026-01-01", "2026-03-01"])
 
 
+class TestRealTradeFiles(unittest.TestCase):
+    """실제 knowledge/portfolio/trades/ 파일을 읽는다.
+
+    이 클래스가 없어서 도구가 전 종목에서 죽어 있는 걸 아무도 못 잡았다.
+    픽스처만 검사하면 '픽스처를 읽는 능력'만 검증된다. 회귀 테스트는
+    사용자가 실제로 넣는 파일을 읽어야 한다.
+    """
+
+    def _files(self):
+        d = ROOT / "knowledge" / "portfolio" / "trades"
+        # _closed.csv 는 다종목 혼합이라 단일 종목 도구의 입력이 아니다
+        return sorted(p for p in d.glob("*.csv") if p.name != "_closed.csv")
+
+    def test_every_trade_file_parses(self):
+        for path in self._files():
+            with self.subTest(path.name):
+                trades = load_trades(str(path))
+                self.assertGreater(
+                    len(trades), 0,
+                    f"{path.name}: 0건으로 읽혔다. settle_date 컬럼을 못 읽으면 "
+                    "전 행이 무음 skip 된다")
+
+    def test_every_trade_file_runs(self):
+        """파싱만 되고 run() 에서 죽으면 의미가 없다."""
+        for path in self._files():
+            with self.subTest(path.name):
+                r = run(load_trades(str(path)), price_now=100000)
+                self.assertGreaterEqual(r["qty"], 0)
+
+    def test_tsla_receive_rows_are_loaded(self):
+        """TSLA 는 무상입고(RECEIVE) 33건을 포함한다."""
+        trades = load_trades(
+            str(ROOT / "knowledge" / "portfolio" / "trades" / "TSLA.csv"))
+        sides = [t["side"] for t in trades]
+        self.assertIn("RECEIVE", sides)
+        self.assertEqual(len(trades), 36)
+
+    def test_tsla_quantity_matches_holdings(self):
+        """복원한 보유수량이 holdings.csv 와 일치해야 한다."""
+        trades = load_trades(
+            str(ROOT / "knowledge" / "portfolio" / "trades" / "TSLA.csv"))
+        r = run(trades, price_now=462925)
+        self.assertAlmostEqual(r["qty"], 10.004156, places=6)
+
+
+class TestReceiveHandling(unittest.TestCase):
+    """무상입고는 매매 결정이 아니다.
+
+    이 도구의 질문은 '매매가 안 하느니만 못했나'다. 이벤트로 받은 주식을
+    매수 통계에 넣으면 내가 내리지 않은 결정이 매매 성적에 섞인다.
+    """
+
+    SAMPLE = """
+settle_date,side,quantity,price_krw
+2026-01-01,BUY,10,1000
+2026-01-02,RECEIVE,2,1500
+"""
+
+    def test_receive_excluded_from_buy_stats(self):
+        r = run(load_trades(write_csv(self.SAMPLE)), price_now=2000)
+        self.assertEqual(r["bought_qty"], 10, "RECEIVE 는 매수 통계에서 빠진다")
+        self.assertEqual(r["bought_amt"], 10000)
+
+    def test_receive_included_in_position_and_cost(self):
+        r = run(load_trades(write_csv(self.SAMPLE)), price_now=2000)
+        self.assertEqual(r["qty"], 12, "받은 주식도 보유수량이다")
+        self.assertEqual(r["cost"], 10000 + 3000, "기재가로 원가에 산입한다")
+
+    def test_receive_counted_in_counterfactual_baseline(self):
+        """'한 번도 팔지 않았다면' 기준에는 받은 주식도 들어간다."""
+        r = run(load_trades(write_csv(self.SAMPLE)), price_now=2000)
+        self.assertEqual(r["hold_qty"], 12)
+        self.assertEqual(r["hold_pnl"], 12 * 2000 - 13000)
+
+    def test_receive_only_file_does_not_crash(self):
+        """매수가 0건이면 평균단가 분모가 0이 된다 (ZeroDivisionError 재현)."""
+        r = run(load_trades(write_csv("""
+settle_date,side,quantity,price_krw
+2026-01-01,RECEIVE,2,1500
+""")), price_now=2000)
+        self.assertEqual(r["bought_qty"], 0)
+        self.assertIsNone(r["bought_avg"], "매수가 없으면 평균단가는 None 이다")
+
+
+class TestSchemaGuards(unittest.TestCase):
+    """무음 skip 은 크래시보다 나쁘다. 빈 리포트가 그럴듯하게 나오기 때문이다."""
+
+    def test_settle_date_column_is_accepted(self):
+        trades = load_trades(write_csv("""
+settle_date,side,quantity,price_krw
+2026-01-01,BUY,10,1000
+"""))
+        self.assertEqual(len(trades), 1)
+        self.assertEqual(trades[0]["date"], "2026-01-01")
+
+    def test_missing_date_column_fails_loudly(self):
+        with self.assertRaises(SystemExit):
+            load_trades(write_csv("""
+trade_day,side,quantity,price_krw
+2026-01-01,BUY,10,1000
+"""))
+
+    def test_unknown_side_fails(self):
+        with self.assertRaises(SystemExit):
+            load_trades(write_csv("""
+settle_date,side,quantity,price_krw
+2026-01-01,TRANSFER,10,1000
+"""))
+
+    def test_multi_ticker_file_is_rejected(self):
+        """_closed.csv 처럼 여러 종목이 섞인 파일을 하나의 평단으로 합치면 안 된다."""
+        with self.assertRaises(SystemExit):
+            load_trades(write_csv("""
+settle_date,name,side,quantity,price_krw
+2026-01-01,삼성전자,BUY,10,1000
+2026-01-02,LG전자,BUY,10,2000
+"""))
+
+    def test_closed_csv_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            load_trades(
+                str(ROOT / "knowledge" / "portfolio" / "trades" / "_closed.csv"))
+
+
 if __name__ == "__main__":
     unittest.main()
