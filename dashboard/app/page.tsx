@@ -2,15 +2,18 @@ import reportData from "../data/decision-report.json";
 import chartData from "../data/tsla-price-chart.json";
 import type {
   DecisionReport,
-  PriceChart,
+  PriceChart as PriceChartData,
   Signal,
 } from "../lib/decision-report";
 import { AnalysisDialog } from "./AnalysisDialog";
 import { FinancialTabs } from "./FinancialTabs";
 import { PositioningTabs } from "./PositioningTabs";
+import { PriceChart } from "./PriceChart";
+import { SensitivityModel } from "./SensitivityModel";
+import { VerdictMark } from "./VerdictMark";
 
-const report = reportData as DecisionReport;
-const chart = chartData as PriceChart;
+const report = reportData as unknown as DecisionReport;
+const chart = chartData as PriceChartData;
 
 function SignalMark({ signal }: { signal: Signal }) {
   return <span className={`signal-mark signal-${signal}`} aria-hidden="true" />;
@@ -29,18 +32,20 @@ function SectionTitle({
   confidence?: string;
   confidenceLevel?: "high" | "medium" | "lagged";
 }) {
+  // 번호를 별도 열로 두면 42px + 24px 여백만큼 제목·본문이 전부 오른쪽으로
+  // 밀린다. 번호는 신뢰도 태그와 같은 줄에 두고, 본문은 왼쪽 끝에서 시작한다.
   return (
     <header className="section-title">
-      <span>{number}</span>
-      <div>
+      <div className="section-meta">
+        <span className="section-number">{number}</span>
         {confidence ? (
           <div className={`confidence-tag confidence-${confidenceLevel}`}>
             {confidence}
           </div>
         ) : null}
-        <h2>{title}</h2>
-        {description ? <p>{description}</p> : null}
       </div>
+      <h2>{title}</h2>
+      {description ? <p>{description}</p> : null}
     </header>
   );
 }
@@ -53,6 +58,7 @@ export default function Home() {
           자산 증식 프로그램
         </a>
         <nav aria-label="보고서 바로가기">
+          <a href="#portfolio">내 비중</a>
           <a href="#price">가격</a>
           <a href="#review">재검토</a>
           <a href="#financials">현금흐름</a>
@@ -64,23 +70,25 @@ export default function Home() {
       </header>
 
       <article className="report" id="top">
+        <div className="asset-bar">
+          <span className="asset-name">{report.asset.name}</span>
+          <span>{report.asset.ticker}</span>
+          <span>{report.meta.financialAsOf} 반영</span>
+          <span className="asset-price">
+            {report.asset.currentUsd} · {report.asset.currentKrw}
+          </span>
+        </div>
+
         <section className="hero">
           <div className="hero-copy">
-            <div className="asset-line">
-              <span>{report.asset.ticker}</span>
-              <span>{report.meta.financialAsOf} 반영</span>
-            </div>
-            <div className="decision-status" aria-label="현재 투자판정">
-              <SignalMark signal="bad" />
-              현재 투자판정
-            </div>
-            <h1>{report.decision.status}</h1>
-            <strong className="hero-primary-reason">
-              {report.decision.primaryReason}
-            </strong>
+            <VerdictMark verdict={report.decision.verdict} />
+            <div className="hero-words">
+              <p className="hero-verdict-code">{report.decision.verdict}</p>
+              <h1>{report.decision.status}</h1>
             <p className="hero-headline">{report.decision.headline}</p>
             <p className="hero-reason">{report.decision.reason}</p>
-            <AnalysisDialog analysis={report.detailedAnalysis} />
+              <AnalysisDialog analysis={report.detailedAnalysis} />
+            </div>
           </div>
 
           <aside className="decision-sheet" aria-label="현재 판정 요약">
@@ -102,39 +110,49 @@ export default function Home() {
               <div>
                 <dt>현재 참고가</dt>
                 <dd>{report.asset.currentUsd} · {report.asset.currentKrw}</dd>
+                <small>{report.asset.exchangeNote}</small>
               </div>
             </dl>
           </aside>
         </section>
 
-        <section className="section" aria-label="엔진 판정 근거">
-          <SectionTitle
-            number="00"
-            title="엔진이 남긴 판정 코드"
-            description={report.decision.verdictNote}
-            confidence={`trade_check ${report.meta.engineVersion}`}
-            confidenceLevel="high"
-          />
-          <ul className="issue-list">
-            {report.decision.issues.map((issue) => (
-              <li key={issue.code} className={`issue issue-${issue.severity}`}>
-                <code>{issue.severity}</code>
-                <strong>{issue.code}</strong>
-                <span>{issue.message}</span>
-              </li>
+        <SensitivityModel model={report.sensitivity} />
+
+        <section className="decision-evidence" aria-label="판정을 결정한 핵심 근거">
+          <div className="evidence-intro">
+            <span>판정을 결정한 근거</span>
+            <strong>숫자보다 먼저 볼 의미</strong>
+          </div>
+          <div className="decision-evidence-grid">
+            {report.decision.highlights.map((item) => (
+              <article
+                className={`decision-evidence-card evidence-card-${item.signal}`}
+                key={item.meaning}
+              >
+                <div className={`confidence-tag confidence-${item.confidenceLevel}`}>
+                  {item.confidence}
+                </div>
+                <h2>{item.meaning}</h2>
+                <strong>{item.value}</strong>
+                <p>{item.context}</p>
+              </article>
             ))}
-          </ul>
-          <p className="issue-note">{report.decision.bullOnlyNote}</p>
+          </div>
         </section>
 
         <section className="section" id="portfolio" aria-label="내 포트폴리오에 미치는 영향">
           <SectionTitle
-            number="0P"
+            number="01"
             title="이 거래가 내 포트폴리오에서 차지하는 자리"
             description="비중은 분모를 섞지 않습니다. 세 분모를 각각 금액과 함께 봅니다."
             confidence="보유내역 + 승인 IPS"
             confidenceLevel="high"
           />
+          <p className="trade-line">
+            검토 대상 거래 · <strong>{report.portfolio.quantity}주</strong> ×{" "}
+            {report.portfolio.priceKrw} ={" "}
+            <strong>{report.portfolio.tradeValueKrw}</strong>
+          </p>
           <table className="data-table">
             <thead>
               <tr>
@@ -175,33 +193,30 @@ export default function Home() {
               <small>이 판정을 나중에 다시 대조할 때 쓰는 ID</small>
             </div>
           </dl>
-        </section>
 
-        <section className="decision-evidence" aria-label="판정을 결정한 핵심 근거">
-          <div className="evidence-intro">
-            <span>판정을 결정한 근거</span>
-            <strong>숫자보다 먼저 볼 의미</strong>
-          </div>
-          <div className="decision-evidence-grid">
-            {report.decision.highlights.map((item) => (
-              <article
-                className={`decision-evidence-card evidence-card-${item.signal}`}
-                key={item.meaning}
-              >
-                <div className={`confidence-tag confidence-${item.confidenceLevel}`}>
-                  {item.confidence}
-                </div>
-                <h2>{item.meaning}</h2>
-                <strong>{item.value}</strong>
-                <p>{item.context}</p>
-              </article>
-            ))}
-          </div>
+          <details className="disclosure issue-disclosure">
+            <summary>
+              <span>엔진 판정 코드 {report.decision.issues.length}건</span>
+              <small>{report.decision.verdictNote}</small>
+            </summary>
+            <ul className="issue-list">
+              {report.decision.issues.map((issue) => (
+                <li className={`issue issue-${issue.severity}`} key={issue.code}>
+                  <p>{issue.message}</p>
+                  <div className="issue-tags">
+                    <span className="issue-severity">{issue.severity}</span>
+                    <code>{issue.code}</code>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="issue-note">{report.decision.bullOnlyNote}</p>
+          </details>
         </section>
 
         <section className="section price-section" id="price">
           <SectionTitle
-            number="01"
+            number="02"
             title="급락했지만, 아직 목표 수익률을 만드는 가격은 아닙니다."
             description="차트에서는 현재가보다 ‘다시 분석할 가격’과의 거리를 먼저 보세요."
             confidence="실제 종가"
@@ -217,96 +232,7 @@ export default function Home() {
               <span>{chart.summary.sessions} · USD</span>
             </div>
 
-            <svg
-              className="price-chart"
-              viewBox={chart.viewBox}
-              role="img"
-              aria-label={`테슬라 일별 종가. 현재 참고가 ${chart.currentLine.value}, 매수 검토 상한 ${chart.entryLine.value}`}
-            >
-              <defs>
-                <linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#7c828d" stopOpacity="0.16" />
-                  <stop offset="100%" stopColor="#7c828d" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-
-              {chart.guides.map((guide) => (
-                <g key={guide.value}>
-                  <line
-                    className="chart-grid"
-                    x1="26"
-                    x2="976"
-                    y1={guide.y}
-                    y2={guide.y}
-                  />
-                  <text className="chart-y-label" x="24" y={guide.y}>
-                    {guide.value}
-                  </text>
-                </g>
-              ))}
-
-              <path className="chart-area" d={chart.areaPath} />
-              <path className="chart-line" d={chart.linePath} />
-              {chart.segments.map((segment, index) => (
-                <line
-                  className={`price-segment segment-${segment.direction}`}
-                  x1={segment.x1}
-                  y1={segment.y1}
-                  x2={segment.x2}
-                  y2={segment.y2}
-                  vectorEffect="non-scaling-stroke"
-                  key={`${segment.x1}-${segment.x2}-${index}`}
-                />
-              ))}
-
-              <line
-                className="threshold-line current-threshold"
-                x1="26"
-                x2="976"
-                y1={chart.currentLine.y}
-                y2={chart.currentLine.y}
-              />
-              <g className="threshold-label current-label">
-                <rect x="808" y={chart.currentLine.labelRectY} width="168" height="22" />
-                <text x="818" y={chart.currentLine.labelTextY}>
-                  현재 {chart.currentLine.value}
-                </text>
-              </g>
-
-              <line
-                className="threshold-line entry-threshold"
-                x1="26"
-                x2="976"
-                y1={chart.entryLine.y}
-                y2={chart.entryLine.y}
-              />
-              <g className="threshold-label entry-label">
-                <rect x="690" y={chart.entryLine.labelRectY} width="286" height="22" />
-                <text x="700" y={chart.entryLine.labelTextY}>
-                  매수 검토 상한 {chart.entryLine.value}
-                </text>
-              </g>
-
-              {chart.markers.map((marker) => (
-                <g className={`chart-marker marker-${marker.placement}`} key={marker.label}>
-                  <circle cx={marker.x} cy={marker.y} r="4" />
-                  <text
-                    x={marker.x}
-                    y={marker.y}
-                    dx="7"
-                    dy={marker.placement === "above" ? "-10" : "20"}
-                  >
-                    {marker.label} {marker.value}
-                  </text>
-                </g>
-              ))}
-
-              {chart.xLabels.map((label) => (
-                <text className="chart-x-label" x={label.x} y="348" key={label.label}>
-                  {label.label}
-                </text>
-              ))}
-            </svg>
+            <PriceChart chart={chart} />
 
             <div className="chart-legend">
               <span>
@@ -319,11 +245,11 @@ export default function Home() {
               </span>
               <span>
                 <i className="legend-current" />
-                현재 참고가
+                현재 참고가 {chart.currentLine.value}
               </span>
               <span>
                 <i className="legend-entry" />
-                조건부 매수 검토 상한
+                {chart.entryLine.label} {chart.entryLine.value}
               </span>
             </div>
           </div>
@@ -350,7 +276,7 @@ export default function Home() {
 
         <section className="section review-section" id="review">
           <SectionTitle
-            number="02"
+            number="03"
             title="기다리기만 하는 판정이 아닙니다. 이때 다시 분석합니다."
             description="가격 조건과 사업 논지 훼손 조건을 분리했습니다."
             confidence="실행 기준"
@@ -373,7 +299,7 @@ export default function Home() {
 
         <section className="section" id="financials">
           <SectionTitle
-            number="03"
+            number="04"
             title="매출은 성장했지만, 투자비가 현금 유입을 넘어섰습니다."
             description="본업의 매출과 마진은 버텼습니다. 지금 더 중요한 것은 AI 투자가 언제 현금으로 돌아오느냐입니다."
             confidence="공시 확정"
@@ -397,7 +323,7 @@ export default function Home() {
 
         <section className="section valuation-section" id="valuation">
           <SectionTitle
-            number="04"
+            number="05"
             title="좋은 회사라는 가정까지 넣어도, 현재 가격의 기대수익은 부족합니다."
             description={report.valuation.conclusion}
             confidence="가정 기반 모델"
@@ -421,6 +347,7 @@ export default function Home() {
             <div className="scenario-table">
               <div className="scenario-head">
                 <span>시나리오</span>
+                <span>확률</span>
                 <span>FCF 성장 가정</span>
                 <span>주당가치</span>
                 <span>현재가와 격차</span>
@@ -432,6 +359,7 @@ export default function Home() {
                     <SignalMark signal={scenario.signal} />
                     {scenario.name}
                   </strong>
+                  <span>{scenario.probability}</span>
                   <span>{scenario.fcfGrowth}</span>
                   <span>{scenario.valuePerShare}</span>
                   <span>{scenario.totalGap}</span>
@@ -446,7 +374,7 @@ export default function Home() {
 
         <section className="section" id="peers">
           <SectionTitle
-            number="05"
+            number="06"
             title={report.peersTable.title}
             description={report.peersTable.conclusion}
             confidence="공시·시장 데이터"
@@ -499,7 +427,7 @@ export default function Home() {
 
         <section className="section positioning-section detail-tier" id="positioning">
           <SectionTitle
-            number="06"
+            number="07"
             title={report.marketPositioning.title}
             description={report.marketPositioning.conclusion}
             confidence="지연 공시"
@@ -537,7 +465,7 @@ export default function Home() {
             ))}
           </ul>
           <p className="footer-id">
-            {report.meta.calculationId} · {report.meta.priceAsOf}
+            {report.meta.calculationId} · {report.meta.fundamentalsId} · {report.meta.priceAsOf}
           </p>
         </footer>
       </article>

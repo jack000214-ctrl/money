@@ -26,12 +26,36 @@ ROOT = DASHBOARD.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from contracts import load_calculation, load_json  # noqa: E402
+from reverse_dcf import equity_value_per_share  # noqa: E402
 from trade_check import evaluate_trade  # noqa: E402
 
 SCHEMA = "decision-dashboard/0.6.0"
 # 한 번 틀렸던 값들. 산문에 다시 나타나면 생성기가 만든 값과 화면에서 충돌한다.
 # 낡은 주가($349)로 계산된 배수와, 측정 기준을 섞어 만든 매수가가 그것이다.
-STALE_IN_NARRATIVE = ("325.0x", "325배", "11.9x", "11.9배", "$282.46", "282.46")
+# 헤드라인은 36px 로 커진다. 엔진 메시지를 그대로 넣으면
+# "기대수익 -50.0%(PROBABILITY_WEIGHTED)가..." 가 대문자로 화면을 덮는다.
+# 짧은 라벨만 여기서 붙이고, 원문 문장과 코드는 issue 목록에 그대로 둔다.
+# 모르는 코드는 지어내지 않고 코드를 그대로 보여준다.
+ISSUE_HEADLINES = {
+    "EXPECTED_RETURN_BELOW_HURDLE": "목표 수익률 미달",
+    "BEAR_LOSS_EXCEEDS_BUDGET": "하방 예산 초과",
+    "POSITION_HARD_CEILING": "비중 절대 상한 초과",
+    "POSITION_LIMIT_TOTAL_ASSETS": "단일 종목 한도 초과",
+    "PRICE_DEVIATION": "예정가가 기준가와 어긋남",
+    "PRICE_STALE": "가격 데이터가 오래됨",
+    "PRICE_REFERENCE_STALE": "기준가가 오래됨",
+    "INSUFFICIENT_CASH": "현금 부족",
+    "THESIS_INVALIDATED_FOR_BUY": "논지 무효화 상태",
+    "CALCULATION_MISMATCH": "계산 산출물 불일치",
+    "VALUATION_INPUT_UNVERIFIED": "밸류에이션 입력 미검증",
+    "DISCOUNT_RATE_OUT_OF_POLICY": "할인율이 승인 범위 밖",
+    "OVERSELL": "보유량 초과 매도",
+}
+
+STALE_IN_NARRATIVE = ("325.0x", "325배", "11.9x", "11.9배", "$282.46", "282.46",
+                      # 엔진 판정을 완화한 옛 문구. 화면은 차단인데 산문만 보류로
+                      # 남아 있으면 같은 페이지가 두 말을 한다.
+                      "매수 보류", "보류 판정", "보류인가")
 
 
 def fail(msg: str) -> None:
@@ -66,6 +90,165 @@ def entry_price_for_hurdle(scenarios, probabilities, horizon_months, required_pc
 
 def annualized(value: float, price: float, horizon_months: int) -> float:
     return ((value / price) ** (12.0 / horizon_months) - 1) * 100.0
+
+
+def nice_ceiling(value: float) -> tuple[float, float]:
+    """축 상한과 눈금 간격을 값에서 만든다.
+
+    상한을 고정하면 다음 분기에 capex 가 튀는 순간 막대가 축을 뚫는다.
+    """
+    step = 10 ** math.floor(math.log10(value)) / 2
+    while value / step > 6:
+        step *= 2
+    return math.ceil(value / step) * step, step
+
+
+def build_cashflow_chart(ocf_q, capex_q):
+    """현금흐름 막대차트를 SVG 좌표로 만든다.
+
+    CSS 고정 픽셀(막대 30px, 스테이지 190px)로 그렸더니 폭이 좁아질 때
+    값 라벨이 컬럼 밖으로 잘렸다. viewBox 는 폭에 상관없이 같은 비율로
+    줄어들므로 어떤 해상도에서도 잘리지 않는다.
+    """
+    width, height = 1000, 300
+    left, right, top, bottom = 58, 16, 26, 58
+    plot_w = width - left - right
+    plot_h = height - top - bottom
+
+    peak = max(max(q["val"] for q in ocf_q), max(q["val"] for q in capex_q))
+    axis_max, step = nice_ceiling(peak)
+
+    def y_of(value):
+        return top + plot_h * (1 - value / axis_max)
+
+    ticks = []
+    value = 0.0
+    while value <= axis_max + 1:
+        ticks.append({"label": f"${value / 1e9:,.0f}B" if value else "0",
+                      "y": f"{y_of(value):.1f}"})
+        value += step
+
+    slot = plot_w / len(ocf_q)
+    bar_w = min(slot * 0.22, 46)
+    gap = bar_w * 0.24
+    groups, rows = [], []
+    for index, (o, c) in enumerate(zip(ocf_q, capex_q)):
+        center = left + slot * (index + 0.5)
+        fcf = o["val"] - c["val"]
+        groups.append({
+            "quarter": f"FY{o['fy']} Q{o['quarter']}",
+            "labelX": f"{center:.1f}",
+            "ocf": {"x": f"{center - gap / 2 - bar_w:.1f}", "y": f"{y_of(o['val']):.1f}",
+                    "height": f"{plot_h * o['val'] / axis_max:.1f}",
+                    "label": money_m(o["val"]),
+                    "labelX": f"{center - gap / 2 - bar_w / 2:.1f}",
+                    "labelY": f"{y_of(o['val']) - 7:.1f}"},
+            "capex": {"x": f"{center + gap / 2:.1f}", "y": f"{y_of(c['val']):.1f}",
+                      "height": f"{plot_h * c['val'] / axis_max:.1f}",
+                      "label": money_m(c["val"]),
+                      "labelX": f"{center + gap / 2 + bar_w / 2:.1f}",
+                      "labelY": f"{y_of(c['val']) - 7:.1f}"},
+            "fcf": signed_m(fcf),
+            "signal": "bad" if fcf < 0 else "good",
+        })
+        rows.append({
+            "quarter": f"FY{o['fy']} Q{o['quarter']}",
+            "operatingCashFlow": money_m(o["val"]),
+            "capex": money_m(c["val"]),
+            "freeCashFlow": signed_m(fcf),
+            "signal": "bad" if fcf < 0 else "good",
+        })
+
+    chart = {
+        "viewBox": f"0 0 {width} {height}",
+        "barWidth": f"{bar_w:.1f}",
+        "baselineY": f"{y_of(0):.1f}",
+        "plotLeft": f"{left}",
+        "plotRight": f"{width - right}",
+        "quarterLabelY": f"{y_of(0) + 20:.1f}",
+        "fcfLabelY": f"{y_of(0) + 40:.1f}",
+        "ticks": ticks,
+        "groups": groups,
+    }
+    return rows, chart
+
+
+def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
+                      required, price_usd, fcf):
+    """"무엇이 바뀌어야 통과하는가" 격자를 미리 계산한다.
+
+    화면에서 이 값을 다시 만들면 안 된다 — 브라우저가 두 번째 계산 주체가
+    되는 순간 엔진과 다른 답을 낼 수 있다. 그래서 가능한 조합을 전부 여기서
+    풀어 두고, UI 는 셀을 **조회만** 한다.
+
+    축은 셋이다. 강세 성장률(강세 시나리오가 얼마나 좋은가), 강세 확률
+    (얼마나 그렇게 믿는가), 가격. 확률을 움직이면 약세·기준은 원래 비율을
+    유지한 채 나머지를 나눠 갖는다.
+    """
+    common = dict(
+        discount_rate=calc_inputs["discount_rate_pct"] / 100.0,
+        terminal_growth=calc_inputs["terminal_growth_pct"] / 100.0,
+        years=calc_inputs["years"],
+        net_debt=calc_inputs["net_debt"],
+        shares=calc_inputs["shares"],
+    )
+    k = 12.0 / horizon
+    base_bear, base_base = probabilities["bear"], probabilities["base"]
+    rest_total = base_bear + base_base
+
+    growths = list(range(10, 81, 5))                     # 10% ~ 80%
+    probs = [round(v / 100, 2) for v in range(0, 101, 5)]  # 0% ~ 100%
+    prices = [round(price_usd * (0.2 + 0.05 * i), 2) for i in range(0, 25)]
+
+    cells = []
+    for growth in growths:
+        bull_value = equity_value_per_share(fcf, growth / 100.0, **common)
+        plane = []
+        for p_bull in probs:
+            rest = 1 - p_bull
+            p_bear = rest * base_bear / rest_total
+            p_base = rest * base_base / rest_total
+            row = []
+            for price in prices:
+                weighted = (
+                    p_bear * ((per_share["bear"] / price) ** k - 1)
+                    + p_base * ((per_share["base"] / price) ** k - 1)
+                    + p_bull * ((bull_value / price) ** k - 1)
+                ) * 100
+                gap = weighted - required
+                row.append([round(weighted, 1), 1 if weighted >= required else 0,
+                            round(gap, 1)])
+            plane.append(row)
+        cells.append(plane)
+
+    # 현재 설정이 격자의 어느 칸인지
+    def nearest(values, target):
+        return min(range(len(values)), key=lambda i: abs(values[i] - target))
+
+    return {
+        # values 는 로직용 숫자, labels 는 화면에 그대로 찍는 문자열.
+        # 브라우저가 포맷하면 $315.7 처럼 자릿수가 흔들린다.
+        "axes": {
+            "growth": {"label": "강세 FCF 성장률", "unit": "%/년",
+                       "values": growths,
+                       "labels": [f"{v}%/년" for v in growths]},
+            "probability": {"label": "강세 확률", "unit": "%",
+                            "values": [round(v * 100) for v in probs],
+                            "labels": [f"{round(v * 100)}%" for v in probs]},
+            "price": {"label": "주가", "unit": "USD", "values": prices,
+                      "labels": [f"${v:,.2f}" for v in prices]},
+        },
+        "current": {
+            "growth": nearest(growths, calc_inputs["scenario_growth_pct"]["bull"]),
+            "probability": nearest([round(v * 100) for v in probs],
+                                   round(probabilities["bull"] * 100)),
+            "price": nearest(prices, price_usd),
+        },
+        "requiredReturn": required,
+        "cells": cells,
+        "note": "약세·기준 확률은 원래 비율(40:45)을 유지한 채 나머지를 나눠 갖는다. "
+                "할인율·영구성장률·1단계 기간은 승인 IPS 범위 안에서 고정이다.",
+    }
 
 
 def build(args) -> dict:
@@ -163,20 +346,7 @@ def build(args) -> dict:
 
     ocf_q = fundamentals["quarters"]["ocf"]
     capex_q = fundamentals["quarters"]["capex"]
-    peak = max(max(q["val"] for q in ocf_q), max(q["val"] for q in capex_q))
-    cash_rows = [
-        {
-            "quarter": f"FY{o['fy']} Q{o['quarter']}",
-            "operatingCashFlow": money_m(o["val"]),
-            "capex": money_m(c["val"]),
-            "freeCashFlow": signed_m(o["val"] - c["val"]),
-            # 막대 높이는 화면에서 다시 계산하지 않는다. 최대값 기준 비율.
-            "ocfHeight": f"{o['val'] / peak * 100:.0f}%",
-            "capexHeight": f"{c['val'] / peak * 100:.0f}%",
-            "signal": "bad" if o["val"] < c["val"] else "good",
-        }
-        for o, c in zip(ocf_q, capex_q)
-    ]
+    cash_rows, cash_chart = build_cashflow_chart(ocf_q, capex_q)
 
     # --- 손익계산서: 최신 분기와 4분기 전(전년 동기)을 비교한다 ---
     def q_pair(key):
@@ -249,9 +419,9 @@ def build(args) -> dict:
     highlights = [
         {"meaning": "목표 수익률에 못 미칩니다",
          "value": f"{basis.get('position_return_pct', 0):.1f}% < 목표 {required:.1f}%",
-         "context": f"IPS 측정 기준 {basis.get('return_measure')}. "
-                    f"강세 시나리오 단독으로도 "
-                    f"{calc_scen['bull']['return_pct']:+.1f}%로 미달입니다.",
+         "context": "세 시나리오를 확률로 섞은 값입니다. 강세 시나리오만 "
+                    f"따로 봐도 {calc_scen['bull']['return_pct']:+.1f}%로 "
+                    "목표에 못 미칩니다.",
          "confidence": "투자정책 판정", "confidenceLevel": "high", "signal": "bad"},
         {"meaning": "현금은 아직 회수되지 않았습니다",
          "value": f"분기 FCF {signed_m(ocf_q[-1]['val'] - capex_q[-1]['val'])}",
@@ -269,8 +439,13 @@ def build(args) -> dict:
          "confidence": "공시 확정", "confidenceLevel": "high", "signal": "good"},
     ]
 
+    sensitivity = build_sensitivity(
+        calc_inputs, per_share, probabilities, horizon, required, price_usd,
+        float(calc_inputs["fcf"]))
+
     report = {
         "schemaVersion": SCHEMA,
+        "sensitivity": sensitivity,
         "meta": {
             "asOf": args.as_of,
             "priceAsOf": args.price_note,
@@ -310,8 +485,10 @@ def build(args) -> dict:
             }[decision["verdict"]],
             "verdictNote": "PROCEED 는 수익 보장이 아니라 정책·근거 계약상 "
                            "차단 사유가 없다는 뜻이다.",
-            "primaryReason": next((i["message"] for i in issues
-                                   if i["severity"] == "BLOCKED"), "차단 사유 없음"),
+            "primaryReason": next(
+                (ISSUE_HEADLINES.get(i["code"], i["code"])
+                 for i in issues if i["severity"] == "BLOCKED"),
+                "차단 사유 없음"),
             "headline": narrative["decision"]["headline"],
             "reason": narrative["decision"]["reason"],
             "issues": issues,
@@ -319,22 +496,21 @@ def build(args) -> dict:
             "positionReturn": f"{basis.get('position_return_pct', 0):.1f}%",
             "requiredReturn": f"{required:.1f}%",
             "hurdleResult": (
-                f"확률가중 기대수익 {basis.get('position_return_pct', 0):.1f}% "
-                f"< 요구수익률 {required:.1f}%"
+                f"연 수익률 {basis.get('position_return_pct', 0):.1f}% · "
+                f"목표 {required:.1f}%"
             ),
             "entryCeiling": f"${hurdle_price:,.2f}",
             "entryCeilingNote": (
-                f"IPS 측정 기준({basis.get('return_measure')})으로 요구수익률 "
-                f"{required:.1f}%를 만족하는 가격이다. 현재가의 "
-                f"{hurdle_price / price_usd * 100:.0f}% 수준이라 "
-                "**가격 조정으로는 이 판정이 해소되지 않는다.** "
-                "뒤집으려면 FCF 궤적이 바뀌어야 한다."
+                f"세 시나리오를 확률로 섞어 계산했을 때 목표 {required:.1f}%를 "
+                f"만족하는 가격이다. 현재가의 {hurdle_price / price_usd * 100:.0f}% "
+                "수준이라, 가격이 내려온다고 풀릴 문제가 아니다. "
+                "FCF 궤적이 바뀌어야 한다."
             ),
             "bullOnlyCeiling": f"${bull_only_price:,.2f}",
             "bullOnlyNote": (
                 "강세 시나리오 하나만 쓰면 이 가격이 나온다. IPS 가 정한 자가 "
-                "아니므로 매수 기준으로 쓰지 않는다 — 이 가격에서도 확률가중 "
-                f"기대수익은 "
+                "아니므로 매수 기준으로 쓰지 않는다 — 이 가격에서도 세 시나리오를 "
+                f"섞은 연 수익률은 "
                 f"{sum(annualized(per_share[n], bull_only_price, horizon) * probabilities[n] for n in per_share):.1f}%"
                 f"로 요구수익률 {required:.1f}%에 미달한다."
             ),
@@ -344,8 +520,8 @@ def build(args) -> dict:
         "reviewMap": [
             {"when": f"지금 · ${price_usd:,.2f}", "state": decision["verdict"],
              "action": "가격만 보고 진입하지 않습니다.",
-             "why": f"확률가중 기대수익 {basis.get('position_return_pct', 0):.1f}%가 "
-                    f"요구수익률 {required:.1f}%에 미달합니다.", "signal": "bad"},
+             "why": f"연 수익률 {basis.get('position_return_pct', 0):.1f}%가 "
+                    f"목표 {required:.1f}%에 못 미칩니다.", "signal": "bad"},
             {"when": "다음 분기 10-Q", "state": "강제 재검토",
              "action": "edgar_fetch fundamentals 로 스냅샷을 다시 만들고 "
                        "reverse_dcf 를 재실행합니다.",
@@ -372,6 +548,11 @@ def build(args) -> dict:
                  "basis": f"TTM 순이익 {money_m(net_income_ttm)} · 현재가 기준"},
                 {"label": "PSR", "value": f"{psr:.1f}x" if psr else "—",
                  "basis": f"TTM 매출 {money_m(revenue_ttm)} · 현재가 기준"},
+                # 역산 DCF 가 실제로 푸는 배수. PER·PSR 보다 이 판정에 직결된다.
+                {"label": "EV/FCF",
+                 "value": f"{(mcap + values['net_debt']) / values['fcf_ttm']:.1f}x",
+                 "basis": f"EV {money_m(mcap + values['net_debt'])} ÷ "
+                          f"TTM FCF {money_m(values['fcf_ttm'])}"},
             ],
             "scenarios": [
                 {
@@ -386,7 +567,8 @@ def build(args) -> dict:
                 for name in ("bear", "base", "bull")
             ],
         },
-        "cashFlow": {**narrative["sectionTitles"]["cashFlow"], "rows": cash_rows},
+        "cashFlow": {**narrative["sectionTitles"]["cashFlow"],
+                     "rows": cash_rows, "chart": cash_chart},
         "peersTable": {
             **narrative["sectionTitles"]["peers"],
             "basisWarning": "동종사 행은 수집 시점이 서로 다르다. basis 열을 "

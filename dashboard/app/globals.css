@@ -1,25 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #17191d;
-  --muted: #666b74;
-  --line: #d9dce1;
-  --line-dark: #aeb3bc;
+  /* ── 글·면 ── */
+  --ink: #14161a;
+  --muted: #5f646c;
+  --line: #dcdfe4;
+  --line-dark: #a8adb6;
   --paper: #ffffff;
-  --canvas: #f5f5f3;
-  --blue: #3159d8;
-  --blue-soft: #eef2ff;
-  --green: #18794e;
-  --green-soft: #edf7f1;
+  --canvas: #f4f4f2;
+
+  /* ── 판정 도장 ──────────────────────────────────────────────
+     한국식 채점 기호를 그대로 쓴다. X 차단 / △ 조사필요 / O 통과.
+     이 색은 판정에만 쓰고 시세 색과 섞지 않는다. */
+  --halt: #d02f2a;
+  --halt-soft: #fdeceb;
+  --halt-deep: #7d1512;
+  --hold: #b87500;
+  --hold-soft: #fff6e0;
+  --approved: #1857c4;
+  --approved-soft: #eaf1ff;
+  --approved-deep: #0b2f6e;
+
+  /* ── 시세 (한국 관례) ──────────────────────────────────────
+     상승 빨강 / 하락 파랑. 차트 안에서만 쓴다. */
   --rise: #d5443e;
   --rise-soft: #fff0ef;
   --fall: #2f5fc7;
   --fall-soft: #eef3ff;
-  --amber: #9b6500;
-  --amber-soft: #fff7df;
-  --red: #b42318;
-  --red-soft: #fff0ee;
   --capex: #e58a39;
+
+  /* ── 보조 ── */
+  --blue: #1857c4;
+  --blue-soft: #eaf1ff;
+  --green: #0f7a52;
+  --green-soft: #edf7f1;
+  --amber: #b87500;
+  --amber-soft: #fff6e0;
+  --red: #d02f2a;
+  --red-soft: #fdeceb;
 }
 
 * {
@@ -68,7 +86,7 @@ button {
 }
 
 .site-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   justify-self: start;
   letter-spacing: -0.02em;
@@ -82,7 +100,7 @@ button {
 .site-header nav a {
   border-radius: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   padding: 7px 9px;
 }
@@ -97,13 +115,13 @@ button {
 .as-of {
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 13px;
   justify-self: end;
 }
 
 .report {
   margin: 0 auto;
-  max-width: 1180px;
+  max-width: 1560px;
   padding: 36px 24px 70px;
 }
 
@@ -126,7 +144,7 @@ button {
 .asset-line {
   color: var(--muted);
   display: flex;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   gap: 18px;
   letter-spacing: 0.04em;
@@ -137,7 +155,7 @@ button {
   align-items: center;
   color: var(--fall);
   display: flex;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
   gap: 9px;
   margin-bottom: 17px;
@@ -174,7 +192,6 @@ button {
   letter-spacing: -0.065em;
   line-height: 1.05;
   margin: 0;
-  max-width: 720px;
   word-break: keep-all;
 }
 
@@ -190,7 +207,7 @@ button {
 
 .hero-headline {
   color: #343840;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 750;
   line-height: 1.6;
   margin: 16px 0 0;
@@ -199,10 +216,10 @@ button {
 
 .hero-reason {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
   margin: 10px 0 0;
-  max-width: 640px;
+  max-width: 78ch;
   word-break: keep-all;
 }
 
@@ -213,7 +230,7 @@ button {
   border: 0;
   border-bottom: 1px solid var(--ink);
   display: inline-flex;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
   gap: 36px;
   margin-top: 36px;
@@ -249,7 +266,7 @@ button {
 .decision-price span,
 .decision-sheet dt {
   color: #aeb2ba;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
@@ -263,7 +280,7 @@ button {
 
 .decision-price small {
   color: #d6d8dc;
-  font-size: 14px;
+  font-size: 16px;
   margin-top: 2px;
 }
 
@@ -279,7 +296,7 @@ button {
 .decision-why small {
   color: #c5c9d0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.5;
   margin-top: 12px;
 }
@@ -305,7 +322,7 @@ button {
 }
 
 .decision-sheet dd {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 750;
   line-height: 1.55;
   margin-top: 7px;
@@ -315,7 +332,7 @@ button {
 .decision-sheet dd + small {
   color: #8f949c;
   display: block;
-  font-size: 9px;
+  font-size: 13px;
   margin-top: 4px;
 }
 
@@ -342,12 +359,12 @@ button {
 
 .evidence-intro span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 750;
 }
 
 .evidence-intro strong {
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: -0.02em;
 }
 
@@ -372,7 +389,7 @@ button {
 }
 
 .decision-evidence-card h2 {
-  font-size: 17px;
+  font-size: 18px;
   letter-spacing: -0.035em;
   line-height: 1.4;
   margin: 20px 0 0;
@@ -405,7 +422,7 @@ button {
 
 .decision-evidence-card p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.65;
   margin: 14px 0 0;
   word-break: keep-all;
@@ -415,7 +432,7 @@ button {
   border: 1px solid #bfc4cc;
   color: #60656e;
   display: inline-flex;
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
   padding: 4px 7px;
@@ -445,21 +462,26 @@ button {
   scroll-margin-top: 78px;
 }
 
+/* 번호를 별도 열로 두면 제목·설명이 전부 66px 오른쪽으로 밀려 읽기 나빠진다.
+   단일 열로 두고 번호는 신뢰도 태그와 한 줄에 세운다. */
 .section-title {
-  align-items: start;
   border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: 24px;
-  grid-template-columns: 42px 1fr;
   padding-bottom: 32px;
 }
 
-.section-title > span {
+.section-meta {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.section-number {
   color: var(--blue);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
   font-weight: 800;
-  padding-top: 8px;
+  letter-spacing: 0.06em;
 }
 
 .section-title h2 {
@@ -471,15 +493,15 @@ button {
 }
 
 .section-title .confidence-tag {
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
 
 .section-title p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.7;
   margin: 13px 0 0;
-  max-width: 900px;
+  max-width: 82ch;
   word-break: keep-all;
 }
 
@@ -500,13 +522,13 @@ button {
 }
 
 .chart-head strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .chart-head span {
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 13px;
   margin-top: 3px;
 }
 
@@ -525,7 +547,7 @@ button {
 .chart-x-label {
   fill: #8b9098;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .chart-y-label {
@@ -586,7 +608,7 @@ button {
 .threshold-label text {
   fill: white;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -607,7 +629,7 @@ button {
 .chart-marker text {
   fill: #535861;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .chart-legend {
@@ -621,7 +643,7 @@ button {
   align-items: center;
   color: var(--muted);
   display: flex;
-  font-size: 9px;
+  font-size: 13px;
   gap: 7px;
 }
 
@@ -673,7 +695,7 @@ button {
   align-items: center;
   color: var(--muted);
   display: flex;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   gap: 8px;
 }
@@ -700,7 +722,7 @@ button {
 
 .price-evidence p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.5;
   margin: 0;
 }
@@ -730,7 +752,7 @@ button {
   color: var(--muted);
   content: "＋";
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 15px;
+  font-size: 16px;
   grid-column: 2;
   grid-row: 1 / span 2;
   transition: transform 160ms ease;
@@ -747,13 +769,13 @@ button {
 }
 
 .disclosure summary > span {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .disclosure summary > small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .disclosure[open] summary {
@@ -802,14 +824,14 @@ button {
 }
 
 .positioning-card-head span {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .positioning-card-head > strong {
   background: #f0f1f3;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 800;
   padding: 5px 7px;
 }
@@ -858,7 +880,7 @@ button {
 
 .positioning-value span {
   color: #464b54;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.55;
   margin-top: 7px;
@@ -868,13 +890,13 @@ button {
   border-bottom: 1px solid #eceef1;
   color: #858a92;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
+  font-size: 13px;
   margin: 15px 0 0;
   padding-bottom: 15px;
 }
 
 .positioning-read {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.7;
   margin: 17px 0 0;
   word-break: keep-all;
@@ -883,7 +905,7 @@ button {
 .positioning-limit {
   background: #f5f5f3;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.55;
   margin: 15px 0 0;
   padding: 10px 12px;
@@ -906,12 +928,12 @@ button {
 
 .positioning-decision span {
   color: var(--fall);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .positioning-decision p {
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.7;
   margin: 0;
   word-break: keep-all;
@@ -971,12 +993,12 @@ button {
 }
 
 .tab-list button span {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .tab-list button small {
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.4;
   margin-top: 5px;
 }
@@ -991,9 +1013,6 @@ button {
   display: none;
 }
 
-.financial-tabs .cashflow-chart {
-  max-width: 700px;
-}
 
 .financial-tabs .cash-legend {
   justify-content: flex-start;
@@ -1006,13 +1025,13 @@ button {
 
 .positioning-tabs .positioning-card {
   border: 0;
-  max-width: 760px;
+  max-width: 90ch;
   padding: 34px 36px;
 }
 
 .positioning-tabs .positioning-read {
-  font-size: 12px;
-  max-width: 700px;
+  font-size: 15px;
+  max-width: 88ch;
 }
 
 .financial-layout {
@@ -1060,7 +1079,7 @@ button {
   content: "−";
   display: flex;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
   height: 20px;
   justify-content: center;
   left: -11px;
@@ -1080,12 +1099,12 @@ button {
 
 .equation-item span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .equation-item strong {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+  font-size: 15px;
   margin-top: 4px;
 }
 
@@ -1095,7 +1114,7 @@ button {
 
 .data-table {
   border-collapse: collapse;
-  font-size: 10px;
+  font-size: 14px;
   width: 100%;
 }
 
@@ -1114,7 +1133,7 @@ button {
 
 .data-table thead th {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
@@ -1124,7 +1143,7 @@ button {
 }
 
 .income-table tbody th {
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .income-table td:nth-child(2),
@@ -1141,70 +1160,22 @@ button {
 
 .block-conclusion {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.7;
   margin: 18px 0 0;
   word-break: keep-all;
 }
 
-.cashflow-chart {
-  border-bottom: 1px solid var(--line-dark);
-  display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(3, 1fr);
-  height: 286px;
-  margin-top: 28px;
-}
+/* 분기 수를 고정하지 않는다. repeat(3, 1fr) 로 박아뒀더니 스냅샷이
+   4분기로 늘어난 순간 네 번째가 다음 행으로 밀려 고정 높이를 뚫고 나갔다.
+   grid-auto-flow: column 은 자식 수만큼 열을 만든다. */
 
-.cash-quarter {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  text-align: center;
-}
 
-.bar-stage {
-  align-items: end;
-  display: flex;
-  gap: 7px;
-  height: 190px;
-  justify-content: center;
-}
 
-.cash-bar {
-  background: var(--blue);
-  height: var(--bar-height);
-  min-height: 10px;
-  position: relative;
-  width: 30px;
-}
 
-.cash-bar span {
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 7px;
-  left: 50%;
-  position: absolute;
-  top: -18px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-}
 
-.capex-bar {
-  background: var(--capex);
-}
 
-.cash-quarter > strong {
-  font-size: 9px;
-  margin-top: 11px;
-}
 
-.fcf-result {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
-  font-weight: 800;
-  margin: 5px 0 11px;
-}
 
 .result-good {
   color: var(--rise);
@@ -1225,7 +1196,7 @@ button {
   align-items: center;
   color: var(--muted);
   display: flex;
-  font-size: 9px;
+  font-size: 13px;
   gap: 6px;
 }
 
@@ -1254,11 +1225,11 @@ button {
 }
 
 .plain-conclusion strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .plain-conclusion p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.75;
   margin: 0;
   word-break: keep-all;
@@ -1276,7 +1247,8 @@ button {
 .peer-summary {
   border: 1px solid var(--line);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* 배수 개수를 박지 않는다. 지표가 늘거나 줄어도 빈 칸이 안 생긴다. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   margin-top: 32px;
 }
 
@@ -1297,7 +1269,7 @@ button {
 
 .peer-summary span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 750;
 }
 
@@ -1322,7 +1294,7 @@ button {
 
 .peer-summary small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   margin-top: 6px;
 }
 
@@ -1342,7 +1314,7 @@ button {
 
 .peer-table tbody th span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 400;
   margin-top: 2px;
 }
@@ -1361,7 +1333,7 @@ button {
 
 .table-note {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.6;
   margin: 14px 0 0;
 }
@@ -1379,7 +1351,7 @@ button {
 
 .valuation-callout span {
   color: #afb3ba;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1390,7 +1362,7 @@ button {
 
 .valuation-callout p {
   color: #afb3ba;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.5;
   margin: 0;
   text-align: right;
@@ -1408,20 +1380,21 @@ button {
   border-bottom: 1px solid var(--line);
   display: grid;
   gap: 16px;
-  grid-template-columns: 0.8fr 1fr 1fr 1.2fr 1.1fr;
+  /* 시나리오 / 확률 / 성장가정 / 주당가치 / 격차 / 연환산 */
+  grid-template-columns: 0.8fr 0.5fr 1fr 1fr 1.2fr 1.1fr;
   padding: 14px 18px;
 }
 
 .scenario-head {
   background: #f2f3f5;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .scenario-data {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .scenario-data > strong:first-child {
@@ -1459,7 +1432,7 @@ button {
 
 .valuation-answer span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1471,7 +1444,7 @@ button {
 
 .valuation-answer p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.65;
   margin: 0;
 }
@@ -1499,22 +1472,22 @@ button {
 
 .review-when {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .review-state {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .review-action strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .review-action p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.5;
   margin: 5px 0 0;
 }
@@ -1533,12 +1506,12 @@ footer > div {
 }
 
 footer > div strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 footer > div p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.6;
   margin: 0;
 }
@@ -1555,7 +1528,7 @@ footer ul {
 footer li {
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   padding: 12px 0;
 }
 
@@ -1590,7 +1563,7 @@ footer li a:focus-visible {
 .footer-id {
   color: #8b9098;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
+  font-size: 13px;
   margin: 20px 0 0;
 }
 
@@ -1623,7 +1596,7 @@ footer li a:focus-visible {
 
 .dialog-top p {
   color: #afb3ba;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   margin: 0 0 6px;
 }
@@ -1638,7 +1611,7 @@ footer li a:focus-visible {
   background: transparent;
   border: 1px solid #5d6168;
   color: white;
-  font-size: 10px;
+  font-size: 14px;
   padding: 8px 12px;
 }
 
@@ -1659,7 +1632,7 @@ footer li a:focus-visible {
 }
 
 .dialog-narrative p {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.85;
   margin: 0 0 17px;
   word-break: keep-all;
@@ -1677,7 +1650,7 @@ footer li a:focus-visible {
 }
 
 .dialog-columns h3 {
-  font-size: 13px;
+  font-size: 15px;
   margin: 0 0 14px;
 }
 
@@ -1691,7 +1664,7 @@ footer li a:focus-visible {
 
 .dialog-columns li {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   padding-left: 14px;
   position: relative;
@@ -1798,7 +1771,7 @@ footer li a:focus-visible {
   }
 
   .as-of {
-    font-size: 8px;
+    font-size: 13px;
   }
 
   .report {
@@ -1816,7 +1789,7 @@ footer li a:focus-visible {
   }
 
   .hero-reason {
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .decision-sheet {
@@ -2031,61 +2004,91 @@ footer li a:focus-visible {
   }
 }
 
-/* 엔진 판정 코드 — 심각도를 색으로 구분하되 문구는 엔진 원문 그대로 둔다 */
+/* 엔진 판정 코드.
+   처음엔 코드를 제목처럼 크게 보여줬는데, 사람이 읽을 화면에 스택트레이스를
+   붙여놓은 꼴이었다. 엔진의 message 는 이미 한국어 문장이므로 그것을 본문으로
+   두고, severity·code 는 아래 작은 태그로 내린다. 완화가 아니라 배치 문제다. */
+.issue-disclosure {
+  margin-top: 20px;
+}
+
 .issue-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   list-style: none;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   padding: 0;
 }
 
 .issue {
-  align-items: baseline;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-left-width: 4px;
+  border-left-width: 3px;
   border-radius: 6px;
-  display: grid;
-  gap: 4px 12px;
-  grid-template-columns: auto auto 1fr;
-  padding: 10px 14px;
+  padding: 12px 14px;
+}
+
+.issue p {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 0 0 8px;
+  word-break: keep-all;
+}
+
+.issue-tags {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.issue-severity {
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
 }
 
 .issue code {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.issue strong {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 12px;
-}
-
-.issue span {
   color: var(--muted);
-  font-size: 13px;
-  grid-column: 1 / -1;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
 }
 
 .issue-BLOCKED { border-left-color: var(--red); }
-.issue-BLOCKED code { color: var(--red); }
+.issue-BLOCKED .issue-severity { background: var(--red-soft); color: var(--red); }
 .issue-RESEARCH_REQUIRED { border-left-color: var(--amber); }
-.issue-RESEARCH_REQUIRED code { color: var(--amber); }
+.issue-RESEARCH_REQUIRED .issue-severity {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
 .issue-CAUTION { border-left-color: var(--line-dark); }
-.issue-CAUTION code { color: var(--muted); }
+.issue-CAUTION .issue-severity { background: var(--canvas); color: var(--muted); }
 .issue-PROCEED { border-left-color: var(--green); }
-.issue-PROCEED code { color: var(--green); }
+.issue-PROCEED .issue-severity { background: var(--green-soft); color: var(--green); }
 
 .issue-note {
   background: var(--amber-soft);
   border-radius: 6px;
-  color: var(--ink);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.7;
   margin: 0;
   padding: 12px 14px;
+  word-break: keep-all;
+}
+
+/* 히어로의 원본 판정 뱃지. 문구는 엔진 그대로, 크기만 줄인다. */
+.verdict-code {
+  background: var(--red);
+  border-radius: 3px;
+  color: #fff;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-left: 8px;
+  padding: 3px 7px;
 }
 
 /* 포트폴리오 영향 */
@@ -2105,7 +2108,7 @@ footer li a:focus-visible {
 
 .portfolio-facts dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .portfolio-facts dd {
@@ -2116,12 +2119,747 @@ footer li a:focus-visible {
 
 .portfolio-facts small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
 .mono {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 13px !important;
+  font-size: 15px !important;
   word-break: break-all;
+}
+
+/* 무엇을 검토 중인 거래인지. 비중표만 있고 거래 규모가 없으면
+   "6.40%" 가 무엇의 6.40% 인지 읽는 사람이 되짚어야 한다. */
+.trade-line {
+  background: var(--blue-soft);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  margin: 0 0 14px;
+  padding: 11px 14px;
+}
+
+.trade-line strong {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* 가격 차트 hover — 툴팁 문구는 build_price_chart.py 가 만든다 */
+.chart-hover-wrap {
+  position: relative;
+}
+
+.chart-hover-wrap .price-chart {
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart-crosshair line {
+  stroke: var(--ink);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.chart-crosshair circle {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.chart-tooltip {
+  background: #1e2126;
+  border-radius: 6px;
+  color: #fff;
+  display: grid;
+  gap: 2px;
+  padding: 10px 13px;
+  pointer-events: none;
+  position: absolute;
+  top: 8px;
+  transform: translateX(10px);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* 오른쪽 끝에서는 반대편으로 펼쳐 잘리지 않게 한다 */
+.chart-tooltip.tooltip-flip {
+  transform: translateX(calc(-100% - 10px));
+}
+
+.chart-tooltip strong {
+  color: #aeb2ba;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.tooltip-close {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.tooltip-change {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 한국 관례 — 상승 빨강, 하락 파랑 */
+.change-up { color: #ff8a84; }
+.change-down { color: #8fb4ff; }
+.change-flat { color: #aeb2ba; }
+
+.tooltip-meta {
+  color: #aeb2ba;
+  font-size: 14px;
+}
+
+.chart-hint {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 6px 0 0;
+  text-align: center;
+}
+
+/* 마커 글자를 기준선 점선이 관통해 잘려 보였다. 흰 테두리를 글자 뒤로 깔아
+   선 위에서 읽히게 한다 (paint-order 로 테두리를 먼저 칠한다). */
+.chart-marker text,
+.chart-x-label,
+.chart-y-label {
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-linejoin: round;
+  stroke-width: 3px;
+}
+
+/* 기준선 값은 우측 축 태그로. 데이터 위에 큰 박스를 띄우면 정작 봐야 할
+   가격 흐름을 가린다 — 실거래 차트가 값을 축에 붙이는 이유다. */
+.axis-tag rect {
+  stroke: none;
+}
+
+.axis-tag text {
+  fill: #fff;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.current-tag rect {
+  fill: #1e2126;
+}
+
+.entry-tag rect {
+  fill: var(--green);
+}
+
+/* 현금흐름 막대차트 — 좌표는 build_decision_report.py 가 만든다.
+   CSS 고정 px(막대 30px, 스테이지 190px)로 그렸을 때 폭이 좁아지면
+   값 라벨이 컬럼 밖으로 잘렸다. viewBox 는 어떤 폭에서도 비율이 같다. */
+.cashflow-svg {
+  display: block;
+  margin-top: 22px;
+  overflow: visible;
+  width: 100%;
+}
+
+.cf-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.cf-baseline {
+  stroke: var(--line-dark);
+  stroke-width: 1;
+}
+
+.cf-tick {
+  dominant-baseline: middle;
+  fill: var(--muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  text-anchor: end;
+}
+
+.cf-bar {
+  rx: 2;
+}
+
+.cf-ocf {
+  fill: var(--blue);
+}
+
+.cf-capex {
+  fill: var(--capex);
+}
+
+.cf-value {
+  fill: var(--muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  text-anchor: middle;
+}
+
+.cf-quarter {
+  fill: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.cf-fcf {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+/* 한국 관례 — 유입(플러스) 빨강, 유출(마이너스) 파랑 */
+.cf-fcf-good { fill: var(--rise); }
+.cf-fcf-bad { fill: var(--fall); }
+
+/* viewBox 만으로 줄이면 좁은 화면에서 글자가 3px 이 된다. 최소 폭을 주고
+   좁으면 가로로 스크롤한다 — 표(.data-table-wrap)와 같은 방식이다. */
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.chart-scroll > svg {
+  min-width: 560px;
+}
+
+/* ─── 민감도 계기판 ────────────────────────────────────────────────
+   이 페이지가 기억될 하나의 요소. 판정을 읽기만 하면 주장이지만,
+   직접 다이얼을 돌려 언제 뒤집히는지 보면 몸으로 아는 사실이 된다.
+   값은 전부 파이썬이 푼 격자에서 조회한다 — 여기서 계산하지 않는다. */
+.model {
+  border: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) 1.6fr;
+  margin-top: 18px;
+  transition: background 160ms ease;
+}
+
+.model-readout {
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px 44px;
+  transition: background 160ms ease;
+}
+
+.model-halt .model-readout { background: #1a1c20; }
+.model-approved .model-readout { background: #0d4d36; }
+
+.model-eyebrow {
+  color: #9ea3ab;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* 모노가 이 화면의 디스플레이 페이스다. 기계의 판정이므로. */
+.model-figure {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: clamp(52px, 6vw, 76px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  margin: 14px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.model-verdict {
+  align-items: baseline;
+  display: flex;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  gap: 14px;
+  letter-spacing: 0.04em;
+  margin: 18px 0 0;
+}
+
+.model-verdict span {
+  color: #9ea3ab;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.model-state,
+.model-reset {
+  color: #b8bcc4;
+  font-size: 14px;
+  margin: 22px 0 0;
+}
+
+.model-reset {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid #4a4e56;
+  border-radius: 4px;
+  padding: 9px 14px;
+}
+
+.model-reset:hover,
+.model-reset:focus-visible {
+  border-color: #fff;
+  color: #fff;
+  outline: none;
+}
+
+.model-controls {
+  background: var(--paper);
+  padding: 44px 48px;
+}
+
+.model-controls h2 {
+  font-size: 30px;
+  letter-spacing: -0.035em;
+  margin: 0 0 30px;
+  word-break: keep-all;
+}
+
+.model-row {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 150px 1fr 110px;
+  padding: 17px 0;
+}
+
+.model-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.model-value {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.model-row input[type="range"] {
+  accent-color: var(--ink);
+  cursor: grab;
+  width: 100%;
+}
+
+.model-row input[type="range"]:active { cursor: grabbing; }
+
+.model-row input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+
+.model-finding {
+  border-top: 1px solid var(--ink);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 26px 0 0;
+  padding-top: 22px;
+  word-break: keep-all;
+}
+
+.model-finding strong {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.model-note {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 14px 0 0;
+  word-break: keep-all;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model,
+  .model-readout { transition: none; }
+}
+
+@media (max-width: 920px) {
+  .model { grid-template-columns: 1fr; }
+  .model-readout { padding: 34px 26px; }
+  .model-controls { padding: 30px 26px; }
+  .model-row { grid-template-columns: 1fr auto; gap: 10px; }
+  .model-row input[type="range"] { grid-column: 1 / -1; }
+}
+
+/* 종목 식별 바 — 계기판이 페이지의 첫 요소가 되면서 "무엇에 대한 판정인지"를
+   먼저 알려줄 자리가 필요해졌다. */
+.asset-bar {
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  gap: 20px;
+  padding-bottom: 14px;
+}
+
+.asset-name {
+  color: var(--ink);
+  font-family:
+    Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.asset-price {
+  color: var(--ink);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* 계기판이 논지를 세운 뒤라 히어로는 맥락 밴드로 충분하다.
+   530px 짜리 빈 화면을 유지할 이유가 없다. */
+.hero {
+  min-height: 0;
+}
+
+.hero-copy {
+  padding: 52px 56px;
+}
+
+.hero h1 {
+  font-size: clamp(34px, 3.6vw, 48px);
+}
+
+/* 계기판이 판정을 세운 뒤이므로 히어로는 맥락 + 행동 사실만 담는다.
+   세로 사이드바로 두면 왼쪽 칼럼이 그 높이만큼 늘어나 빈 화면이 생겼다.
+   가로 스트립으로 바꾸면 밴드 높이가 내용에 맞춰진다. */
+.hero {
+  display: block;
+}
+
+.hero-copy {
+  display: block;
+  padding: 46px 56px 38px;
+}
+
+.decision-sheet {
+  border-top: 1px solid #3b3e44;
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding: 0;
+}
+
+.decision-sheet > .decision-price,
+.decision-sheet dl > div {
+  border-bottom: 0;
+  border-right: 1px solid #3b3e44;
+  padding: 30px 34px;
+}
+
+.decision-sheet dl {
+  display: contents;
+}
+
+.decision-sheet dl > div:last-child {
+  border-right: 0;
+}
+
+.decision-why strong {
+  font-size: 26px;
+  margin-top: 10px;
+}
+
+.decision-why small {
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+/* ─── 판정 도장 ──────────────────────────────────────────────────
+   O / X / △ — 한국식 채점 기호. 설명 없이 읽히는 것이 요점이라
+   글자 대신 도형으로 그리고, 색은 판정 팔레트에서만 가져온다. */
+.verdict-mark {
+  flex: 0 0 auto;
+}
+
+.verdict-mark line,
+.verdict-mark circle,
+.verdict-mark path {
+  stroke: currentColor;
+}
+
+.mark-halt { color: var(--halt); }
+.mark-hold { color: var(--hold); }
+.mark-approved { color: var(--approved); }
+
+.hero-copy {
+  align-items: center;
+  display: flex;
+  gap: 52px;
+}
+
+.hero-words {
+  min-width: 0;
+}
+
+.hero-verdict-code {
+  color: var(--halt);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin: 0 0 10px;
+}
+
+/* 판정별 강조색 — 히어로 전체가 판정 상태를 말하게 한다 */
+.hero {
+  border-top: 4px solid var(--halt);
+}
+
+.decision-why strong {
+  color: #ff8b86;
+}
+
+/* ─── 계기판 색 ─────────────────────────────────────────────────
+   차단이면 붉은 계열, 통과면 푸른 계열. 시세의 빨강·파랑과 달리
+   여기서는 "멈춤 / 나아감" 의미다. */
+.model-halt .model-readout {
+  background: linear-gradient(160deg, #2a1210 0%, #6d1e1a 100%);
+}
+
+.model-approved .model-readout {
+  background: linear-gradient(160deg, #0c1f45 0%, #1857c4 100%);
+}
+
+.model-compare {
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  gap: 40px;
+  margin: 24px 0 0;
+  padding-top: 20px;
+}
+
+.model-compare dt {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.model-compare dd {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin: 5px 0 0;
+}
+
+.model-verdict {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  display: inline-block;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin: 22px 0 0;
+  padding: 8px 18px;
+}
+
+@media (max-width: 920px) {
+  .hero-copy { flex-direction: column; align-items: flex-start; gap: 24px; }
+}
+
+/* 원래 .hero-copy 가 flex-direction: column 이라 도형과 글이 세로로 쌓이고
+   가운데로 뭉쳤다. 판정 도장은 글 왼쪽에 나란히 서야 한 덩어리로 읽힌다. */
+.hero-copy {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 56px;
+  justify-content: flex-start;
+  padding: 54px 56px 44px;
+}
+
+.hero-words {
+  max-width: 76ch;
+}
+
+.hero h1 {
+  margin-top: 4px;
+}
+
+/* ─── 모션 ────────────────────────────────────────────────────────
+   흩뿌리지 않는다. 의미가 있는 두 순간에만 쓴다.
+
+   1) 페이지가 열릴 때 판정 도장이 그어진다 — 엔진이 방금 판정을 찍었다는
+      사실을 말한다. 획이 순서대로 그어져야 도장처럼 읽힌다.
+   2) 계기판이 문턱을 넘는 순간 — 이 화면에서 가장 중요한 사건이다.
+
+   스크롤 리빌 같은 건 넣지 않는다. 모든 요소가 떠오르면 아무것도
+   중요해 보이지 않고, 그게 AI 가 만든 느낌을 만든다. */
+
+@keyframes stroke-in {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+.stroke-draw {
+  animation: stroke-in 540ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  stroke-dasharray: 100;
+}
+
+.draw-1 { animation-delay: 120ms; }
+.draw-2 { animation-delay: 400ms; }
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 도장이 그어지는 동안 글이 뒤따라 앉는다. 한 동작으로 읽히도록
+   지연을 도장 타이밍에 맞춘다. */
+.hero-words > * {
+  animation: settle 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-words > *:nth-child(1) { animation-delay: 260ms; }
+.hero-words > *:nth-child(2) { animation-delay: 330ms; }
+.hero-words > *:nth-child(3) { animation-delay: 400ms; }
+.hero-words > *:nth-child(4) { animation-delay: 460ms; }
+.hero-words > *:nth-child(5) { animation-delay: 520ms; }
+
+@keyframes verdict-flip {
+  0% { opacity: 0; transform: scale(0.9); }
+  60% { transform: scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+
+.model-verdict {
+  animation: verdict-flip 380ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* 판정 색 전환은 숫자보다 느리게 — 값이 먼저 바뀌고 상태가 따라온다 */
+.model,
+.model-readout {
+  transition: background 420ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.model-figure {
+  transition: color 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stroke-draw,
+  .hero-words > *,
+  .model-verdict {
+    animation: none;
+  }
+  .stroke-draw { stroke-dashoffset: 0; }
+  .model,
+  .model-readout,
+  .model-figure { transition: none; }
+}
+
+/* ─── 여백 ────────────────────────────────────────────────────────
+   답답하다는 지적. 오른쪽을 채우는 대신 숨 쉴 공간을 늘린다. */
+.report {
+  padding: 52px 40px 110px;
+}
+
+.hero-copy {
+  gap: 72px;
+  padding: 76px 64px 62px;
+}
+
+.decision-sheet > .decision-price,
+.decision-sheet dl > div {
+  padding: 34px 38px;
+}
+
+.model-readout {
+  padding: 60px 52px;
+}
+
+.model-controls {
+  padding: 58px 56px;
+}
+
+.model-row {
+  padding: 21px 0;
+}
+
+.section {
+  padding-top: 78px;
+}
+
+.section-title {
+  padding-bottom: 40px;
+}
+
+.decision-evidence {
+  margin-top: 24px;
+  padding: 32px 38px 38px;
+}
+
+.decision-evidence-card {
+  padding: 32px 30px 26px;
+}
+
+/* 좁은 화면 보정 — 여백을 늘리면서 생긴 넘침을 잡는다.
+   긴 issue code(EXPECTED_RETURN_BELOW_HURDLE)와 버튼의 고정 gap 이 원인이었다. */
+.issue-tags {
+  flex-wrap: wrap;
+}
+
+.issue code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .report {
+    padding: 32px 20px 72px;
+  }
+
+  .detail-open {
+    gap: 16px;
+    width: 100%;
+  }
+
+  .hero-copy {
+    gap: 30px;
+    padding: 40px 24px 34px;
+  }
+
+  .decision-sheet > .decision-price,
+  .decision-sheet dl > div {
+    padding: 24px 24px;
+  }
+
+  .model-readout,
+  .model-controls {
+    padding: 32px 24px;
+  }
+
+  .section {
+    padding-top: 52px;
+  }
+
+  .decision-evidence {
+    padding: 22px 22px 26px;
+  }
+
+  .decision-evidence-card {
+    padding: 24px 20px 20px;
+  }
 }

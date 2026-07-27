@@ -2,6 +2,18 @@ export type Signal = "good" | "watch" | "bad" | "plain";
 
 export interface DecisionReport {
   schemaVersion: string;
+  /** "무엇이 바뀌어야 통과하는가" 격자. 화면은 조회만 한다. */
+  sensitivity: {
+    axes: Record<
+      "growth" | "probability" | "price",
+      { label: string; unit: string; values: number[]; labels: string[] }
+    >;
+    current: { growth: number; probability: number; price: number };
+    requiredReturn: number;
+    /** [성장률][확률][가격] = [연 수익률, 통과 여부, 목표 대비 %p] */
+    cells: Array<Array<Array<[number, number, number]>>>;
+    note: string;
+  };
   meta: {
     asOf: string;
     priceAsOf: string;
@@ -88,10 +100,28 @@ export interface DecisionReport {
       operatingCashFlow: string;
       capex: string;
       freeCashFlow: string;
-      ocfHeight: string;
-      capexHeight: string;
       signal: Signal;
     }>;
+    /* 막대 좌표는 파이썬이 만든다. CSS 고정 px 로 그리면 폭이 좁아질 때
+       값 라벨이 컬럼 밖으로 잘린다. */
+    chart: {
+      viewBox: string;
+      barWidth: string;
+      baselineY: string;
+      plotLeft: string;
+      plotRight: string;
+      quarterLabelY: string;
+      fcfLabelY: string;
+      ticks: Array<{ label: string; y: string }>;
+      groups: Array<{
+        quarter: string;
+        labelX: string;
+        ocf: { x: string; y: string; height: string; label: string; labelX: string; labelY: string };
+        capex: { x: string; y: string; height: string; label: string; labelX: string; labelY: string };
+        fcf: string;
+        signal: Signal;
+      }>;
+    };
   };
   /** 이 거래가 포트폴리오에서 차지하는 자리. 엔진이 계산한다. */
   portfolio: {
@@ -172,8 +202,21 @@ export interface DecisionReport {
 export interface PriceChart {
   schemaVersion: string;
   viewBox: string;
+  plotRight: string;
+  tagX: string;
+  tagTextX: string;
   linePath: string;
   areaPath: string;
+  points: Array<{
+    x: string;
+    y: string;
+    date: string;
+    close: string;
+    change: string;
+    changeDirection: "up" | "down" | "flat";
+    fromStart: string;
+    volume: string;
+  }>;
   segments: Array<{
     x1: string;
     y1: string;
@@ -186,15 +229,15 @@ export interface PriceChart {
   entryLine: {
     value: string;
     y: string;
-    labelRectY: string;
-    labelTextY: string;
+    tagY: string;
+    tagTextY: string;
     label: string;
   };
   currentLine: {
     value: string;
     y: string;
-    labelRectY: string;
-    labelTextY: string;
+    tagY: string;
+    tagTextY: string;
     label: string;
   };
   markers: Array<{
@@ -204,6 +247,8 @@ export interface PriceChart {
     x: string;
     y: string;
     placement: string;
+    anchor: "start" | "end";
+    dx: string;
   }>;
   summary: {
     period: string;

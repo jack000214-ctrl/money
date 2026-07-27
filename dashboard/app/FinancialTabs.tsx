@@ -59,34 +59,71 @@ export function FinancialTabs({
         <div className="cashflow-block">
           <h3>{cashFlow.title}</h3>
           <p className="block-conclusion">{cashFlow.conclusion}</p>
-          <div
-            className="cashflow-chart"
+          <div className="chart-scroll">
+          <svg
             aria-label="분기별 영업현금흐름과 설비투자 비교"
+            className="cashflow-svg"
+            role="img"
+            viewBox={cashFlow.chart.viewBox}
           >
-            {cashFlow.rows.map((row) => (
-              <div className="cash-quarter" key={row.quarter}>
-                <div className="bar-stage">
-                  <div
-                    className="cash-bar ocf-bar"
-                    style={{ "--bar-height": row.ocfHeight } as CSSProperties}
-                  >
-                    <span>{row.operatingCashFlow}</span>
-                  </div>
-                  <div
-                    className="cash-bar capex-bar"
-                    style={{ "--bar-height": row.capexHeight } as CSSProperties}
-                  >
-                    <span>{row.capex}</span>
-                  </div>
-                </div>
-                <strong>{row.quarter}</strong>
-                <p className={`fcf-result result-${row.signal}`}>
-                  FCF {row.freeCashFlow}
-                </p>
-              </div>
+            {cashFlow.chart.ticks.map((tick) => (
+              <g key={tick.label}>
+                <line
+                  className="cf-grid"
+                  x1={cashFlow.chart.plotLeft}
+                  x2={cashFlow.chart.plotRight}
+                  y1={tick.y}
+                  y2={tick.y}
+                />
+                <text className="cf-tick" x="46" y={tick.y}>
+                  {tick.label}
+                </text>
+              </g>
             ))}
+            {cashFlow.chart.groups.map((group) => (
+              <g key={group.quarter}>
+                <rect
+                  className="cf-bar cf-ocf"
+                  height={group.ocf.height}
+                  width={cashFlow.chart.barWidth}
+                  x={group.ocf.x}
+                  y={group.ocf.y}
+                />
+                <text className="cf-value" x={group.ocf.labelX} y={group.ocf.labelY}>
+                  {group.ocf.label}
+                </text>
+                <rect
+                  className="cf-bar cf-capex"
+                  height={group.capex.height}
+                  width={cashFlow.chart.barWidth}
+                  x={group.capex.x}
+                  y={group.capex.y}
+                />
+                <text className="cf-value" x={group.capex.labelX} y={group.capex.labelY}>
+                  {group.capex.label}
+                </text>
+                <text className="cf-quarter" x={group.labelX} y={cashFlow.chart.quarterLabelY}>
+                  {group.quarter}
+                </text>
+                <text
+                  className={`cf-fcf cf-fcf-${group.signal}`}
+                  x={group.labelX}
+                  y={cashFlow.chart.fcfLabelY}
+                >
+                  FCF {group.fcf}
+                </text>
+              </g>
+            ))}
+            <line
+              className="cf-baseline"
+              x1={cashFlow.chart.plotLeft}
+              x2={cashFlow.chart.plotRight}
+              y1={cashFlow.chart.baselineY}
+              y2={cashFlow.chart.baselineY}
+            />
+          </svg>
           </div>
-          <div className="cash-legend">
+                    <div className="cash-legend">
             <span><i className="ocf-key" />영업현금흐름</span>
             <span><i className="capex-key" />CapEx</span>
           </div>

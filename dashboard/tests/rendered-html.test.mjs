@@ -78,7 +78,12 @@ test("entry price uses the IPS measure, not the bull scenario alone", async () =
     hurdle < bullOnly,
     `IPS 기준 가격(${hurdle})은 강세 단독 가격(${bullOnly})보다 낮아야 한다`,
   );
-  assert.match(report.decision.entryCeilingNote, /가격 조정으로는/);
+  // 문구는 바뀔 수 있으니 뜻을 검사한다: 가격만으로는 안 풀린다는 설명이 있어야 한다.
+  assert.match(report.decision.entryCeilingNote, /가격/);
+  assert.match(report.decision.entryCeilingNote, /FCF/);
+  // 전문용어가 화면 문구로 새지 않는지도 함께 본다.
+  assert.doesNotMatch(report.decision.entryCeilingNote, /PROBABILITY_WEIGHTED|확률가중/);
+  assert.doesNotMatch(report.decision.hurdleResult, /PROBABILITY_WEIGHTED|확률가중/);
 });
 
 test("multiples are computed at the report's own price", async () => {
@@ -146,6 +151,101 @@ test("portfolio impact is reported with all three denominators", async () => {
   assert.equal(typeof report.portfolio.bearBudget.withinBudget, "boolean");
 });
 
+test("no markdown or raw engine jargon leaks into display copy", async () => {
+  const report = await readReport();
+  const html = await (await render()).text();
+
+  // HTML 은 마크다운을 렌더하지 않는다. **강조** 를 넣으면 별표가 그대로 찍힌다.
+  const text = JSON.stringify(report);
+  assert.ok(!/\*\*/.test(text), "리포트 문구에 마크다운 ** 가 남아 있다");
+
+  // 헤드라인은 36px 로 커진다. 엔진 메시지를 그대로 넣으면
+  // "기대수익 -50.0%(PROBABILITY_WEIGHTED)가..." 가 화면을 덮는다.
+  assert.ok(
+    report.decision.primaryReason.length <= 20,
+    `헤드라인이 너무 길다: ${report.decision.primaryReason}`,
+  );
+  assert.doesNotMatch(report.decision.primaryReason, /[A-Z_]{6,}/,
+    "헤드라인에 엔진 상수명이 그대로 들어갔다");
+
+  // 다만 원문은 사라지면 안 된다. issue 목록에 그대로 있어야 한다.
+  assert.match(html, /PROBABILITY_WEIGHTED/);
+});
+
+test("layout does not hardcode how many items the data has", async () => {
+  // 스냅샷이 3분기 → 4분기로 늘었을 때 .cashflow-chart 가 repeat(3, 1fr) 로
+  // 박혀 있어서 네 번째 분기가 다음 행으로 밀려 고정 높이를 뚫고 나갔다.
+  // 시나리오 표도 열을 하나 늘리자 같은 식으로 어긋났다.
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const report = await readReport();
+
+  // 줄 첫머리에 걸어야 한다. indexOf 로 찾으면 `.financial-tabs .cashflow-chart`
+  // 같은 더 긴 셀렉터가 먼저 잡혀 엉뚱한 규칙을 검사하게 된다.
+  const block = (selector) => {
+    const at = css.indexOf(`\n${selector} {`);
+    assert.notEqual(at, -1, `${selector} 규칙이 없다`);
+    return css.slice(at, css.indexOf("}", at));
+  };
+
+  // 개수가 변하는 목록은 열 수를 박으면 안 된다.
+  assert.doesNotMatch(block(".peer-summary"), /grid-template-columns:\s*repeat\(\d/);
+
+  // 현금흐름 막대는 CSS 고정 px 로 그리면 폭이 좁을 때 값 라벨이 잘린다.
+  // 좌표를 파이썬이 만들고 SVG 가 비율로 줄어들게 한다.
+  assert.doesNotMatch(css, /\.cash-bar\s*\{[^}]*width:\s*\d+px/);
+  assert.equal(
+    report.cashFlow.chart.groups.length,
+    report.cashFlow.rows.length,
+    "차트 그룹 수와 표 행 수가 다르다",
+  );
+
+  // 시나리오 표는 열 수가 고정이지만, 헤더·본문·CSS 셋이 같아야 한다.
+  const scenarioCols = block(".scenario-head,\n.scenario-data")
+    .match(/grid-template-columns:([^;]+);/)[1]
+    .trim()
+    .split(/\s+/).length;
+  const html = await (await render()).text();
+  const head = html.match(/<div class="scenario-head">[\s\S]*?<\/div>(?=<div)/)[0];
+  assert.equal(
+    (head.match(/<span>/g) || []).length,
+    scenarioCols,
+    "시나리오 표 헤더 열수와 CSS 열수가 다르다",
+  );
+  assert.equal(report.valuation.scenarios.length, 3);
+});
+
+test("chart labels stay inside the viewBox and carry their own geometry", async () => {
+  const chart = JSON.parse(
+    await readFile(new URL("../data/tsla-price-chart.json", import.meta.url), "utf8"),
+  );
+  const [, , viewWidth] = chart.viewBox.split(" ").map(Number);
+
+  // 오른쪽 끝 마커를 바깥으로 쓰면 viewBox 밖으로 나가 잘린다.
+  for (const marker of chart.markers) {
+    if (Number(marker.x) > viewWidth * 0.8) {
+      assert.equal(marker.anchor, "end",
+        `${marker.label} 이 오른쪽 끝인데 바깥으로 정렬돼 잘린다`);
+      assert.ok(marker.dx.startsWith("-"), `${marker.label} 의 dx 가 안쪽이 아니다`);
+    }
+  }
+
+  // 기준선 값은 우측 축 태그. 태그 자리는 plot 바깥이어야 데이터를 안 가린다.
+  assert.ok(Number(chart.tagX) >= Number(chart.plotRight),
+    "기준선 값 태그가 그래프 영역 위에 겹쳐 있다");
+  assert.match(chart.currentLine.tagY, /^[\d.]+$/);
+  assert.match(chart.entryLine.tagY, /^[\d.]+$/);
+
+  // hover 문구는 파이썬이 만든다. 브라우저가 날짜·등락률을 다시 만들면
+  // 화면이 두 번째 계산 주체가 된다.
+  assert.equal(chart.points.length, chart.segments.length + 1);
+  for (const key of ["date", "close", "change", "volume", "fromStart"]) {
+    assert.ok(chart.points[0][key], `points[].${key} 가 비어 있다`);
+  }
+  const client = await readFile(new URL("../app/PriceChart.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(client, /toLocaleString|Intl\.|toFixed/,
+    "차트 컴포넌트가 표시값을 직접 포맷하고 있다");
+});
+
 test("keeps calculations upstream and renders precomputed geometry", async () => {
   const [page, financialTabs, positioningTabs, chartText] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -153,6 +253,7 @@ test("keeps calculations upstream and renders precomputed geometry", async () =>
     readFile(new URL("../app/PositioningTabs.tsx", import.meta.url), "utf8"),
     readFile(new URL("../data/tsla-price-chart.json", import.meta.url), "utf8"),
   ]);
+  void financialTabs;
   const report = await readReport();
   const chart = JSON.parse(chartText);
 
@@ -168,7 +269,11 @@ test("keeps calculations upstream and renders precomputed geometry", async () =>
   assert.equal(chart.segments.length, 250);
   assert.ok(chart.segments.some((segment) => segment.direction === "up"));
   assert.ok(chart.segments.some((segment) => segment.direction === "down"));
-  assert.ok(report.cashFlow.rows.every((row) => /^\d+%$/.test(row.ocfHeight)));
+  // 막대 좌표·눈금은 전부 상류에서 온다.
+  const cf = report.cashFlow.chart;
+  assert.ok(cf.ticks.length >= 2, "y축 눈금이 없다");
+  assert.ok(cf.groups.every((g) => /^[\d.]+$/.test(g.ocf.height)));
+  assert.ok(cf.groups.every((g) => /^[\d.]+$/.test(g.capex.height)));
   assert.doesNotMatch(
     `${page}\n${financialTabs}\n${positioningTabs}`,
     /\bMath\.|\breduce\(|toLocaleString|Intl\.NumberFormat|\bNumber\(/,

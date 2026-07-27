@@ -1,35 +1,28 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
+import reportData from "../data/decision-report.json";
+import type { DecisionReport } from "../lib/decision-report";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host =
-    requestHeaders.get("x-forwarded-host") ??
-    requestHeaders.get("host") ??
-    "localhost:3000";
-  const protocol =
-    requestHeaders.get("x-forwarded-proto") ??
-    (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-v2.png`;
+const report = reportData as unknown as DecisionReport;
 
-  return {
-    title: "TSLA 투자판정 — 자산 증식 프로그램",
-    description:
-      "일별 가격, 재무·현금흐름, 동종사 비교와 역산 밸류에이션을 연결한 투자판정 보고서",
-    openGraph: {
-      title: "TSLA 투자판정 — 추가 매수 보류",
-      description: "급락했지만, 연 12% 목표를 만족하는 조건부 매수가는 아직 아래에 있습니다.",
-      images: [{ url: imageUrl, width: 1672, height: 941 }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "TSLA 투자판정 — 추가 매수 보류",
-      description: "일별 가격과 2026 Q2 현금흐름을 함께 본 투자판정 보고서",
-      images: [imageUrl],
-    },
-  };
-}
+// 메타데이터를 손으로 적으면 화면과 어긋난다. 실제로 판정을 BLOCKED 로 고친
+// 뒤에도 여기만 "추가 매수 보류" 로 남아 있었고, 종목명도 TSLA 로 박혀 있어
+// 다른 종목을 올리면 그대로 틀린 값이 나갔다. 리포트에서 읽는다.
+export const metadata: Metadata = {
+  title: `${report.asset.name} 투자판정 — 자산 증식 프로그램`,
+  description:
+    "일별 가격, 재무·현금흐름, 동종사 비교와 역산 밸류에이션을 연결한 투자판정 보고서",
+  icons: { icon: "/favicon.svg" },
+  openGraph: {
+    title: `${report.asset.name} 투자판정 — ${report.decision.status}`,
+    description: report.decision.headline,
+  },
+  twitter: {
+    card: "summary",
+    title: `${report.asset.name} 투자판정 — ${report.decision.status}`,
+    description: report.decision.headline,
+  },
+};
 
 export default function RootLayout({
   children,
