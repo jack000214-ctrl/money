@@ -106,7 +106,16 @@ def price(ticker):
 def gather(ticker, ua):
     info = resolve(ticker, ua)
     cik = info["cik"]
-    row = {"ticker": ticker.upper(), "name": info["name"][:22]}
+    row = {
+        "ticker": ticker.upper(),
+        "name": info["name"][:22],
+        # 적자·주식수·시세 데이터 부재는 정상적인 비교 결과다. 일부 값이 없더라도
+        # 표 전체를 중단하지 않고 UNKNOWN 으로 남겨야 한다.
+        "mcap": None,
+        "per": None,
+        "psr": None,
+        "pbr": None,
+    }
 
     _, rev_pts = concept_ns(cik, REVENUE_TAGS, ua)
     _, op_pts = concept_ns(cik, OPINC_TAGS, ua)
