@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.1.0",
+  "analysis_id": "ANALYSIS-20260727-TSLA",
+  "instrument_id": "TSLA",
+  "company_id": "TSLA",
+  "as_of": "2026-07-27T09:00:00+09:00",
+  "snapshot": {
+    "snapshot_id": "SNAPSHOT-20260727-TSLA",
+    "created_at": "2026-07-27T14:00:00+09:00",
+    "source_ids": [
+      "SRC-TSLA-10Q-2026Q2",
+      "SRC-TSLA-OPEX-2026Q2",
+      "SRC-TSLA-BALANCE-2026Q2",
+      "SRC-TSLA-PRICE-20260724",
+      "SRC-PORTFOLIO-HOLDINGS"
+    ],
+    "input_hashes": {
+      "capex_concept": "59fd5de1060872f15967f4e92af7ef9d2a9dc630bb6b7fd5f9ff81f8b2ebfd83",
+      "rnd_concept": "2a61ff2bc469c51807f08a17cba00007f0f6ff3af1e487595cfcb7a2cbe9ae41",
+      "balance": "ee09e04081aa47a97bbb0b0e76ca40fc6d4d6dabf6314414265a951be55d6ce6",
+      "price_series": "673787ec7b411e6bc75b882248df91ec8740843c6ae06f38460edd153591f04d"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "SRC-TSLA-10Q-2026Q2",
+      "source_type": "FILING",
+      "locator": "SEC EDGAR 10-Q 0001628280-26-049270 (2026-07-23 제출) XBRL PaymentsToAcquirePropertyPlantAndEquipment 전 기간",
+      "published_at": "2026-07-23T00:00:00+09:00",
+      "retrieved_at": "2026-07-27T13:30:00+09:00",
+      "content_hash": "59fd5de1060872f15967f4e92af7ef9d2a9dc630bb6b7fd5f9ff81f8b2ebfd83"
+    },
+    {
+      "source_id": "SRC-TSLA-OPEX-2026Q2",
+      "source_type": "FILING",
+      "locator": "SEC EDGAR XBRL ResearchAndDevelopmentExpense 전 기간 (2026Q2 10-Q 반영)",
+      "published_at": "2026-07-23T00:00:00+09:00",
+      "retrieved_at": "2026-07-27T13:30:00+09:00",
+      "content_hash": "2a61ff2bc469c51807f08a17cba00007f0f6ff3af1e487595cfcb7a2cbe9ae41"
+    },
+    {
+      "source_id": "SRC-TSLA-BALANCE-2026Q2",
+      "source_type": "FILING",
+      "locator": "SEC EDGAR 재무상태 요약 — 현금·단기투자·영업현금흐름 (2026-06-30 기준)",
+      "published_at": "2026-07-23T00:00:00+09:00",
+      "retrieved_at": "2026-07-27T13:30:00+09:00",
+      "content_hash": "ee09e04081aa47a97bbb0b0e76ca40fc6d4d6dabf6314414265a951be55d6ce6"
+    },
+    {
+      "source_id": "SRC-TSLA-PRICE-20260724",
+      "source_type": "MARKET_DATA",
+      "locator": "Yahoo Finance chart API 일별 종가 2025-07-25~2026-07-24",
+      "published_at": "2026-07-24T00:00:00+09:00",
+      "retrieved_at": "2026-07-27T13:30:00+09:00",
+      "content_hash": "673787ec7b411e6bc75b882248df91ec8740843c6ae06f38460edd153591f04d"
+    },
+    {
+      "source_id": "SRC-PORTFOLIO-HOLDINGS",
+      "source_type": "MARKET_DATA",
+      "locator": "보유내역 knowledge/portfolio/holdings.csv 기준일 2026-07-27",
+      "published_at": "2026-07-27T00:00:00+09:00",
+      "retrieved_at": "2026-07-27T13:30:00+09:00",
+      "content_hash": "28a545519a3c3c6547f9d37bbf73176043e1dee87c34810a7ce305818e9aa40e"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "CLAIM-REV-001",
+      "type": "FACT",
+      "text": "2026 Q2 매출 28,236M USD, 전년 동기 22,496M 대비 +25.5%. 매출 성장은 둔화되지 않았다.",
+      "source_ids": [
+        "SRC-TSLA-OPEX-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-OPEX-001",
+      "type": "FACT",
+      "text": "2026 Q2 R&D 2,371M USD (전년 1,589M, +49.2%), SG&A 1,982M USD (전년 1,366M, +45.1%). 매출 성장률(+25.5%)의 두 배 속도로 영업비용이 늘었다. 영업이익은 923M→398M (-56.9%), 영업이익률 4.10%→1.41%.",
+      "source_ids": [
+        "SRC-TSLA-OPEX-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-GM-001",
+      "type": "DERIVED",
+      "text": "2026 Q2 매출총이익 4,751M / 매출 28,236M = 16.83%. 전년 동기 3,878M / 22,496M = 17.24%. 매출총이익률은 사실상 유지됐다. 영업이익 감소분은 전액 영업비용 증가에서 나온다.",
+      "source_ids": [
+        "SRC-TSLA-OPEX-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BEAR-CAPEX",
+      "type": "FACT",
+      "text": "2026 Q2 capex 5,789M USD, 전년 동기 2,394M 대비 +141.8%. 같은 분기 영업현금흐름 4,697M을 초과해 분기 FCF가 -1,092M로 음수 전환했다. 회사는 벌어들인 현금보다 많이 쓰고 있다.",
+      "source_ids": [
+        "SRC-TSLA-10Q-2026Q2",
+        "SRC-TSLA-BALANCE-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BEAR-FCF",
+      "type": "DERIVED",
+      "text": "최근 4분기 TTM FCF 5,762M USD (영업현금흐름 18,685M − capex 12,923M). 직전 4분기 TTM FCF 5,586M 대비 +3.2%. 현재가가 요구하는 연 38.2% 성장과 12배 차이가 난다.",
+      "source_ids": [
+        "SRC-TSLA-10Q-2026Q2",
+        "SRC-TSLA-BALANCE-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BEAR-PRICE",
+      "type": "FACT",
+      "text": "2026-07-22 종가 374.01 → 07-24 종가 313.03 (-16.3%). 07-23 하루 -14.5%, 거래량 115.6M주로 직전 평균의 약 3.7배. 급락일은 2026 Q2 10-Q 제출일(2026-07-23)과 일치한다.",
+      "source_ids": [
+        "SRC-TSLA-PRICE-20260724"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BULL-001",
+      "type": "HYPOTHESIS",
+      "text": "R&D·capex 급증이 로보택시·Optimus·에너지 등 자본집약 신사업의 선행투자라면, 투자 사이클 종료 후 FCF가 자동차 사업 성장률을 크게 웃돌 수 있다. 강세 시나리오는 10년 연 40% FCF 성장을 가정하며, 이는 현재가가 요구하는 38.2%를 넘는 수준이다.",
+      "source_ids": [
+        "SRC-TSLA-OPEX-2026Q2",
+        "SRC-TSLA-10Q-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BASE-001",
+      "type": "INFERENCE",
+      "text": "기준 시나리오는 10년 연 15% FCF 성장. 현재 관측되는 +3.2%보다 5배 빠르지만 현재가가 요구하는 38.2%에는 크게 못 미친다. AI 투자가 부분적으로 회수되는 경우다.",
+      "source_ids": [
+        "SRC-TSLA-10Q-2026Q2"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-ALT-CASH",
+      "type": "INFERENCE",
+      "text": "대안은 원화 예수금 유지. 기회비용을 세전 연 3.0%로 가정한다. ⚠️ 이 3.0%는 수집된 출처가 아니라 가정값이다. holdings.csv가 현금 4,000만원을 '대기자금 - 전액 투자 가능'으로 정의한 것이 대안 성립의 근거다.",
+      "source_ids": [
+        "SRC-PORTFOLIO-HOLDINGS"
+      ]
+    }
+  ],
+  "thesis": {
+    "status": "DRAFT",
+    "change": "WEAKEN",
+    "invalidation_triggered": false,
+    "approved_by": null,
+    "approved_at": null,
+    "claim_ids": [
+      "CLAIM-REV-001",
+      "CLAIM-GM-001",
+      "CLAIM-OPEX-001",
+      "CLAIM-BULL-001"
+    ]
+  },
+  "counter_thesis": {
+    "text": "'실적이 나쁜 게 아니라 AI에 투자해서 떨어진다'는 해석은 손익계산서만 보면 맞다 — 매출총이익률은 유지됐고 영업이익 감소는 전액 R&D·SG&A 증가분이다. 그러나 현금흐름표를 보면 이야기가 달라진다. Q2 capex가 전년 대비 +142% 늘어 영업현금흐름을 초과했고, 분기 FCF가 음수로 돌아섰다. 즉 '수익으로 AI에 투자'하는 단계를 이미 넘어 '버는 것보다 많이 쓰는' 단계다. 더 결정적인 것은 가격이다. 20% 급락한 315.70달러도 10년간 연 38.2% FCF 성장을 요구한다. 실제 TTM FCF 성장률은 3.2%다. 우주 데이터센터·피지컬 AI가 전부 성공하는 강세 시나리오(연 40% 성장, 요구치를 웃도는 수준)에서도 24개월 연율 수익률은 +5.9%로 IPS 요구수익률 12%에 미달한다. 꿈이 실현돼도 이 가격에서는 수익이 부족하다.",
+    "invalidation_signal": "다음 중 하나가 관측되면 이 반대 논지를 접는다 — (1) 2026 Q3 10-Q에서 분기 FCF가 양수로 복귀하고 TTM FCF가 8,000M USD를 넘는다. (2) 분기 capex가 4,000M USD 아래로 내려가면서 영업이익률이 5%를 회복한다. 반대로 다음이 관측되면 반대 논지가 강화된다 — 2026 Q3에도 분기 FCF가 음수여서 2개 분기 연속 음수가 되거나, TTM FCF가 4,000M USD 아래로 하락.",
+    "claim_ids": [
+      "CLAIM-BEAR-CAPEX",
+      "CLAIM-BEAR-FCF",
+      "CLAIM-BEAR-PRICE"
+    ]
+  },
+  "expected_return": {
+    "horizon_months": 24,
+    "required_return_pct": 12.0,
+    "methodology": "2단계 FCF 역산 DCF (scripts/reverse_dcf.py). 할인율 10%, 영구성장 3%, 1단계 10년. FCF는 2026 Q2 기준 TTM 5,762M USD, 순부채 -35,803M USD(순현금), 희석주식수 3,540M주.",
+    "calculation_id": "CALC-2f6664ad1038e48e1c80",
+    "probability_weighted_pct": -50.0198,
+    "scenarios": {
+      "bear": {
+        "return_pct": -67.15185803934737,
+        "probability": 0.4,
+        "claim_ids": [
+          "CLAIM-BEAR-CAPEX",
+          "CLAIM-BEAR-FCF"
+        ]
+      },
+      "base": {
+        "return_pct": -53.444725346117885,
+        "probability": 0.45,
+        "claim_ids": [
+          "CLAIM-BASE-001",
+          "CLAIM-REV-001"
+        ]
+      },
+      "bull": {
+        "return_pct": 5.940175029495598,
+        "probability": 0.15,
+        "claim_ids": [
+          "CLAIM-BULL-001"
+        ]
+      }
+    }
+  },
+  "alternatives": [
+    {
+      "instrument_id": "CASH_KRW",
+      "expected_return_pct": 3.0,
+      "measure": "PROBABILITY_WEIGHTED",
+      "snapshot_id": "SNAPSHOT-20260727-TSLA",
+      "claim_ids": [
+        "CLAIM-ALT-CASH"
+      ]
+    }
+  ]
+}

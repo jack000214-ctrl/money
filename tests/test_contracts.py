@@ -20,6 +20,15 @@ CALC_INPUTS = {
     "discount_rate_pct": 10.0, "terminal_growth_pct": 2.5, "years": 10,
     "horizon_months": 12,
     "scenario_growth_pct": {"bear": 15.0, "base": 30.0, "bull": 50.0},
+    # 입력이 원문 스냅샷에서 왔는지 손으로 쳤는지. 승인 IPS 가
+    # require_verified_inputs 를 걸면 이 기록이 없는 계산은 통과하지 못한다.
+    "input_provenance": {
+        "verified": True,
+        "source": "edgar_fundamentals",
+        "fundamentals_id": "FUND-" + "0" * 20,
+        "period_end": "2026-06-30",
+        "fundamentals_sha256": "b" * 64,
+    },
 }
 CALC_OUTPUTS = {
     "implied_growth_pct": 46.8,
@@ -178,6 +187,22 @@ def valid_ips(status="APPROVED"):
                 },
             },
         },
+        "valuation_assumptions": {
+            "by_risk_class": {
+                "STOCK": {
+                    "discount_rate_pct_min": 9.0 if approved else None,
+                    "discount_rate_pct_max": 14.0 if approved else None,
+                },
+                "BROAD_ETF": {
+                    "discount_rate_pct_min": 7.0 if approved else None,
+                    "discount_rate_pct_max": 11.0 if approved else None,
+                },
+            },
+            "terminal_growth_pct_max": 3.0 if approved else None,
+            "stage_one_years_max": 10 if approved else None,
+            "horizon_months_max": 36 if approved else None,
+            "require_verified_inputs": True if approved else None,
+        },
         "decision_policy": {
             "required_expected_return_pct": 10.0 if approved else None,
             "alternative_min_advantage_pct": 3.0 if approved else None,
@@ -186,6 +211,43 @@ def valid_ips(status="APPROVED"):
             "max_bear_loss_contribution_pct": 8.0 if approved else None,
         },
     }
+
+
+class TestValuationAssumptions(unittest.TestCase):
+    """할인율이 지배되지 않으면 요구수익률 한도는 우회 가능한 장식이다.
+
+    요구수익률 12%를 0.1% 단위로 못박아 놓고 그 12%를 계산하는 할인율을
+    분석가가 고르게 하면, 다이얼 하나로 어떤 종목이든 통과시킬 수 있다.
+    """
+
+    def test_approved_ips_must_define_valuation_assumptions(self):
+        ips = valid_ips()
+        del ips["valuation_assumptions"]
+        errors = validate_ips(ips)
+        self.assertTrue(any("valuation_assumptions" in e for e in errors), errors)
+
+    def test_draft_ips_may_omit_them(self):
+        ips = valid_ips(status="DRAFT")
+        del ips["valuation_assumptions"]
+        self.assertEqual(validate_ips(ips), [])
+
+    def test_min_above_max_is_rejected(self):
+        ips = valid_ips()
+        ips["valuation_assumptions"]["by_risk_class"]["STOCK"] = {
+            "discount_rate_pct_min": 15.0, "discount_rate_pct_max": 9.0}
+        self.assertTrue(validate_ips(ips))
+
+    def test_terminal_growth_above_discount_floor_is_rejected(self):
+        """영구성장률이 할인율 하한 이상이면 잔존가치가 발산한다."""
+        ips = valid_ips()
+        ips["valuation_assumptions"]["terminal_growth_pct_max"] = 9.0
+        errors = validate_ips(ips)
+        self.assertTrue(any("발산" in e for e in errors), errors)
+
+    def test_require_verified_inputs_must_be_boolean(self):
+        ips = valid_ips()
+        ips["valuation_assumptions"]["require_verified_inputs"] = "yes"
+        self.assertTrue(validate_ips(ips))
 
 
 class TestAnalysisContract(unittest.TestCase):

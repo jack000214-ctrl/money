@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from contracts import save_validated_calculation
+from contracts import calculation_id_for, save_validated_calculation
 from test_contracts import valid_analysis, valid_calculation, valid_ips
 from trade_check import evaluate_trade, exit_code_for_verdict, render_text
 
@@ -584,6 +584,91 @@ CASH,예수금,KR,CASH,CASH,70000000,,
         self.assertAlmostEqual(before["total_assets"]["position_pct"], 10.0)
         self.assertAlmostEqual(before["equity_sleeve"]["position_pct"], 100 / 3)
         self.assertAlmostEqual(before["risk_assets"]["position_pct"], 100 / 3)
+
+
+class ValuationPolicyCase(TradeEngineCase):
+    """할인율·영구성장률이 IPS 지배 아래 있는지.
+
+    이 검사가 없으면 요구수익률 12%는 장식이다. 분석가가 할인율만 10%→8%로
+    낮추면 같은 종목의 요구 성장률이 38.2%→31.9%로 내려가고, 시나리오를
+    조금만 올리면 어떤 종목이든 한도를 통과한다. 승인 IPS 가 못박는 값과
+    분석가가 고르는 값이 분리돼 있으면 한도는 우회 가능하다.
+    """
+
+    def rebuild(self, **input_overrides):
+        """입력을 바꾼 계산 산출물로 갈아끼운다. 지문은 자동으로 다시 계산된다."""
+        calculation = valid_calculation()
+        calculation["inputs"].update(input_overrides)
+        calculation["calculation_id"] = calculation_id_for(
+            calculation["model"], calculation["model_version"],
+            calculation["inputs"], calculation["outputs"])
+        save_validated_calculation(self.calculations, calculation)
+        analysis = valid_analysis()
+        analysis["expected_return"]["calculation_id"] = calculation["calculation_id"]
+        self.write_json(self.analysis, analysis)
+
+    def test_baseline_still_proceeds(self):
+        """기준 픽스처는 승인 범위 안이라 통과해야 한다."""
+        self.assertEqual(self.evaluate()["decision"]["verdict"], "PROCEED")
+
+    def test_discount_rate_below_policy_is_blocked(self):
+        self.rebuild(discount_rate_pct=8.0)   # STOCK 승인 범위 9~14%
+        result = self.evaluate()
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+        self.assertIn("DISCOUNT_RATE_OUT_OF_POLICY", self.codes(result))
+
+    def test_discount_rate_above_policy_is_blocked(self):
+        self.rebuild(discount_rate_pct=20.0)
+        self.assertIn("DISCOUNT_RATE_OUT_OF_POLICY", self.codes(self.evaluate()))
+
+    def test_terminal_growth_above_cap_is_blocked(self):
+        self.rebuild(terminal_growth_pct=5.0)  # 상한 3.0
+        self.assertIn("TERMINAL_GROWTH_PCT_OUT_OF_POLICY",
+                      self.codes(self.evaluate()))
+
+    def test_horizon_beyond_cap_is_blocked(self):
+        self.rebuild(horizon_months=60)        # 상한 36
+        self.assertIn("HORIZON_MONTHS_OUT_OF_POLICY", self.codes(self.evaluate()))
+
+    def test_hand_typed_inputs_are_blocked(self):
+        """손입력은 사유를 적어도 승인 IPS 아래서는 통과하지 못한다."""
+        self.rebuild(input_provenance={
+            "verified": False, "source": "manual", "reason": "직접 계산"})
+        result = self.evaluate()
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+        self.assertIn("VALUATION_INPUT_UNVERIFIED", self.codes(result))
+
+    def test_missing_provenance_is_blocked(self):
+        calculation = valid_calculation()
+        del calculation["inputs"]["input_provenance"]
+        calculation["calculation_id"] = calculation_id_for(
+            calculation["model"], calculation["model_version"],
+            calculation["inputs"], calculation["outputs"])
+        save_validated_calculation(self.calculations, calculation)
+        analysis = valid_analysis()
+        analysis["expected_return"]["calculation_id"] = calculation["calculation_id"]
+        self.write_json(self.analysis, analysis)
+        self.assertIn("VALUATION_INPUT_PROVENANCE_MISSING",
+                      self.codes(self.evaluate()))
+
+    def test_ips_without_valuation_policy_blocks(self):
+        """정책이 없으면 기본값으로 때우지 않는다. 위험등급 한도와 같은 원칙."""
+        ips = valid_ips()
+        del ips["valuation_assumptions"]
+        self.write_json(self.ips, ips)
+        result = self.evaluate()
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+
+    def test_unknown_risk_class_has_no_discount_range(self):
+        ips = valid_ips()
+        del ips["valuation_assumptions"]["by_risk_class"]["STOCK"]
+        self.write_json(self.ips, ips)
+        self.assertIn("VALUATION_RISK_CLASS_MISSING", self.codes(self.evaluate()))
+
+    def test_valuation_inputs_are_reported(self):
+        basis = self.evaluate()["decision_basis"]["valuation_inputs"]
+        self.assertEqual(basis["discount_rate_pct"], 10.0)
+        self.assertTrue(basis["input_provenance"]["verified"])
 
 
 if __name__ == "__main__":

@@ -1,13 +1,12 @@
 {
   "schema_version": "1.1.0",
-  "calculation_id": "CALC-44eb75970b617b730887",
+  "calculation_id": "CALC-2f6664ad1038e48e1c80",
   "model": "reverse_dcf",
   "model_version": "1.0.0",
   "instrument_id": "TSLA",
-  "created_at": "2026-07-27T13:32:13+09:00",
+  "created_at": "2026-07-27T15:40:10+09:00",
   "source_ids": [
-    "SRC-TSLA-10Q-2026Q2",
-    "SRC-TSLA-PRICE-20260724"
+    "SRC-TSLA-10Q-2026Q2"
   ],
   "inputs": {
     "price": 315.7,
@@ -17,6 +16,13 @@
     "discount_rate_pct": 10.0,
     "terminal_growth_pct": 3.0,
     "years": 10,
+    "input_provenance": {
+      "verified": true,
+      "source": "edgar_fundamentals",
+      "fundamentals_id": "FUND-f32a13f25691ac07a298",
+      "period_end": "2026-06-30",
+      "fundamentals_sha256": "c942bb8372482ca75f090e6dab2dc1f3bacd686a9f0ef1d8a2a84c73628972a8"
+    },
     "horizon_months": 24,
     "scenario_growth_pct": {
       "bear": 3.0,

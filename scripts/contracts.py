@@ -30,6 +30,11 @@ SCENARIO_NAMES = ("bear", "base", "bull")
 RETURN_MEASURES = {"BASE", "PROBABILITY_WEIGHTED"}
 CALCULATION_ID_PREFIX = "CALC-"
 CALCULATION_ID_RE = re.compile(r"^CALC-[0-9a-f]{20}$")
+# 밸류에이션 입력 스냅샷. 계산기의 첫 숫자가 어디서 왔는지 고정한다.
+FUNDAMENTALS_ID_PREFIX = "FUND-"
+FUNDAMENTALS_ID_RE = re.compile(r"^FUND-[0-9a-f]{20}$")
+# 항등식 허용 오차. 부동소수 반올림은 통과시키되 손으로 고친 값은 걸러낸다.
+IDENTITY_TOLERANCE = 1.0
 # 확률 합과 가중평균의 허용 오차. 반올림해서 적은 값을 통과시키되
 # 손으로 지어낸 값은 걸러낼 만큼은 좁게 잡는다.
 PROBABILITY_TOLERANCE = 1e-6
@@ -230,6 +235,65 @@ def validate_ips(data: dict[str, Any]) -> list[str]:
                         "fx_cost_bps", "slippage_bps"):
                 _number(entry.get(key), f"{field}.{key}", errors,
                         minimum=0, allow_null=status != "APPROVED")
+
+    # 밸류에이션 가정. 할인율·영구성장률은 판정을 가장 크게 흔드는 값인데
+    # 여기 없으면 분석가가 마음대로 고를 수 있다. 요구수익률만 못박고 그것을
+    # 계산하는 할인율을 풀어두면 앞뒤가 맞지 않는다.
+    valuation = data.get("valuation_assumptions")
+    if not isinstance(valuation, dict):
+        if status == "APPROVED":
+            errors.append("valuation_assumptions: 승인 IPS는 할인율·영구성장률 "
+                          "범위를 정의해야 한다")
+        valuation = {}
+    else:
+        v_by_class = valuation.get("by_risk_class")
+        if not isinstance(v_by_class, dict):
+            errors.append("valuation_assumptions.by_risk_class: 위험등급별 객체가 필요하다")
+        elif status == "APPROVED" and not v_by_class:
+            errors.append("valuation_assumptions.by_risk_class: 승인 IPS는 등급을 "
+                          "하나 이상 정의해야 한다")
+        else:
+            for name, entry in v_by_class.items():
+                field = f"valuation_assumptions.by_risk_class.{name}"
+                if not isinstance(entry, dict):
+                    errors.append(f"{field}: 객체가 필요하다")
+                    continue
+                low = _number(entry.get("discount_rate_pct_min"),
+                              f"{field}.discount_rate_pct_min", errors,
+                              minimum=0, maximum=100,
+                              allow_null=status != "APPROVED")
+                high = _number(entry.get("discount_rate_pct_max"),
+                               f"{field}.discount_rate_pct_max", errors,
+                               minimum=0, maximum=100,
+                               allow_null=status != "APPROVED")
+                if low is not None and high is not None and low > high:
+                    errors.append(f"{field}: min 이 max 보다 클 수 없다")
+        terminal_max = _number(valuation.get("terminal_growth_pct_max"),
+                               "valuation_assumptions.terminal_growth_pct_max",
+                               errors, minimum=0, maximum=100,
+                               allow_null=status != "APPROVED")
+        for key in ("stage_one_years_max", "horizon_months_max"):
+            number = _number(valuation.get(key), f"valuation_assumptions.{key}",
+                             errors, minimum=1, allow_null=status != "APPROVED")
+            if number is not None and not number.is_integer():
+                errors.append(f"valuation_assumptions.{key}: 정수여야 한다")
+        verified = valuation.get("require_verified_inputs")
+        if not isinstance(verified, bool) and not (
+                status != "APPROVED" and verified is None):
+            errors.append("valuation_assumptions.require_verified_inputs: "
+                          "boolean이 필요하다")
+        # 영구성장률이 어떤 등급의 할인율 하한보다 높으면 잔존가치가 발산한다.
+        v_by_class = valuation.get("by_risk_class")
+        if terminal_max is not None and isinstance(v_by_class, dict):
+            for name, entry in v_by_class.items():
+                if not isinstance(entry, dict):
+                    continue
+                low = entry.get("discount_rate_pct_min")
+                if isinstance(low, (int, float)) and terminal_max >= low:
+                    errors.append(
+                        f"valuation_assumptions: terminal_growth_pct_max "
+                        f"{terminal_max}%가 {name}의 할인율 하한 {low}% 이상이다. "
+                        "잔존가치가 발산한다")
 
     policy = data.get("decision_policy")
     if not isinstance(policy, dict):
@@ -620,6 +684,124 @@ def validate_calculation(data: dict[str, Any]) -> list[str]:
         _number(entry.get("return_pct"), f"outputs.scenarios.{name}.return_pct",
                 errors, minimum=-100)
     return errors
+
+
+FUNDAMENTALS_QUARTER_COUNT = 4
+FUNDAMENTALS_VALUE_KEYS = (
+    "ocf_ttm", "capex_ttm", "fcf_ttm", "shares_diluted",
+    "cash_and_equivalents", "short_term_investments", "long_term_debt", "net_debt",
+)
+
+
+def fundamentals_id_for(data: dict[str, Any]) -> str:
+    """스냅샷의 지문. ID 계산에서 자기 자신은 뺀다."""
+    payload = {k: v for k, v in data.items()
+               if k not in ("fundamentals_id", "created_at", "raw_locator")}
+    return stable_hash(payload, FUNDAMENTALS_ID_PREFIX)
+
+
+def validate_fundamentals(data: dict[str, Any]) -> list[str]:
+    """밸류에이션 입력 스냅샷의 계약.
+
+    핵심은 **내부 항등식**이다. 스키마만 검사하면 숫자 하나를 손으로 고쳐도
+    통과한다. FCF = 영업현금흐름 − capex 이고 각 TTM 은 4개 분기의 합이라는
+    관계를 함께 검사하면, 값 하나만 바꾼 파일은 반드시 어긋난다.
+    """
+    errors: list[str] = []
+    if data.get("schema_version") != SCHEMA_VERSION:
+        errors.append(f"schema_version: {SCHEMA_VERSION} 이어야 한다")
+    _nonempty(data.get("instrument_id"), "instrument_id", errors)
+    _nonempty(data.get("period_end"), "period_end", errors)
+    parse_datetime(data.get("created_at"), "created_at", errors)
+
+    fundamentals_id = _nonempty(data.get("fundamentals_id"), "fundamentals_id", errors)
+    if fundamentals_id and not FUNDAMENTALS_ID_RE.fullmatch(fundamentals_id):
+        errors.append("fundamentals_id: FUND-<20자리 16진수> 형식이어야 한다")
+
+    values = data.get("values")
+    if not isinstance(values, dict):
+        errors.append("values: 객체가 필요하다")
+        return errors
+    numbers: dict[str, float] = {}
+    for key in FUNDAMENTALS_VALUE_KEYS:
+        value = values.get(key)
+        if not isinstance(value, (int, float)) or isinstance(value, bool) \
+                or not math.isfinite(value):
+            errors.append(f"values.{key}: 유한한 숫자가 필요하다")
+        else:
+            numbers[key] = float(value)
+
+    quarters = data.get("quarters")
+    if not isinstance(quarters, dict):
+        errors.append("quarters: ocf·capex 분기 내역이 필요하다")
+        quarters = {}
+
+    for name, ttm_key in (("ocf", "ocf_ttm"), ("capex", "capex_ttm")):
+        rows = quarters.get(name)
+        if not isinstance(rows, list) or len(rows) != FUNDAMENTALS_QUARTER_COUNT:
+            errors.append(f"quarters.{name}: 분기 {FUNDAMENTALS_QUARTER_COUNT}개가 "
+                          "필요하다. 모자란 채로 TTM 을 만들면 기간이 어긋난다")
+            continue
+        total = 0.0
+        ok = True
+        for idx, row in enumerate(rows):
+            if not isinstance(row, dict) or not isinstance(row.get("val"), (int, float)):
+                errors.append(f"quarters.{name}[{idx}].val: 숫자가 필요하다")
+                ok = False
+                continue
+            total += float(row["val"])
+        # 분기 구간이 연속인지 — 같은 분기를 두 번 더하거나 한 해를 건너뛰면 안 된다
+        keys = [(r.get("fy"), r.get("quarter")) for r in rows
+                if isinstance(r, dict)]
+        if all(isinstance(fy, int) and isinstance(q, int) for fy, q in keys):
+            indices = [fy * 4 + q for fy, q in keys]
+            if sorted(indices) != list(range(min(indices), min(indices) + 4)):
+                errors.append(f"quarters.{name}: 연속된 4분기가 아니다 {keys}")
+        if ok and ttm_key in numbers and abs(total - numbers[ttm_key]) > IDENTITY_TOLERANCE:
+            errors.append(
+                f"values.{ttm_key}: 분기 합 {total:,.0f} 과 {numbers[ttm_key]:,.0f} 이 "
+                "다르다. 손으로 고친 값이다")
+
+    if {"ocf_ttm", "capex_ttm", "fcf_ttm"} <= numbers.keys():
+        derived = numbers["ocf_ttm"] - numbers["capex_ttm"]
+        if abs(derived - numbers["fcf_ttm"]) > IDENTITY_TOLERANCE:
+            errors.append(
+                f"values.fcf_ttm: 영업현금흐름 − capex = {derived:,.0f} 인데 "
+                f"{numbers['fcf_ttm']:,.0f} 로 적혀 있다")
+    if {"long_term_debt", "cash_and_equivalents",
+            "short_term_investments", "net_debt"} <= numbers.keys():
+        derived = (numbers["long_term_debt"] - numbers["cash_and_equivalents"]
+                   - numbers["short_term_investments"])
+        if abs(derived - numbers["net_debt"]) > IDENTITY_TOLERANCE:
+            errors.append(
+                f"values.net_debt: 차입 − 현금 − 단기투자 = {derived:,.0f} 인데 "
+                f"{numbers['net_debt']:,.0f} 로 적혀 있다")
+    if "shares_diluted" in numbers and numbers["shares_diluted"] <= 0:
+        errors.append("values.shares_diluted: 0보다 커야 한다")
+
+    if fundamentals_id and not errors:
+        expected = fundamentals_id_for(data)
+        if expected != fundamentals_id:
+            errors.append(
+                f"fundamentals_id: 내용의 지문은 {expected} 인데 {fundamentals_id} "
+                "라고 적혀 있다. 저장 후 편집된 파일이다")
+    return errors
+
+
+def load_fundamentals(path: str | Path) -> dict[str, Any]:
+    data = load_json(path)
+    errors = validate_fundamentals(data)
+    if errors:
+        raise ContractError([f"{Path(path).name}: {m}" for m in errors])
+    return data
+
+
+def save_validated_fundamentals(out_dir: str | Path, data: dict[str, Any]) -> Path:
+    errors = validate_fundamentals(data)
+    if errors:
+        raise ContractError(errors)
+    name = f"{data['instrument_id']}-{data['period_end']}.json"
+    return _atomic_write_json(Path(out_dir) / name, data)
 
 
 def load_calculation(calculation_id: str, calculations_dir: str | Path) -> dict[str, Any]:

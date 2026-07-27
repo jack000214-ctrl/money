@@ -38,6 +38,9 @@ CLI 종료 코드는 `PROCEED=0`, `CAUTION=1`, `RESEARCH_REQUIRED=2`,
    - 요구수익률과 대안 우위 기준
    - 기대수익 측정 기준 `decision_policy.return_measure`
    - 하방 예산 `decision_policy.max_bear_loss_contribution_pct`
+   - 밸류에이션 가정 범위 `valuation_assumptions`
+     (위험등급별 할인율 상·하한, 영구성장률 상한, 1단계 기간·수렴 기간 상한,
+     `require_verified_inputs`)
 3. 검증된 분석 JSON
    - `scripts/contracts.py`의 분석 계약을 통과해야 한다.
    - 모든 주장은 `claim_id`와 `source_ids`를 가진다.
@@ -48,8 +51,17 @@ CLI 종료 코드는 `PROCEED=0`, `CAUTION=1`, `RESEARCH_REQUIRED=2`,
 4. 계산 산출물 `knowledge/calculations/CALC-*.json`
    - `scripts/reverse_dcf.py`가 발급한다.
    - 분석의 시나리오 수익률이 이 산출물과 일치해야 한다.
-5. 예정 수량·가격과 가격 기준시각
-6. 예정가를 대조할 기준가
+   - 입력 출처 `inputs.input_provenance`를 포함한다. IPS가
+     `require_verified_inputs`를 걸면 손입력 계산은 `BLOCKED`다.
+5. 밸류에이션 입력 스냅샷 `knowledge/fundamentals/{종목}-{기준일}.json`
+   - `scripts/edgar_fetch.py fundamentals {티커}`가 발급한다.
+   - TTM FCF·희석주식수·순부채를 10-Q/10-K 원문에서 만든다.
+   - 현금흐름표는 연초 누계라 분기 복원(Q2 = 상반기 − Q1)이 필요하다.
+     이걸 안 하면 capex가 절반으로 과소계상된다.
+   - `fundamentals_id`가 내용의 지문이고, 계약이 내부 항등식
+     (FCF = 영업현금흐름 − capex, 각 TTM = 연속 4분기 합)을 함께 검사한다.
+6. 예정 수량·가격과 가격 기준시각
+7. 예정가를 대조할 기준가
    - 1순위는 보유내역의 내재단가 `value_krw / quantity`. 정의상 기준통화
      환산값이라 환율 모호성이 없다.
    - 보유하지 않은 종목은 `scripts/price_fetch.py history`로 수집한
@@ -148,6 +160,14 @@ IPS의 `return_measure`가 정한다.
 - 거래 후 약세 손실이 하방 예산 초과 (`BEAR_LOSS_EXCEEDS_BUDGET`)
 - 분석의 시나리오 수익률이 계산 산출물과 불일치 (`CALCULATION_MISMATCH`)
 - 계산 산출물이 없거나, 다른 종목 것이거나, 지문이 어긋남
+- 승인 IPS에 `valuation_assumptions`가 없음 (`VALUATION_POLICY_MISSING`)
+- 위험등급의 할인율 범위가 IPS에 없음 (`VALUATION_RISK_CLASS_MISSING`)
+- 할인율이 승인 범위 밖 (`DISCOUNT_RATE_OUT_OF_POLICY`)
+- 영구성장률·1단계 기간·수렴 기간이 승인 상한 초과
+  (`TERMINAL_GROWTH_PCT_OUT_OF_POLICY`, `YEARS_OUT_OF_POLICY`,
+  `HORIZON_MONTHS_OUT_OF_POLICY`)
+- 밸류에이션 입력이 손입력 (`VALUATION_INPUT_UNVERIFIED`) 또는 출처 기록 없음
+  (`VALUATION_INPUT_PROVENANCE_MISSING`)
 
 ## 위험등급과 2단계 한도
 
@@ -259,5 +279,7 @@ decision_snapshot_id
 - 오래된 데이터를 최신인 것처럼 사용
 - 출처 ID가 없는 주장을 매매 근거로 사용
 - 계산 산출물 없이 손으로 적은 기대수익 사용
+- 원문 스냅샷 없이 손으로 친 FCF·주식수·순부채로 계산
+- 승인 범위 밖 할인율로 요구수익률 한도를 우회
 - 스키마 검증 실패 분석 저장
 - 엔진의 `BLOCKED`를 자연어로 완화

@@ -30,7 +30,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from contracts import (SCENARIO_NAMES, SCHEMA_VERSION, ContractError,  # noqa: E402
-                       calculation_id_for, save_validated_calculation)
+                       calculation_id_for, content_hash, load_fundamentals,
+                       save_validated_calculation)
 
 CALCULATIONS_DIR = ROOT / "knowledge" / "calculations"
 MODEL = "reverse_dcf"
@@ -112,8 +113,12 @@ def parse_pairs(items, field, cast=float):
     return out
 
 
-def build_inputs(a, fcf):
-    """지문에 들어갈 입력. 산출물에 영향을 주는 값은 빠짐없이 넣는다."""
+def build_inputs(a, fcf, provenance):
+    """지문에 들어갈 입력. 산출물에 영향을 주는 값은 빠짐없이 넣는다.
+
+    provenance 도 여기 들어간다. 같은 FCF 라도 원문에서 읽은 것과 손으로 친
+    것은 신뢰도가 다르므로, 계산 ID 자체가 달라져야 한다.
+    """
     inputs = {
         "price": a.price,
         "shares": a.shares,
@@ -122,6 +127,7 @@ def build_inputs(a, fcf):
         "discount_rate_pct": a.discount_rate,
         "terminal_growth_pct": a.terminal_growth,
         "years": a.years,
+        "input_provenance": provenance,
     }
     if a.revenue is not None:
         inputs["revenue"] = a.revenue
@@ -133,7 +139,7 @@ def build_inputs(a, fcf):
 def validate_common(a):
     if a.price <= 0:
         fail("--price 는 0보다 커야 한다")
-    if a.shares <= 0:
+    if a.shares is None or a.shares <= 0:
         fail("--shares 는 0보다 커야 한다")
     if a.years < 1:
         fail("--years 는 1 이상이어야 한다")
@@ -142,14 +148,67 @@ def validate_common(a):
              "높아야 한다. 그렇지 않으면 잔존가치가 발산한다")
 
 
-def resolve_fcf(a):
-    """FCF 를 직접 받거나 매출×마진으로 만든다."""
+def resolve_inputs(a):
+    """FCF·주식수·순부채를 확정하고 그 출처를 함께 돌려준다.
+
+    이 프로젝트는 "기대수익은 손으로 적을 수 없다"를 내걸지만, 계산기의 첫
+    숫자가 손으로 친 값이면 뒤의 지문은 지어낸 값의 지문일 뿐이다. 그래서
+    기본 경로는 원문 스냅샷이고, 손입력은 사유를 남겨야만 허용한다.
+    """
+    if a.fundamentals:
+        for flag, value in (("--fcf", a.fcf), ("--shares", a.shares),
+                            ("--net-debt", a.net_debt)):
+            if value is not None:
+                fail(f"--fundamentals 와 {flag} 를 함께 줄 수 없다. "
+                     "스냅샷 값을 손으로 덮어쓰면 출처 고정이 무의미해진다")
+        try:
+            snapshot = load_fundamentals(a.fundamentals)
+        except ContractError as exc:
+            for message in exc.errors:
+                print(f"INVALID: {message}", file=sys.stderr)
+            sys.exit(1)
+        if snapshot["instrument_id"] != a.instrument:
+            fail(f"스냅샷은 {snapshot['instrument_id']} 것인데 "
+                 f"--instrument 는 {a.instrument} 다")
+        values = snapshot["values"]
+        a.shares = values["shares_diluted"]
+        a.net_debt = values["net_debt"]
+        provenance = {
+            "verified": True,
+            "source": "edgar_fundamentals",
+            "fundamentals_id": snapshot["fundamentals_id"],
+            "period_end": snapshot["period_end"],
+            # 파일 해시까지 지문에 넣는다. 스냅샷이 바뀌면 계산 ID 가 바뀐다.
+            "fundamentals_sha256": content_hash(a.fundamentals),
+        }
+        return values["fcf_ttm"], provenance
+
+    # --- 손입력 경로 ---
     if a.fcf is not None:
         fcf = a.fcf
     elif a.revenue is not None and a.fcf_margin is not None:
         fcf = a.revenue * a.fcf_margin / 100.0
     else:
-        fail("--fcf 또는 (--revenue 와 --fcf-margin) 이 필요하다")
+        fail("--fundamentals 또는 --fcf 또는 (--revenue 와 --fcf-margin) 이 필요하다")
+    if a.shares is None:
+        fail("--fundamentals 없이 계산하려면 --shares 가 필요하다")
+    if a.net_debt is None:
+        a.net_debt = 0.0
+    if not a.inputs_unverified_reason:
+        fail("손으로 적은 밸류에이션 입력은 그대로 쓸 수 없다.\n"
+             "  권장:  python3 scripts/edgar_fetch.py fundamentals "
+             f"{a.instrument}\n"
+             "         → --fundamentals knowledge/fundamentals/"
+             f"{a.instrument}-<기준일>.json\n"
+             "  그래도 손입력이 필요하면 --inputs-unverified-reason "
+             '"{확인 경로}" 로 사유를 남긴다. 사유는 기록될 뿐 검증을 대신하지 '
+             "않는다")
+    provenance = {"verified": False, "source": "manual",
+                  "reason": a.inputs_unverified_reason}
+    return fcf, provenance
+
+
+def check_fcf_sign(fcf):
     if fcf <= 0:
         fail(f"FCF 가 {fcf:,.0f} 다. 잉여현금흐름이 음수인 회사에 정률성장 DCF 를 "
              "쓰면 성장할수록 가치가 낮아지는 값이 나온다. 흑자 전환 경로를 "
@@ -160,8 +219,9 @@ def resolve_fcf(a):
 # ---------------------------------------------------------------- implied
 
 def cmd_implied(a):
+    fcf, _ = resolve_inputs(a)
     validate_common(a)
-    fcf = resolve_fcf(a)
+    check_fcf_sign(fcf)
     common = dict(discount_rate=a.discount_rate / 100.0,
                   terminal_growth=a.terminal_growth / 100.0,
                   years=a.years, net_debt=a.net_debt, shares=a.shares)
@@ -218,8 +278,9 @@ def cmd_implied(a):
 # ---------------------------------------------------------------- scenarios
 
 def cmd_scenarios(a):
+    fcf, provenance = resolve_inputs(a)
     validate_common(a)
-    fcf = resolve_fcf(a)
+    check_fcf_sign(fcf)
     growth = parse_pairs(a.growth, "growth")
     missing = [n for n in SCENARIO_NAMES if n not in growth]
     if missing:
@@ -250,7 +311,7 @@ def cmd_scenarios(a):
     outputs["implied_growth_pct"] = implied * 100
     outputs["implied_growth_status"] = status
 
-    inputs = build_inputs(a, fcf)
+    inputs = build_inputs(a, fcf, provenance)
     inputs["horizon_months"] = a.horizon_months
     inputs["scenario_growth_pct"] = {n: growth[n] for n in SCENARIO_NAMES}
 
@@ -321,11 +382,17 @@ def main():
     def shared(sp):
         sp.add_argument("--instrument", required=True, help="종목 ID (TSLA / 214450)")
         sp.add_argument("--price", type=float, required=True, help="주당 현재가")
-        sp.add_argument("--shares", type=float, required=True, help="희석 주식수")
+        # 기본 경로. FCF·주식수·순부채를 원문 스냅샷에서 읽고 지문에 박는다.
+        sp.add_argument("--fundamentals",
+                        help="edgar_fetch fundamentals 가 만든 입력 스냅샷 경로")
+        sp.add_argument("--shares", type=float, help="희석 주식수 (손입력 경로)")
         # 지수표기 음수(-30e9)는 argparse 가 옵션으로 읽는다. '=' 로 붙여야 한다.
-        sp.add_argument("--net-debt", type=float, default=0.0,
+        sp.add_argument("--net-debt", type=float,
                         help="순부채. 순현금이면 음수 (--net-debt=-30e9 처럼 = 로 붙인다)")
-        sp.add_argument("--fcf", type=float, help="직전 12개월 잉여현금흐름")
+        sp.add_argument("--fcf", type=float, help="직전 12개월 잉여현금흐름 (손입력 경로)")
+        sp.add_argument("--inputs-unverified-reason",
+                        help="원문 스냅샷 없이 손으로 입력할 때의 확인 경로. "
+                             "기록될 뿐 검증을 대신하지 않는다")
         sp.add_argument("--revenue", type=float, help="직전 12개월 매출")
         sp.add_argument("--fcf-margin", type=float, help="FCF 마진 %%")
         sp.add_argument("--discount-rate", type=float, required=True,

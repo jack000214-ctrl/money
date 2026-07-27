@@ -24,6 +24,7 @@ from typing import Any
 
 from contracts import (
     ContractError,
+    load_calculation,
     load_json,
     parse_datetime,
     probability_weighted_return,
@@ -402,6 +403,76 @@ def _check_portfolio_limits(
               before["currency_pct"].get(code, 0.0), pct, f"{code} 비중")
 
 
+def _check_valuation_policy(
+    issues: list[dict[str, str]],
+    ips: dict[str, Any],
+    analysis: dict[str, Any],
+    calculations_dir: str | Path,
+    risk_class: str | None,
+) -> dict[str, Any] | None:
+    """계산 산출물의 가정이 승인된 IPS 범위 안인지 본다.
+
+    할인율과 영구성장률은 판정을 가장 크게 흔드는 값이다. 요구수익률만
+    못박고 이쪽을 풀어두면, 분석가는 할인율 하나만 낮춰서 어떤 종목이든
+    통과시킬 수 있다. 위험등급 한도와 같은 원칙으로 다룬다 — IPS 에
+    정의가 없으면 기본값으로 때우지 않고 BLOCKED 다.
+    """
+    calculation_id = analysis.get("expected_return", {}).get("calculation_id")
+    if not calculation_id:
+        return None
+    try:
+        calculation = load_calculation(calculation_id, calculations_dir)
+    except ContractError:
+        return None  # CALCULATION_MISMATCH 가 이미 잡는다
+
+    policy = ips.get("valuation_assumptions")
+    if not isinstance(policy, dict) or not policy:
+        _issue(issues, "BLOCKED", "VALUATION_POLICY_MISSING",
+               "승인 IPS에 valuation_assumptions가 없다. 할인율·영구성장률이 "
+               "지배되지 않으면 요구수익률 한도를 우회할 수 있다")
+        return calculation
+
+    inputs = calculation.get("inputs", {})
+    provenance = inputs.get("input_provenance")
+
+    if policy.get("require_verified_inputs"):
+        if not isinstance(provenance, dict):
+            _issue(issues, "BLOCKED", "VALUATION_INPUT_PROVENANCE_MISSING",
+                   f"{calculation_id}: 입력 출처 기록이 없다. 원문에서 읽은 값인지 "
+                   "손으로 친 값인지 구분할 수 없다")
+        elif not provenance.get("verified"):
+            _issue(issues, "BLOCKED", "VALUATION_INPUT_UNVERIFIED",
+                   f"{calculation_id}: 밸류에이션 입력이 손입력이다 "
+                   f"(사유: {provenance.get('reason') or '없음'}). "
+                   "edgar_fetch fundamentals 로 원문 스냅샷을 만들어 다시 계산한다")
+
+    by_class = policy.get("by_risk_class")
+    entry = by_class.get(risk_class) if isinstance(by_class, dict) else None
+    rate = inputs.get("discount_rate_pct")
+    if not isinstance(entry, dict):
+        _issue(issues, "BLOCKED", "VALUATION_RISK_CLASS_MISSING",
+               f"위험등급 {risk_class}의 할인율 범위가 IPS에 없다")
+    elif isinstance(rate, (int, float)):
+        low, high = entry.get("discount_rate_pct_min"), entry.get("discount_rate_pct_max")
+        if isinstance(low, (int, float)) and isinstance(high, (int, float)) \
+                and not (low <= rate <= high):
+            _issue(issues, "BLOCKED", "DISCOUNT_RATE_OUT_OF_POLICY",
+                   f"할인율 {rate:.2f}%가 {risk_class}의 승인 범위 "
+                   f"{low:.2f}~{high:.2f}% 밖이다")
+
+    for key, limit_key, label in (
+        ("terminal_growth_pct", "terminal_growth_pct_max", "영구성장률"),
+        ("years", "stage_one_years_max", "1단계 기간"),
+        ("horizon_months", "horizon_months_max", "수렴 가정 기간"),
+    ):
+        value, limit = inputs.get(key), policy.get(limit_key)
+        if isinstance(value, (int, float)) and isinstance(limit, (int, float)) \
+                and value > limit:
+            _issue(issues, "BLOCKED", f"{key.upper()}_OUT_OF_POLICY",
+                   f"{label} {value}이(가) 승인 상한 {limit}을(를) 넘는다")
+    return calculation
+
+
 def _load_contract(path: str | Path | None, kind: str, issues: list[dict[str, str]]):
     if not path:
         _issue(issues, "RESEARCH_REQUIRED", f"{kind.upper()}_MISSING",
@@ -770,6 +841,19 @@ def evaluate_trade(
         if side == "buy" and thesis["invalidation_triggered"]:
             _issue(issues, "BLOCKED", "THESIS_INVALIDATED_FOR_BUY",
                    "무효화 조건이 발생한 종목은 신규·추가 매수할 수 없다")
+
+        # 밸류에이션 가정이 승인 범위 안인지, 입력이 원문에서 왔는지.
+        # 위험등급을 알아야 할인율 범위를 고를 수 있어 여기서 검사한다.
+        if approved_ips and calculations_dir is not None:
+            calculation = _check_valuation_policy(
+                issues, ips, analysis, calculations_dir, risk_class)
+            if calculation is not None:
+                decision_basis["valuation_inputs"] = {
+                    k: v for k, v in calculation.get("inputs", {}).items()
+                    if k in ("discount_rate_pct", "terminal_growth_pct", "years",
+                             "horizon_months", "fcf", "shares", "net_debt",
+                             "input_provenance")
+                }
 
         if approved_ips:
             policy = ips["decision_policy"]

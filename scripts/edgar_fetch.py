@@ -18,10 +18,16 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from contracts import (SCHEMA_VERSION, ContractError,  # noqa: E402
+                       fundamentals_id_for, save_validated_fundamentals)
+
 RAW_DIR = ROOT / "data" / "raw" / "edgar"
 CACHE_DIR = ROOT / "data" / "cache"
+FUNDAMENTALS_DIR = ROOT / "knowledge" / "fundamentals"
 
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik}.json"
@@ -39,10 +45,18 @@ SHORT_INV_TAGS = ["ShortTermInvestments", "MarketableSecuritiesCurrent",
                   "AvailableForSaleSecuritiesDebtSecuritiesCurrent"]
 OCF_TAGS = ["NetCashProvidedByUsedInOperatingActivities",
             "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"]
-DEBT_TAGS = ["LongTermDebtNoncurrent", "LongTermDebt"]
+# 장기차입금 태그는 회사·시기별로 갈린다. LongTermDebtNoncurrent 만 보면
+# 테슬라처럼 2014년에서 멈춘 태그를 최신값으로 착각한다. LongTermDebt 를
+# 먼저 시도하고, 채택한 값의 기준일을 반드시 함께 기록한다.
+DEBT_TAGS = ["LongTermDebt", "LongTermDebtNoncurrent"]
+CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment",
+              "PaymentsToAcquireProductiveAssets"]
+INCOME_QUARTERS = 8   # 전년 동기 비교에 필요한 최소 분기 수
+SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding",
+               "WeightedAverageNumberOfDilutedSharesOutstandingBasic"]
 
 
-def fail(msg):
+def fail(msg) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -122,12 +136,12 @@ def resolve(ticker, ua, refresh=False):
     return m[t]
 
 
-def concept(cik, tags, ua):
+def concept(cik, tags, ua, unit="USD"):
     """태그 후보를 순서대로 시도한다. 회사마다 쓰는 태그가 다르다."""
     for tag in tags:
         data = get(CONCEPT.format(cik=cik, tag=tag), ua, tolerate_404=True)
-        if data and data.get("units", {}).get("USD"):
-            return tag, data["units"]["USD"]
+        if data and data.get("units", {}).get(unit):
+            return tag, data["units"][unit]
         time.sleep(0.12)  # SEC 권장 10 req/s 이하
     return None, []
 
@@ -378,6 +392,170 @@ def cmd_balance(a, ua):
     print(f"\n원본 저장: {path.relative_to(ROOT)}")
 
 
+def cmd_fundamentals(a, ua):
+    """역산 DCF 입력을 원문에서 만들어 스냅샷으로 남긴다.
+
+    이 명령이 없으면 `reverse_dcf --fcf 5762000000` 처럼 손으로 친 숫자가
+    밸류에이션의 출발점이 된다. 계약이 아무리 촘촘해도 첫 숫자가 지어낸
+    값이면 뒤의 지문은 지어낸 값의 지문일 뿐이다.
+    """
+    info = resolve(a.ticker, ua)
+    cik, ticker = info["cik"], a.ticker.upper()
+    raw = {}
+
+    def flow(label, tags):
+        tag, pts = concept(cik, tags, ua)
+        raw[label] = {"tag": tag, "units": pts}
+        if not pts:
+            fail(f"{label}: 태그를 찾지 못했다 ({', '.join(tags)})")
+        total, quarters = trailing_four_quarters(pts)
+        if total is None:
+            fail(f"{label}: 연속 4분기를 확보하지 못했다. 추정하지 않는다")
+        return tag, total, quarters
+
+    ocf_tag, ocf_ttm, ocf_q = flow("영업현금흐름", OCF_TAGS)
+    capex_tag, capex_ttm, capex_q = flow("capex", CAPEX_TAGS)
+
+    # 손익계산서 분기값. 화면과 분석이 같은 원문을 보게 하려고 함께 담는다.
+    income_series = {}
+    for key, tags in (("revenue", REVENUE_TAGS), ("gross_profit", ["GrossProfit"]),
+                      ("rnd", ["ResearchAndDevelopmentExpense"]),
+                      ("sgna", ["SellingGeneralAndAdministrativeExpense"]),
+                      ("operating_income", OPINC_TAGS),
+                      ("net_income", ["NetIncomeLoss"])):
+        tag, pts = concept(cik, tags, ua)
+        raw[f"손익_{key}"] = {"tag": tag, "units": pts}
+        if not pts:
+            fail(f"손익 {key}: 태그를 찾지 못했다")
+        total, _ = trailing_four_quarters(pts)
+        if total is None:
+            fail(f"손익 {key}: 연속 4분기를 확보하지 못했다")
+        # 전년 동기 비교에는 8분기가 필요하다. TTM 창(4분기)만 담으면
+        # rows[0] 이 1년 전이 아니라 3분기 전이라 YoY 가 조용히 틀린다.
+        recent = fiscal_quarters(pts)[-INCOME_QUARTERS:]
+        if len(recent) < INCOME_QUARTERS:
+            fail(f"손익 {key}: 전년 동기 비교에 필요한 "
+                 f"{INCOME_QUARTERS}분기를 확보하지 못했다 ({len(recent)}개)")
+        income_series[key] = {"tag": tag, "ttm": float(total), "quarters": recent}
+
+    if [(q["fy"], q["quarter"]) for q in ocf_q] != [(q["fy"], q["quarter"]) for q in capex_q]:
+        fail("영업현금흐름과 capex 의 분기 구간이 다르다. 서로 다른 기간을 "
+             "빼면 FCF 가 아니다")
+
+    def point(label, tags, unit="USD"):
+        tag, pts = concept(cik, tags, ua, unit=unit)
+        raw[label] = {"tag": tag, "units": pts}
+        if not pts:
+            return None, None, None
+        p = instant(pts)[0] if unit == "USD" and not pts[0].get("start") else None
+        if p is None:
+            rows = instant(pts)
+            if rows:
+                p = rows[0]
+        if p is None:
+            return tag, None, None
+        return tag, p["val"], p["end"]
+
+    cash_tag, cash, cash_at = point("현금성자산", CASH_TAGS)
+    inv_tag, short_inv, inv_at = point("단기투자자산", SHORT_INV_TAGS)
+    debt_tag, debt, debt_at = point("장기차입금", DEBT_TAGS)
+
+    shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares")
+    raw["희석주식수"] = {"tag": shares_tag, "units": shares_pts}
+    shares_q = quarterly(shares_pts) if shares_pts else []
+    if not shares_q:
+        fail("희석주식수를 찾지 못했다")
+    shares, shares_at = shares_q[0]["val"], shares_q[0]["end"]
+
+    for label, value in (("현금성자산", cash), ("단기투자자산", short_inv),
+                         ("장기차입금", debt)):
+        if value is None:
+            fail(f"{label}: 값을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
+
+    period_end = ocf_q[-1]["end"]
+    # 차입금 기준일이 손익 기준일과 크게 어긋나면 순부채가 다른 시점 값이다.
+    for label, at in (("현금성자산", cash_at), ("단기투자자산", inv_at),
+                      ("장기차입금", debt_at)):
+        if at != period_end:
+            print(f"⚠ {label} 기준일 {at} 이 손익 기준일 {period_end} 과 다르다",
+                  file=sys.stderr)
+
+    values = {
+        "ocf_ttm": float(ocf_ttm),
+        "capex_ttm": float(capex_ttm),
+        "fcf_ttm": float(ocf_ttm - capex_ttm),
+        "shares_diluted": float(shares),
+        "cash_and_equivalents": float(cash),
+        "short_term_investments": float(short_inv),
+        "long_term_debt": float(debt),
+        "net_debt": float(debt - cash - short_inv),
+    }
+    raw_path = save_raw(f"fundamentals_{ticker}", raw)
+
+    snapshot = {
+        "schema_version": SCHEMA_VERSION,
+        "instrument_id": ticker,
+        "company_name": info["name"],
+        "cik": cik,
+        "currency": "USD",
+        "period_end": period_end,
+        "created_at": datetime.now(timezone.utc).astimezone().isoformat(
+            timespec="seconds"),
+        "tags": {"ocf": ocf_tag, "capex": capex_tag, "shares": shares_tag,
+                 "cash": cash_tag, "short_term_investments": inv_tag,
+                 "long_term_debt": debt_tag},
+        "as_of": {"cash": cash_at, "short_term_investments": inv_at,
+                  "long_term_debt": debt_at, "shares": shares_at},
+        "quarters": {
+            "ocf": [{k: q[k] for k in ("fy", "quarter", "end", "filed", "val",
+                                       "derived")} for q in ocf_q],
+            "capex": [{k: q[k] for k in ("fy", "quarter", "end", "filed", "val",
+                                         "derived")} for q in capex_q],
+        },
+        "values": values,
+        "income_statement": {
+            key: {
+                "tag": series["tag"],
+                "ttm": series["ttm"],
+                "quarters": [
+                    {k: q[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
+                    for q in series["quarters"]
+                ],
+            }
+            for key, series in income_series.items()
+        },
+        "raw_locator": str(raw_path.relative_to(ROOT)),
+    }
+    snapshot["fundamentals_id"] = fundamentals_id_for(snapshot)
+
+    try:
+        path = save_validated_fundamentals(a.out_dir, snapshot)
+    except ContractError as exc:
+        for message in exc.errors:
+            print(f"INVALID: {message}", file=sys.stderr)
+        return 1
+
+    print(f"{info['name']} ({ticker}) — 기준 {period_end} / 단위 백만 USD")
+    print("=" * 66)
+    print(f"{'영업현금흐름 TTM':<20}{ocf_ttm/1e6:>14,.0f}   [{ocf_tag}]")
+    print(f"{'capex TTM':<20}{capex_ttm/1e6:>14,.0f}   [{capex_tag}]")
+    print(f"{'FCF TTM':<20}{values['fcf_ttm']/1e6:>14,.0f}   = 영업현금흐름 − capex")
+    print(f"{'희석주식수':<20}{shares/1e6:>14,.0f}M  {shares_at}")
+    print(f"{'순부채':<20}{values['net_debt']/1e6:>14,.0f}   "
+          f"(차입 {debt/1e6:,.0f} − 현금 {cash/1e6:,.0f} − 단기투자 {short_inv/1e6:,.0f})")
+    print("\n[ 분기 복원 — 누계 차감 ]")
+    for o, c in zip(ocf_q, capex_q):
+        mark = "차감" if o["derived"] else "직접"
+        print(f"  FY{o['fy']} Q{o['quarter']}  {o['end']}  "
+              f"영업 {o['val']/1e6:>9,.0f}  capex {c['val']/1e6:>9,.0f}  "
+              f"FCF {(o['val']-c['val'])/1e6:>9,.0f}  ({mark})")
+    print(f"\nfundamentals_id  {snapshot['fundamentals_id']}")
+    print(f"저장: {path.relative_to(ROOT)}")
+    print(f"원본: {raw_path.relative_to(ROOT)}")
+    print("\n※ reverse_dcf 에 --fundamentals 로 넘기면 이 지문이 계산 산출물에 박힌다.")
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(description="SEC EDGAR 원문 수집")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -401,11 +579,17 @@ def main():
     b = sub.add_parser("balance", help="현금·차입금 요약")
     b.add_argument("ticker")
 
+    fd = sub.add_parser("fundamentals",
+                        help="역산 DCF 입력 스냅샷 (TTM FCF·주식수·순부채)")
+    fd.add_argument("ticker")
+    fd.add_argument("--out-dir", default=str(FUNDAMENTALS_DIR))
+
     a = p.parse_args()
     ua = user_agent()
-    {"resolve": cmd_resolve, "filings": cmd_filings, "quarters": cmd_quarters,
-     "runway": cmd_runway, "balance": cmd_balance}[a.cmd](a, ua)
+    return {"resolve": cmd_resolve, "filings": cmd_filings, "quarters": cmd_quarters,
+            "runway": cmd_runway, "balance": cmd_balance,
+            "fundamentals": cmd_fundamentals}[a.cmd](a, ua)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main() or 0)

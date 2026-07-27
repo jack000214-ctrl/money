@@ -36,6 +36,8 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--current", required=True, type=float)
     parser.add_argument("--entry-ceiling", required=True, type=float)
+    parser.add_argument("--entry-label", required=True,
+                        help="이 선이 무엇인지. 매수 트리거로 오해되지 않게 쓴다")
     args = parser.parse_args()
 
     rows = read_prices(args.input)
@@ -65,6 +67,18 @@ def main() -> None:
         + f" L{points[-1][0]:.2f},{top + plot_height:.2f}"
         + f" L{points[0][0]:.2f},{top + plot_height:.2f} Z"
     )
+    segments = []
+    for index in range(1, len(points)):
+        previous = rows[index - 1]["close"]
+        current = rows[index]["close"]
+        direction = "up" if current > previous else "down" if current < previous else "flat"
+        segments.append({
+            "x1": f"{points[index - 1][0]:.2f}",
+            "y1": f"{points[index - 1][1]:.2f}",
+            "x2": f"{points[index][0]:.2f}",
+            "y2": f"{points[index][1]:.2f}",
+            "direction": direction,
+        })
 
     guide_values = list(range(int(y_min), int(y_max) + 1, 50))
     guides = [
@@ -100,6 +114,7 @@ def main() -> None:
         "viewBox": f"0 0 {width} {height}",
         "linePath": line_path,
         "areaPath": area_path,
+        "segments": segments,
         "guides": guides,
         "xLabels": x_labels,
         "entryLine": {
@@ -107,7 +122,9 @@ def main() -> None:
             "y": f"{y(args.entry_ceiling):.2f}",
             "labelRectY": f"{y(args.entry_ceiling) - 26:.2f}",
             "labelTextY": f"{y(args.entry_ceiling) - 11:.2f}",
-            "label": "연 12% 목표를 만족하는 강세 가정 매수가 상한",
+            # 강세 시나리오 단독 가격이다. IPS 확률가중 기준 가격은 훨씬 낮아
+            # 차트 범위 밖이므로, 이 선을 매수 트리거로 읽지 않게 명시한다.
+            "label": args.entry_label,
         },
         "currentLine": {
             "value": f"${args.current:,.2f}",

@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import reportData from "../data/decision-report.json";
 import chartData from "../data/tsla-price-chart.json";
 import type {
@@ -7,6 +6,8 @@ import type {
   Signal,
 } from "../lib/decision-report";
 import { AnalysisDialog } from "./AnalysisDialog";
+import { FinancialTabs } from "./FinancialTabs";
+import { PositioningTabs } from "./PositioningTabs";
 
 const report = reportData as DecisionReport;
 const chart = chartData as PriceChart;
@@ -19,15 +20,24 @@ function SectionTitle({
   number,
   title,
   description,
+  confidence,
+  confidenceLevel = "high",
 }: {
   number: string;
   title: string;
   description?: string;
+  confidence?: string;
+  confidenceLevel?: "high" | "medium" | "lagged";
 }) {
   return (
     <header className="section-title">
       <span>{number}</span>
       <div>
+        {confidence ? (
+          <div className={`confidence-tag confidence-${confidenceLevel}`}>
+            {confidence}
+          </div>
+        ) : null}
         <h2>{title}</h2>
         {description ? <p>{description}</p> : null}
       </div>
@@ -44,10 +54,11 @@ export default function Home() {
         </a>
         <nav aria-label="보고서 바로가기">
           <a href="#price">가격</a>
-          <a href="#financials">실적</a>
-          <a href="#peers">동종사</a>
-          <a href="#valuation">가치</a>
           <a href="#review">재검토</a>
+          <a href="#financials">현금흐름</a>
+          <a href="#valuation">가치</a>
+          <a href="#peers">비교</a>
+          <a href="#positioning">수급</a>
         </nav>
         <span className="as-of">{report.meta.asOf}</span>
       </header>
@@ -59,44 +70,142 @@ export default function Home() {
               <span>{report.asset.ticker}</span>
               <span>{report.meta.financialAsOf} 반영</span>
             </div>
-            <div className="decision-status">
+            <div className="decision-status" aria-label="현재 투자판정">
               <SignalMark signal="bad" />
-              {report.decision.status}
+              현재 투자판정
             </div>
-            <h1>{report.decision.headline}</h1>
+            <h1>{report.decision.status}</h1>
+            <strong className="hero-primary-reason">
+              {report.decision.primaryReason}
+            </strong>
+            <p className="hero-headline">{report.decision.headline}</p>
             <p className="hero-reason">{report.decision.reason}</p>
             <AnalysisDialog analysis={report.detailedAnalysis} />
           </div>
 
           <aside className="decision-sheet" aria-label="현재 판정 요약">
-            <div className="decision-price">
-              <span>현재 참고가</span>
-              <strong>{report.asset.currentUsd}</strong>
-              <small>{report.asset.currentKrw}</small>
+            <div className="decision-price decision-why">
+              <span>차단 사유</span>
+              <strong>{report.decision.primaryReason}</strong>
+              <small>{report.decision.hurdleResult}</small>
             </div>
             <dl>
               <div>
-                <dt>매수 검토 가격</dt>
-                <dd>{report.decision.entryCeiling}</dd>
-                <small>{report.decision.entryCeilingKrw}</small>
-              </div>
-              <div>
-                <dt>수익 허들</dt>
-                <dd>{report.decision.hurdleResult}</dd>
-              </div>
-              <div>
                 <dt>지금 할 일</dt>
                 <dd>{report.decision.actionNow}</dd>
+              </div>
+              <div>
+                <dt>요구수익률을 만족하는 가격</dt>
+                <dd className="decision-entry">{report.decision.entryCeiling}</dd>
+                <small>{report.decision.entryCeilingNote}</small>
+              </div>
+              <div>
+                <dt>현재 참고가</dt>
+                <dd>{report.asset.currentUsd} · {report.asset.currentKrw}</dd>
               </div>
             </dl>
           </aside>
         </section>
 
+        <section className="section" aria-label="엔진 판정 근거">
+          <SectionTitle
+            number="00"
+            title="엔진이 남긴 판정 코드"
+            description={report.decision.verdictNote}
+            confidence={`trade_check ${report.meta.engineVersion}`}
+            confidenceLevel="high"
+          />
+          <ul className="issue-list">
+            {report.decision.issues.map((issue) => (
+              <li key={issue.code} className={`issue issue-${issue.severity}`}>
+                <code>{issue.severity}</code>
+                <strong>{issue.code}</strong>
+                <span>{issue.message}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="issue-note">{report.decision.bullOnlyNote}</p>
+        </section>
+
+        <section className="section" id="portfolio" aria-label="내 포트폴리오에 미치는 영향">
+          <SectionTitle
+            number="0P"
+            title="이 거래가 내 포트폴리오에서 차지하는 자리"
+            description="비중은 분모를 섞지 않습니다. 세 분모를 각각 금액과 함께 봅니다."
+            confidence="보유내역 + 승인 IPS"
+            confidenceLevel="high"
+          />
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>분모</th><th>거래 전</th><th>거래 후</th><th>분모 금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.portfolio.weights.map((w) => (
+                <tr key={w.label}>
+                  <th scope="row" title={w.definition}>{w.label}</th>
+                  <td>{w.before}</td>
+                  <td><strong>{w.after}</strong></td>
+                  <td>{w.denominator}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <dl className="portfolio-facts">
+            <div>
+              <dt>하방 예산</dt>
+              <dd>
+                {report.portfolio.bearBudget.used} / 한도{" "}
+                {report.portfolio.bearBudget.limit}
+                {report.portfolio.bearBudget.withinBudget ? " · 이내" : " · 초과"}
+              </dd>
+              <small>{report.portfolio.bearBudget.note}</small>
+            </div>
+            {report.portfolio.costs ? (
+              <div>
+                <dt>비용·세금</dt>
+                <dd>{report.portfolio.costs["총계"]}</dd>
+                <small>{report.portfolio.costs["내역"]}</small>
+              </div>
+            ) : null}
+            <div>
+              <dt>결정 스냅샷</dt>
+              <dd className="mono">{report.portfolio.snapshotId}</dd>
+              <small>이 판정을 나중에 다시 대조할 때 쓰는 ID</small>
+            </div>
+          </dl>
+        </section>
+
+        <section className="decision-evidence" aria-label="판정을 결정한 핵심 근거">
+          <div className="evidence-intro">
+            <span>판정을 결정한 근거</span>
+            <strong>숫자보다 먼저 볼 의미</strong>
+          </div>
+          <div className="decision-evidence-grid">
+            {report.decision.highlights.map((item) => (
+              <article
+                className={`decision-evidence-card evidence-card-${item.signal}`}
+                key={item.meaning}
+              >
+                <div className={`confidence-tag confidence-${item.confidenceLevel}`}>
+                  {item.confidence}
+                </div>
+                <h2>{item.meaning}</h2>
+                <strong>{item.value}</strong>
+                <p>{item.context}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="section price-section" id="price">
           <SectionTitle
             number="01"
-            title="급락한 것은 맞습니다. 그래도 아직 목표 매수가에는 닿지 않았습니다."
-            description="최근 1년 일별 종가와 연 12% 목표를 만족하는 조건부 매수가를 함께 표시했습니다."
+            title="급락했지만, 아직 목표 수익률을 만드는 가격은 아닙니다."
+            description="차트에서는 현재가보다 ‘다시 분석할 가격’과의 거리를 먼저 보세요."
+            confidence="실제 종가"
+            confidenceLevel="high"
           />
 
           <div className="chart-shell">
@@ -116,8 +225,8 @@ export default function Home() {
             >
               <defs>
                 <linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#3159d8" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#3159d8" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#7c828d" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#7c828d" stopOpacity="0" />
                 </linearGradient>
               </defs>
 
@@ -138,6 +247,17 @@ export default function Home() {
 
               <path className="chart-area" d={chart.areaPath} />
               <path className="chart-line" d={chart.linePath} />
+              {chart.segments.map((segment, index) => (
+                <line
+                  className={`price-segment segment-${segment.direction}`}
+                  x1={segment.x1}
+                  y1={segment.y1}
+                  x2={segment.x2}
+                  y2={segment.y2}
+                  vectorEffect="non-scaling-stroke"
+                  key={`${segment.x1}-${segment.x2}-${index}`}
+                />
+              ))}
 
               <line
                 className="threshold-line current-threshold"
@@ -190,8 +310,12 @@ export default function Home() {
 
             <div className="chart-legend">
               <span>
-                <i className="legend-line" />
-                일별 종가
+                <i className="legend-rise" />
+                상승일
+              </span>
+              <span>
+                <i className="legend-fall" />
+                하락일
               </span>
               <span>
                 <i className="legend-current" />
@@ -204,205 +328,33 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="price-evidence">
-            {report.priceEvidence.map((item) => (
-              <article key={item.label}>
-                <div>
-                  <SignalMark signal={item.signal} />
-                  <span>{item.label}</span>
-                </div>
-                <strong>{item.value}</strong>
-                <p>{item.explanation}</p>
-              </article>
-            ))}
-          </div>
+          <details className="disclosure">
+            <summary>
+              <span>가격 데이터 자세히</span>
+              <small>최근 급락·52주 고저점·조건부 매수가</small>
+            </summary>
+            <div className="price-evidence">
+              {report.priceEvidence.map((item) => (
+                <article className={`evidence-${item.signal}`} key={item.label}>
+                  <div>
+                    <SignalMark signal={item.signal} />
+                    <span>{item.label}</span>
+                  </div>
+                  <strong>{item.value}</strong>
+                  <p>{item.explanation}</p>
+                </article>
+              ))}
+            </div>
+          </details>
         </section>
 
-        <section className="section" id="financials">
+        <section className="section review-section" id="review">
           <SectionTitle
             number="02"
-            title="왜 영업이익은 줄었나"
-            description={report.incomeStatement.conclusion}
-          />
-
-          <div className="financial-layout">
-            <div className="income-block">
-              <h3>{report.incomeStatement.title}</h3>
-              <div className="profit-equation">
-                {report.incomeStatement.equation.map((item) => (
-                  <div className={`equation-item equation-${item.sign ?? "plus"}`} key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-              <div className="data-table-wrap">
-                <table className="data-table income-table">
-                  <thead>
-                    <tr>
-                      <th>2026 Q2</th>
-                      <th>값</th>
-                      <th>전년 동기</th>
-                      <th>해석</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.incomeStatement.rows.map((row) => (
-                      <tr key={row.metric}>
-                        <th scope="row">{row.metric}</th>
-                        <td>{row.value}</td>
-                        <td>{row.comparison}</td>
-                        <td>
-                          <SignalMark signal={row.signal} />
-                          {row.interpretation}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="cashflow-block">
-              <h3>{report.cashFlow.title}</h3>
-              <p className="block-conclusion">{report.cashFlow.conclusion}</p>
-              <div className="cashflow-chart" aria-label="분기별 영업현금흐름과 설비투자 비교">
-                {report.cashFlow.rows.map((row) => (
-                  <div className="cash-quarter" key={row.quarter}>
-                    <div className="bar-stage">
-                      <div
-                        className="cash-bar ocf-bar"
-                        style={{ "--bar-height": row.ocfHeight } as CSSProperties}
-                      >
-                        <span>{row.operatingCashFlow}</span>
-                      </div>
-                      <div
-                        className="cash-bar capex-bar"
-                        style={{ "--bar-height": row.capexHeight } as CSSProperties}
-                      >
-                        <span>{row.capex}</span>
-                      </div>
-                    </div>
-                    <strong>{row.quarter}</strong>
-                    <p className={`fcf-result result-${row.signal}`}>
-                      FCF {row.freeCashFlow}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="cash-legend">
-                <span><i className="ocf-key" />영업현금흐름</span>
-                <span><i className="capex-key" />CapEx</span>
-              </div>
-            </div>
-          </div>
-
-          <aside className="plain-conclusion">
-            <strong>결론</strong>
-            <p>
-              “실적이 나빠진 것이 아니라 미래에 돈을 썼다”는 해석은 손익계산서에서는
-              맞습니다. 하지만 현금흐름에서는 그 지출이 영업현금보다 커졌습니다.
-              이제 확인할 것은 지출의 존재가 아니라 <em>회수 속도</em>입니다.
-            </p>
-          </aside>
-        </section>
-
-        <section className="section" id="peers">
-          <SectionTitle
-            number="03"
-            title={report.peers.title}
-            description={report.peers.conclusion}
-          />
-          <div className="data-table-wrap peer-wrap">
-            <table className="data-table peer-table">
-              <thead>
-                <tr>
-                  <th>기업</th>
-                  <th>기준</th>
-                  <th>매출</th>
-                  <th>GPM</th>
-                  <th>OPM</th>
-                  <th>최근 매출 YoY</th>
-                  <th>PER</th>
-                  <th>PSR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.peers.rows.map((row) => (
-                  <tr className={row.focus ? "focus-row" : ""} key={row.ticker}>
-                    <th scope="row">
-                      <strong>{row.ticker}</strong>
-                      <span>{row.company}</span>
-                    </th>
-                    <td>{row.basis}</td>
-                    <td>{row.revenue}</td>
-                    <td>{row.grossMargin}</td>
-                    <td>{row.operatingMargin}</td>
-                    <td>{row.revenueGrowth}</td>
-                    <td>{row.per}</td>
-                    <td>{row.psr}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="table-note">
-            GPM이 ‘—’인 기업은 동일 기간·동일 기준으로 맞는 XBRL 값이 없어 추측하지
-            않았습니다. 사업 구성과 기준일이 달라 절대 순위가 아니라 가격 프리미엄의
-            크기를 확인하는 표입니다.
-          </p>
-        </section>
-
-        <section className="section" id="valuation">
-          <SectionTitle
-            number="04"
-            title={report.valuation.title}
-            description={report.valuation.conclusion}
-          />
-          <div className="valuation-callout">
-            <span>현재가에 내재된 요구</span>
-            <strong>{report.valuation.impliedGrowth}</strong>
-            <p>{report.valuation.modelInputs}</p>
-          </div>
-          <div className="scenario-table">
-            <div className="scenario-head">
-              <span>시나리오</span>
-              <span>FCF 성장 가정</span>
-              <span>주당가치</span>
-              <span>현재가와 격차</span>
-              <span>24개월 연환산</span>
-            </div>
-            {report.valuation.scenarios.map((scenario) => (
-              <div className="scenario-data" key={scenario.name}>
-                <strong>
-                  <SignalMark signal={scenario.signal} />
-                  {scenario.name}
-                </strong>
-                <span>{scenario.fcfGrowth}</span>
-                <span>{scenario.valuePerShare}</span>
-                <span>{scenario.totalGap}</span>
-                <strong className={`scenario-return return-${scenario.signal}`}>
-                  {scenario.annualizedReturn}
-                </strong>
-              </div>
-            ))}
-          </div>
-          <div className="valuation-answer">
-            <span>그래서 얼마면 다시 볼까?</span>
-            <strong>$282.46 이하</strong>
-            <p>
-              강세 가치 $354.32가 24개월 뒤 실현된다는 매우 낙관적인 가정으로도
-              연 12%를 얻기 위한 매수가 상한입니다. 자동 매수가 아니라 분석을 다시
-              여는 가격입니다.
-            </p>
-          </div>
-        </section>
-
-        <section className="section" id="review">
-          <SectionTitle
-            number="05"
-            title="가격이 움직이면, 판단을 다시 여는 지점"
-            description="가격 경고와 사업 논지 훼손을 분리했습니다."
+            title="기다리기만 하는 판정이 아닙니다. 이때 다시 분석합니다."
+            description="가격 조건과 사업 논지 훼손 조건을 분리했습니다."
+            confidence="실행 기준"
+            confidenceLevel="high"
           />
           <div className="review-list">
             {report.reviewMap.map((item) => (
@@ -419,6 +371,149 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section" id="financials">
+          <SectionTitle
+            number="03"
+            title="매출은 성장했지만, 투자비가 현금 유입을 넘어섰습니다."
+            description="본업의 매출과 마진은 버텼습니다. 지금 더 중요한 것은 AI 투자가 언제 현금으로 돌아오느냐입니다."
+            confidence="공시 확정"
+            confidenceLevel="high"
+          />
+
+          <FinancialTabs
+            cashFlow={report.cashFlow}
+            incomeStatement={report.incomeStatement}
+          />
+
+          <aside className="plain-conclusion">
+            <strong>결론</strong>
+            <p>
+              “실적이 나빠진 것이 아니라 미래에 돈을 썼다”는 해석은 손익계산서에서는
+              맞습니다. 하지만 현금흐름에서는 그 지출이 영업현금보다 커졌습니다.
+              이제 확인할 것은 지출의 존재가 아니라 <em>회수 속도</em>입니다.
+            </p>
+          </aside>
+        </section>
+
+        <section className="section valuation-section" id="valuation">
+          <SectionTitle
+            number="04"
+            title="좋은 회사라는 가정까지 넣어도, 현재 가격의 기대수익은 부족합니다."
+            description={report.valuation.conclusion}
+            confidence="가정 기반 모델"
+            confidenceLevel="medium"
+          />
+          <div className="valuation-callout">
+            <span>현재 가격이 요구하는 미래</span>
+            <strong>{report.valuation.impliedGrowth}</strong>
+            <p>{report.valuation.modelInputs}</p>
+          </div>
+          <div className="valuation-answer">
+            <span>그래서 언제 다시 보나?</span>
+            <strong>{report.decision.entryCeiling}</strong>
+            <p>{report.valuation.entryExplanation}</p>
+          </div>
+          <details className="disclosure">
+            <summary>
+              <span>가치평가 시나리오 자세히</span>
+              <small>약세·기준·강세 가정과 24개월 연환산 수익</small>
+            </summary>
+            <div className="scenario-table">
+              <div className="scenario-head">
+                <span>시나리오</span>
+                <span>FCF 성장 가정</span>
+                <span>주당가치</span>
+                <span>현재가와 격차</span>
+                <span>24개월 연환산</span>
+              </div>
+              {report.valuation.scenarios.map((scenario) => (
+                <div className="scenario-data" key={scenario.name}>
+                  <strong>
+                    <SignalMark signal={scenario.signal} />
+                    {scenario.name}
+                  </strong>
+                  <span>{scenario.fcfGrowth}</span>
+                  <span>{scenario.valuePerShare}</span>
+                  <span>{scenario.totalGap}</span>
+                  <strong className={`scenario-return return-${scenario.signal}`}>
+                    {scenario.annualizedReturn}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          </details>
+        </section>
+
+        <section className="section" id="peers">
+          <SectionTitle
+            number="05"
+            title={report.peersTable.title}
+            description={report.peersTable.conclusion}
+            confidence="공시·시장 데이터"
+            confidenceLevel="high"
+          />
+          <div className="peer-summary" aria-label="현재가 기준 배수">
+            {report.valuation.multiples.map((item) => (
+              <div className="peer-highlight-bad" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.basis}</small>
+              </div>
+            ))}
+          </div>
+          <details className="disclosure">
+            <summary>
+              <span>동종사 비교표 자세히</span>
+              <small>매출·PER·PSR · 기준일 주의</small>
+            </summary>
+            <div className="data-table-wrap peer-wrap">
+              <table className="data-table peer-table">
+                <thead>
+                  <tr>
+                    <th>기업</th>
+                    <th>기준</th>
+                    <th>매출</th>
+                    <th>PER</th>
+                    <th>PSR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.peersTable.rows.map((row) => (
+                    <tr className={row.focus ? "focus-row" : ""} key={row.ticker}>
+                      <th scope="row">
+                        <strong>{row.ticker}</strong>
+                        <span>{row.company}</span>
+                      </th>
+                      <td>{row.basis}</td>
+                      <td>{row.revenue}</td>
+                      <td>{row.per}</td>
+                      <td>{row.psr}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="table-note">{report.peersTable.basisWarning}</p>
+          </details>
+        </section>
+
+        <section className="section positioning-section detail-tier" id="positioning">
+          <SectionTitle
+            number="06"
+            title={report.marketPositioning.title}
+            description={report.marketPositioning.conclusion}
+            confidence="지연 공시"
+            confidenceLevel="lagged"
+          />
+
+          <aside className="positioning-decision">
+            <span>그래서?</span>
+            <p>{report.marketPositioning.decisionUse}</p>
+          </aside>
+
+          <PositioningTabs items={report.marketPositioning.items} />
+        </section>
+
         <footer>
           <div>
             <strong>근거와 기준시점</strong>
@@ -431,7 +526,13 @@ export default function Home() {
             {report.sources.map((source) => (
               <li key={source.label}>
                 <span>{source.label}</span>
-                {source.detail}
+                {source.url ? (
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    {source.detail}
+                  </a>
+                ) : (
+                  source.detail
+                )}
               </li>
             ))}
           </ul>
