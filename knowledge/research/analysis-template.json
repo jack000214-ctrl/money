@@ -1,14 +1,15 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "analysis_id": "ANALYSIS-YYYYMMDD-INSTRUMENT",
   "instrument_id": "INSTRUMENT_ID",
   "company_id": "COMPANY_ID",
-  "as_of": "2026-07-26T00:00:00+09:00",
+  "as_of": "2026-07-27T00:00:00+09:00",
   "snapshot": {
     "snapshot_id": "SNAPSHOT-YYYYMMDD-INSTRUMENT",
-    "created_at": "2026-07-26T00:00:00+09:00",
+    "created_at": "2026-07-27T00:00:00+09:00",
     "source_ids": [
-      "SRC-PRIMARY-001"
+      "SRC-PRIMARY-001",
+      "SRC-BEAR-001"
     ],
     "input_hashes": {
       "primary_source": "0000000000000000000000000000000000000000000000000000000000000000"
@@ -19,8 +20,16 @@
       "source_id": "SRC-PRIMARY-001",
       "source_type": "FILING",
       "locator": "공시 원문 또는 로컬 캐시 경로",
-      "published_at": "2026-07-25T18:00:00+09:00",
-      "retrieved_at": "2026-07-26T00:00:00+09:00",
+      "published_at": "2026-07-26T18:00:00+09:00",
+      "retrieved_at": "2026-07-27T00:00:00+09:00",
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "source_id": "SRC-BEAR-001",
+      "source_type": "FILING",
+      "locator": "하방을 뒷받침하는 원문. 강세 근거만 모으면 bear 는 지어낸 숫자가 된다",
+      "published_at": "2026-07-26T18:00:00+09:00",
+      "retrieved_at": "2026-07-27T00:00:00+09:00",
       "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
@@ -29,6 +38,22 @@
       "claim_id": "CLAIM-001",
       "type": "FACT",
       "text": "원문에서 직접 확인한 사실",
+      "source_ids": [
+        "SRC-PRIMARY-001"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BEAR-001",
+      "type": "FACT",
+      "text": "약세 시나리오를 뒷받침하는 관측 사실",
+      "source_ids": [
+        "SRC-BEAR-001"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BULL-001",
+      "type": "HYPOTHESIS",
+      "text": "강세 시나리오가 성립하기 위한 조건",
       "source_ids": [
         "SRC-PRIMARY-001"
       ]
@@ -44,22 +69,48 @@
       "CLAIM-001"
     ]
   },
-  "expected_return": {
-    "horizon_months": 12,
-    "bear_pct": -30.0,
-    "base_pct": 10.0,
-    "bull_pct": 40.0,
-    "required_return_pct": 12.0,
-    "methodology": "시나리오 기반 가치 범위",
-    "calculation_id": "CALC-001",
+  "counter_thesis": {
+    "text": "이 논지에 대한 가장 강한 반대 근거. 약한 반론을 세우고 이기면 아무것도 검증되지 않는다",
+    "invalidation_signal": "관측 가능한 지표와 임계값. '성장이 둔화되면'은 조건이 아니다",
     "claim_ids": [
-      "CLAIM-001"
+      "CLAIM-BEAR-001"
     ]
+  },
+  "expected_return": {
+    "horizon_months": 24,
+    "required_return_pct": 12.0,
+    "methodology": "2단계 FCF 역산 DCF (scripts/reverse_dcf.py)",
+    "calculation_id": "CALC-00000000000000000000",
+    "probability_weighted_pct": 8.25,
+    "scenarios": {
+      "bear": {
+        "return_pct": -25.0,
+        "probability": 0.25,
+        "claim_ids": [
+          "CLAIM-BEAR-001"
+        ]
+      },
+      "base": {
+        "return_pct": 12.0,
+        "probability": 0.5,
+        "claim_ids": [
+          "CLAIM-001"
+        ]
+      },
+      "bull": {
+        "return_pct": 34.0,
+        "probability": 0.25,
+        "claim_ids": [
+          "CLAIM-BULL-001"
+        ]
+      }
+    }
   },
   "alternatives": [
     {
       "instrument_id": "CORE_OR_CASH_ALTERNATIVE",
-      "base_expected_return_pct": 0.0,
+      "expected_return_pct": 6.0,
+      "measure": "PROBABILITY_WEIGHTED",
       "snapshot_id": "SNAPSHOT-ALTERNATIVE-YYYYMMDD",
       "claim_ids": [
         "CLAIM-001"

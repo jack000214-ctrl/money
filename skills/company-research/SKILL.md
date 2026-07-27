@@ -57,8 +57,14 @@ knowledge/companies/{티커}-{회사명}/
 모든 주장은 고유 `claim_id`와 `source_ids`를 가진다. 분석은 고유
 `snapshot_id`, 입력 파일의 SHA-256, 기준시각을 가진다.
 
+기대수익은 **손으로 적을 수 없다.** 시나리오 수익률은 `scripts/reverse_dcf.py`가
+발급한 계산 산출물에서 와야 하고, `calculation_id`가 그 산출물을 가리켜야 한다.
+밸류에이션까지 갈 준비가 안 됐으면 이 단계는 thesis-challenge SKILL로 넘기고,
+여기서는 프로파일과 타임라인만 갱신한다.
+
 ```bash
 python3 scripts/validate_analysis.py analysis-draft.json \
+  --calculations knowledge/calculations \
   --save knowledge/companies/{티커}-{회사명}/analysis.json
 ```
 

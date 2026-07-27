@@ -26,16 +26,19 @@ from contracts import (
     ContractError,
     load_json,
     parse_datetime,
+    probability_weighted_return,
     stable_hash,
     validate_analysis,
     validate_ips,
+    verify_expected_return_calculation,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_HOLDINGS = ROOT / "knowledge" / "portfolio" / "holdings.csv"
 DEFAULT_IPS = ROOT / "knowledge" / "portfolio" / "ips.json"
+DEFAULT_CALCULATIONS = ROOT / "knowledge" / "calculations"
 PRICE_DIR = ROOT / "knowledge" / "prices"
-ENGINE_VERSION = "2.1.0"
+ENGINE_VERSION = "2.2.0"
 RESULT_SCHEMA_VERSION = "1.0.0"
 
 EQUITY_TYPES = {"STOCK", "ETF", "REIT"}
@@ -433,6 +436,7 @@ def evaluate_trade(
     price_unverified_reason: str | None = None,
     concentration_override_reason: str | None = None,
     price_dir: str | Path = PRICE_DIR,
+    calculations_dir: str | Path | None = DEFAULT_CALCULATIONS,
 ) -> dict[str, Any]:
     evaluated_at = (evaluated_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
     issues: list[dict[str, str]] = []
@@ -487,6 +491,13 @@ def evaluate_trade(
             if analysis.get("thesis", {}).get("status") not in {"APPROVED", "INVALIDATED"}:
                 _issue(issues, "RESEARCH_REQUIRED", "THESIS_NOT_APPROVED",
                        "투자논지가 사용자 승인 상태가 아니다")
+            # 기대수익이 승인된 계산기의 산출물과 일치하는지 대조한다. 이 검사가
+            # 없으면 계약은 calculation_id 라는 문자열이 있는지만 보고, 정작
+            # 매매를 결정하는 숫자는 손으로 적을 수 있다.
+            if calculations_dir is not None:
+                for message in verify_expected_return_calculation(
+                        analysis, calculations_dir):
+                    _issue(issues, "BLOCKED", "CALCULATION_MISMATCH", message)
 
     approved_ips = (
         ips is not None and not validate_ips(ips) and ips.get("status") == "APPROVED"
@@ -738,6 +749,7 @@ def evaluate_trade(
 
     decision_basis = {
         "thesis": None,
+        "counter_thesis": None,
         "expected_return": None,
         "portfolio_risk": {
             "before": before_weights,
@@ -751,6 +763,7 @@ def evaluate_trade(
         expected = analysis["expected_return"]
         alternatives = analysis["alternatives"]
         decision_basis["thesis"] = thesis
+        decision_basis["counter_thesis"] = analysis["counter_thesis"]
         decision_basis["expected_return"] = expected
         decision_basis["alternatives"] = alternatives
 
@@ -761,26 +774,60 @@ def evaluate_trade(
         if approved_ips:
             policy = ips["decision_policy"]
             required = policy["required_expected_return_pct"]
+            measure = policy["return_measure"]
+            # 포지션과 대안을 같은 자로 잰다. 어느 자를 쓸지는 IPS가 정한다.
+            position_return = (
+                probability_weighted_return(expected)
+                if measure == "PROBABILITY_WEIGHTED"
+                else expected["scenarios"]["base"]["return_pct"]
+            )
+            bear_return = expected["scenarios"]["bear"]["return_pct"]
+            decision_basis["return_measure"] = measure
+            decision_basis["position_return_pct"] = position_return
+
             if abs(expected["required_return_pct"] - required) > 1e-9:
                 _issue(issues, "BLOCKED", "RETURN_HURDLE_MISMATCH",
                        "분석의 요구수익률과 승인 IPS의 요구수익률이 다르다")
-            if side == "buy" and expected["base_pct"] < required:
+            if side == "buy" and position_return < required:
                 severity = "BLOCKED" if policy["block_buy_below_required_return"] else "CAUTION"
                 _issue(issues, severity, "EXPECTED_RETURN_BELOW_HURDLE",
-                       f"기준 시나리오 기대수익 {expected['base_pct']:.1f}%가 "
+                       f"기대수익 {position_return:.1f}%({measure})가 "
                        f"요구수익률 {required:.1f}%보다 낮다")
 
+            # 하방 예산 — 약세 시나리오가 실현될 때 이 포지션 하나가 총자산에
+            # 입히는 손실. base 만 보면 하방 -50%와 -5%가 똑같이 통과한다.
+            bear_budget = policy["max_bear_loss_contribution_pct"]
+            after_total = after_denoms["total_assets"]
+            if bear_return < 0 and after_total > 0:
+                bear_loss_pct = after_position * (-bear_return / 100.0) / after_total * 100.0
+                decision_basis["bear_loss_contribution_pct"] = bear_loss_pct
+                if bear_loss_pct > bear_budget + 1e-9:
+                    _issue(issues, "BLOCKED", "BEAR_LOSS_EXCEEDS_BUDGET",
+                           f"거래 후 약세 시나리오({bear_return:.1f}%)에서 이 포지션의 "
+                           f"손실이 총자산의 {bear_loss_pct:.2f}%다. "
+                           f"승인 하방 예산 {bear_budget:.2f}%를 초과한다")
+            else:
+                decision_basis["bear_loss_contribution_pct"] = 0.0
+
+            comparable = [
+                item for item in alternatives if item["measure"] == measure
+            ]
+            for item in alternatives:
+                if item["measure"] != measure:
+                    _issue(issues, "CAUTION", "ALTERNATIVE_MEASURE_MISMATCH",
+                           f"대안 {item['instrument_id']}은 {item['measure']} 기준이라 "
+                           f"{measure} 기준의 이 포지션과 비교할 수 없다")
             best_alternative = max(
-                alternatives,
-                key=lambda item: item["base_expected_return_pct"],
+                comparable,
+                key=lambda item: item["expected_return_pct"],
                 default=None,
             )
             advantage = policy["alternative_min_advantage_pct"]
             if best_alternative:
-                gap = best_alternative["base_expected_return_pct"] - expected["base_pct"]
+                gap = best_alternative["expected_return_pct"] - position_return
                 if side == "buy" and gap >= advantage:
                     _issue(issues, "CAUTION", "ALTERNATIVE_DOMINATES",
-                           f"대안 {best_alternative['instrument_id']}의 기준 기대수익이 "
+                           f"대안 {best_alternative['instrument_id']}의 기대수익이 "
                            f"{gap:.1f}%p 높다")
 
             if side == "sell":
@@ -789,8 +836,17 @@ def evaluate_trade(
                     "POSSIBLY_INVALIDATE", "INVALIDATE"
                 }:
                     sell_drivers.append("논지 훼손")
-                if expected["base_pct"] < required:
+                if position_return < required:
                     sell_drivers.append("기대수익 하한 미달")
+                # 하방 예산을 넘긴 포지션을 줄이는 것은 그 자체로 매도 근거다.
+                before_total = before_denoms["total_assets"]
+                if bear_return < 0 and before_total > 0:
+                    before_bear_loss = (
+                        target["value_krw"] * (-bear_return / 100.0)
+                        / before_total * 100.0
+                    )
+                    if before_bear_loss > bear_budget + 1e-9:
+                        sell_drivers.append("하방 예산 초과 축소")
                 denominator_limits = _denominator_limits(ips, risk_class)
                 if any(
                     limit is not None
@@ -804,7 +860,7 @@ def evaluate_trade(
                 ):
                     sell_drivers.append("집중도 축소")
                 if best_alternative and (
-                    best_alternative["base_expected_return_pct"] - expected["base_pct"] >= advantage
+                    best_alternative["expected_return_pct"] - position_return >= advantage
                 ):
                     sell_drivers.append("대안 우위")
                 decision_basis["sell_drivers"] = sell_drivers
@@ -988,6 +1044,47 @@ def render_text(result: dict[str, Any]) -> str:
             + ("" if reference["max_deviation_pct"] is None
                else f"  (허용 {reference['max_deviation_pct']:.1f}%)"))
     add("")
+    basis = result["decision_basis"]
+    expected = basis.get("expected_return")
+    if expected:
+        add("[ 기대수익 — 시나리오와 하방 ]")
+        scenarios = expected["scenarios"]
+        add(f"  {'':<8}{'확률':>8}{'연율':>10}   근거")
+        for name in ("bear", "base", "bull"):
+            entry = scenarios[name]
+            add(f"  {name:<8}{entry['probability']:>8.0%}"
+                f"{entry['return_pct']:>+9.1f}%   "
+                f"{', '.join(entry['claim_ids'])}")
+        measure = basis.get("return_measure")
+        position_return = basis.get("position_return_pct")
+        if position_return is not None:
+            add(f"  판정에 쓴 값  {position_return:+.1f}%  ({measure})"
+                f"   요구 {expected['required_return_pct']:+.1f}%")
+        bear_loss = basis.get("bear_loss_contribution_pct")
+        if bear_loss is not None:
+            add(f"  약세 손실     총자산의 {bear_loss:.2f}%")
+        add(f"  기간 {expected['horizon_months']}개월 / {expected['methodology']}")
+        add(f"  계산 {expected['calculation_id']}")
+        add("")
+        counter = basis.get("counter_thesis")
+        if counter:
+            add("[ 가장 강한 반대 근거 ]")
+            add(f"  {counter['text']}")
+            add(f"  반증 신호  {counter['invalidation_signal']}")
+            add(f"  근거       {', '.join(counter['claim_ids'])}")
+            add("")
+        alternatives = basis.get("alternatives") or []
+        if alternatives:
+            add("[ 대안 ]")
+            for item in alternatives:
+                add(f"  {item['instrument_id']:<16}"
+                    f"{item['expected_return_pct']:>+8.1f}%  ({item['measure']})")
+            add("")
+        drivers = basis.get("sell_drivers")
+        if drivers is not None:
+            add("[ 매도 근거 ]")
+            add("  " + (" / ".join(drivers) if drivers else "확인되지 않음"))
+            add("")
     add("[ 비용·세금 추정 ]")
     costs = result["decision_basis"]["costs_and_tax"]
     if costs["total_krw"] is None:
@@ -1018,6 +1115,8 @@ def main():
     p.add_argument("--holdings", default=str(DEFAULT_HOLDINGS))
     p.add_argument("--ips", default=str(DEFAULT_IPS))
     p.add_argument("--analysis", help="검증된 주장·출처·스냅샷 분석 JSON")
+    p.add_argument("--calculations", default=str(DEFAULT_CALCULATIONS),
+                   help="계산 산출물 저장소. 기대수익이 여기 산출물과 일치하는지 대조한다")
     p.add_argument("--name", help="신규 종목명")
     p.add_argument("--asset-type", default="STOCK")
     p.add_argument("--market", default="KR")
@@ -1050,6 +1149,7 @@ def main():
         holdings_path=a.holdings,
         ips_path=a.ips,
         analysis_path=a.analysis,
+        calculations_dir=a.calculations,
         price_as_of=a.price_as_of,
         evaluated_at=evaluated_at,
         new_asset_name=a.name,

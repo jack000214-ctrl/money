@@ -7,7 +7,8 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from test_contracts import valid_analysis, valid_ips
+from contracts import save_validated_calculation
+from test_contracts import valid_analysis, valid_calculation, valid_ips
 from trade_check import evaluate_trade, exit_code_for_verdict, render_text
 
 EVALUATED_AT = datetime(2026, 7, 26, 3, 0, tzinfo=timezone.utc)
@@ -21,9 +22,11 @@ class TradeEngineCase(unittest.TestCase):
         self.holdings = root / "holdings.csv"
         self.ips = root / "ips.json"
         self.analysis = root / "analysis.json"
+        self.calculations = root / "calculations"
         self.write_holdings("2026-07-25")
         self.write_json(self.ips, valid_ips())
         self.write_json(self.analysis, valid_analysis())
+        save_validated_calculation(self.calculations, valid_calculation())
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -44,6 +47,7 @@ CASH,예수금,KR,CASH,CASH,70000000,,
         path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
     def evaluate(self, side="buy", quantity=10, price=100_000, **kwargs):
+        kwargs.setdefault("calculations_dir", self.calculations)
         return evaluate_trade(
             "AAA", side, quantity, price,
             holdings_path=self.holdings,
@@ -166,6 +170,7 @@ CASH,예수금,KR,CASH,CASH,70000000,,
             holdings_path=self.holdings,
             ips_path=None,
             analysis_path=self.analysis,
+            calculations_dir=self.calculations,
             price_as_of=PRICE_AT,
             evaluated_at=EVALUATED_AT,
         )
@@ -212,11 +217,127 @@ CASH,예수금,KR,CASH,CASH,70000000,,
         self.assertEqual(result["decision"]["verdict"], "PROCEED")
         self.assertIn("논지 훼손", result["decision_basis"]["sell_drivers"])
 
+    def rewrite_scenarios(self, returns, probabilities):
+        """시나리오 수익률·확률을 바꾸고 계산 산출물까지 같이 맞춘다.
+
+        분석만 고치면 CALCULATION_MISMATCH 로 막힌다 — 그게 정상이다.
+        """
+        analysis = valid_analysis()
+        scenarios = analysis["expected_return"]["scenarios"]
+        for name in ("bear", "base", "bull"):
+            scenarios[name]["return_pct"] = returns[name]
+            scenarios[name]["probability"] = probabilities[name]
+        analysis["expected_return"]["probability_weighted_pct"] = sum(
+            returns[n] * probabilities[n] for n in ("bear", "base", "bull"))
+        self.write_json(self.analysis, analysis)
+        save_validated_calculation(
+            self.calculations, valid_calculation(scenario_returns=returns))
+        analysis["expected_return"]["calculation_id"] = valid_calculation(
+            scenario_returns=returns)["calculation_id"]
+        self.write_json(self.analysis, analysis)
+        return analysis
+
+    def test_deep_downside_is_blocked_even_when_the_mean_clears_the_hurdle(self):
+        """base 만 보던 시절에는 하방 -80%가 아무 저항 없이 통과했다.
+
+        약세 손실이 총자산의 8.8%로 승인 하방 예산 8%를 넘는다.
+        """
+        self.rewrite_scenarios(
+            {"bear": -80.0, "base": 15.0, "bull": 40.0},
+            {"bear": 0.1, "base": 0.5, "bull": 0.4},
+        )
+        result = self.evaluate(quantity=10, price=100_000)
+        self.assertIn("BEAR_LOSS_EXCEEDS_BUDGET", self.codes(result))
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+
+    def test_shallower_downside_at_the_same_size_stays_within_budget(self):
+        """같은 수량, 같은 확률가중(둘 다 요구수익률 통과). 하방 깊이만 다르다.
+
+        -80%는 총자산의 8.8%, -70%는 7.7%. 승인 예산 8%를 사이에 두고 갈린다.
+        판정을 가르는 것이 하방이라는 사실을 이 짝이 고정한다.
+        """
+        self.rewrite_scenarios(
+            {"bear": -70.0, "base": 15.0, "bull": 40.0},
+            {"bear": 0.1, "base": 0.5, "bull": 0.4},
+        )
+        result = self.evaluate(quantity=10, price=100_000)
+        self.assertNotIn("BEAR_LOSS_EXCEEDS_BUDGET", self.codes(result))
+        self.assertEqual(result["decision"]["verdict"], "PROCEED")
+        self.assertAlmostEqual(
+            result["decision_basis"]["bear_loss_contribution_pct"], 7.7, delta=0.05)
+
+    def test_probability_weighted_return_decides_not_the_base_case(self):
+        """base 는 요구수익률을 넘지만 확률가중은 못 넘는 경우.
+
+        base 15% > 요구 10% 인데 하방이 크고 확률이 높아 가중은 3.5%다.
+        """
+        self.rewrite_scenarios(
+            {"bear": -30.0, "base": 15.0, "bull": 40.0},
+            {"bear": 0.45, "base": 0.45, "bull": 0.1},
+        )
+        result = self.evaluate(quantity=1, price=100_000)
+        self.assertIn("EXPECTED_RETURN_BELOW_HURDLE", self.codes(result))
+
+    def test_base_measure_ignores_the_downside_by_design(self):
+        """IPS가 BASE 기준을 고르면 같은 분석이 통과한다.
+
+        어느 자로 재는지가 판정을 바꾼다는 사실 자체를 고정해 둔다.
+        """
+        ips = valid_ips()
+        ips["decision_policy"]["return_measure"] = "BASE"
+        self.write_json(self.ips, ips)
+        self.rewrite_scenarios(
+            {"bear": -30.0, "base": 15.0, "bull": 40.0},
+            {"bear": 0.45, "base": 0.45, "bull": 0.1},
+        )
+        result = self.evaluate(quantity=1, price=100_000)
+        self.assertNotIn("EXPECTED_RETURN_BELOW_HURDLE", self.codes(result))
+
+    def test_analysis_that_disagrees_with_its_calculation_is_blocked(self):
+        """기대수익을 손으로 고쳐 요구수익률을 넘기는 경로를 막는다."""
+        analysis = valid_analysis()
+        # 계약 자체는 통과하도록 내부 정합성은 맞춘다. 그래야 막는 것이
+        # 스키마가 아니라 계산 산출물과의 대조라는 점이 드러난다.
+        analysis["expected_return"]["scenarios"]["base"]["return_pct"] = 30.0
+        analysis["expected_return"]["probability_weighted_pct"] = 20.0
+        self.write_json(self.analysis, analysis)
+        result = self.evaluate()
+        self.assertIn("CALCULATION_MISMATCH", self.codes(result))
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+
+    def test_missing_calculation_store_blocks_the_trade(self):
+        result = self.evaluate(calculations_dir=self.calculations / "nope")
+        self.assertIn("CALCULATION_MISMATCH", self.codes(result))
+        self.assertEqual(result["decision"]["verdict"], "BLOCKED")
+
+    def test_alternative_on_another_measure_is_not_silently_compared(self):
+        analysis = valid_analysis()
+        analysis["alternatives"] = [{
+            "instrument_id": "ETF-BETTER",
+            "expected_return_pct": 20.0,
+            "measure": "BASE",
+            "snapshot_id": "SNAP-ALT",
+            "claim_ids": ["CLAIM-1"],
+        }]
+        self.write_json(self.analysis, analysis)
+        result = self.evaluate()
+        self.assertIn("ALTERNATIVE_MEASURE_MISMATCH", self.codes(result))
+        self.assertNotIn("ALTERNATIVE_DOMINATES", self.codes(result))
+
+    def test_reducing_a_position_over_the_bear_budget_is_a_sell_driver(self):
+        self.rewrite_scenarios(
+            {"bear": -90.0, "base": 15.0, "bull": 40.0},
+            {"bear": 0.1, "base": 0.5, "bull": 0.4},
+        )
+        result = self.evaluate(side="sell", quantity=50, price=100_000)
+        self.assertIn("하방 예산 초과 축소", result["decision_basis"]["sell_drivers"])
+
     def test_better_alternative_causes_caution(self):
         analysis = valid_analysis()
         analysis["alternatives"] = [{
             "instrument_id": "ETF-BETTER",
-            "base_expected_return_pct": 20.0,
+            "expected_return_pct": 20.0,
+            "measure": "PROBABILITY_WEIGHTED",
             "snapshot_id": "SNAP-ALT",
             "claim_ids": ["CLAIM-1"],
         }]

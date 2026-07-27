@@ -17,12 +17,23 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 IPS_STATUSES = {"DRAFT", "APPROVED", "SUPERSEDED"}
 CLAIM_TYPES = {"FACT", "DERIVED", "INFERENCE", "HYPOTHESIS", "UNKNOWN"}
 THESIS_STATUSES = {"DRAFT", "REVIEWED", "APPROVED", "INVALIDATED"}
 THESIS_CHANGES = {"STRENGTHEN", "NEUTRAL", "WEAKEN", "POSSIBLY_INVALIDATE", "INVALIDATE"}
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+
+# 시나리오는 셋 다 있어야 한다. bear 를 생략할 수 있으면 아무도 쓰지 않는다.
+SCENARIO_NAMES = ("bear", "base", "bull")
+# 기대수익을 무엇으로 측정하는가. 포지션과 대안은 같은 자로 재야 한다.
+RETURN_MEASURES = {"BASE", "PROBABILITY_WEIGHTED"}
+CALCULATION_ID_PREFIX = "CALC-"
+CALCULATION_ID_RE = re.compile(r"^CALC-[0-9a-f]{20}$")
+# 확률 합과 가중평균의 허용 오차. 반올림해서 적은 값을 통과시키되
+# 손으로 지어낸 값은 걸러낼 만큼은 좁게 잡는다.
+PROBABILITY_TOLERANCE = 1e-6
+WEIGHTED_RETURN_TOLERANCE = 0.01
 
 
 class ContractError(ValueError):
@@ -235,6 +246,18 @@ def validate_ips(data: dict[str, Any]) -> list[str]:
             status != "APPROVED" and block_below is None):
         errors.append("decision_policy.block_buy_below_required_return: boolean이 필요하다")
 
+    # 기대수익을 base 한 값으로 잴지, 확률가중으로 잴지. 승인 IPS는 골라야 한다.
+    measure = policy.get("return_measure")
+    if measure not in RETURN_MEASURES and not (
+            status != "APPROVED" and measure is None):
+        errors.append("decision_policy.return_measure: "
+                      f"{', '.join(sorted(RETURN_MEASURES))} 중 하나여야 한다")
+    # 하방 예산. 없으면 약세 시나리오가 판정에서 조용히 빠진다. 구속하지 않으려면
+    # null 이 아니라 큰 값을 적는다 — 꺼져 있는 검사와 느슨한 검사는 다르다.
+    _number(policy.get("max_bear_loss_contribution_pct"),
+            "decision_policy.max_bear_loss_contribution_pct", errors,
+            minimum=0, maximum=100, allow_null=status != "APPROVED")
+
     if status == "APPROVED":
         _nonempty(data.get("approved_by"), "approved_by", errors)
         parse_datetime(data.get("approved_at"), "approved_at", errors)
@@ -263,6 +286,85 @@ def _id_list(value: Any, field: str, errors: list[str], *, allow_empty=False) ->
     if not allow_empty and not result:
         errors.append(f"{field}: 하나 이상의 ID가 필요하다")
     return result
+
+
+def probability_weighted_return(expected: dict[str, Any]) -> float | None:
+    """시나리오 확률가중 기대수익. 계약을 통과한 분석에만 쓴다.
+
+    base 하나만 보면 하방이 -50%인 종목과 -5%인 종목이 똑같이 통과한다.
+    """
+    scenarios = expected.get("scenarios")
+    if not isinstance(scenarios, dict):
+        return None
+    total = 0.0
+    for name in SCENARIO_NAMES:
+        entry = scenarios.get(name)
+        if not isinstance(entry, dict):
+            return None
+        ret, prob = entry.get("return_pct"), entry.get("probability")
+        if isinstance(ret, bool) or isinstance(prob, bool):
+            return None
+        if not isinstance(ret, (int, float)) or not isinstance(prob, (int, float)):
+            return None
+        total += float(ret) * float(prob)
+    return total
+
+
+def _validate_scenarios(expected: dict[str, Any], errors: list[str]) -> list[str]:
+    """약세·기준·강세 각각의 수익률·확률·근거를 검증하고 주장 ID를 모은다."""
+    scenarios = expected.get("scenarios")
+    if not isinstance(scenarios, dict):
+        errors.append("expected_return.scenarios: "
+                      f"{', '.join(SCENARIO_NAMES)} 객체가 필요하다")
+        return []
+
+    for unknown in sorted(set(scenarios) - set(SCENARIO_NAMES)):
+        errors.append(f"expected_return.scenarios: 알 수 없는 시나리오 {unknown}")
+
+    returns: dict[str, float | None] = {}
+    probabilities: list[float] = []
+    claim_ids: list[str] = []
+    for name in SCENARIO_NAMES:
+        field = f"expected_return.scenarios.{name}"
+        entry = scenarios.get(name)
+        if not isinstance(entry, dict):
+            errors.append(f"{field}: 객체가 필요하다")
+            returns[name] = None
+            continue
+        returns[name] = _number(entry.get("return_pct"), f"{field}.return_pct",
+                                errors, minimum=-100)
+        probability = _number(entry.get("probability"), f"{field}.probability",
+                              errors, minimum=0, maximum=1)
+        if probability is not None:
+            if probability == 0:
+                errors.append(f"{field}.probability: 0보다 커야 한다. "
+                              "일어나지 않는 시나리오는 시나리오가 아니다")
+            probabilities.append(probability)
+        # 근거 없는 시나리오는 숫자일 뿐이다. 특히 bear 가 그렇다 — 하방을
+        # 뒷받침하는 주장이 없으면 아무 값이나 적어도 통과해 버린다.
+        claim_ids.extend(_id_list(entry.get("claim_ids"), f"{field}.claim_ids", errors))
+
+    bear, base, bull = returns.get("bear"), returns.get("base"), returns.get("bull")
+    if bear is not None and base is not None and bull is not None:
+        if not bear <= base <= bull:
+            errors.append("expected_return.scenarios: "
+                          "bear ≤ base ≤ bull 순서여야 한다")
+
+    if len(probabilities) == len(SCENARIO_NAMES):
+        total = sum(probabilities)
+        if abs(total - 1.0) > PROBABILITY_TOLERANCE:
+            errors.append(f"expected_return.scenarios: 확률 합이 1이어야 한다 "
+                          f"(현재 {total:.6f})")
+
+    stated = _number(expected.get("probability_weighted_pct"),
+                     "expected_return.probability_weighted_pct", errors, minimum=-100)
+    computed = probability_weighted_return(expected)
+    if stated is not None and computed is not None:
+        if abs(stated - computed) > WEIGHTED_RETURN_TOLERANCE:
+            errors.append("expected_return.probability_weighted_pct: "
+                          f"시나리오에서 계산한 값 {computed:.4f}%와 다르다 "
+                          f"(적힌 값 {stated:.4f}%)")
+    return claim_ids
 
 
 def validate_analysis(data: dict[str, Any]) -> list[str]:
@@ -375,6 +477,17 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
         errors.append("thesis: 무효화 조건 발생 시 status=INVALIDATED여야 한다")
     thesis_claim_ids = _id_list(thesis.get("claim_ids"), "thesis.claim_ids", errors)
 
+    counter = data.get("counter_thesis")
+    if not isinstance(counter, dict):
+        errors.append("counter_thesis: 가장 강한 반대 근거 객체가 필요하다")
+        counter = {}
+    _nonempty(counter.get("text"), "counter_thesis.text", errors)
+    # 반증 조건은 관측 가능해야 한다. "성장이 둔화되면"은 조건이 아니다.
+    _nonempty(counter.get("invalidation_signal"),
+              "counter_thesis.invalidation_signal", errors)
+    counter_claim_ids = _id_list(
+        counter.get("claim_ids"), "counter_thesis.claim_ids", errors)
+
     expected = data.get("expected_return")
     if not isinstance(expected, dict):
         errors.append("expected_return: 객체가 필요하다")
@@ -383,20 +496,17 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
                       errors, minimum=1)
     if horizon is not None and not horizon.is_integer():
         errors.append("expected_return.horizon_months: 정수여야 한다")
-    bear = _number(expected.get("bear_pct"), "expected_return.bear_pct", errors,
-                   minimum=-100)
-    base = _number(expected.get("base_pct"), "expected_return.base_pct", errors,
-                   minimum=-100)
-    bull = _number(expected.get("bull_pct"), "expected_return.bull_pct", errors,
-                   minimum=-100)
-    if None not in (bear, base, bull) and not bear <= base <= bull:
-        errors.append("expected_return: bear_pct <= base_pct <= bull_pct 여야 한다")
     _number(expected.get("required_return_pct"), "expected_return.required_return_pct",
             errors, minimum=-100)
     _nonempty(expected.get("methodology"), "expected_return.methodology", errors)
-    _nonempty(expected.get("calculation_id"), "expected_return.calculation_id", errors)
-    expected_claim_ids = _id_list(
-        expected.get("claim_ids"), "expected_return.claim_ids", errors)
+    calculation_id = _nonempty(
+        expected.get("calculation_id"), "expected_return.calculation_id", errors)
+    # 계산 ID 는 입력의 지문이다. 형식이 맞지 않으면 손으로 적은 값이다.
+    if calculation_id and not CALCULATION_ID_RE.fullmatch(calculation_id):
+        errors.append("expected_return.calculation_id: "
+                      "reverse_dcf 등 승인된 계산기가 발급한 CALC-<20자리 16진수> "
+                      "여야 한다. 기대수익은 손으로 적을 수 없다")
+    expected_claim_ids = _validate_scenarios(expected, errors)
 
     alternatives = data.get("alternatives")
     if not isinstance(alternatives, list) or not alternatives:
@@ -409,8 +519,12 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
             errors.append(f"{field}: 객체가 필요하다")
             continue
         _nonempty(alternative.get("instrument_id"), f"{field}.instrument_id", errors)
-        _number(alternative.get("base_expected_return_pct"),
-                f"{field}.base_expected_return_pct", errors, minimum=-100)
+        _number(alternative.get("expected_return_pct"),
+                f"{field}.expected_return_pct", errors, minimum=-100)
+        # 대안을 다른 자로 재면 비교가 성립하지 않는다.
+        if alternative.get("measure") not in RETURN_MEASURES:
+            errors.append(f"{field}.measure: "
+                          f"{', '.join(sorted(RETURN_MEASURES))} 중 하나여야 한다")
         _nonempty(alternative.get("snapshot_id"), f"{field}.snapshot_id", errors)
         alternative_claim_ids.extend(_id_list(
             alternative.get("claim_ids"), f"{field}.claim_ids", errors))
@@ -429,7 +543,8 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
                 errors.append(f"{claim_id}: 스냅샷에 연결되지 않은 출처 ID {source_id}")
     for field, ids in (
         ("thesis.claim_ids", thesis_claim_ids),
-        ("expected_return.claim_ids", expected_claim_ids),
+        ("counter_thesis.claim_ids", counter_claim_ids),
+        ("expected_return.scenarios.claim_ids", expected_claim_ids),
         ("alternatives.claim_ids", alternative_claim_ids),
     ):
         for claim_id in ids:
@@ -438,15 +553,165 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def require_valid_analysis(data: dict[str, Any]) -> None:
+def calculation_id_for(model: str, model_version: str, inputs: dict[str, Any],
+                       outputs: dict[str, Any]) -> str:
+    """계산 ID 는 모델·입력·산출값 전체의 지문이다.
+
+    입력만 지문화하면 가정을 그대로 두고 결과 숫자만 고칠 수 있다. 그것이
+    바로 막으려던 구멍이므로 산출값도 함께 넣는다. 결과적으로 이 파일에서
+    무엇을 고치든 ID 가 어긋나고, 계약 검증에서 걸린다.
+    """
+    return stable_hash(
+        {"model": model, "model_version": model_version,
+         "inputs": inputs, "outputs": outputs},
+        CALCULATION_ID_PREFIX,
+    )
+
+
+def validate_calculation(data: dict[str, Any]) -> list[str]:
+    """승인된 계산기가 남긴 산출물의 계약."""
+    errors: list[str] = []
+    if data.get("schema_version") != SCHEMA_VERSION:
+        errors.append(f"schema_version: {SCHEMA_VERSION} 이어야 한다")
+    calculation_id = _nonempty(data.get("calculation_id"), "calculation_id", errors)
+    model = _nonempty(data.get("model"), "model", errors)
+    model_version = _nonempty(data.get("model_version"), "model_version", errors)
+    _nonempty(data.get("instrument_id"), "instrument_id", errors)
+    parse_datetime(data.get("created_at"), "created_at", errors)
+
+    inputs = data.get("inputs")
+    if not isinstance(inputs, dict) or not inputs:
+        errors.append("inputs: 하나 이상의 입력이 필요하다")
+        inputs = None
+    # 입력을 뒷받침하는 출처. 숫자를 어디서 가져왔는지 없으면 계산도 추측이다.
+    _id_list(data.get("source_ids"), "source_ids", errors)
+
+    outputs = data.get("outputs")
+    if not isinstance(outputs, dict):
+        errors.append("outputs: 객체가 필요하다")
+        outputs = None
+
+    if calculation_id and not CALCULATION_ID_RE.fullmatch(calculation_id):
+        errors.append("calculation_id: CALC-<20자리 16진수> 형식이어야 한다")
+    elif calculation_id and inputs is not None and outputs is not None \
+            and model and model_version:
+        try:
+            expected_id = calculation_id_for(model, model_version, inputs, outputs)
+        except (TypeError, ValueError):
+            errors.append("calculation_id: 입력·산출값을 표준 JSON으로 만들 수 없어 "
+                          "지문을 계산할 수 없다")
+        else:
+            if calculation_id != expected_id:
+                errors.append(f"calculation_id: 모델·입력·산출값의 지문과 다르다 "
+                              f"(이 파일에서 계산하면 {expected_id}). "
+                              "산출물을 손으로 고쳤거나 계산기를 다시 돌려야 한다")
+
+    if outputs is None:
+        return errors
+    scenarios = outputs.get("scenarios")
+    if not isinstance(scenarios, dict):
+        errors.append("outputs.scenarios: bear·base·bull 객체가 필요하다")
+        return errors
+    for name in SCENARIO_NAMES:
+        entry = scenarios.get(name)
+        if not isinstance(entry, dict):
+            errors.append(f"outputs.scenarios.{name}: 객체가 필요하다")
+            continue
+        _number(entry.get("return_pct"), f"outputs.scenarios.{name}.return_pct",
+                errors, minimum=-100)
+    return errors
+
+
+def load_calculation(calculation_id: str, calculations_dir: str | Path) -> dict[str, Any]:
+    path = Path(calculations_dir) / f"{calculation_id}.json"
+    if not path.exists():
+        raise ContractError([
+            f"expected_return.calculation_id: 계산 산출물 {path} 가 없다. "
+            "기대수익은 승인된 계산기가 만든 값이어야 한다"
+        ])
+    data = load_json(path)
+    errors = validate_calculation(data)
+    if errors:
+        raise ContractError([f"{path.name}: {message}" for message in errors])
+    return data
+
+
+def verify_expected_return_calculation(
+    analysis: dict[str, Any], calculations_dir: str | Path
+) -> list[str]:
+    """분석에 적힌 시나리오 수익률이 계산 산출물과 일치하는지 확인한다.
+
+    이 검사가 없으면 계약은 `calculation_id` 라는 문자열이 있는지만 보고,
+    정작 매매를 결정하는 숫자는 여전히 손으로 적을 수 있다.
+    """
+    expected = analysis.get("expected_return")
+    if not isinstance(expected, dict):
+        return ["expected_return: 객체가 필요하다"]
+    calculation_id = expected.get("calculation_id")
+    if not isinstance(calculation_id, str) or not calculation_id:
+        return ["expected_return.calculation_id: 계산 ID 가 필요하다"]
+    try:
+        calculation = load_calculation(calculation_id, calculations_dir)
+    except ContractError as exc:
+        return exc.errors
+
+    errors: list[str] = []
+    if calculation.get("instrument_id") != analysis.get("instrument_id"):
+        errors.append(
+            f"expected_return.calculation_id: 계산은 "
+            f"{calculation.get('instrument_id')} 것인데 분석은 "
+            f"{analysis.get('instrument_id')} 이다"
+        )
+    stored = calculation.get("outputs", {}).get("scenarios", {})
+    stated = expected.get("scenarios")
+    if not isinstance(stated, dict):
+        return errors
+    for name in SCENARIO_NAMES:
+        left = stated.get(name, {})
+        right = stored.get(name, {})
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            continue
+        a, b = left.get("return_pct"), right.get("return_pct")
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            if abs(float(a) - float(b)) > WEIGHTED_RETURN_TOLERANCE:
+                errors.append(
+                    f"expected_return.scenarios.{name}.return_pct: "
+                    f"분석은 {float(a):.4f}%인데 계산 산출물은 {float(b):.4f}% 다"
+                )
+    return errors
+
+
+def require_valid_analysis(
+    data: dict[str, Any], calculations_dir: str | Path | None = None
+) -> None:
     errors = validate_analysis(data)
+    if not errors and calculations_dir is not None:
+        errors = verify_expected_return_calculation(data, calculations_dir)
     if errors:
         raise ContractError(errors)
 
 
-def save_validated_analysis(path: str | Path, data: dict[str, Any]) -> Path:
+def save_validated_calculation(
+    calculations_dir: str | Path, data: dict[str, Any]
+) -> Path:
+    """검증된 계산 산출물만 저장한다. 파일명은 calculation_id 다."""
+    errors = validate_calculation(data)
+    if errors:
+        raise ContractError(errors)
+    return _atomic_write_json(
+        Path(calculations_dir) / f"{data['calculation_id']}.json", data)
+
+
+def save_validated_analysis(
+    path: str | Path, data: dict[str, Any],
+    calculations_dir: str | Path | None = None,
+) -> Path:
     """검증된 분석만 원자적으로 저장한다."""
-    require_valid_analysis(data)
+    require_valid_analysis(data, calculations_dir)
+    return _atomic_write_json(path, data)
+
+
+def _atomic_write_json(path: str | Path, data: dict[str, Any]) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -454,7 +719,7 @@ def save_validated_analysis(path: str | Path, data: dict[str, Any]) -> Path:
             data, ensure_ascii=False, indent=2, allow_nan=False,
         ) + "\n"
     except (TypeError, ValueError) as exc:
-        raise ContractError([f"분석을 표준 JSON으로 직렬화할 수 없다: {exc}"]) from exc
+        raise ContractError([f"표준 JSON으로 직렬화할 수 없다: {exc}"]) from exc
     tmp_name = None
     try:
         with tempfile.NamedTemporaryFile(

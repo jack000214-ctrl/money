@@ -352,11 +352,93 @@ SkillAnalysis:
 |---|---|
 | IPS | `knowledge/portfolio/ips.json` |
 | 분석 예시 | `knowledge/research/analysis-template.json` |
+| 계산 산출물 | `knowledge/calculations/CALC-*.json` |
 | 검증기 | `scripts/contracts.py`, `scripts/validate_analysis.py` |
+| 밸류에이션 계산기 | `scripts/reverse_dcf.py` |
 | 매매 점검 결과 | `scripts/trade_check.py` |
 
-현재 IPS는 `DRAFT`다. 구체 수치를 승인하기 전에는 매매 결과가
-`RESEARCH_REQUIRED`여야 하며 임의 기본값으로 승격할 수 없다.
+IPS는 2026-07-27에 `APPROVED`가 됐다. 승인 IPS는 위 문서의 앞 절들이 개념적으로
+기술한 값 중 아래를 **반드시** 채워야 하며, 비어 있으면 검사가 조용히 꺼지는
+대신 계약 검증이 실패한다.
+
+### 14.1 스키마 1.1.0 — 기대수익 계약
+
+`expected_return`은 숫자 세 개의 평평한 묶음이 아니라 **시나리오 객체**다.
+
+```yaml
+expected_return:
+  horizon_months: int          # 가격이 가치로 수렴한다고 보는 기간
+  required_return_pct: number  # 승인 IPS의 요구수익률과 일치해야 한다
+  methodology: string
+  calculation_id: "CALC-<20자리 16진수>"   # 계산 산출물을 가리킨다
+  probability_weighted_pct: number         # Σ(확률 × 수익률)과 일치해야 한다
+  scenarios:
+    bear: {return_pct, probability, claim_ids}
+    base: {return_pct, probability, claim_ids}
+    bull: {return_pct, probability, claim_ids}
+```
+
+강제되는 것:
+
+- 세 시나리오가 모두 있어야 하고, 그 외 이름은 거부된다
+- `bear ≤ base ≤ bull`
+- 확률 합이 1이고, 확률 0인 시나리오는 없다 (일어나지 않는 시나리오는
+  시나리오가 아니다)
+- **각 시나리오에 근거 claim이 하나 이상** 있어야 한다. 특히 `bear`에 근거가
+  없으면 하방은 지어낸 숫자다
+- `probability_weighted_pct`는 적힌 값이 아니라 계산된 값과 대조된다
+- `return_pct`는 `calculation_id`가 가리키는 산출물과 일치해야 한다
+
+`return_pct`는 **연율**이다. IPS 요구수익률이 연율이므로 같은 자로 재야 한다.
+
+### 14.2 반대 논지
+
+```yaml
+counter_thesis:
+  text: string                  # 이 논지에 대한 가장 강한 반박
+  invalidation_signal: string   # 관측 가능한 지표와 임계값
+  claim_ids: [claim_id]
+```
+
+필수 항목이다. 07번 문서 §8이 "가장 강한 반대 근거"를 추천 필수 항목으로 정해
+놓았으나 계약에는 없었고, 그래서 실제로는 아무도 쓰지 않았다.
+
+### 14.3 계산 산출물
+
+```yaml
+Calculation:
+  schema_version: "1.1.0"
+  calculation_id: "CALC-<20자리 16진수>"
+  model: string                # reverse_dcf
+  model_version: string
+  instrument_id: string
+  created_at: datetime
+  source_ids: [source_id]      # 입력 숫자의 출처
+  inputs: {}
+  outputs:
+    implied_growth_pct: number # 현재가가 요구하는 성장률
+    scenarios: {bear, base, bull → return_pct}
+```
+
+`calculation_id`는 **모델·입력·산출값 전체의 SHA-256 지문**이다. 파일에서
+무엇을 고치든 ID가 어긋나고 검증에서 걸린다. 입력만 지문화하면 가정을 그대로
+두고 결과 숫자만 고칠 수 있으므로 산출값도 포함한다.
+
+### 14.4 IPS 추가 필드
+
+```yaml
+decision_policy:
+  return_measure: BASE | PROBABILITY_WEIGHTED
+  max_bear_loss_contribution_pct: number
+```
+
+`return_measure`는 기대수익을 무엇으로 잴지 정한다. `alternatives[].measure`가
+이와 다르면 비교하지 않고 `ALTERNATIVE_MEASURE_MISMATCH`로 남긴다.
+
+`max_bear_loss_contribution_pct`는 하방 예산이다.
+`거래 후 포지션 × |약세 수익률| ÷ 총자산`이 이 값을 넘으면 차단한다.
+구속하지 않으려면 `null`이 아니라 큰 값을 적는다 — 꺼져 있는 검사와 느슨한
+검사는 다르다.
 
 ## 15. 검토가 필요한 결정
 

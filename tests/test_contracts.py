@@ -6,14 +6,62 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts import ContractError, save_validated_analysis, validate_analysis, validate_ips
+from contracts import (ContractError, calculation_id_for, save_validated_analysis,
+                       validate_analysis, validate_ips)
 
 SHA = "a" * 64
+
+# 계산 산출물 픽스처. calculation_id 는 모델과 입력의 지문이므로 손으로 적지 않고
+# 계약과 같은 함수로 만든다 — 그래야 지문 검사가 실제로 검사가 된다.
+CALC_MODEL = "reverse_dcf"
+CALC_MODEL_VERSION = "1.0.0"
+CALC_INPUTS = {
+    "price": 330.0, "shares": 3.5e9, "fcf": 3.6e9, "net_debt": -30e9,
+    "discount_rate_pct": 10.0, "terminal_growth_pct": 2.5, "years": 10,
+    "horizon_months": 12,
+    "scenario_growth_pct": {"bear": 15.0, "base": 30.0, "bull": 50.0},
+}
+CALC_OUTPUTS = {
+    "implied_growth_pct": 46.8,
+    "scenarios": {
+        "bear": {"return_pct": -20.0},
+        "base": {"return_pct": 15.0},
+        "bull": {"return_pct": 40.0},
+    },
+}
+
+
+def valid_calculation(scenario_returns=None):
+    """계산 산출물 픽스처.
+
+    scenario_returns 를 주면 그 값으로 산출물을 만들고 지문을 다시 계산한다.
+    ID 가 모델·입력·산출값 전체의 지문이라 손으로 적을 수 없다.
+    """
+    inputs = json.loads(json.dumps(CALC_INPUTS))
+    outputs = json.loads(json.dumps(CALC_OUTPUTS))
+    if scenario_returns:
+        for name, value in scenario_returns.items():
+            outputs["scenarios"][name]["return_pct"] = value
+    return {
+        "schema_version": "1.1.0",
+        "calculation_id": calculation_id_for(
+            CALC_MODEL, CALC_MODEL_VERSION, inputs, outputs),
+        "model": CALC_MODEL,
+        "model_version": CALC_MODEL_VERSION,
+        "instrument_id": "AAA",
+        "created_at": "2026-07-26T00:00:00+09:00",
+        "source_ids": ["SRC-1"],
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+
+CALC_ID = valid_calculation()["calculation_id"]
 
 
 def valid_analysis():
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "analysis_id": "ANALYSIS-AAA-1",
         "instrument_id": "AAA",
         "company_id": "COMPANY-AAA",
@@ -37,6 +85,11 @@ def valid_analysis():
             "type": "FACT",
             "text": "원문에서 확인한 사실",
             "source_ids": ["SRC-1"],
+        }, {
+            "claim_id": "CLAIM-BEAR",
+            "type": "FACT",
+            "text": "하방을 뒷받침하는 관측 사실",
+            "source_ids": ["SRC-1"],
         }],
         "thesis": {
             "status": "APPROVED",
@@ -46,19 +99,30 @@ def valid_analysis():
             "approved_at": "2026-07-25T21:00:00+09:00",
             "claim_ids": ["CLAIM-1"],
         },
+        "counter_thesis": {
+            "text": "경쟁사 진입으로 단가가 무너질 수 있다",
+            "invalidation_signal": "분기 OPM YoY 2개 분기 연속 하락",
+            "claim_ids": ["CLAIM-BEAR"],
+        },
         "expected_return": {
             "horizon_months": 12,
-            "bear_pct": -20.0,
-            "base_pct": 15.0,
-            "bull_pct": 40.0,
             "required_return_pct": 10.0,
-            "methodology": "시나리오 가치평가",
-            "calculation_id": "CALC-1",
-            "claim_ids": ["CLAIM-1"],
+            "methodology": "2단계 FCF 역산 DCF",
+            "calculation_id": CALC_ID,
+            "probability_weighted_pct": 12.5,
+            "scenarios": {
+                "bear": {"return_pct": -20.0, "probability": 0.25,
+                         "claim_ids": ["CLAIM-BEAR"]},
+                "base": {"return_pct": 15.0, "probability": 0.5,
+                         "claim_ids": ["CLAIM-1"]},
+                "bull": {"return_pct": 40.0, "probability": 0.25,
+                         "claim_ids": ["CLAIM-1"]},
+            },
         },
         "alternatives": [{
             "instrument_id": "CORE-ETF",
-            "base_expected_return_pct": 8.0,
+            "expected_return_pct": 8.0,
+            "measure": "PROBABILITY_WEIGHTED",
             "snapshot_id": "SNAPSHOT-CORE-1",
             "claim_ids": ["CLAIM-1"],
         }],
@@ -68,7 +132,7 @@ def valid_analysis():
 def valid_ips(status="APPROVED"):
     approved = status == "APPROVED"
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "ips_id": "IPS-1",
         "status": status,
         "base_currency": "KRW",
@@ -118,6 +182,8 @@ def valid_ips(status="APPROVED"):
             "required_expected_return_pct": 10.0 if approved else None,
             "alternative_min_advantage_pct": 3.0 if approved else None,
             "block_buy_below_required_return": True if approved else None,
+            "return_measure": "PROBABILITY_WEIGHTED" if approved else None,
+            "max_bear_loss_contribution_pct": 8.0 if approved else None,
         },
     }
 
@@ -140,14 +206,76 @@ class TestAnalysisContract(unittest.TestCase):
 
     def test_inverted_return_range_fails(self):
         data = valid_analysis()
-        data["expected_return"]["bear_pct"] = 30.0
+        data["expected_return"]["scenarios"]["bear"]["return_pct"] = 30.0
         errors = validate_analysis(data)
-        self.assertTrue(any("bear_pct <= base_pct" in error for error in errors))
+        self.assertTrue(any("bear ≤ base ≤ bull" in error for error in errors))
 
     def test_non_finite_return_fails(self):
         data = valid_analysis()
-        data["expected_return"]["base_pct"] = math.nan
+        data["expected_return"]["scenarios"]["base"]["return_pct"] = math.nan
         self.assertTrue(any("유한한 숫자" in error for error in validate_analysis(data)))
+
+    def test_scenario_without_evidence_fails(self):
+        """근거 없는 시나리오는 숫자일 뿐이다. 특히 bear 가 그렇다."""
+        data = valid_analysis()
+        data["expected_return"]["scenarios"]["bear"]["claim_ids"] = []
+        errors = validate_analysis(data)
+        self.assertTrue(any("scenarios.bear.claim_ids" in error for error in errors))
+
+    def test_probabilities_must_sum_to_one(self):
+        data = valid_analysis()
+        data["expected_return"]["scenarios"]["bull"]["probability"] = 0.4
+        errors = validate_analysis(data)
+        self.assertTrue(any("확률 합이 1이어야 한다" in error for error in errors))
+
+    def test_zero_probability_scenario_fails(self):
+        data = valid_analysis()
+        data["expected_return"]["scenarios"]["bear"]["probability"] = 0.0
+        data["expected_return"]["scenarios"]["base"]["probability"] = 0.75
+        data["expected_return"]["probability_weighted_pct"] = 21.25
+        errors = validate_analysis(data)
+        self.assertTrue(any("0보다 커야 한다" in error for error in errors))
+
+    def test_weighted_return_must_match_the_scenarios(self):
+        """가중평균을 손으로 적고 시나리오는 따로 노는 분석을 막는다."""
+        data = valid_analysis()
+        data["expected_return"]["probability_weighted_pct"] = 30.0
+        errors = validate_analysis(data)
+        self.assertTrue(any("시나리오에서 계산한 값" in error for error in errors))
+
+    def test_handwritten_calculation_id_fails(self):
+        """기대수익은 승인된 계산기가 만든 값이어야 한다."""
+        data = valid_analysis()
+        data["expected_return"]["calculation_id"] = "CALC-001"
+        errors = validate_analysis(data)
+        self.assertTrue(any("손으로 적을 수 없다" in error for error in errors))
+
+    def test_missing_counter_thesis_fails(self):
+        data = valid_analysis()
+        del data["counter_thesis"]
+        errors = validate_analysis(data)
+        self.assertTrue(any("counter_thesis" in error for error in errors))
+
+    def test_counter_thesis_needs_an_observable_signal(self):
+        data = valid_analysis()
+        data["counter_thesis"]["invalidation_signal"] = "  "
+        errors = validate_analysis(data)
+        self.assertTrue(
+            any("counter_thesis.invalidation_signal" in error for error in errors))
+
+    def test_alternative_measured_differently_fails(self):
+        data = valid_analysis()
+        data["alternatives"][0]["measure"] = "MADE_UP"
+        errors = validate_analysis(data)
+        self.assertTrue(any("alternatives[0].measure" in error for error in errors))
+
+    def test_unknown_scenario_name_fails(self):
+        data = valid_analysis()
+        data["expected_return"]["scenarios"]["moon"] = {
+            "return_pct": 900.0, "probability": 0.1, "claim_ids": ["CLAIM-1"],
+        }
+        errors = validate_analysis(data)
+        self.assertTrue(any("알 수 없는 시나리오 moon" in error for error in errors))
 
     def test_empty_alternatives_fails(self):
         data = valid_analysis()
