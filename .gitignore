@@ -9,3 +9,7 @@ __pycache__/
 knowledge/portfolio/holdings.csv
 knowledge/portfolio/trades/
 knowledge/portfolio/decisions/
+
+# 증권사 원본 명세 (계좌번호·성명·전체 체결내역 포함)
+거래내역서*.pdf
+*거래내역서*.pdf
