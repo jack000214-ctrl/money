@@ -18,15 +18,15 @@ thesis:
   owner: AI_DRAFT
   approved_by_user_at: null
 valuation:
-  bear_value: null
-  base_value: null
-  bull_value: null
-  basis: "미산출 — reverse_dcf.py 가 KR 종목의 검증 입력을 만들 수 없다 (아래 경고 참조)"
-  verified: false
+  bear_value: 56486
+  base_value: 73635
+  bull_value: 126107
+  basis: "2단계 FCF 역산 DCF · CALC-f539a684d8d357b9a2b4 · 입력 FUND-413a84e45f2324987a32 (DART 연결 원문, verified). 할인율 12% / 영구성장 2.5% / 1단계 10년 / 수렴 24개월"
+  verified: true
 analysis:
-  analysis_id: null
-  snapshot_id: null
-  contract_status: LEGACY_UNVALIDATED
+  analysis_id: ANALYSIS-20260728-005930
+  snapshot_id: SNAPSHOT-20260728-005930
+  contract_status: VALIDATED
 evidence_level: MIXED
 data_freshness:
   news_scanned_at: 2026-07-28

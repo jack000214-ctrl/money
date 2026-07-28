@@ -1,0 +1,261 @@
+{
+  "schema_version": "event-packet/1.0.0",
+  "asset_id": "214450",
+  "symbol": "214450.KQ",
+  "collected_at": "2026-07-28T15:13:33+09:00",
+  "window": {
+    "since": "2026-04-29",
+    "until": "2026-07-28",
+    "trading_days": 60
+  },
+  "threshold_pct": 5.0,
+  "latest": {
+    "date": "2026-07-28",
+    "close": 375000.0
+  },
+  "moves": [
+    {
+      "date": "2026-05-04",
+      "close": 339000.0,
+      "change_pct": 8.13,
+      "direction": "up",
+      "volume": 254668,
+      "volume_vs_avg": 1.8,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-05-12",
+      "close": 309500.0,
+      "change_pct": -5.64,
+      "direction": "down",
+      "volume": 164295,
+      "volume_vs_avg": 1.16,
+      "candidate_filings": [
+        {
+          "filed": "2026-05-08",
+          "name": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+          "rcept_no": "20260508900237",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-05-14",
+      "close": 351000.0,
+      "change_pct": 11.78,
+      "direction": "up",
+      "volume": 218429,
+      "volume_vs_avg": 1.55,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-05-15",
+      "close": 328000.0,
+      "change_pct": -6.55,
+      "direction": "down",
+      "volume": 140167,
+      "volume_vs_avg": 0.99,
+      "candidate_filings": [
+        {
+          "filed": "2026-05-15",
+          "name": "분기보고서 (2026.03)",
+          "rcept_no": "20260515001997",
+          "scheduled": true
+        }
+      ]
+    },
+    {
+      "date": "2026-05-18",
+      "close": 311500.0,
+      "change_pct": -5.03,
+      "direction": "down",
+      "volume": 102864,
+      "volume_vs_avg": 0.73,
+      "candidate_filings": [
+        {
+          "filed": "2026-05-15",
+          "name": "분기보고서 (2026.03)",
+          "rcept_no": "20260515001997",
+          "scheduled": true
+        }
+      ]
+    },
+    {
+      "date": "2026-06-08",
+      "close": 259000.0,
+      "change_pct": -9.6,
+      "direction": "down",
+      "volume": 114539,
+      "volume_vs_avg": 0.81,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-06-09",
+      "close": 276000.0,
+      "change_pct": 6.56,
+      "direction": "up",
+      "volume": 94460,
+      "volume_vs_avg": 0.67,
+      "candidate_filings": [
+        {
+          "filed": "2026-06-09",
+          "name": "기업설명회(IR)개최              ",
+          "rcept_no": "20260609900404",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-06-15",
+      "close": 303500.0,
+      "change_pct": 5.02,
+      "direction": "up",
+      "volume": 67672,
+      "volume_vs_avg": 0.48,
+      "candidate_filings": [
+        {
+          "filed": "2026-06-12",
+          "name": "지속가능경영보고서등관련사항(자율공시)              ",
+          "rcept_no": "20260612900306",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-06-24",
+      "close": 304500.0,
+      "change_pct": 8.75,
+      "direction": "up",
+      "volume": 139561,
+      "volume_vs_avg": 0.99,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-06-25",
+      "close": 322500.0,
+      "change_pct": 5.91,
+      "direction": "up",
+      "volume": 198880,
+      "volume_vs_avg": 1.41,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-06-29",
+      "close": 349000.0,
+      "change_pct": 7.72,
+      "direction": "up",
+      "volume": 424006,
+      "volume_vs_avg": 3.0,
+      "candidate_filings": [
+        {
+          "filed": "2026-06-26",
+          "name": "기업설명회(IR)개최              ",
+          "rcept_no": "20260626900400",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-07-03",
+      "close": 341000.0,
+      "change_pct": -5.41,
+      "direction": "down",
+      "volume": 218049,
+      "volume_vs_avg": 1.55,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-07-06",
+      "close": 314000.0,
+      "change_pct": -7.92,
+      "direction": "down",
+      "volume": 179875,
+      "volume_vs_avg": 1.27,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-07-07",
+      "close": 340500.0,
+      "change_pct": 8.44,
+      "direction": "up",
+      "volume": 298787,
+      "volume_vs_avg": 2.12,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-07-09",
+      "close": 309000.0,
+      "change_pct": -5.5,
+      "direction": "down",
+      "volume": 140461,
+      "volume_vs_avg": 1.0,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-07-22",
+      "close": 322500.0,
+      "change_pct": -5.56,
+      "direction": "down",
+      "volume": 108367,
+      "volume_vs_avg": 0.77,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-07-23",
+      "close": 360000.0,
+      "change_pct": 11.63,
+      "direction": "up",
+      "volume": 182266,
+      "volume_vs_avg": 1.29,
+      "candidate_filings": []
+    }
+  ],
+  "filings_in_window": [
+    {
+      "filed": "2026-07-14",
+      "name": "결산실적공시예고              ",
+      "rcept_no": "20260714900293",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-26",
+      "name": "기업설명회(IR)개최              ",
+      "rcept_no": "20260626900400",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-12",
+      "name": "지속가능경영보고서등관련사항(자율공시)              ",
+      "rcept_no": "20260612900306",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-09",
+      "name": "기업설명회(IR)개최              ",
+      "rcept_no": "20260609900404",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-15",
+      "name": "분기보고서 (2026.03)",
+      "rcept_no": "20260515001997",
+      "scheduled": true
+    },
+    {
+      "filed": "2026-05-08",
+      "name": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+      "rcept_no": "20260508900237",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-06",
+      "name": "기업설명회(IR)개최              ",
+      "rcept_no": "20260506900522",
+      "scheduled": false
+    }
+  ],
+  "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
+  "_gaps": [
+    "공시로 설명되지 않는 급변 11건 (2026-05-04, 2026-05-14, 2026-06-08, 2026-06-24, 2026-06-25, 2026-07-03 외) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"
+  ]
+}
