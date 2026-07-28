@@ -2,7 +2,7 @@
 
 import unittest
 
-from peer_compare import align_period, periods, ttm
+from calculators.peer_us import align_period, periods, ttm
 
 
 def point(fy, fp, start, end, value, form="10-Q", filed="2026-01-01"):

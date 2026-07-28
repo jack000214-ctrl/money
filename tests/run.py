@@ -13,9 +13,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-for d in (HERE.parent / "scripts",
-          HERE.parent / "skills" / "portfolio-xray" / "scripts"):
-    sys.path.insert(0, str(d))
+sys.path.insert(0, str(HERE.parent))
 
 
 def main():

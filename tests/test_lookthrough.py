@@ -9,7 +9,7 @@
 import unittest
 
 from helpers import ROOT, write_csv  # noqa: F401
-from lookthrough import analyze, load_constituents, load_holdings
+from calculators.portfolio import analyze, load_constituents, load_holdings
 
 LIMITS = {"single": 10.0, "top10": 50.0, "sector": 30.0,
           "currency": 70.0, "unclassified": 20.0}

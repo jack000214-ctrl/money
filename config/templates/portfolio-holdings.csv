@@ -1,0 +1,4 @@
+asset_id,name,market,asset_type,risk_class,value_krw,fx_exposure,sector,quantity,note
+005930,삼성전자,KR,STOCK,STOCK,5000000,,반도체,50,
+SCHD,Schwab U.S. Dividend Equity ETF,US,ETF,STOCK,4000000,USD,,100,
+CASH_KRW,원화 예수금,KR,CASH,CASH,1000000,KRW,,,

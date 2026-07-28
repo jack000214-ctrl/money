@@ -1,0 +1,4 @@
+interface:
+  display_name: "Investment CIO"
+  short_description: "한·미 주식·ETF의 가격별 매수 판단과 재평가"
+  default_prompt: "Use $decide-investment to assess this KR or US stock or ETF at my stated price and amount."

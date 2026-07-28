@@ -1,11 +1,17 @@
 .env
 .env.*
 data/raw/
+data/logs/
 __pycache__/
 *.pyc
 .DS_Store
 
-# 포트폴리오 개인 데이터
+# 로컬 CIO 메모리와 개인 데이터
+knowledge/contexts/
+knowledge/assessments/
+knowledge/evaluations/
+knowledge/quarantine/
+knowledge/evidence/
 knowledge/portfolio/holdings.csv
 knowledge/portfolio/trades/
 knowledge/portfolio/decisions/

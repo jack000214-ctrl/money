@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cio-decision/1.0.0",
+  "title": "Provider-neutral CIO decision",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "context_id",
+    "asset_id",
+    "created_at",
+    "model",
+    "verdict",
+    "outcome_metric",
+    "horizon_months",
+    "win_definition",
+    "failure_definition",
+    "win_return_threshold_pct",
+    "failure_return_threshold_pct",
+    "win_probability_pct",
+    "confidence_pct",
+    "expected_return_pct",
+    "scenario_probability_pct",
+    "price_plan",
+    "proposed_trade",
+    "method",
+    "thesis",
+    "strongest_counter_thesis",
+    "invalidation_signals",
+    "unknowns",
+    "research_requests",
+    "sources",
+    "evidence_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "cio-decision/1.0.0"},
+    "assessment_id": {
+      "type": ["string", "null"],
+      "pattern": "^CIO-[0-9a-f]{20}$"
+    },
+    "context_id": {"type": "string", "pattern": "^CTX-[0-9a-f]{20}$"},
+    "asset_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "model": {
+      "type": "object",
+      "required": ["provider", "name", "prompt_version"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": ["string", "null"], "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "verdict": {
+      "enum": [
+        "BUY_NOW",
+        "WAIT",
+        "AVOID",
+        "INSUFFICIENT"
+      ]
+    },
+    "outcome_metric": {
+      "const": "TERMINAL_TOTAL_RETURN_ASSET_CURRENCY"
+    },
+    "horizon_months": {"type": "integer", "minimum": 1, "maximum": 120},
+    "win_definition": {"type": "string", "minLength": 1},
+    "failure_definition": {"type": "string", "minLength": 1},
+    "win_return_threshold_pct": {"type": "number", "minimum": -100},
+    "failure_return_threshold_pct": {"type": "number", "minimum": -100},
+    "win_probability_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "confidence_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "expected_return_pct": {
+      "type": "object",
+      "required": ["bear", "base", "bull", "probability_weighted"],
+      "properties": {
+        "bear": {"type": ["number", "null"], "minimum": -100},
+        "base": {"type": ["number", "null"], "minimum": -100},
+        "bull": {"type": ["number", "null"], "minimum": -100},
+        "probability_weighted": {"type": ["number", "null"], "minimum": -100}
+      },
+      "additionalProperties": false
+    },
+    "scenario_probability_pct": {
+      "type": "object",
+      "required": ["bear", "base", "bull"],
+      "properties": {
+        "bear": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100},
+        "base": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100},
+        "bull": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100}
+      },
+      "additionalProperties": false
+    },
+    "price_plan": {
+      "type": "object",
+      "required": [
+        "currency",
+        "preferred_entry",
+        "entry_range_low",
+        "entry_range_high",
+        "stop_price",
+        "scale_out_start",
+        "reask_below",
+        "reask_above",
+        "reask_events"
+      ],
+      "properties": {
+        "currency": {"enum": ["KRW", "USD"]},
+        "preferred_entry": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "entry_range_low": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "entry_range_high": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "stop_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "scale_out_start": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "reask_below": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "reask_above": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "reask_events": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "proposed_trade": {
+      "type": "object",
+      "required": ["amount", "currency", "rationale"],
+      "properties": {
+        "amount": {"type": ["number", "null"], "minimum": 0},
+        "currency": {"enum": ["KRW", "USD"]},
+        "rationale": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "method": {
+      "type": "object",
+      "required": ["valuation_family", "why_fit", "assumptions"],
+      "properties": {
+        "valuation_family": {"type": "string", "minLength": 1},
+        "why_fit": {"type": "string", "minLength": 1},
+        "assumptions": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "thesis": {"type": "string", "minLength": 1},
+    "strongest_counter_thesis": {
+      "type": "object",
+      "required": ["text", "evidence_refs"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "invalidation_signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "research_requests": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "type",
+          "locator",
+          "published_at",
+          "retrieved_at"
+        ],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "minLength": 1},
+          "locator": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "published_at": {"type": ["string", "null"], "format": "date-time"},
+          "retrieved_at": {"type": "string", "format": "date-time"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"verdict": {"const": "INSUFFICIENT"}},
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "win_probability_pct": {"type": "null"},
+          "confidence_pct": {"type": "null"},
+          "expected_return_pct": {
+            "properties": {
+              "bear": {"type": "null"},
+              "base": {"type": "null"},
+              "bull": {"type": "null"},
+              "probability_weighted": {"type": "null"}
+            }
+          },
+          "scenario_probability_pct": {
+            "properties": {
+              "bear": {"type": "null"},
+              "base": {"type": "null"},
+              "bull": {"type": "null"}
+            }
+          },
+          "price_plan": {
+            "properties": {
+              "preferred_entry": {"type": "null"},
+              "entry_range_low": {"type": "null"},
+              "entry_range_high": {"type": "null"},
+              "stop_price": {"type": "null"},
+              "scale_out_start": {"type": "null"},
+              "reask_below": {"type": "null"},
+              "reask_above": {"type": "null"}
+            }
+          },
+          "proposed_trade": {
+            "properties": {"amount": {"type": "null"}}
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "win_probability_pct": {"type": "number", "minimum": 0, "maximum": 100},
+          "confidence_pct": {"type": "number", "minimum": 0, "maximum": 100},
+          "expected_return_pct": {
+            "properties": {
+              "bear": {"type": "number", "minimum": -100},
+              "base": {"type": "number", "minimum": -100},
+              "bull": {"type": "number", "minimum": -100},
+              "probability_weighted": {"type": "number", "minimum": -100}
+            }
+          },
+          "scenario_probability_pct": {
+            "properties": {
+              "bear": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+              "base": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+              "bull": {"type": "number", "exclusiveMinimum": 0, "maximum": 100}
+            }
+          },
+          "price_plan": {
+            "properties": {
+              "preferred_entry": {"type": "number", "exclusiveMinimum": 0},
+              "entry_range_low": {"type": "number", "exclusiveMinimum": 0},
+              "entry_range_high": {"type": "number", "exclusiveMinimum": 0},
+              "stop_price": {"type": "number", "exclusiveMinimum": 0},
+              "scale_out_start": {"type": "number", "exclusiveMinimum": 0},
+              "reask_below": {"type": "number", "exclusiveMinimum": 0},
+              "reask_above": {"type": "number", "exclusiveMinimum": 0}
+            }
+          },
+          "proposed_trade": {
+            "properties": {"amount": {"type": "number", "minimum": 0}}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"verdict": {"const": "BUY_NOW"}},
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "proposed_trade": {
+            "properties": {
+              "amount": {"type": "number", "exclusiveMinimum": 0}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"verdict": {"enum": ["WAIT", "AVOID"]}},
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "proposed_trade": {
+            "properties": {"amount": {"const": 0}}
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

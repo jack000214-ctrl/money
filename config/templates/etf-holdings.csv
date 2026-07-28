@@ -1,0 +1,3 @@
+etf_id,holding_id,holding_name,weight_pct,market,sector,as_of
+SCHD,HD,Home Depot,0.0,US,경기소비재,2026-06-30
+SCHD,TXN,Texas Instruments,0.0,US,반도체,2026-06-30

@@ -1,98 +1,94 @@
-# Personal Investment OS
+# Personal CIO
 
-개인 자산을 장기적으로 관리하기 위한 **배치 중심의 투자 의사결정 지원 시스템** 설계 저장소다.
+한·미 주식과 ETF에 대해 다음 질문에 답하기 위한 개인용 시스템이다.
 
-이 프로젝트의 목표는 AI가 다음 주가를 맞히게 하는 것이 아니다. 신뢰할 수 있는 데이터를 시점별로 보존하고, 재현 가능한 계산과 명시적인 투자 원칙 위에서 AI가 공시를 읽고 가설을 추적하도록 만들어 사용자의 의사결정 품질을 높이는 것이 목표다.
+> 이 종목을 이 가격에 이 금액만큼 사면 승리할 가능성이 있는가? 기대수익은
+> 얼마이며, 나라면 얼마에 들어가고 어디서 손절·분할매도·재검토할 것인가?
 
-## 현재 단계
+좋은 모델일수록 더 나은 판단을 하도록 데이터와 과거 평가를 로컬 자산으로 남긴다.
+GPT와 Claude를 포함한 모델은 교체할 수 있고, 같은 컨텍스트와 출력 계약을 사용한다.
 
-- 상태: 안전 점검 엔진과 가치판단 계층 구현, 투자정책 승인 완료
-- 구현 상태: 구조화 매매 점검·분모별 비중·역산 밸류에이션·시나리오 계약·회귀 테스트
-- 대상 사용자: 프로그래밍·AI 경험은 많지만 투자 경험은 적은 단일 사용자
-- 서비스 범위: 우선 개인 전용, 읽기 전용
-- 매매 범위: 초기에는 실거래 자동화 없음
+## 역할
 
-`knowledge/portfolio/ips.json`은 2026-07-27에 승인됐다. `PROCEED`는 수익 예측이
-아니라 승인된 정책과 검증된 분석 계약상 차단 사유가 없다는 뜻일 뿐이다.
+| 주체 | 책임 |
+|---|---|
+| 사용자 | 종목·검토 가격·사용 가능 금액을 고르고 실제 주문을 최종 결정한다 |
+| 로컬 PC | 공식 데이터 수집, 저장, 결정론적 계산, 신선도·스키마·산술 검증을 맡는다 |
+| 모델 | 부족한 정보를 조사하고 투자 방법론·확률·가격 계획·최종 투자 판단을 만든다 |
 
-### 구현된 안전 경계
+PC의 `validation = PASS | BLOCKED`는 **데이터 준비 상태**다. 모델의
+`verdict = BUY_NOW | WAIT | AVOID | INSUFFICIENT`가
+**투자 판단**이다. 둘을 합치거나 PC 검사 결과를 모델 판단처럼 표현하지 않는다.
+실제 주문 기능은 없으며 모델도 증권사 자격증명에 접근하지 않는다.
 
-- 판정 우선순위: `BLOCKED` > `RESEARCH_REQUIRED` > `CAUTION` > `PROCEED`
-- 과매도, 현금 부족, 비정상 숫자, 승인 한도 초과, 신선도 초과는 `BLOCKED`
-- 비중은 총자산·주식 슬리브·위험자산을 각각의 분모 금액과 함께 표시
-- 매매 판단은 논지 변화·기대수익 범위·포트폴리오 위험·비용/세금·대안을 함께 사용
-- 주장 → 출처 ID → 입력 스냅샷을 검증하고, 계약 실패 분석은 저장하지 않음
-- 명령 종료 코드는 `PROCEED`만 0이며 나머지는 비정상 종료로 처리
+## 빠른 시작
 
-### 구현된 가치판단 경계
-
-- 기대수익은 손으로 적을 수 없다. `scripts/reverse_dcf.py`가 발급한 계산 산출물과
-  일치해야 하며, `calculation_id`는 모델·입력·산출값 전체의 SHA-256 지문이다
-- **계산의 입력도 손으로 적을 수 없다.** FCF·희석주식수·순부채는
-  `scripts/edgar_fetch.py fundamentals`가 10-Q/10-K 원문에서 만든 스냅샷에서
-  읽는다. 계약이 내부 항등식(FCF = 영업현금흐름 − capex, 각 TTM = 연속
-  4분기 합)과 `fundamentals_id` 지문을 함께 검사하므로, 값을 고치면 항등식이
-  깨지고 항등식까지 맞추면 지문이 어긋난다
-- **할인율과 영구성장률은 IPS가 지배한다.** 요구수익률만 못박고 그것을 계산하는
-  할인율을 분석가가 고르게 하면, 다이얼 하나로 한도를 우회할 수 있다.
-  `valuation_assumptions`가 위험등급별 할인율 범위와 영구성장률 상한을 정하고,
-  범위 밖 계산은 `BLOCKED`다
-- 시나리오는 약세·기준·강세 셋 다 필요하고, **각각 근거 claim을 가져야 한다**.
-  근거 없는 약세 시나리오는 지어낸 숫자다
-- 확률 합은 1이어야 하고, 확률 0인 시나리오는 허용되지 않는다
-- `counter_thesis`(가장 강한 반대 근거)와 관측 가능한 반증 신호가 필수다
-- 하방은 `깊이 × 비중`으로 예산을 건다. 기준 시나리오만 보면 하방 -50%와 -5%가
-  똑같이 통과하기 때문이다
-
-실행 예시는 `skills/trade-check/SKILL.md`, 논지 검증은
-`skills/thesis-challenge/SKILL.md`, 기계 판독 IPS는
-`knowledge/portfolio/ips.json`, 분석 형식은
-`knowledge/research/analysis-template.json`에 있다.
-
-## 권장 읽기 순서
-
-| 순서 | 문서 | 설명 |
-|---|---|---|
-| 1 | [제품 헌장](docs/00-product-charter.md) | 무엇을 만들고 만들지 않을지 |
-| 2 | [개인 투자정책](docs/01-investment-policy.md) | 시스템이 지켜야 할 투자 규칙 |
-| 3 | [전체 아키텍처](docs/02-system-architecture.md) | 배치 → SKILL → 앱 구조와 경계 |
-| 4 | [데이터 아키텍처](docs/03-data-architecture.md) | 데이터 출처, 시점 보존, 품질 규칙 |
-| 5 | [배치 계층](docs/04-batch-layer.md) | 정기 작업과 이벤트 처리 방식 |
-| 6 | [SKILL 계층](docs/05-skill-layer.md) | AI가 수행할 분석과 금지할 행동 |
-| 7 | [앱 계층](docs/06-app-layer.md) | 개인용 화면과 승인 UX |
-| 8 | [전략·의사결정 정책](docs/07-strategy-and-decision-policy.md) | 종목 분석, 추천, 비중 결정 방식 |
-| 9 | [백테스트·평가](docs/08-backtesting-and-evaluation.md) | 전략 검증과 승격 기준 |
-| 10 | [위험·보안·규제](docs/09-risk-security-compliance.md) | 투자·모델·운영 위험 통제 |
-| 11 | [로드맵](docs/10-roadmap.md) | 구현 순서와 단계별 완료 조건 |
-| 12 | [투자 용어집](docs/11-domain-glossary.md) | 구현에 필요한 최소 투자 개념 |
-| 13 | [컨텍스트 계약](docs/12-context-contracts.md) | 계층 간 구조화된 데이터 모델 |
-| 14 | [결정 기록](docs/13-decision-log.md) | 확정 사항과 미결정 질문 |
-| 15 | [공식 자료 목록](docs/14-source-catalog.md) | 데이터·API·규제·투자 원칙 출처 |
-
-## 문서 상태 표기
-
-- **확정**: 현재 아키텍처의 기본 원칙. 변경하려면 결정 기록을 갱신한다.
-- **제안**: 초기 기본안. 검토 후 확정하거나 교체할 수 있다.
-- **미결정**: 사용자 선택 또는 추가 조사가 필요하다.
-- **금지**: 안전성과 검증 가능성을 위해 허용하지 않는 설계다.
-
-## 검토 방법
-
-문서별 `검토가 필요한 결정` 항목에 의견을 남기면 된다. 투자 기간, 최대 허용 손실, 대상 시장처럼 아직 정보가 없는 값은 의도적으로 확정하지 않았다.
-
-이 저장소의 문서는 시스템 설계안이며 특정 종목 또는 금융상품에 대한 투자 권유가 아니다.
-
-## 투자판정 대시보드
-
-재사용형 투자판정 화면은 이 저장소의 `dashboard/`에 포함돼 있다. 별도 Git 저장소가
-아니며, 상위 프로젝트를 clone하면 함께 내려온다.
+기준 런타임은 Python 3.13.12다. 프로젝트 실행에는 외부 Python 패키지가 필요하지
+않는다. 저장소 루트에서 등록 자산과 필요한 수집 작업을 확인한다.
 
 ```bash
-cd dashboard
-npm install
-npm run dev
+python3.13 -m cio assets
+python3.13 -m cio refresh 005930
 ```
 
-`dashboard/.gitignore`는 `node_modules`, 로컬 빌드 결과, 환경변수만 제외한다.
-화면 코드, 데이터 계약, 잠금 파일, 검증 테스트, 미리 계산된 차트 데이터는 Git으로
-추적한다.
+필요한 기본 수집을 실행한다. `--optional`은 해당 자산에 등록된 보조 수집기까지
+포함한다.
+
+```bash
+python3.13 -m cio refresh 005930 --run --optional
+```
+
+검토 가격과 최대 사용 금액으로 모델용 최소 컨텍스트를 만든다.
+
+```bash
+python3.13 -m cio prepare 005930 \
+  --price 185000 \
+  --amount 5000000 \
+  --amount-currency KRW
+```
+
+생성된 `knowledge/contexts/<asset_id>/<context_id>.json`을
+`prompts/cio-system.md`와 함께 원하는 모델에 제공한다. 모델은
+`schemas/cio-decision.schema.json`에 맞는 JSON 하나를 반환해야 한다.
+
+모델 출력을 `decision.json`으로 저장했다면 읽기 전용 검증을 할 수 있다. 공식
+시도는 `record`가 다시 검증한 뒤 유효 판단 또는 실패 출력으로 남긴다.
+
+```bash
+python3.13 -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
+python3.13 -m cio record decision.json
+```
+
+가격 이력이 쌓인 뒤 과거 판단을 사후 평가한다.
+
+```bash
+python3.13 -m cio score 005930
+```
+
+`record`는 유효한 판단을 `knowledge/assessments/`에 저장한다. 유효하지 않은 모델
+출력은 깨진 JSON까지 버리지 않고 `knowledge/quarantine/`에 격리한다. `score` 결과는
+`knowledge/evaluations/`에 쌓인다.
+
+컨텍스트가 참조한 근거와 prompt/schema는 내용 지문으로
+`knowledge/evidence/`에 중복 없이 보존된다. 이후 원본 파일이 갱신돼도 당시 모델이
+사용한 입력은 바뀌지 않는다.
+
+## 자산별 분기
+
+`config/assets.json`이 시장(`KR`/`US`), 상품(`STOCK`/`ETF`), 공시원,
+벤치마크, 분석 렌즈와 적합한 가치평가 후보를 지정한다. 이 값은 모델의 출발점이지
+결론을 강제하는 규칙이 아니다. ETF에 회사 DCF를 적용하거나 적자 임상 바이오에
+정률성장 DCF를 적용하지 않는다.
+
+새 자산은 `python3.13 -m cio register`로 등록한다. 상세 필드와 수집 정책은
+[데이터 정책](docs/data-policy.md)을 참고한다.
+
+## 문서
+
+- [아키텍처](docs/architecture.md)
+- [판단 계약](docs/decision-contract.md)
+- [데이터 정책](docs/data-policy.md)
+- [평가와 기억](docs/evaluation.md)
+
+기계 판독 계약의 최종 권위는 문서 설명이 아니라 코드와
+`schemas/cio-decision.schema.json`이다.

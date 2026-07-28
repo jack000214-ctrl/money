@@ -1,0 +1,1301 @@
+from __future__ import annotations
+
+import csv
+import datetime as dt
+import glob
+import json
+import math
+import os
+import re
+import shutil
+import statistics
+import tempfile
+from pathlib import Path
+from typing import Any
+
+from calculators.contracts import (
+    ContractError,
+    content_hash,
+    load_json,
+    stable_hash,
+    validate_calculation,
+    validate_fundamentals,
+)
+from cio.assets import get_asset
+from cio.decision import require_valid_decision, validate_context_integrity
+from cio.paths import KNOWLEDGE_DIR, ROOT
+from cio.refresh import (
+    SEC_PRIMARY_REPORT_FORMS,
+    event_contract_errors,
+    inspect_plan,
+    safe_symbol,
+)
+
+KST = dt.timezone(dt.timedelta(hours=9))
+CONTEXT_SCHEMA = "cio-context/1.0.0"
+MAX_CONTEXT_JSON_BYTES = 24_000
+
+
+class ContextError(ValueError):
+    pass
+
+
+def _csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8-sig") as handle:
+        return list(
+            csv.DictReader(
+                line for line in handle if not line.lstrip().startswith("#")
+            )
+        )
+
+
+def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    source = {
+        "source_id": f"PRICE:{symbol}",
+        "kind": "MARKET_DATA",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    if not path.exists():
+        return None, source
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            schema_line = handle.readline().strip()
+            metadata_line = handle.readline().strip()
+    except OSError:
+        return None, source
+    metadata = re.fullmatch(
+        r"# symbol (.+) / currency ([A-Z]{3})",
+        metadata_line,
+    )
+    if (
+        schema_line != "# schema_version price-series/2.0.0"
+        or not metadata
+        or metadata.group(1) != symbol
+    ):
+        return None, source
+    rows = _csv_rows(path)
+    points = []
+    adjusted_complete = True
+    for row in rows:
+        if not row.get("date") or not row.get("close"):
+            continue
+        try:
+            close = float(row["close"])
+            adjusted = float(row.get("adjusted_close") or close)
+        except (TypeError, ValueError):
+            continue
+        if (
+            not math.isfinite(close)
+            or not math.isfinite(adjusted)
+            or close <= 0
+            or adjusted <= 0
+        ):
+            continue
+        adjusted_complete = adjusted_complete and bool(
+            row.get("adjusted_close")
+        )
+        points.append((row["date"], close, adjusted))
+    if not points:
+        return None, source
+    source["data_as_of"] = points[-1][0]
+    closes = [point[1] for point in points]
+    return_closes = [point[2] for point in points]
+
+    def change(days: int) -> float | None:
+        if len(return_closes) <= days or return_closes[-1 - days] <= 0:
+            return None
+        return round(
+            (return_closes[-1] / return_closes[-1 - days] - 1) * 100,
+            2,
+        )
+
+    recent = closes[-252:]
+    high = max(recent)
+    low = min(recent)
+    returns = [
+        return_closes[index] / return_closes[index - 1] - 1
+        for index in range(
+            max(1, len(return_closes) - 63), len(return_closes)
+        )
+        if return_closes[index - 1] > 0
+    ]
+    return (
+        {
+            "symbol": symbol,
+            "currency": metadata.group(2),
+            "as_of": points[-1][0],
+            "close": closes[-1],
+            "returns_pct": {
+                "1m": change(21),
+                "3m": change(63),
+                "12m": change(252),
+            },
+            "returns_basis": (
+                "ADJUSTED_CLOSE"
+                if adjusted_complete
+                else "RAW_CLOSE_FALLBACK"
+            ),
+            "drawdown_from_12m_high_pct": round(
+                (closes[-1] / high - 1) * 100, 2
+            ),
+            "position_in_12m_range_pct": round(
+                (closes[-1] - low) / (high - low) * 100, 2
+            )
+            if high > low
+            else 50.0,
+            "realized_volatility_3m_pct": round(
+                statistics.stdev(returns) * math.sqrt(252) * 100, 2
+            )
+            if len(returns) >= 2
+            else None,
+        },
+        source,
+    )
+
+
+def _latest_fundamentals(
+    asset: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    asset_id = asset["asset_id"]
+    paths = [
+        Path(path)
+        for path in glob.glob(
+            str(KNOWLEDGE_DIR / "fundamentals" / f"{asset_id}-*.json")
+        )
+    ]
+    source = {
+        "source_id": f"FUNDAMENTALS:{asset_id}",
+        "kind": "FILING_DERIVED",
+        "path": None,
+        "data_as_of": None,
+    }
+    if not paths:
+        return None, source
+    candidates: list[tuple[str, Path, dict[str, Any]]] = []
+    for path in paths:
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        candidates.append((str(data.get("period_end") or ""), path, data))
+    if not candidates:
+        return None, source
+    _, path, data = max(candidates, key=lambda item: item[0])
+    source["path"] = str(path.relative_to(ROOT))
+    source["data_as_of"] = data.get("period_end")
+    binding_errors = []
+    if data.get("instrument_id") != asset_id:
+        binding_errors.append("재무 스냅샷 instrument_id가 요청 자산과 다르다")
+    period_end = data.get("period_end")
+    if path.name != f"{asset_id}-{period_end}.json":
+        binding_errors.append("재무 스냅샷 파일명과 기준일이 다르다")
+    if binding_errors:
+        return {"contract_errors": binding_errors}, source
+    observed_filing_source = (
+        "DART"
+        if data.get("corp_code")
+        else "SEC_EDGAR"
+        if data.get("cik")
+        else "UNKNOWN"
+    )
+    expected_filing_source = asset["filing_source"]
+    if observed_filing_source != expected_filing_source:
+        return (
+            {
+                "contract_errors": [
+                    "자산 registry와 재무 스냅샷의 공시원이 다르다"
+                ],
+                "expected_filing_source": expected_filing_source,
+                "observed_filing_source": observed_filing_source,
+            },
+            source,
+        )
+    errors = validate_fundamentals(data)
+    if errors:
+        return {"contract_errors": errors[:5]}, source
+
+    income = data.get("income_statement") or {}
+    income_summary = {}
+    for key in ("revenue", "gross_profit", "operating_income", "net_income"):
+        entry = income.get(key)
+        if isinstance(entry, dict):
+            income_summary[key] = {
+                "ttm": entry.get("ttm"),
+                "tag": entry.get("tag"),
+            }
+    values = data.get("values") or {}
+    summary = {
+        "fundamentals_id": data["fundamentals_id"],
+        "period_end": data["period_end"],
+        "currency": data.get("currency"),
+        "values": values,
+        "income_statement_ttm": income_summary,
+        "source": data.get("source") or observed_filing_source,
+    }
+    fcf = _as_float(values.get("fcf_ttm"))
+    cash = _as_float(values.get("cash_and_equivalents"))
+    short_investments = _as_float(values.get("short_term_investments"))
+    if (
+        fcf is not None
+        and fcf < 0
+        and cash is not None
+        and short_investments is not None
+        and cash + short_investments >= 0
+    ):
+        summary["historical_cash_runway"] = {
+            "months": round((cash + short_investments) / -fcf * 12, 1),
+            "basis": "cash_and_short_investments / trailing_free_cash_flow_burn",
+            "_warning": (
+                "과거 burn을 직선 연장한 결정론적 참고치다. 증자·마일스톤·비용 "
+                "변화는 CIO 모델이 직접 조사한다"
+            ),
+        }
+    return summary, source
+
+
+def _filing_summary(
+    asset: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """미국 주식의 최신 SEC 제출 문서를 작은 탐색 색인으로 만든다."""
+    if asset["market"] != "US" or asset["asset_type"] != "STOCK":
+        return None, None
+    asset_id = asset["asset_id"]
+    path = KNOWLEDGE_DIR / "filings" / f"{asset_id}.json"
+    source = {
+        "source_id": f"FILINGS:{asset_id}",
+        "kind": "REGULATOR_FILING_INDEX",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    if not path.exists():
+        return None, source
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return {"contract_errors": ["공시 색인 JSON을 읽을 수 없다"]}, source
+    source["data_as_of"] = data.get("collected_at")
+    errors = []
+    if data.get("schema_version") != "filing-index/1.0.0":
+        errors.append("filing-index/1.0.0이 아니다")
+    if data.get("asset_id") != asset_id:
+        errors.append("공시 색인의 asset_id가 registry와 다르다")
+    filings = data.get("filings")
+    if not isinstance(filings, list) or not filings:
+        errors.append("공시 색인에 제출 문서가 없다")
+    if errors:
+        return {"contract_errors": errors}, source
+    primary_reports = []
+    material_events = []
+    for filing in filings:
+        if not isinstance(filing, dict):
+            continue
+        compact = {
+            key: filing.get(key)
+            for key in (
+                "filing_date",
+                "report_date",
+                "form",
+                "accession_number",
+                "description",
+                "document_url",
+            )
+        }
+        target = (
+            primary_reports
+            if filing.get("form") in SEC_PRIMARY_REPORT_FORMS
+            else material_events
+        )
+        target.append(compact)
+    if not primary_reports:
+        return {"contract_errors": ["공시 색인의 제출 문서가 유효하지 않다"]}, source
+    return (
+        {
+            "collected_at": data.get("collected_at"),
+            "cik": data.get("cik"),
+            "latest_primary_reports": primary_reports[:4],
+            "latest_material_events": material_events[:6],
+            "_note": (
+                "제출 문서 탐색용 색인이다. 문서의 의미와 투자 영향은 모델이 "
+                "SEC 원문을 읽고 판단한다"
+            ),
+        },
+        source,
+    )
+
+
+def _latest_calculation(
+    asset: dict[str, Any],
+    *,
+    candidate_price: float,
+    fundamentals_id: str | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if "DCF" not in asset["valuation_family"]:
+        return None, None
+    candidates: list[tuple[str, Path, dict[str, Any]]] = []
+    for path in (KNOWLEDGE_DIR / "calculations").glob("CALC-*.json"):
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        if data.get("instrument_id") != asset["asset_id"]:
+            continue
+        if validate_calculation(data):
+            continue
+        calculation_price = _as_float((data.get("inputs") or {}).get("price"))
+        if calculation_price is None or not math.isclose(
+            calculation_price,
+            candidate_price,
+            rel_tol=1e-9,
+            abs_tol=1e-6,
+        ):
+            continue
+        provenance_id = (
+            ((data.get("inputs") or {}).get("input_provenance") or {}).get(
+                "fundamentals_id"
+            )
+        )
+        if fundamentals_id and provenance_id and provenance_id != fundamentals_id:
+            continue
+        candidates.append((str(data.get("created_at") or ""), path, data))
+    if not candidates:
+        return None, None
+    _, path, data = max(candidates, key=lambda item: item[0])
+    summary = {
+        "calculation_id": data["calculation_id"],
+        "model": data["model"],
+        "model_version": data["model_version"],
+        "created_at": data["created_at"],
+        "inputs": data["inputs"],
+        "outputs": data["outputs"],
+        "_role": (
+            "현재 요청 가격·재무 스냅샷과 일치하는 선택형 계산이다. "
+            "모델은 방법론 적합성을 먼저 판단한다"
+        ),
+    }
+    source = {
+        "source_id": data["calculation_id"],
+        "kind": "CALCULATION",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": data.get("created_at"),
+    }
+    return summary, source
+
+
+def _market_summary(market: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    path = KNOWLEDGE_DIR / "market" / f"regime-{market}.json"
+    source = {
+        "source_id": f"MARKET_STATE:{market}",
+        "kind": "DERIVED",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    if not path.exists():
+        return None, source
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, source
+    if data.get("schema_version") != "market-regime/2.0.0":
+        return None, source
+    block = (data.get("by_market") or {}).get(market)
+    if not isinstance(block, dict):
+        return None, source
+    input_sources = [
+        {
+            "symbol": item.get("symbol"),
+            "mode": item.get("mode"),
+            "data_as_of": item.get("data_as_of"),
+        }
+        for item in (data.get("input_sources") or [])
+        if isinstance(item, dict)
+    ]
+    input_dates = [
+        item["data_as_of"] for item in input_sources if item.get("data_as_of")
+    ]
+    source["data_as_of"] = min(input_dates) if input_dates else data.get(
+        "collected_at"
+    )
+    macro_root = data.get("macro") or {}
+    macro_by_market = macro_root.get("by_market") or {}
+    macro_rows = (
+        macro_by_market.get(market)
+        if isinstance(macro_by_market, dict)
+        else None
+    )
+    if not isinstance(macro_rows, list):
+        macro_rows = macro_root.get("series") or []
+    return (
+        {
+            "schema_version": data.get("schema_version"),
+            "as_of": data.get("collected_at"),
+            "market": market,
+            "regime": block.get("regime"),
+            "score": block.get("score"),
+            "notes": block.get("notes") or [],
+            "volatility": block.get("volatility"),
+            "indices": block.get("indices") or [],
+            "macro": macro_rows,
+            "input_sources": input_sources,
+            "_role": "현재 상태 측정치이며 매수·매도 지시가 아니다",
+        },
+        source,
+    )
+
+
+def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if asset["market"] != "KR" or asset["asset_type"] != "STOCK":
+        return None, None
+    path = KNOWLEDGE_DIR / "events" / f"{asset['asset_id']}.json"
+    source = {
+        "source_id": f"EVENTS:{asset['asset_id']}",
+        "kind": "FILING_EVENT_INDEX",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    if not path.exists():
+        return None, source
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return {"contract_errors": ["이벤트 packet JSON을 읽을 수 없다"]}, source
+    source["data_as_of"] = data.get("collected_at")
+    errors = event_contract_errors(data, asset)
+    if errors:
+        return {"contract_errors": errors[:5]}, source
+    moves = []
+    for move in (data.get("moves") or [])[-5:]:
+        moves.append(
+            {
+                "date": move.get("date"),
+                "change_pct": move.get("change_pct"),
+                "benchmark_pct": move.get("benchmark_pct"),
+                "excess_pct_beta_1": move.get("excess_pct"),
+                "candidate_filings": [
+                    {
+                        "filed": filing.get("filed"),
+                        "name": filing.get("name"),
+                        "rcept_no": filing.get("rcept_no"),
+                    }
+                    for filing in (move.get("candidate_filings") or [])[:3]
+                ],
+            }
+        )
+    return (
+        {
+            "as_of": data.get("collected_at"),
+            "move_count": len(data.get("moves") or []),
+            "recent_moves": moves,
+            "_warning": (
+                "excess_pct_beta_1은 벤치마크를 beta=1로 뺀 값이며 인과 비중이 아니다. "
+                "candidate_filings도 시간상 후보일 뿐 원인이 아니다"
+            ),
+        },
+        source,
+    )
+
+
+def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if asset["asset_type"] != "ETF":
+        return None, None
+    paths = sorted(
+        (KNOWLEDGE_DIR / "etfs" / asset["asset_id"]).glob("holdings-*.csv")
+    )
+    holdings_source = (asset.get("etf") or {}).get(
+        "holdings_source", "MANUAL"
+    )
+    source = {
+        "source_id": f"ETF_HOLDINGS:{asset['asset_id']}",
+        "kind": f"{holdings_source}_HOLDINGS",
+        "path": None,
+        "data_as_of": None,
+    }
+    if not paths:
+        return None, source
+    path = paths[-1]
+    rows = _csv_rows(path)
+    weighted = []
+    errors = []
+    holding_ids: list[str] = []
+    as_of_values: set[str] = set()
+    for index, row in enumerate(rows):
+        if row.get("etf_id") != asset["asset_id"]:
+            errors.append(f"{index + 2}행 etf_id가 요청 자산과 다르다")
+        holding_id = (row.get("holding_id") or "").strip()
+        if not holding_id:
+            errors.append(f"{index + 2}행 holding_id가 비었다")
+        else:
+            holding_ids.append(holding_id)
+        row_as_of = (row.get("as_of") or "").strip()
+        if not row_as_of:
+            errors.append(f"{index + 2}행 as_of가 비었다")
+        else:
+            as_of_values.add(row_as_of)
+        weight = _as_float(row.get("weight_pct"))
+        if weight is None or weight < 0:
+            errors.append(f"{index + 2}행 weight_pct가 유효하지 않다")
+            continue
+        weighted.append(
+            {
+                "holding_id": holding_id,
+                "holding_name": row.get("holding_name"),
+                "weight_pct": weight,
+                "sector": row.get("sector") or None,
+            }
+        )
+    if len(holding_ids) != len(set(holding_ids)):
+        errors.append("holding_id가 중복됐다")
+    if len(as_of_values) != 1:
+        errors.append("구성종목 기준일이 행마다 다르다")
+    weighted.sort(key=lambda row: row["weight_pct"], reverse=True)
+    as_of = next(iter(as_of_values), path.stem.removeprefix("holdings-"))
+    source["path"] = str(path.relative_to(ROOT))
+    source["data_as_of"] = as_of
+    coverage = round(sum(row["weight_pct"] for row in weighted), 2)
+    warnings = []
+    if holdings_source != "ISSUER":
+        warnings.append("운용사 원문이 아닌 구성종목 스냅샷이다")
+    if coverage <= 0:
+        errors.append("구성종목 비중 합계가 0보다 커야 한다")
+    elif coverage > 101:
+        warnings.append(
+            "비중 합계가 100%를 넘는다. 파생상품의 총노출 또는 중복을 확인한다"
+        )
+    return (
+        {
+            "as_of": as_of,
+            "known_coverage_pct": coverage,
+            "top_holdings": weighted[:8],
+            "structure": asset.get("etf"),
+            "warnings": warnings,
+            "contract_errors": errors[:8],
+        },
+        source,
+    )
+
+
+def _as_float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _optional_collection_summaries(
+    asset: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    enabled = set(asset.get("optional_collectors") or [])
+    asset_id = asset["asset_id"]
+    summaries: dict[str, Any] = {}
+    sources: list[dict[str, Any]] = []
+
+    if "KR_FLOW" in enabled:
+        path = KNOWLEDGE_DIR / "flows" / f"{asset_id}.csv"
+        if path.exists():
+            rows = _csv_rows(path)
+            recent = rows[-20:]
+            if recent:
+                institution = sum(
+                    _as_float(row.get("institution_net")) or 0 for row in recent
+                )
+                foreign = sum(
+                    _as_float(row.get("foreign_net")) or 0 for row in recent
+                )
+                summaries["kr_flow"] = {
+                    "as_of": recent[-1].get("date"),
+                    "lookback_sessions": len(recent),
+                    "institution_net_shares": round(institution),
+                    "foreign_net_shares": round(foreign),
+                    "foreign_ownership_pct": _as_float(
+                        recent[-1].get("foreign_pct")
+                    ),
+                    "_warning": "2차 출처 수급이며 단독 매매 근거가 아니다",
+                }
+                sources.append(
+                    {
+                        "source_id": f"KR_FLOW:{asset_id}",
+                        "kind": "SECONDARY_MARKET_DATA",
+                        "path": str(path.relative_to(ROOT)),
+                        "data_as_of": recent[-1].get("date"),
+                    }
+                )
+
+    if "KR_INVENTORY" in enabled:
+        path = KNOWLEDGE_DIR / "inventory" / f"{asset_id}.csv"
+        if path.exists():
+            rows = _csv_rows(path)
+            trend = [
+                {
+                    "period_end": row.get("period_end"),
+                    "inventories": _as_float(row.get("inventories")),
+                    "dio_days": _as_float(row.get("dio_days")),
+                    "qoq_pct": _as_float(row.get("qoq_pct")),
+                    "yoy_pct": _as_float(row.get("yoy_pct")),
+                    "cogs_derived": row.get("cogs_derived") == "True",
+                }
+                for row in rows[-4:]
+            ]
+            if trend:
+                summaries["kr_inventory"] = {
+                    "latest_period": trend[-1]["period_end"],
+                    "recent_quarters": trend,
+                }
+                sources.append(
+                    {
+                        "source_id": f"KR_INVENTORY:{asset_id}",
+                        "kind": "FILING_DERIVED",
+                        "path": str(path.relative_to(ROOT)),
+                        "data_as_of": trend[-1]["period_end"],
+                    }
+                )
+
+    if "NORMALIZED_EARNINGS" in enabled:
+        path = KNOWLEDGE_DIR / "normalized" / f"{asset_id}.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        if isinstance(data, dict):
+            series = data.get("ttm_series") or []
+            latest = series[-1] if series else None
+            summaries["normalized_earnings"] = {
+                "as_of": (latest or {}).get("period_end"),
+                "latest_ttm": latest,
+                "normalization": data.get("normalization"),
+                "_warning": (
+                    "가공된 사이클 참고치다. 모델이 방법론을 선택한 경우에만 "
+                    "가치평가 입력으로 승격한다"
+                ),
+            }
+            sources.append(
+                {
+                    "source_id": f"NORMALIZED_EARNINGS:{asset_id}",
+                    "kind": "CALCULATION",
+                    "path": str(path.relative_to(ROOT)),
+                    "data_as_of": (latest or {}).get("period_end"),
+                }
+            )
+
+    return summaries, sources
+
+
+def _fx_rate() -> tuple[float | None, str | None]:
+    summary, _ = _price_summary("KRW=X")
+    if not summary:
+        return None, None
+    return float(summary["close"]), summary["as_of"]
+
+
+def _portfolio_as_of(path: Path) -> str | None:
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.lstrip().startswith("#"):
+                    break
+                match = re.search(r"기준일\s+(\d{4}-\d{2}-\d{2})", line)
+                if match:
+                    return match.group(1)
+    except OSError:
+        return None
+    return None
+
+
+def _portfolio_summary(
+    asset: dict[str, Any],
+    *,
+    amount: float,
+    amount_currency: str,
+    price: float,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    path = KNOWLEDGE_DIR / "portfolio" / "holdings.csv"
+    if not path.exists():
+        return {"available": False}, None
+    holdings_as_of = _portfolio_as_of(path)
+    source = {
+        "source_id": "PORTFOLIO:HOLDINGS",
+        "kind": "USER_DATA",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": holdings_as_of,
+    }
+    try:
+        rows = _csv_rows(path)
+    except OSError:
+        return {
+            "available": False,
+            "contract_errors": ["포트폴리오 파일을 읽을 수 없다"],
+        }, source
+    parsed_values = [_as_float(row.get("value_krw")) for row in rows]
+    if (
+        not rows
+        or any(value is None or value < 0 for value in parsed_values)
+    ):
+        return {
+            "available": False,
+            "contract_errors": ["포트폴리오 value_krw가 유효하지 않다"],
+        }, source
+    values = [value for value in parsed_values if value is not None]
+    total = sum(values)
+    cash = sum(
+        _as_float(row.get("value_krw")) or 0
+        for row in rows
+        if row.get("value_krw") and row.get("risk_class") == "CASH"
+    )
+    held = next(
+        (row for row in rows if row.get("asset_id") == asset["asset_id"]), None
+    )
+    fx, fx_as_of = _fx_rate() if asset["market"] == "US" else (1.0, None)
+    budget_krw: float | None
+    budget_asset_currency: float | None
+    if amount_currency == "KRW":
+        budget_krw = amount
+        budget_asset_currency = (
+            amount / fx if asset["market"] == "US" and fx else amount
+        )
+    elif amount_currency == asset["currency"]:
+        budget_asset_currency = amount
+        budget_krw = amount * fx if fx else None
+    else:
+        budget_krw = None
+        budget_asset_currency = None
+    quantity = None
+    deployed_asset_currency = None
+    if budget_asset_currency is not None and price > 0:
+        raw_quantity = budget_asset_currency / price
+        quantity = (
+            math.floor(raw_quantity)
+            if asset["market"] == "KR"
+            else raw_quantity
+        )
+        deployed_asset_currency = quantity * price
+    deployed_krw = (
+        deployed_asset_currency * fx
+        if deployed_asset_currency is not None and fx is not None
+        else None
+    )
+    existing = (
+        _as_float(held.get("value_krw")) or 0.0 if held else 0.0
+    )
+    sufficient_cash = budget_krw is not None and budget_krw <= cash
+    post_total = total
+    post_weight = (
+        (existing + (deployed_krw or 0)) / post_total * 100
+        if post_total > 0 and deployed_krw is not None
+        else None
+    )
+    return (
+        {
+            "available": True,
+            "total_assets_krw": round(total, 2),
+            "cash_krw": round(cash, 2),
+            "existing_position": {
+                "held": held is not None,
+                "value_krw": round(existing, 2),
+                "quantity": _as_float(held.get("quantity")) if held else None,
+            },
+            "proposed_trade": {
+                "amount_krw": round(budget_krw, 2)
+                if budget_krw is not None
+                else None,
+                "estimated_quantity": round(quantity, 6)
+                if quantity is not None
+                else None,
+                "quantity_basis": (
+                    "INTEGER_SHARES"
+                    if asset["market"] == "KR"
+                    else "FRACTIONAL_SHARES_ALLOWED"
+                ),
+                "estimated_deployed_krw": round(deployed_krw, 2)
+                if deployed_krw is not None
+                else None,
+                "estimated_unspent_budget_krw": round(
+                    budget_krw - deployed_krw, 2
+                )
+                if budget_krw is not None and deployed_krw is not None
+                else None,
+                "funding_assumption": "기존 포트폴리오 현금에서 집행",
+                "sufficient_cash": sufficient_cash,
+                "cash_after_krw": round(cash - deployed_krw, 2)
+                if deployed_krw is not None
+                else None,
+                "post_trade_weight_total_assets_pct": round(post_weight, 2)
+                if post_weight is not None
+                else None,
+                "fx_krw_per_usd": round(fx, 4)
+                if asset["market"] == "US" and fx is not None
+                else None,
+                "fx_as_of": fx_as_of,
+                "_warning": "수수료·세금·슬리피지는 수량과 집행액에서 제외했다",
+            },
+            "_role": "제약과 노출 계산일 뿐 투자 매력도 판정이 아니다",
+        },
+        source,
+    )
+
+
+def _memory_digest(asset_id: str) -> list[dict[str, Any]]:
+    directory = KNOWLEDGE_DIR / "assessments" / asset_id
+    if not directory.exists():
+        return []
+
+    assessments = []
+    for path in directory.glob("CIO-*.json"):
+        try:
+            data = load_json(path)
+            context_id = str(data.get("context_id") or "")
+            context_path = (
+                KNOWLEDGE_DIR / "contexts" / asset_id / f"{context_id}.json"
+            )
+            context = load_json(context_path)
+        except (ContractError, OSError):
+            continue
+        if validate_context_integrity(context, expected_id=context_id):
+            continue
+        try:
+            normalized = require_valid_decision(data, context=context)
+        except ContractError:
+            continue
+        if normalized != data or data.get("asset_id") != asset_id:
+            continue
+        assessments.append((data, context))
+    assessments.sort(
+        key=lambda item: str(item[0].get("created_at") or "")
+    )
+
+    valid_by_id = {
+        data["assessment_id"]: (data, context)
+        for data, context in assessments
+    }
+    evaluations: dict[str, dict[str, Any]] = {}
+    evaluation_dir = KNOWLEDGE_DIR / "evaluations" / asset_id
+    for path in evaluation_dir.glob("EVAL-*.json") if evaluation_dir.exists() else []:
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        assessment_pair = valid_by_id.get(data.get("assessment_id"))
+        if not assessment_pair:
+            continue
+        assessment, _ = assessment_pair
+        evaluation_id = data.get("evaluation_id")
+        try:
+            expected_id = stable_hash(
+                {
+                    key: value
+                    for key, value in data.items()
+                    if key not in {"evaluation_id", "evaluated_at"}
+                },
+                "EVAL-",
+            )
+        except (TypeError, ValueError):
+            continue
+        if (
+            evaluation_id != expected_id
+            or path.stem != evaluation_id
+            or data.get("schema_version") != "cio-evaluation/1.0.0"
+            or data.get("asset_id") != asset_id
+            or data.get("context_id") != assessment.get("context_id")
+            or data.get("model") != assessment.get("model")
+            or data.get("verdict") != assessment.get("verdict")
+            or data.get("outcome_metric") != assessment.get("outcome_metric")
+        ):
+            continue
+        previous = evaluations.get(data["assessment_id"])
+        if not previous or str(data.get("evaluated_at") or "") > str(
+            previous.get("evaluated_at") or ""
+        ):
+            evaluations[data["assessment_id"]] = data
+
+    result = []
+    for data, context in assessments[-3:]:
+        request = context.get("request") or {}
+        evaluation = evaluations.get(data.get("assessment_id"))
+        result.append(
+            {
+                "assessment_id": data.get("assessment_id"),
+                "created_at": data.get("created_at"),
+                "model": data.get("model"),
+                "verdict": data.get("verdict"),
+                "win_probability_pct": data.get("win_probability_pct"),
+                "asked_price": request.get("price"),
+                "latest_evaluation": {
+                    "complete": (evaluation.get("window") or {}).get("complete"),
+                    "latest_available_date": (
+                        evaluation.get("window") or {}
+                    ).get("latest_available_date"),
+                    "return_to_end_pct": (evaluation.get("price") or {}).get(
+                        "return_to_end_pct"
+                    ),
+                    "win_observed": (evaluation.get("thresholds") or {}).get(
+                        "win_observed"
+                    ),
+                    "brier_score": (evaluation.get("calibration") or {}).get(
+                        "brier_score"
+                    ),
+                }
+                if evaluation
+                else None,
+            }
+        )
+    return result
+
+
+def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
+    common = [
+        {
+            "owner": "MODEL",
+            "topic": "current_catalysts_and_counterevidence",
+            "instruction": "최신 공시 이후 변화와 가장 강한 반대 근거를 직접 조사한다",
+        }
+    ]
+    lens = asset["analysis_lens"]
+    additions = {
+        "SEMICONDUCTOR_CYCLE": [
+            {
+                "owner": "MODEL",
+                "topic": "cycle_inputs",
+                "instruction": "메모리 가격·공급증설·재고·capex의 지속성을 확인한다",
+            }
+        ],
+        "CLINICAL_BIOTECH": [
+            {
+                "owner": "MODEL",
+                "topic": "pipeline_rnpv",
+                "instruction": "파이프라인 단계·성공확률·희석·현금 런웨이를 조사한다. DCF를 강제하지 않는다",
+            }
+        ],
+        "QUALITY_GROWTH": [
+            {
+                "owner": "MODEL",
+                "topic": "growth_quality",
+                "instruction": "성장 지속성·가격결정력·마진·경쟁우위와 현재 멀티플을 검증한다",
+            }
+        ],
+        "CAPITAL_INTENSIVE_GROWTH": [
+            {
+                "owner": "MODEL",
+                "topic": "capital_returns",
+                "instruction": "수요 가정·설비투자 회수율·세그먼트별 현금창출과 자금조달 위험을 검증한다",
+            }
+        ],
+        "MATURE_TECHNOLOGY": [
+            {
+                "owner": "MODEL",
+                "topic": "legacy_transition",
+                "instruction": "레거시 매출 감소·반복매출 전환·현금흐름 질·레버리지를 검증한다",
+            }
+        ],
+        "BROAD_EQUITY_ETF": [
+            {
+                "owner": "MODEL",
+                "topic": "etf_structure",
+                "instruction": "보수·추적오차·구성·분배의 지속성과 대안을 비교한다",
+            }
+        ],
+        "SINGLE_STOCK_OPTION_INCOME": [
+            {
+                "owner": "MODEL",
+                "topic": "derivative_payoff",
+                "instruction": "기초자산·상승 캡·옵션 프리미엄·NAV 침식·분배 원천을 분석한다. 회사 DCF를 ETF에 적용하지 않는다",
+            }
+        ],
+    }
+    return common + additions.get(lens, [])
+
+
+def build_context(
+    asset_id: str,
+    *,
+    price: float,
+    amount: float,
+    amount_currency: str | None = None,
+    save: bool = True,
+) -> tuple[dict[str, Any], Path | None]:
+    asset = get_asset(asset_id)
+    amount_currency = (amount_currency or "KRW").upper()
+    problems = []
+    if not math.isfinite(price) or price <= 0:
+        problems.append("price는 0보다 큰 유한한 숫자여야 한다")
+    if not math.isfinite(amount) or amount <= 0:
+        problems.append("amount는 0보다 큰 유한한 숫자여야 한다")
+    if amount_currency not in {"KRW", "USD"}:
+        problems.append("amount_currency는 KRW 또는 USD만 지원한다")
+    if asset["market"] == "KR" and amount_currency != "KRW":
+        problems.append("한국 자산의 입력 금액은 KRW여야 한다")
+    sources: list[dict[str, Any]] = []
+    price_summary, source = _price_summary(asset["price_symbol"])
+    if price_summary and asset["asset_type"] == "ETF":
+        price_summary["_note"] = (
+            "수익률·변동성은 조정종가 우선, 현재가·가격범위는 실제 종가 기준이다"
+            if price_summary["returns_basis"] == "ADJUSTED_CLOSE"
+            else "조정종가가 없어 수익률·변동성도 실제 종가로 계산한 임시값이다"
+        )
+    sources.append(source)
+    benchmarks = {}
+    for symbol in asset["benchmarks"]:
+        summary, benchmark_source = _price_summary(symbol)
+        benchmarks[symbol] = summary
+        sources.append(benchmark_source)
+    fundamentals = None
+    filings = None
+    if asset["asset_type"] == "STOCK":
+        fundamentals, source = _latest_fundamentals(asset)
+        sources.append(source)
+        filings, source = _filing_summary(asset)
+        if source:
+            sources.append(source)
+    calculation, calculation_source = _latest_calculation(
+        asset,
+        candidate_price=price,
+        fundamentals_id=(fundamentals or {}).get("fundamentals_id"),
+    )
+    if calculation_source:
+        sources.append(calculation_source)
+    market, source = _market_summary(asset["market"])
+    sources.append(source)
+    for market_input in (market or {}).get("input_sources") or []:
+        if market_input.get("mode") != "LOCAL_SNAPSHOT":
+            continue
+        symbol = market_input.get("symbol")
+        if not symbol:
+            continue
+        _, market_input_source = _price_summary(symbol)
+        sources.append(market_input_source)
+    events, source = _event_summary(asset)
+    if source:
+        sources.append(source)
+    etf, source = _etf_summary(asset)
+    if source:
+        sources.append(source)
+    structured_optional, optional_sources = _optional_collection_summaries(asset)
+    sources.extend(optional_sources)
+    portfolio, source = _portfolio_summary(
+        asset, amount=amount, amount_currency=amount_currency, price=price
+    )
+    if source:
+        sources.append(source)
+    if asset["market"] == "US":
+        _, fx_source = _price_summary("KRW=X")
+        sources.append(fx_source)
+
+    plan = inspect_plan(asset["asset_id"], include_optional=True)
+    optional_gaps = []
+    for task in plan:
+        if task.required and task.state != "FRESH":
+            problems.append(f"{task.name}: {task.state}")
+        elif not task.required and task.state != "FRESH":
+            optional_gaps.append(
+                {
+                    "task": task.name,
+                    "state": task.state,
+                    "reason": task.reason,
+                }
+            )
+    if not price_summary:
+        problems.append("가격 시계열이 없다")
+    elif price_summary.get("currency") != asset["currency"]:
+        problems.append("가격 시계열 통화가 자산 registry와 다르다")
+    if asset["asset_type"] == "STOCK" and not fundamentals:
+        problems.append("재무 스냅샷이 없다")
+    if fundamentals and fundamentals.get("contract_errors"):
+        problems.append("재무 스냅샷 계약 또는 공시원 검증에 실패했다")
+    if asset["market"] == "US" and asset["asset_type"] == "STOCK" and not filings:
+        problems.append("SEC 제출 문서 색인이 없다")
+    if filings and filings.get("contract_errors"):
+        problems.append("SEC 제출 문서 색인 계약 검증에 실패했다")
+    if events and events.get("contract_errors"):
+        problems.append("한국 이벤트 packet 계약 검증에 실패했다")
+    if asset["asset_type"] == "ETF" and not etf:
+        problems.append("ETF 구성·구조 스냅샷이 없다")
+    if etf and etf.get("contract_errors"):
+        problems.append("ETF 구성 스냅샷 계약 검증에 실패했다")
+    proposed_trade = portfolio.get("proposed_trade") or {}
+    if (
+        asset["market"] == "US"
+        and proposed_trade
+        and proposed_trade.get("amount_krw") is None
+    ):
+        problems.append("미국 자산 매수금액 환산에 필요한 KRW/USD 환율이 없다")
+    if proposed_trade and proposed_trade.get("sufficient_cash") is False:
+        optional_gaps.append(
+            {
+                "task": "portfolio:cash",
+                "state": "USER_CONFIRMATION",
+                "reason": (
+                    "요청 금액이 저장된 현금을 넘는다. 사용자가 이번 입력 금액을 "
+                    "최신 한도로 확인하면 그 입력을 우선한다"
+                ),
+            }
+        )
+    if (
+        proposed_trade
+        and proposed_trade.get("estimated_quantity") is not None
+        and proposed_trade["estimated_quantity"] <= 0
+    ):
+        problems.append("요청 금액으로 최소 1주를 매수할 수 없다")
+
+    created_at = dt.datetime.now(KST).isoformat(timespec="seconds")
+    request = {
+        "asset_id": asset["asset_id"],
+        "price": price,
+        "price_currency": asset["currency"],
+        "amount": amount,
+        "amount_currency": amount_currency,
+        "as_of": created_at,
+        "question": (
+            "이 가격과 금액으로 매수하면 정해진 기간 안에 승리할 가능성이 있는가. "
+            "기대수익, 선호 진입가, 손절가, 분할매도 시작가, 다시 물어볼 가격을 결정하라"
+        ),
+    }
+    if price_summary and price_summary.get("close"):
+        request["latest_local_close"] = price_summary["close"]
+        request["asked_vs_latest_close_pct"] = round(
+            (price / price_summary["close"] - 1) * 100, 2
+        )
+    evidence_index = []
+    evidence_by_id: dict[str, dict[str, Any]] = {}
+    for item in sources:
+        if not item or not item.get("path"):
+            continue
+        origin = (ROOT / item["path"]).resolve()
+        try:
+            origin.relative_to(ROOT.resolve())
+        except ValueError as exc:
+            raise ContextError(f"evidence 경로가 저장소 밖을 가리킨다: {item['path']}") from exc
+        if not origin.exists() or not origin.is_file():
+            continue
+        source_id = item.get("source_id")
+        if not source_id:
+            continue
+        digest = content_hash(origin)
+        entry = {**item, "content_sha256": digest}
+        if save:
+            snapshot = _snapshot_evidence(origin, digest)
+            entry["origin_path"] = item["path"]
+            entry["path"] = str(snapshot.relative_to(ROOT))
+        previous = evidence_by_id.get(source_id)
+        if previous:
+            if previous["content_sha256"] != digest:
+                raise ContextError(f"source_id가 서로 다른 파일을 가리킨다: {source_id}")
+            continue
+        evidence_by_id[source_id] = entry
+        evidence_index.append(entry)
+    prompt_path = ROOT / "prompts" / "cio-system.md"
+    schema_path = ROOT / "schemas" / "cio-decision.schema.json"
+    prompt_digest = content_hash(prompt_path)
+    schema_digest = content_hash(schema_path)
+    model_contract = {
+        "decision_schema": "schemas/cio-decision.schema.json",
+        "prompt": "prompts/cio-system.md",
+        "prompt_version": "1.0",
+        "prompt_sha256": prompt_digest,
+        "decision_schema_sha256": schema_digest,
+        "provider_neutral": True,
+    }
+    if save:
+        model_contract["prompt_snapshot"] = str(
+            _snapshot_evidence(prompt_path, prompt_digest).relative_to(ROOT)
+        )
+        model_contract["decision_schema_snapshot"] = str(
+            _snapshot_evidence(schema_path, schema_digest).relative_to(ROOT)
+        )
+    packet: dict[str, Any] = {
+        "schema_version": CONTEXT_SCHEMA,
+        "context_id": None,
+        "created_at": created_at,
+        "request": request,
+        "asset": asset,
+        "validation": {
+            "status": "BLOCKED" if problems else "PASS",
+            "problems": sorted(set(problems)),
+            "optional_gaps": optional_gaps,
+            "meaning": "데이터·산술 준비 상태이며 투자 판정이 아니다",
+        },
+        "context": {
+            "price": price_summary,
+            "benchmarks": benchmarks,
+            "market": market,
+            "fundamentals": fundamentals,
+            "filings": filings,
+            "applicable_calculation": calculation,
+            "events": events,
+            "etf": etf,
+            "structured_optional": structured_optional,
+            "portfolio": portfolio,
+            "prior_assessments": _memory_digest(asset["asset_id"]),
+            "research_requirements": _research_requirements(asset),
+        },
+        "evidence_index": evidence_index,
+        "model_contract": model_contract,
+    }
+    packet["context_id"] = stable_hash(
+        {key: value for key, value in packet.items() if key != "context_id"},
+        "CTX-",
+    )
+    compact_size = len(
+        json.dumps(
+            packet,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    )
+    if compact_size > MAX_CONTEXT_JSON_BYTES:
+        raise ContextError(
+            f"context packet이 {compact_size} bytes로 제한 "
+            f"{MAX_CONTEXT_JSON_BYTES} bytes를 넘었다"
+        )
+    path = None
+    if save:
+        path = (
+            KNOWLEDGE_DIR
+            / "contexts"
+            / asset["asset_id"]
+            / f"{packet['context_id']}.json"
+        )
+        _atomic_json(path, packet)
+    return packet, path
+
+
+def _snapshot_evidence(origin: Path, digest: str) -> Path:
+    directory = KNOWLEDGE_DIR / "evidence" / "objects"
+    directory.mkdir(parents=True, exist_ok=True)
+    suffix = origin.suffix.lower() if origin.suffix else ".bin"
+    path = directory / f"{digest}{suffix}"
+    if path.exists():
+        if content_hash(path) != digest:
+            raise ContextError(f"evidence snapshot 지문이 충돌했다: {path}")
+        return path
+    temporary_name: str | None = None
+    try:
+        with origin.open("rb") as source, tempfile.NamedTemporaryFile(
+            "wb", dir=directory, delete=False
+        ) as temporary:
+            shutil.copyfileobj(source, temporary)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_name = temporary.name
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name and Path(temporary_name).exists():
+            Path(temporary_name).unlink()
+    return path
+
+
+def _atomic_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, delete=False
+        ) as temporary:
+            temporary.write(payload)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_name = temporary.name
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name and Path(temporary_name).exists():
+            Path(temporary_name).unlink()

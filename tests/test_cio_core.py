@@ -1,0 +1,320 @@
+"""CIO 경계, 자산 라우팅, 결정 기록의 핵심 회귀 테스트."""
+
+import json
+import unittest
+from dataclasses import dataclass
+from unittest.mock import patch
+
+from cio.assets import AssetRegistryError, validate_registry
+from cio.context import build_context
+from cio.decision import (
+    OUTCOME_METRIC,
+    context_id_for,
+    normalize_decision,
+    validate_decision,
+)
+from cio.memory import evaluate_assessment
+from cio.refresh import tasks_for
+
+
+def valid_context(asset_id="TSLA"):
+    data = {
+        "schema_version": "cio-context/1.0.0",
+        "context_id": None,
+        "created_at": "2026-07-28T09:00:00+09:00",
+        "request": {
+            "asset_id": asset_id,
+            "price": 100.0,
+            "price_currency": "USD",
+            "amount": 1000.0,
+            "amount_currency": "USD",
+            "as_of": "2026-01-01T00:00:00+00:00",
+        },
+        "validation": {"status": "PASS", "problems": [], "optional_gaps": []},
+        "evidence_index": [{"source_id": f"PRICE:{asset_id}"}],
+        "model_contract": {"prompt_version": "1.0"},
+    }
+    data["context_id"] = context_id_for(data)
+    return data
+
+
+def valid_decision():
+    context = valid_context()
+    return {
+        "schema_version": "cio-decision/1.0.0",
+        "assessment_id": None,
+        "context_id": context["context_id"],
+        "asset_id": "TSLA",
+        "created_at": "2026-07-28T10:00:00+09:00",
+        "model": {
+            "provider": "fixture",
+            "name": "cio-test",
+            "version": "1",
+            "prompt_version": "1.0",
+        },
+        "verdict": "WAIT",
+        "outcome_metric": OUTCOME_METRIC,
+        "horizon_months": 1,
+        "win_definition": "한 달 뒤 총수익률이 10% 이상",
+        "failure_definition": "한 달 뒤 총수익률이 -15% 이하",
+        "win_return_threshold_pct": 10.0,
+        "failure_return_threshold_pct": -15.0,
+        "win_probability_pct": 55.0,
+        "confidence_pct": 60.0,
+        "expected_return_pct": {
+            "bear": -20.0,
+            "base": 20.0,
+            "bull": 60.0,
+            "probability_weighted": 20.0,
+        },
+        "scenario_probability_pct": {
+            "bear": 25.0,
+            "base": 50.0,
+            "bull": 25.0,
+        },
+        "price_plan": {
+            "currency": "USD",
+            "preferred_entry": 95.0,
+            "entry_range_low": 90.0,
+            "entry_range_high": 100.0,
+            "stop_price": 80.0,
+            "scale_out_start": 140.0,
+            "reask_below": 85.0,
+            "reask_above": 130.0,
+            "reask_events": ["분기 실적"],
+        },
+        "proposed_trade": {
+            "amount": 0.0,
+            "currency": "USD",
+            "rationale": "현재는 기다리므로 집행하지 않는다",
+        },
+        "method": {
+            "valuation_family": "DCF",
+            "why_fit": "양의 현금흐름이 있다",
+            "assumptions": ["할인율은 추정치"],
+        },
+        "thesis": "현재 가격보다 낮은 진입가에서 보상비가 낫다",
+        "strongest_counter_thesis": {
+            "text": "성장률이 예상보다 높으면 기다리는 비용이 크다",
+            "evidence_refs": ["PRICE:TSLA"],
+        },
+        "invalidation_signals": ["현금흐름 악화"],
+        "unknowns": ["다음 분기 마진"],
+        "research_requests": [],
+        "sources": [],
+        "evidence_refs": ["PRICE:TSLA"],
+    }
+
+
+class TestRegistryAndRouting(unittest.TestCase):
+    def test_only_kr_us_stock_etf_are_supported(self):
+        invalid = {
+            "schema_version": "asset-registry/1.0.0",
+            "assets": {
+                "BTC": {
+                    "name": "Bitcoin",
+                    "market": "GLOBAL",
+                    "exchange": "CRYPTO",
+                    "asset_type": "CRYPTO",
+                    "currency": "USD",
+                    "price_symbol": "BTC-USD",
+                    "sector_code": "CRYPTO",
+                    "analysis_lens": "CRYPTO",
+                    "valuation_family": ["OTHER"],
+                    "benchmarks": ["BTC-USD"],
+                }
+            },
+        }
+        with self.assertRaises(AssetRegistryError):
+            validate_registry(invalid)
+
+    def test_kr_stock_routes_to_dart_and_kr_events(self):
+        tasks = tasks_for("005930")
+        modules = [task.command[2] for task in tasks if task.command]
+        self.assertIn("collectors.dart", modules)
+        self.assertIn("collectors.kr_events", modules)
+        self.assertNotIn("collectors.edgar", modules)
+
+    def test_us_stock_routes_to_edgar_without_dart_events(self):
+        tasks = tasks_for("TSLA")
+        modules = [task.command[2] for task in tasks if task.command]
+        capabilities = {task.capability for task in tasks}
+        self.assertIn("collectors.edgar", modules)
+        self.assertIn("FILINGS", capabilities)
+        self.assertNotIn("collectors.dart", modules)
+        self.assertNotIn("collectors.kr_events", modules)
+
+    def test_etf_routes_to_holdings_not_company_fundamentals(self):
+        tasks = tasks_for("SCHD")
+        capabilities = {task.capability for task in tasks}
+        self.assertIn("ETF_HOLDINGS", capabilities)
+        self.assertNotIn("FUNDAMENTALS", capabilities)
+        self.assertFalse(
+            any(
+                task.command
+                and task.command[2] in {"collectors.dart", "collectors.edgar"}
+                for task in tasks
+            )
+        )
+
+
+@dataclass
+class FreshTask:
+    name: str
+    required: bool = True
+    state: str = "FRESH"
+
+
+class TestCompactContext(unittest.TestCase):
+    def test_price_and_amount_are_first_class_and_packet_is_small(self):
+        price = {
+            "symbol": "TSLA",
+            "currency": "USD",
+            "as_of": "2026-07-27",
+            "close": 99.0,
+            "returns_pct": {"1m": 1.0, "3m": 2.0, "12m": 3.0},
+        }
+        source = {
+            "source_id": "PRICE:TSLA",
+            "kind": "MARKET_DATA",
+            "path": "knowledge/prices/TSLA.csv",
+            "data_as_of": "2026-07-27",
+        }
+        with (
+            patch("cio.context._price_summary", return_value=(price, source)),
+            patch(
+                "cio.context._latest_fundamentals",
+                return_value=(
+                    {"fundamentals_id": "FUND-x", "period_end": "2026-06-30"},
+                    {
+                        "source_id": "FUNDAMENTALS:TSLA",
+                        "kind": "FILING_DERIVED",
+                        "path": "knowledge/fundamentals/TSLA.json",
+                        "data_as_of": "2026-06-30",
+                    },
+                ),
+            ),
+            patch(
+                "cio.context._filing_summary",
+                return_value=(
+                    {
+                        "collected_at": "2026-07-28T00:00:00+00:00",
+                        "latest": [{"form": "10-Q"}],
+                    },
+                    {
+                        "source_id": "FILINGS:TSLA",
+                        "kind": "REGULATOR_FILING_INDEX",
+                        "path": None,
+                        "data_as_of": "2026-07-28T00:00:00+00:00",
+                    },
+                ),
+            ),
+            patch("cio.context._latest_calculation", return_value=(None, None)),
+            patch(
+                "cio.context._market_summary",
+                return_value=(
+                    {"market": "US", "regime": "NORMAL"},
+                    {
+                        "source_id": "MARKET_STATE:US",
+                        "kind": "DERIVED",
+                        "path": "knowledge/market/regime-US.json",
+                        "data_as_of": "2026-07-27",
+                    },
+                ),
+            ),
+            patch("cio.context._event_summary", return_value=(None, None)),
+            patch("cio.context._etf_summary", return_value=(None, None)),
+            patch(
+                "cio.context._portfolio_summary",
+                return_value=({"available": False}, None),
+            ),
+            patch("cio.context._memory_digest", return_value=[]),
+            patch(
+                "cio.context.inspect_plan",
+                return_value=[FreshTask("price:TSLA")],
+            ),
+        ):
+            packet, path = build_context(
+                "TSLA",
+                price=100.0,
+                amount=10_000_000,
+                amount_currency="KRW",
+                save=False,
+            )
+        self.assertIsNone(path)
+        self.assertEqual(packet["request"]["price"], 100.0)
+        self.assertEqual(packet["request"]["amount"], 10_000_000)
+        self.assertEqual(packet["validation"]["status"], "PASS")
+        size = len(
+            json.dumps(packet, ensure_ascii=False, separators=(",", ":")).encode()
+        )
+        self.assertLess(size, 30_000)
+
+
+class TestDecisionBoundary(unittest.TestCase):
+    def test_valid_provider_neutral_decision(self):
+        normalized = normalize_decision(valid_decision())
+        self.assertEqual(validate_decision(normalized, context=valid_context()), [])
+        self.assertTrue(normalized["assessment_id"].startswith("CIO-"))
+
+    def test_pc_rejects_arithmetic_not_investment_opinion(self):
+        data = valid_decision()
+        data["verdict"] = "BUY_NOW"
+        data["expected_return_pct"]["probability_weighted"] = 99.0
+        data["proposed_trade"]["amount"] = 2000.0
+        errors = validate_decision(data, context=valid_context())
+        self.assertTrue(any("가중값" in error for error in errors))
+        self.assertTrue(any("제시한 금액" in error for error in errors))
+        self.assertFalse(any("BUY_NOW" in error for error in errors))
+
+    def test_currency_boundary_is_enforced(self):
+        data = valid_decision()
+        data["price_plan"]["currency"] = "KRW"
+        errors = validate_decision(data, context=valid_context())
+        self.assertTrue(any("입력 가격 통화" in error for error in errors))
+
+    def test_evaluation_observes_return_and_price_triggers(self):
+        assessment = normalize_decision(valid_decision())
+        rows = [
+            {
+                "date": "2026-01-02",
+                "close": 100.0,
+                "high": 101.0,
+                "low": 99.0,
+            },
+            {
+                "date": "2026-01-15",
+                "close": 82.0,
+                "high": 105.0,
+                "low": 79.0,
+            },
+            {
+                "date": "2026-01-30",
+                "close": 115.0,
+                "high": 141.0,
+                "low": 81.0,
+            },
+            {
+                "date": "2026-02-02",
+                "close": 116.0,
+                "high": 120.0,
+                "low": 114.0,
+            },
+        ]
+        with (
+            patch(
+                "cio.memory.get_asset",
+                return_value={"asset_id": "TSLA", "price_symbol": "TSLA"},
+            ),
+            patch("cio.memory.find_context", return_value=(valid_context(), None)),
+        ):
+            result = evaluate_assessment(assessment, rows=rows)
+        self.assertTrue(result["window"]["complete"])
+        self.assertTrue(result["thresholds"]["win_observed"])
+        self.assertIsNotNone(result["triggers"]["stop"])
+        self.assertIsNotNone(result["triggers"]["scale_out_start"])
+        self.assertIsNotNone(result["calibration"]["brier_score"])
+
+
+if __name__ == "__main__":
+    unittest.main()

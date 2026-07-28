@@ -8,7 +8,7 @@
 import unittest
 
 from helpers import ROOT  # noqa: F401
-from market_regime import classify, drawdown_label, percentile
+from calculators.market_regime import classify, drawdown_label, percentile
 
 
 class TestDrawdownLabel(unittest.TestCase):
@@ -36,8 +36,7 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(regime, "NORMAL")
         self.assertEqual(score, 0)
 
-    def test_current_korea_situation_is_stress(self):
-        """2026-07-26 실제 상황: VIX 18.58, 코스닥 -39.0%."""
+    def test_large_drawdown_is_stress(self):
         regime, _, score, notes = classify(vix=18.58, worst_drawdown_pct=-39.0)
         self.assertEqual(regime, "STRESS")
         self.assertEqual(score, 3)

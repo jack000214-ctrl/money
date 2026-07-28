@@ -17,8 +17,12 @@ import unittest
 from pathlib import Path
 
 from helpers import ROOT  # noqa: F401
-from contracts import (ContractError, fundamentals_id_for, load_fundamentals,
-                       validate_fundamentals)
+from calculators.contracts import (
+    ContractError,
+    fundamentals_id_for,
+    load_fundamentals,
+    validate_fundamentals,
+)
 
 
 def quarters(values, tag="ocf"):
@@ -122,13 +126,18 @@ class TestFingerprint(unittest.TestCase):
         errors = validate_fundamentals(data)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("fundamentals_id", errors[0])
-        self.assertIn("편집된", errors[0])
+        self.assertIn("내용 지문", errors[0])
 
     def test_id_is_stable_across_created_at(self):
         """수집 시각이 달라도 같은 내용이면 같은 지문이다."""
         a = valid_fundamentals()
         b = valid_fundamentals(created_at="2027-01-01T00:00:00+09:00")
         self.assertEqual(a["fundamentals_id"], b["fundamentals_id"])
+
+    def test_raw_payload_hash_is_part_of_fingerprint(self):
+        a = valid_fundamentals(raw_payload_sha256="a" * 64)
+        b = valid_fundamentals(raw_payload_sha256="b" * 64)
+        self.assertNotEqual(a["fundamentals_id"], b["fundamentals_id"])
 
 
 class TestLoader(unittest.TestCase):

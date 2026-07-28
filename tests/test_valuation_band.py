@@ -10,7 +10,7 @@
 import unittest
 
 from helpers import ROOT  # noqa: F401  (sys.path 설정)
-from valuation_band import per_history, q_index, ttm_series
+from calculators.valuation_band import per_history, q_index, ttm_series
 
 
 def q(eps, filed):
