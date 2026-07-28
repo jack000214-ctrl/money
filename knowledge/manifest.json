@@ -221,6 +221,36 @@
       ],
       "reads_before_decision": true,
       "_note": "시장별 체제. 분할 횟수를 조절하는 신호이며 매수를 막는 신호가 아니다"
+    },
+    {
+      "name": "price-KRWX",
+      "path": "knowledge/prices/KRWX.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "KRW=X",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": false,
+      "_note": "원/달러. 매크로 참고 — 국면 점수엔 미반영"
+    },
+    {
+      "name": "price-TNX",
+      "path": "knowledge/prices/TNX.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^TNX",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": false,
+      "_note": "미국 10년물. 글로벌 할인율 참고"
     }
   ]
 }

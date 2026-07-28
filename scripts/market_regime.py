@@ -45,7 +45,9 @@ INDICES = [("^GSPC", "S&P 500"), ("^IXIC", "나스닥"),
 
 
 def safe_name(symbol):
-    return symbol.replace(".", "_").replace("^", "")
+    # 지수(^KS11)·환율(KRW=X)의 특수문자를 뗀다. 파일명에 두면 셸 글롭·
+    # 리다이렉션 사고가 난다.
+    return symbol.replace(".", "_").replace("^", "").replace("=", "")
 
 
 def local_series(symbol, days):
@@ -130,6 +132,45 @@ def percentile(values, x):
     return sum(1 for v in values if v < x) / len(values) * 100
 
 
+# 매크로 컨텍스트 — 점수에 넣지 않고 **참고로만** 표시한다.
+#
+# 2026-07-28 에 한국만 −34% 빠진 이유를 설명하려면 금리·환율·수급이 필요한데,
+# 그중 야후에서 받아지는 것만 여기 담는다. 외국인 수급과 한국 국고채는
+# KRX 수집기가 필요하고 아직 없다 — 없는 게 아니라 안 만든 것이다.
+MACRO = [
+    ("KRW=X", "원/달러 환율", "환율이 급등하면 외국인 자금이 빠진다"),
+    ("^TNX", "미국 10년물 금리(%)", "글로벌 할인율. 오르면 위험자산에 불리"),
+]
+
+
+def macro_context(rng, days):
+    out = []
+    for sym, label, why in MACRO:
+        closes = local_series(sym, days) or series(sym, rng)
+        if not closes:
+            continue
+        cur = closes[-1]
+        hi, lo = max(closes), min(closes)
+        out.append({
+            "symbol": sym, "label": label, "why": why,
+            "value": round(cur, 2),
+            "median": round(statistics.median(closes), 2),
+            "percentile": round(percentile(closes, cur), 1),
+            "range": [round(lo, 2), round(hi, 2)],
+        })
+    return {
+        "series": out,
+        "in_score": False,
+        "_gaps": [
+            "외국인·기관 수급이 없다 — KRX 정보데이터시스템 수집기가 필요하다. "
+            "2026-07-28 시도 시 엔드포인트가 400 을 반환했고 세션·OTP 흐름 확인이 "
+            "필요하다. 없는 데이터가 아니라 안 만든 수집기다",
+            "한국 국고채 금리가 없다 — 야후에 안정적으로 없어서 한국은행 ECOS "
+            "또는 KRX 채권 데이터가 필요하다",
+        ],
+    }
+
+
 def analyse(market, rng, days):
     """한 시장의 체제를 판정하고 구조화해 돌려준다."""
     conf = MARKETS[market]
@@ -209,6 +250,7 @@ def main():
             _dt.timezone(_dt.timedelta(hours=9))).isoformat(timespec="seconds"),
         "lookback_days": a.days,
         "by_market": {m: analyse(m, a.range, a.days) for m in MARKETS},
+        "macro": macro_context(a.range, a.days),
         "_note": "체제는 예측이 아니라 현재 상태의 분류다. 매수를 막는 신호가 "
                  "아니라 **분할 횟수를 조절하는** 신호다. 위기장은 장기 투자자에게 "
                  "매수 기회였던 경우가 많고, 문제는 한 번에 넣는 것이다.",
@@ -249,6 +291,17 @@ def main():
         print("  [ 할 일 ]")
         for g in block["guidance"]:
             print(f"    - {g}")
+        print()
+
+    mac = snapshot["macro"]
+    if mac["series"]:
+        print("[ 매크로 참고 — 점수 미반영 ]")
+        for m in mac["series"]:
+            print(f"  {m['label']:<22}{m['value']:>10,.2f}   "
+                  f"중앙값 {m['median']:>9,.2f}  백분위 {m['percentile']:>5.1f}%")
+            print(f"    {m['why']}")
+        for g in mac["_gaps"]:
+            print(f"  ! {g}")
         print()
 
     if "divergence" in snapshot:

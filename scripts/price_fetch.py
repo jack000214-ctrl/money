@@ -26,7 +26,9 @@ CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range={rng}&int
 
 def safe_name(symbol):
     """심볼 → 파일명. 지수(^KS11)의 ^ 는 셸에서 사고를 내므로 떼어낸다."""
-    return symbol.replace(".", "_").replace("^", "")
+    # 지수(^KS11)·환율(KRW=X)의 특수문자를 뗀다. 파일명에 두면 셸 글롭·
+    # 리다이렉션 사고가 난다.
+    return symbol.replace(".", "_").replace("^", "").replace("=", "")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
 

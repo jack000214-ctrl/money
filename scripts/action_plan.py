@@ -60,6 +60,98 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def watch_contract(price, calc_id, regime, budget_pct, total_assets,
+                   planned, invalidations, events) -> dict:
+    """감시 계약 — 떨어지면 언제, 오르면 언제, 언제 나한테 물어보러 오는가.
+
+    이게 없으면 계획이 "몇 회에 나눠 산다"로 끝난다. 사용자가 실제로 원한 것은
+    **"떨어졌을 때 얼마일 때, 올라갔을 때 얼마일 때, 어느 날짜에 변수가 생기고,
+    모르겠으면 나한테 다시 물어보러 와라"** 다.
+
+    마지막 항목이 핵심이다. 시스템이 판단할 수 없는 상황을 **조용히 진행하거나
+    조용히 멈추는 것이 가장 위험하다.** 그래서 에스컬레이션 조건을 명시적으로
+    적고, 그 조건이 관측되면 사람에게 돌려준다.
+
+    가격 트리거는 예측이 아니다. 전부 이미 계산된 값(약세 주당가치, 안전마진,
+    하방 예산)에서 역산한 **정책선**이다.
+    """
+    down, up, escalate = [], [], []
+
+    if calc_id:
+        c = load_json(ROOT / "knowledge/calculations" / f"{calc_id}.json")
+        sc = c["outputs"]["scenarios"]
+        bear = sc["bear"]["value_per_share"]
+        base = sc["base"]["value_per_share"]
+        bull = sc["bull"]["value_per_share"]
+
+        # 하락 — 가치선을 지나는 지점들. "싸졌다"가 아니라 "논지 검증 지점"이다.
+        for label, level, meaning in (
+            ("강세 시나리오 가치", bull,
+             "여기부터 강세가 맞으면 안전마진이 생긴다. 강세 논지의 근거가 "
+             "그대로인지 먼저 확인한다"),
+            ("기준 시나리오 가치", base,
+             "기준 시나리오가 맞다면 여기가 공정가다. 기준 가정이 아직 유효한지 확인"),
+            ("약세 시나리오 가치", bear,
+             "약세까지 반영된 가격이다. 여기서도 논지가 살아 있으면 비중을 "
+             "다시 볼 근거가 된다"),
+        ):
+            if level < price:
+                down.append({"level": round(level), "label": label,
+                             "from_now_pct": round((level / price - 1) * 100, 1),
+                             "then": meaning})
+
+        # 상승 — 안전마진이 더 나빠지는 선
+        up.append({"level": round(price * 1.15), "label": "회차 상한 (현재가 +15%)",
+                   "then": "이 가격 위로는 계획된 회차를 넣지 않는다. 같은 돈으로 "
+                           "더 적은 가치를 사는 것이고, 분할의 목적과 어긋난다"})
+        up.append({"level": round(bull), "label": "강세 시나리오 가치",
+                   "then": "강세가 실현돼도 이 위는 가치를 넘는 가격이다. "
+                           "신규·추가 매수를 멈추고 비중 축소를 검토한다"}
+                  if bull > price else
+                  {"level": round(bull), "label": "강세 시나리오 가치 (이미 아래)",
+                   "then": "현재가가 이미 강세 가치보다 높다 — 상승 트리거가 "
+                           "아니라 지금 상태가 그렇다는 뜻이다"})
+
+        # 하방 예산을 넘기는 포지션 크기
+        bear_depth = max(0.0, 1 - bear / price)
+        if bear_depth > 0:
+            cap = budget_pct / 100 * total_assets / bear_depth
+            if planned > cap * 0.8:
+                escalate.append(
+                    f"이 계획({planned:,.0f}원)이 하방 예산 상한({cap:,.0f}원)의 "
+                    "80% 를 넘는다 — 증액 전에 사람에게 확인한다")
+
+    # 날짜 — 변수가 생기는 시점
+    dates = [{"date": e["date"], "what": e["what"],
+              "then": "이 정보가 논지를 강화·약화·무효화하는지 판정한 뒤 다음 "
+                      "회차를 결정한다"} for e in events]
+
+    # 에스컬레이션 — 시스템이 판단할 수 없는 상황
+    escalate += [
+        "무효화 조건이 하나라도 관측됐는데 논지를 수정할 근거가 없다",
+        f"시장 국면이 {regime} 에서 한 단계 더 악화됐다 "
+        "(분할 횟수가 바뀌므로 계획을 다시 만들어야 한다)",
+        "안전마진이 개선됐는데 그 원인이 가격 하락이 아니라 가치 상승이다 "
+        "— 밸류에이션 입력이 바뀐 것이므로 재계산이 필요하다",
+        "논지와 정면으로 상충하는 신규 정보가 나왔다 (예: capex 가 증설로 확인, "
+        "HBM4 본계약 조건 공시)",
+        "계획된 회차를 건너뛴 뒤 다음 회차를 어떻게 할지 규칙에 없다",
+    ]
+    if invalidations:
+        escalate.append(
+            f"무효화 조건 {len(invalidations)}개 중 판정이 애매한 것이 있다 "
+            "— 애매하면 진행하지 않고 묻는다")
+
+    return {
+        "_why": "시스템이 판단할 수 없는 상황을 조용히 진행하거나 조용히 멈추는 "
+                "것이 가장 위험하다. 그래서 '모르겠으면 묻는다'를 조건으로 적는다",
+        "on_decline": sorted(down, key=lambda x: -x["level"]),
+        "on_rise": up,
+        "on_date": dates,
+        "escalate_to_user": escalate,
+    }
+
+
 def next_events(asset_id: str) -> list[dict]:
     """timeline.md 의 「다음 확인 이벤트」 표에서 날짜가 확정된 것만 뽑는다.
 
@@ -253,6 +345,9 @@ def main() -> int:
                           "가장 흔한 실수다" if residual else None),
         "known_events_in_window": usable,
         "stop_conditions": pk["company"].get("invalidation_conditions") or [],
+        "watch": watch_contract(
+            price, calc_id, regime, budget_pct, total_assets, planned,
+            pk["company"].get("invalidation_conditions") or [], events),
         "open_questions": pk["unknowns"].get("open"),
         "_gaps": [],
     }
@@ -297,6 +392,25 @@ def main() -> int:
     if sm.get("price_pct_of_value"):
         print(f"\n[ 안전마진 ]  내재가치의 {sm['price_pct_of_value']:.0f}% · "
               f"관측 {sm['rank_of']}개 중 {sm['rank']}위")
+    w = plan["watch"]
+    if w["on_decline"]:
+        print(f"\n[ 떨어지면 — 가치선 통과 지점 ]")
+        for d in w["on_decline"]:
+            print(f"  {d['level']:>9,.0f}원 ({d['from_now_pct']:+5.1f}%)  "
+                  f"{d['label']}")
+            print(f"            → {d['then']}")
+    print(f"\n[ 올라가면 ]")
+    for u in w["on_rise"]:
+        print(f"  {u['level']:>9,.0f}원  {u['label']}")
+        print(f"            → {u['then']}")
+    if w["on_date"]:
+        print(f"\n[ 날짜 — 변수가 생기는 시점 ]")
+        for d in w["on_date"]:
+            print(f"  {d['date']}  {d['what'][:56]}")
+    print(f"\n[ 모르겠으면 물어본다 — 에스컬레이션 조건 ]")
+    for e in w["escalate_to_user"]:
+        print(f"  ? {e}")
+
     if plan["_gaps"]:
         print("\n[ 집행 전 해결 ]")
         for g in plan["_gaps"]:

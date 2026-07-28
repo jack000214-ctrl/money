@@ -48,7 +48,9 @@ SCHEDULED_PREFIX = ("사업보고서", "분기보고서", "반기보고서")
 
 
 def safe_name(symbol: str) -> str:
-    return symbol.replace(".", "_").replace("^", "")
+    # 지수(^KS11)·환율(KRW=X)의 특수문자를 뗀다. 파일명에 두면 셸 글롭·
+    # 리다이렉션 사고가 난다.
+    return symbol.replace(".", "_").replace("^", "").replace("=", "")
 
 
 BENCHMARKS = {"KS": "^KS11", "KQ": "^KQ11", "US": "^IXIC"}
