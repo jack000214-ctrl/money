@@ -48,7 +48,7 @@ export function PriceChart({ chart }: { chart: PriceChartData }) {
     <div className="chart-hover-wrap">
       <div className="chart-scroll">
       <svg
-        aria-label={`테슬라 일별 종가. 현재 참고가 ${chart.currentLine.value}, 강세 단독 기준선 ${chart.entryLine.value}`}
+        aria-label={`일별 종가. 현재 참고가 ${chart.currentLine.value}, ${chart.entryLine.label} ${chart.entryLine.value}`}
         className="price-chart"
         onMouseLeave={() => setActive(null)}
         onMouseMove={(event) => pick(event.clientX)}

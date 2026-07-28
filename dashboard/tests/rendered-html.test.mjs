@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -28,24 +28,57 @@ const readReport = async () =>
     await readFile(new URL("../data/decision-report.json", import.meta.url), "utf8"),
   );
 
-test("server-renders the information-first TSLA decision report", async () => {
+
+// 리포트가 가리키는 밸류에이션 스냅샷을 찾는다. 파일명은 종목·기준일에
+// 따라 달라지므로 fundamentals_id 로 맞춘다.
+async function findFundamentals(id) {
+  const dir = new URL("../../knowledge/fundamentals/", import.meta.url);
+  for (const name of await readdir(dir)) {
+    if (!name.endsWith(".json")) continue;
+    const data = JSON.parse(await readFile(new URL(name, dir), "utf8"));
+    if (data.fundamentals_id === id) return data;
+  }
+  throw new Error(`스냅샷 ${id} 를 찾을 수 없다`);
+}
+
+test("server-renders the decision report for whichever asset is selected", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
+  const report = await readReport();
+
+  // 종목 고유 문자열("General Motors", "38.2%", "−$1,092M")을 단정하면
+  // 다른 종목을 선택하는 순간 테스트가 깨진다. 렌더러가 검증할 것은
+  // **선택된 리포트의 내용이 화면에 실제로 나오는가**다.
   assert.match(html, /숫자보다 먼저 볼 의미/);
-  assert.match(html, /공시 확정/);
   assert.match(html, /role="tab"/);
   assert.match(html, /현금흐름/);
   assert.match(html, /손익계산서/);
   assert.match(html, /<details class="disclosure"/);
-  assert.match(html, /13F 기관 보유/);
   assert.match(html, /매출총이익률/);
-  assert.match(html, /−\$1,092M/);
-  assert.match(html, /General Motors/);
-  assert.match(html, /10년 FCF 연 38\.2%/);
   assert.doesNotMatch(html, /DEMO DATA|TWELVE/);
+
+  // 데이터가 화면에 도달했는지 — 리포트에서 뽑아 대조한다
+  assert.ok(html.includes(report.asset.name), "종목명이 화면에 없다");
+  assert.ok(html.includes(report.asset.current), "현재가가 화면에 없다");
+  assert.ok(html.includes(report.decision.status), "판정 상태가 화면에 없다");
+  assert.ok(html.includes(report.valuation.impliedGrowth),
+    "내재 성장률이 화면에 없다");
+  assert.ok(html.includes(report.decision.entryCeiling),
+    "요구수익률 만족 가격이 화면에 없다");
+  // 손익 비용 라인은 회계기준마다 다르다 (R&D·SG&A vs 판매비와관리비).
+  // 리포트가 만든 라벨이 그대로 그려지는지만 본다.
+  // HTML 은 & 를 &amp; 로 escape 한다. "R&D" 를 그대로 찾으면 못 찾는다.
+  const escaped = (text) => text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  for (const item of report.incomeStatement.equation) {
+    assert.ok(html.includes(escaped(item.label)),
+      `손익 항등식 라벨 ${item.label} 이 화면에 없다`);
+  }
 });
 
 test("renders the engine verdict without softening it", async () => {
@@ -88,30 +121,61 @@ test("entry price uses the IPS measure, not the bull scenario alone", async () =
 
 test("multiples are computed at the report's own price", async () => {
   const report = await readReport();
-  const num = (s) => Number(s.replace(/[^0-9.]/g, ""));
-  const price = num(report.asset.currentUsd);
+  const num = (s) => Number(String(s).replace(/[^0-9.]/g, ""));
 
-  // PER 325x / PSR 11.9x 는 급락 전 주가 $349 로 계산된 값이었다.
+  // 단위 접미사를 읽는다. USD 는 백만(M), KRW 는 조 단위로 표시되므로
+  // 숫자만 긁으면 배수 역산이 10^6 배 틀린다.
+  const UNITS = { "조": 1e12, "억": 1e8, M: 1e6, B: 1e9 };
+  const parseMoney = (text) => {
+    const m = String(text).match(/([\d,]+(?:\.\d+)?)\s*(조|억|M|B)?/);
+    assert.ok(m, `금액을 읽을 수 없다: ${text}`);
+    return Number(m[1].replace(/,/g, "")) * (UNITS[m[2]] ?? 1);
+  };
+
+  const price = num(report.asset.current);
+
+  // 희석주식수를 코드에 박으면 종목이 바뀌는 순간 조용히 틀린다.
+  // 리포트가 가리키는 스냅샷에서 읽는다.
+  const snapshot = await findFundamentals(report.meta.fundamentalsId);
+  const shares = snapshot.values.shares_diluted;
+
+  // 한때 PER 325x / PSR 11.9x 는 급락 전 주가로 계산된 값이었다.
   // 배수와 주가가 같은 시점인지 역산해 확인한다.
-  const shares = 3540; // 백만주 · 스냅샷의 희석주식수
   for (const label of ["PER", "PSR"]) {
     const m = report.valuation.multiples.find((x) => x.label === label);
-    const denominator = num(m.basis.match(/\$[\d,]+M/)[0]);
+    if (!m || m.value === "—") continue;
+    const denominator = parseMoney(m.basis);
     const impliedPrice = (num(m.value) * denominator) / shares;
     assert.ok(
       Math.abs(impliedPrice - price) / price < 0.02,
-      `${label} ${m.value} 가 현재가 $${price} 와 맞지 않는다 ` +
-        `(역산 $${impliedPrice.toFixed(2)})`,
+      `${label} ${m.value} 가 현재가 ${report.asset.current} 와 맞지 않는다 ` +
+        `(역산 ${impliedPrice.toFixed(2)})`,
     );
   }
 });
 
 test("year-over-year rows really compare the same quarter", async () => {
   const report = await readReport();
-  const revenue = report.incomeStatement.rows.find((r) => r.metric === "매출");
+  const snapshot = await findFundamentals(report.meta.fundamentalsId);
+  const quarters = snapshot.income_statement.revenue.quarters;
+
   // TTM 창(4분기)의 첫 행과 비교하면 전년 동기가 아니라 3분기 전이 된다.
-  // 그때는 매출 YoY 가 +0.5% 로 조용히 틀렸다.
-  assert.match(revenue.comparison, /\+25\.5%/);
+  // 그때는 매출 YoY 가 조용히 틀렸다. 특정 종목의 +25.5% 를 단정하면
+  // 다른 종목에서 깨지므로, **분기 정렬 자체**를 검사한다.
+  const latest = quarters[quarters.length - 1];
+  const yearAgo = quarters[quarters.length - 5];
+  assert.ok(yearAgo, "전년 동기 비교에 필요한 5개 분기가 없다");
+  assert.equal(latest.quarter, yearAgo.quarter,
+    `분기가 다르다: Q${latest.quarter} vs Q${yearAgo.quarter}`);
+  assert.equal(latest.fy - yearAgo.fy, 1,
+    `연도 간격이 1년이 아니다: FY${latest.fy} vs FY${yearAgo.fy}`);
+
+  // 화면에 찍힌 증감률이 그 두 분기에서 나온 값인지 대조한다
+  const revenue = report.incomeStatement.rows.find((r) => r.metric === "매출");
+  const shown = Number(revenue.comparison.match(/([+-][\d.]+)%/)[1]);
+  const actual = (latest.val / yearAgo.val - 1) * 100;
+  assert.ok(Math.abs(shown - actual) < 0.15,
+    `화면 ${shown}% 와 원문 계산 ${actual.toFixed(1)}% 가 다르다`);
 });
 
 test("cited calculation and snapshot actually resolve", async () => {
@@ -216,7 +280,7 @@ test("layout does not hardcode how many items the data has", async () => {
 
 test("chart labels stay inside the viewBox and carry their own geometry", async () => {
   const chart = JSON.parse(
-    await readFile(new URL("../data/tsla-price-chart.json", import.meta.url), "utf8"),
+    await readFile(new URL("../data/price-chart.json", import.meta.url), "utf8"),
   );
   const [, , viewWidth] = chart.viewBox.split(" ").map(Number);
 
@@ -251,7 +315,7 @@ test("keeps calculations upstream and renders precomputed geometry", async () =>
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/FinancialTabs.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/PositioningTabs.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../data/tsla-price-chart.json", import.meta.url), "utf8"),
+    readFile(new URL("../data/price-chart.json", import.meta.url), "utf8"),
   ]);
   void financialTabs;
   const report = await readReport();
@@ -259,14 +323,20 @@ test("keeps calculations upstream and renders precomputed geometry", async () =>
 
   assert.equal(report.schemaVersion, "decision-dashboard/0.6.0");
   assert.equal(report.decision.highlights.length, 4);
-  assert.equal(report.marketPositioning.items.length, 4);
-  assert.equal(
-    new Set(report.marketPositioning.items.map((item) => item.id)).size,
-    4,
-  );
+  // 항목 개수를 4 로 못박으면 안 된다. 검증된 출처가 없는 종목은 이 섹션을
+  // 정직하게 비우거나 줄이는 것이 옳고, 개수를 맞추려고 칸을 채우면
+  // 그게 바로 이 프로젝트가 막으려는 오류다. id 유일성만 검사한다.
+  const positioningIds = report.marketPositioning.items.map((item) => item.id);
+  assert.ok(positioningIds.length >= 1, "marketPositioning 항목이 비어 있다");
+  assert.equal(new Set(positioningIds).size, positioningIds.length,
+    "marketPositioning id 가 중복이다");
   assert.equal(chart.schemaVersion, "price-chart/1.0.0");
   assert.ok(chart.linePath.startsWith("M"));
-  assert.equal(chart.segments.length, 250);
+  // 거래일 수를 못박으면 시세 파일 길이가 다른 종목에서 깨진다.
+  // 세그먼트는 점 사이를 잇는 선이므로 항상 점 개수 − 1 이어야 한다.
+  assert.equal(chart.segments.length, chart.points.length - 1,
+    "세그먼트 수가 점 개수와 맞지 않는다");
+  assert.ok(chart.points.length > 1, "점이 2개 미만이다");
   assert.ok(chart.segments.some((segment) => segment.direction === "up"));
   assert.ok(chart.segments.some((segment) => segment.direction === "down"));
   // 막대 좌표·눈금은 전부 상류에서 온다.

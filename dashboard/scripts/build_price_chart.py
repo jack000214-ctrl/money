@@ -15,6 +15,15 @@ from datetime import date
 from pathlib import Path
 
 
+CURRENCY_FORMATS = {
+    # 화면에 찍히는 문자열은 전부 여기서 만든다. 소수점 자릿수가 통화마다
+    # 다르다 — 231,000.00 원은 아무도 그렇게 쓰지 않는다.
+    "USD": lambda v: f"${v:,.2f}",
+    "KRW": lambda v: f"{v:,.0f}원",
+}
+money = CURRENCY_FORMATS["USD"]
+
+
 def read_prices(path: Path) -> list[dict]:
     with path.open(encoding="utf-8") as source:
         rows = list(csv.DictReader(line for line in source if not line.startswith("#")))
@@ -41,7 +50,12 @@ def main() -> None:
     parser.add_argument("--entry-ceiling", required=True, type=float)
     parser.add_argument("--entry-label", required=True,
                         help="이 선이 무엇인지. 매수 트리거로 오해되지 않게 쓴다")
+    parser.add_argument("--currency", default="USD", choices=sorted(CURRENCY_FORMATS),
+                        help="표시 통화. 가격 문자열 형식을 정한다")
     args = parser.parse_args()
+
+    global money
+    money = CURRENCY_FORMATS[args.currency]
 
     rows = read_prices(args.input)
     width, height = 1000, 360
@@ -53,8 +67,11 @@ def main() -> None:
 
     raw_low = min(min(row["low"] for row in rows), args.entry_ceiling)
     raw_high = max(row["high"] for row in rows)
-    y_min = math.floor(raw_low / 25) * 25
-    y_max = math.ceil(raw_high / 25) * 25
+    # 축 경계를 값 크기에 맞춰 반올림한다. 25 를 박아두면 USD 에서는 맞지만
+    # KRW 에서는 231,000 을 25원 단위로 맞추는 무의미한 정밀도가 된다.
+    grain = 10 ** math.floor(math.log10(max(raw_high - raw_low, 1))) / 4
+    y_min = math.floor(raw_low / grain) * grain
+    y_max = math.ceil(raw_high / grain) * grain
 
     def x(index: int) -> float:
         return left + index / (len(rows) - 1) * plot_width
@@ -85,9 +102,19 @@ def main() -> None:
             "direction": direction,
         })
 
-    guide_values = list(range(int(y_min), int(y_max) + 1, 50))
+    # 눈금 간격을 값 범위에서 만든다. 50 을 박아두면 USD 에서는 그럴듯하지만
+    # KRW(128,500~362,500)에서는 눈금이 수천 개 생겨 축이 검게 칠해진다.
+    span = y_max - y_min
+    step = 10 ** math.floor(math.log10(span)) / 2 if span > 0 else 1
+    while span / step > 8:
+        step *= 2
+    first = math.ceil(y_min / step) * step
+    guide_values, value = [], first
+    while value <= y_max:
+        guide_values.append(value)
+        value += step
     guides = [
-        {"value": f"${value}", "y": f"{y(value):.2f}"}
+        {"value": money(value), "y": f"{y(value):.2f}"}
         for value in reversed(guide_values)
     ]
 
@@ -121,7 +148,7 @@ def main() -> None:
             "x": f"{x(index):.2f}",
             "y": f"{y(row['close']):.2f}",
             "date": date.fromisoformat(row["date"]).strftime("%Y.%m.%d"),
-            "close": f"${row['close']:,.2f}",
+            "close": money(row["close"]),
             "change": f"{change:+.2f}%",
             "changeDirection": "up" if change > 0 else "down" if change < 0 else "flat",
             "fromStart": f"{(row['close'] / first_close - 1) * 100:+.1f}%",
@@ -139,7 +166,7 @@ def main() -> None:
         outward = px > VIEW_WIDTH * 0.8
         return {
             "label": label,
-            "value": f"${rows[index]['close']:,.2f}",
+            "value": money(rows[index]["close"]),
             "date": rows[index]["date"],
             "x": f"{px:.2f}",
             "y": f"{y(rows[index]['close']):.2f}",
@@ -148,9 +175,10 @@ def main() -> None:
             "dx": "-7" if outward else "7",
         }
 
+    # 마커도 전 구간 기준이다. "52주" 라고 쓰면 시세 파일이 더 길 때 틀린다.
     markers = [
-        marker("52주 고점", max_index, "below"),
-        marker("52주 저점", min_index, "above"),
+        marker("기간 고점", max_index, "below"),
+        marker("기간 저점", min_index, "above"),
         # 현재 참고가 기준선 라벨이 같은 높이에 있다. 아래로 내려 겹침을 피한다.
         marker("최근 종가", len(rows) - 1, "below"),
     ]
@@ -171,14 +199,14 @@ def main() -> None:
         # 큰 박스를 띄우면 정작 봐야 할 가격 흐름을 가린다. 설명 문구는
         # 차트 밖 범례로 내린다.
         "entryLine": {
-            "value": f"${args.entry_ceiling:,.2f}",
+            "value": money(args.entry_ceiling),
             "y": f"{y(args.entry_ceiling):.2f}",
             "tagY": f"{y(args.entry_ceiling) - 9:.2f}",
             "tagTextY": f"{y(args.entry_ceiling) + 4:.2f}",
             "label": args.entry_label,
         },
         "currentLine": {
-            "value": f"${args.current:,.2f}",
+            "value": money(args.current),
             "y": f"{y(args.current):.2f}",
             "tagY": f"{y(args.current) - 9:.2f}",
             "tagTextY": f"{y(args.current) + 4:.2f}",

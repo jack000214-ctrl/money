@@ -63,12 +63,36 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+# 통화별 표시 규약. 화면은 이 문자열을 그대로 그리므로 자릿수·단위·기호가
+# 전부 여기서 정해진다. USD 는 백만 단위, KRW 는 조 단위가 읽기 쉽다 —
+# 삼성전자 영업현금흐름을 "₩109,008,400M" 로 쓰면 아무도 못 읽는다.
+CURRENCY = {
+    "USD": {
+        "money": lambda v: f"${v / 1e6:,.0f}M",
+        "signed": lambda v: f"{'−' if v < 0 else '+'}${abs(v) / 1e6:,.0f}M",
+        "price": lambda v: f"${v:,.2f}",
+        "unit_note": "백만 USD",
+    },
+    "KRW": {
+        "money": lambda v: f"{v / 1e12:,.2f}조",
+        "signed": lambda v: f"{'−' if v < 0 else '+'}{abs(v) / 1e12:,.2f}조",
+        "price": lambda v: f"{v:,.0f}원",
+        "unit_note": "조 KRW",
+    },
+}
+_fmt = CURRENCY["USD"]
+
+
 def money_m(value: float) -> str:
-    return f"${value / 1e6:,.0f}M"
+    return _fmt["money"](value)
 
 
 def signed_m(value: float) -> str:
-    return f"{'−' if value < 0 else '+'}${abs(value) / 1e6:,.0f}M"
+    return _fmt["signed"](value)
+
+
+def price_str(value: float) -> str:
+    return _fmt["price"](value)
 
 
 def pct(value: float, digits: int = 1) -> str:
@@ -124,7 +148,7 @@ def build_cashflow_chart(ocf_q, capex_q):
     ticks = []
     value = 0.0
     while value <= axis_max + 1:
-        ticks.append({"label": f"${value / 1e9:,.0f}B" if value else "0",
+        ticks.append({"label": money_m(value) if value else "0",
                       "y": f"{y_of(value):.1f}"})
         value += step
 
@@ -174,7 +198,7 @@ def build_cashflow_chart(ocf_q, capex_q):
 
 
 def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
-                      required, price_usd, fcf):
+                      required, price_native, fcf, currency):
     """"무엇이 바뀌어야 통과하는가" 격자를 미리 계산한다.
 
     화면에서 이 값을 다시 만들면 안 된다 — 브라우저가 두 번째 계산 주체가
@@ -198,7 +222,7 @@ def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
 
     growths = list(range(10, 81, 5))                     # 10% ~ 80%
     probs = [round(v / 100, 2) for v in range(0, 101, 5)]  # 0% ~ 100%
-    prices = [round(price_usd * (0.2 + 0.05 * i), 2) for i in range(0, 25)]
+    prices = [round(price_native * (0.2 + 0.05 * i), 2) for i in range(0, 25)]
 
     cells = []
     for growth in growths:
@@ -235,14 +259,14 @@ def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
             "probability": {"label": "강세 확률", "unit": "%",
                             "values": [round(v * 100) for v in probs],
                             "labels": [f"{round(v * 100)}%" for v in probs]},
-            "price": {"label": "주가", "unit": "USD", "values": prices,
-                      "labels": [f"${v:,.2f}" for v in prices]},
+            "price": {"label": "주가", "unit": currency, "values": prices,
+                      "labels": [price_str(v) for v in prices]},
         },
         "current": {
             "growth": nearest(growths, calc_inputs["scenario_growth_pct"]["bull"]),
             "probability": nearest([round(v * 100) for v in probs],
                                    round(probabilities["bull"] * 100)),
-            "price": nearest(prices, price_usd),
+            "price": nearest(prices, price_native),
         },
         "requiredReturn": required,
         "cells": cells,
@@ -264,11 +288,23 @@ def build(args) -> dict:
     fundamentals = load_json(args.fundamentals)
     values = fundamentals["values"]
 
+    # 통화는 스냅샷이 선언한다. 인자로 받으면 스냅샷과 어긋날 수 있다.
+    global _fmt
+    currency = fundamentals.get("currency", "USD")
+    if currency not in CURRENCY:
+        fail(f"통화 {currency} 의 표시 규약이 없다. CURRENCY 에 추가한다")
+    _fmt = CURRENCY[currency]
+
     result = evaluate_trade(
         args.ticker, "buy", args.quantity, args.price_krw,
         holdings_path=args.holdings, ips_path=args.ips,
         analysis_path=args.analysis, price_as_of=args.price_as_of,
         calculations_dir=args.calculations,
+        # 보유하지 않은 종목도 리포트를 만들 수 있어야 한다. 이 인자가 없으면
+        # 엔진이 기본값(KR/STOCK)으로 때워 위험등급 한도가 잘못 걸린다.
+        new_asset_name=args.name,
+        new_asset_market=args.market,
+        new_asset_risk_class=args.risk_class,
     )
     analysis = load_json(args.analysis)
     expected = analysis["expected_return"]
@@ -288,7 +324,7 @@ def build(args) -> dict:
     required = float(expected["required_return_pct"])
     probabilities = {n: expected["scenarios"][n]["probability"] for n in calc_scen}
     per_share = {n: calc_scen[n]["value_per_share"] for n in calc_scen}
-    price_usd = float(calc_inputs["price"])
+    price_native = float(calc_inputs["price"])
 
     hurdle_price = entry_price_for_hurdle(per_share, probabilities, horizon, required)
     bull_only_price = per_share["bull"] / (1 + required / 100.0) ** (horizon / 12.0)
@@ -296,7 +332,7 @@ def build(args) -> dict:
     income = fundamentals["income_statement"]
     net_income_ttm = income["net_income"]["ttm"]
     revenue_ttm = income["revenue"]["ttm"]
-    mcap = values["shares_diluted"] * price_usd
+    mcap = values["shares_diluted"] * price_native
     per = mcap / net_income_ttm if net_income_ttm else None
     psr = mcap / revenue_ttm if revenue_ttm else None
 
@@ -344,6 +380,12 @@ def build(args) -> dict:
         "snapshotId": result["metadata"]["decision_snapshot_id"],
     }
 
+    # 원문 출처에 따라 재수집 명령과 라벨이 달라진다. "EDGAR" 를 박아두면
+    # DART 에서 만든 스냅샷에 EDGAR 라고 적힌 화면이 나온다.
+    snapshot_source = fundamentals.get("source", "edgar")
+    fetcher = "dart_fetch" if "dart" in snapshot_source else "edgar_fetch"
+    source_label = "DART" if "dart" in snapshot_source else "EDGAR"
+
     ocf_q = fundamentals["quarters"]["ocf"]
     capex_q = fundamentals["quarters"]["capex"]
     cash_rows, cash_chart = build_cashflow_chart(ocf_q, capex_q)
@@ -363,13 +405,33 @@ def build(args) -> dict:
 
     rev_now, rev_yoy = q_pair("revenue")
     gp_now, gp_yoy = q_pair("gross_profit")
-    rnd_now, rnd_yoy = q_pair("rnd")
-    sgna_now, sgna_yoy = q_pair("sgna")
     op_now, op_yoy = q_pair("operating_income")
     interp = narrative["interpretations"]["incomeStatement"]
 
+    # 매출총이익에서 영업이익까지 빼는 비용 라인은 회계기준마다 다르다.
+    # US-GAAP 은 R&D·SG&A 로 갈라지지만 K-IFRS 는 판매비와관리비 한 줄이고
+    # R&D 는 그 안에 있다 (주석에만 분리). 고정 키로 쓰면 삼성전자에서
+    # 항등식이 깨지거나, 맞추려고 없는 R&D 를 지어내게 된다.
+    expense_lines = fundamentals.get("expense_lines")
+    if not expense_lines:
+        expense_lines = [{"key": "rnd", "label": "R&D"},
+                         {"key": "sgna", "label": "SG&A"}]
+
     def growth(now, before):
         return f"전년 동기 대비 {(now / before - 1) * 100:+.1f}%"
+
+    expenses = []
+    for line in expense_lines:
+        now, yoy = q_pair(line["key"])
+        expenses.append({"label": line["label"], "now": now, "yoy": yoy})
+
+    # 항등식을 화면에 그리기 전에 검사한다. 어긋나면 라인이 중복·누락됐다.
+    residual = gp_now - sum(e["now"] for e in expenses) - op_now
+    if abs(residual) > max(abs(op_now) * 0.005, 1.0):
+        fail(f"손익 항등식이 맞지 않는다 — 매출총이익 {money_m(gp_now)} − "
+             f"비용 {money_m(sum(e['now'] for e in expenses))} ≠ 영업이익 "
+             f"{money_m(op_now)} (차이 {money_m(residual)}). "
+             "스냅샷의 expense_lines 를 확인한다")
 
     income_rows = [
         {"metric": "매출", "value": money_m(rev_now),
@@ -379,12 +441,12 @@ def build(args) -> dict:
          "comparison": f"전년 동기 {gp_yoy / rev_yoy * 100:.2f}% · "
                        f"{(gp_now / rev_now - gp_yoy / rev_yoy) * 100:+.2f}%p",
          "interpretation": interp.get("매출총이익률", ""), "signal": "good"},
-        {"metric": "R&D", "value": money_m(rnd_now),
-         "comparison": growth(rnd_now, rnd_yoy),
-         "interpretation": interp.get("R&D", ""), "signal": "watch"},
-        {"metric": "SG&A", "value": money_m(sgna_now),
-         "comparison": growth(sgna_now, sgna_yoy),
-         "interpretation": interp.get("SG&A", ""), "signal": "watch"},
+    ] + [
+        {"metric": e["label"], "value": money_m(e["now"]),
+         "comparison": growth(e["now"], e["yoy"]),
+         "interpretation": interp.get(e["label"], ""), "signal": "watch"}
+        for e in expenses
+    ] + [
         {"metric": "영업이익", "value": money_m(op_now),
          "comparison": growth(op_now, op_yoy),
          "interpretation": interp.get("영업이익", ""), "signal": "bad"},
@@ -401,21 +463,27 @@ def build(args) -> dict:
     two_ago = closes[-3][1]
     price_evidence = [
         {"label": "최근 2거래일", "value": pct((closes[-1][1] / two_ago - 1) * 100),
-         "explanation": f"${two_ago:,.2f} → ${closes[-1][1]:,.2f}. 급락은 사실입니다.",
+         "explanation": f"{price_str(two_ago)} → {price_str(closes[-1][1])}. 최근 2거래일 움직임입니다.",
          "signal": "bad"},
-        {"label": "52주 고점 대비", "value": pct((price_usd / hi[1] - 1) * 100),
-         "explanation": f"고점 ${hi[1]:,.2f} ({hi[0]}) 대비.", "signal": "watch"},
-        {"label": "52주 저점 대비", "value": pct((price_usd / lo[1] - 1) * 100),
-         "explanation": f"저점 ${lo[1]:,.2f} ({lo[0]}) 대비.", "signal": "good"},
+        # "52주" 를 라벨에 박으면 안 된다. 이 계산은 CSV 전 구간에서 하므로
+        # 시세 파일이 2년이면 라벨이 거짓말을 한다 (삼성전자 저점은 2024-11-14
+        # 로 52주 밖이었다). 구간을 라벨에 그대로 적는다.
+        {"label": f"기간 고점 대비 ({closes[0][0]}~)",
+         "value": pct((price_native / hi[1] - 1) * 100),
+         "explanation": f"고점 {price_str(hi[1])} ({hi[0]}) 대비.", "signal": "watch"},
+        {"label": f"기간 저점 대비 ({closes[0][0]}~)",
+         "value": pct((price_native / lo[1] - 1) * 100),
+         "explanation": f"저점 {price_str(lo[1])} ({lo[0]}) 대비.", "signal": "good"},
         {"label": f"요구수익률 {required:.0f}% 만족 가격",
-         "value": f"${hurdle_price:,.2f}",
+         "value": price_str(hurdle_price),
          "explanation": "IPS 측정 기준으로 푼 값. 현재가의 "
-                        f"{hurdle_price / price_usd * 100:.0f}% 수준이라 "
+                        f"{hurdle_price / price_native * 100:.0f}% 수준이라 "
                         "가격 조정으로 해소될 수준이 아닙니다.",
          "signal": "bad"},
     ]
 
     # --- 핵심 지표: 엔진과 원문에서 만든다 ---
+    latest_fcf = ocf_q[-1]["val"] - capex_q[-1]["val"]
     highlights = [
         {"meaning": "목표 수익률에 못 미칩니다",
          "value": f"{basis.get('position_return_pct', 0):.1f}% < 목표 {required:.1f}%",
@@ -423,25 +491,35 @@ def build(args) -> dict:
                     f"따로 봐도 {calc_scen['bull']['return_pct']:+.1f}%로 "
                     "목표에 못 미칩니다.",
          "confidence": "투자정책 판정", "confidenceLevel": "high", "signal": "bad"},
-        {"meaning": "현금은 아직 회수되지 않았습니다",
-         "value": f"분기 FCF {signed_m(ocf_q[-1]['val'] - capex_q[-1]['val'])}",
-         "context": f"영업현금 {money_m(ocf_q[-1]['val'])}보다 "
-                    f"CapEx {money_m(capex_q[-1]['val'])}가 큽니다.",
-         "confidence": "공시 확정", "confidenceLevel": "high", "signal": "bad"},
+        # 부호를 보고 문장을 고른다. "현금이 회수되지 않았다"를 박아두면
+        # 분기 FCF 가 양수인 종목에서 화면이 사실과 반대로 말한다.
+        ({"meaning": "현금은 아직 회수되지 않았습니다",
+          "value": f"분기 FCF {signed_m(latest_fcf)}",
+          "context": f"영업현금 {money_m(ocf_q[-1]['val'])}보다 "
+                     f"CapEx {money_m(capex_q[-1]['val'])}가 큽니다.",
+          "confidence": "공시 확정", "confidenceLevel": "high", "signal": "bad"}
+         if latest_fcf < 0 else
+         {"meaning": "현금은 실제로 남고 있습니다",
+          "value": f"분기 FCF {signed_m(latest_fcf)}",
+          "context": f"영업현금 {money_m(ocf_q[-1]['val'])}에서 "
+                     f"CapEx {money_m(capex_q[-1]['val'])}를 쓰고 남은 금액입니다.",
+          "confidence": "공시 확정", "confidenceLevel": "high", "signal": "good"}),
         {"meaning": "성장은 가격 부담을 지우지 못합니다",
          "value": f"PER {per:.1f}x · PSR {psr:.1f}x",
          "context": "현재가 기준입니다. 동종사 대비 프리미엄이 이미 반영돼 있습니다.",
          "confidence": "시장·공시 데이터", "confidenceLevel": "high", "signal": "watch"},
-        {"meaning": "본업의 매출은 성장 중입니다",
+        {"meaning": ("본업의 매출은 성장 중입니다" if rev_now >= rev_yoy
+                     else "본업의 매출이 줄었습니다"),
          "value": f"매출 {(rev_now / rev_yoy - 1) * 100:+.1f}%",
          "context": f"매출총이익률도 {gp_now / rev_now * 100:.2f}%로 "
-                    f"전년 동기 {gp_yoy / rev_yoy * 100:.2f}%와 큰 차이가 없습니다.",
-         "confidence": "공시 확정", "confidenceLevel": "high", "signal": "good"},
+                    f"전년 동기 {gp_yoy / rev_yoy * 100:.2f}%입니다.",
+         "confidence": "공시 확정", "confidenceLevel": "high",
+         "signal": "good" if rev_now >= rev_yoy else "bad"},
     ]
 
     sensitivity = build_sensitivity(
-        calc_inputs, per_share, probabilities, horizon, required, price_usd,
-        float(calc_inputs["fcf"]))
+        calc_inputs, per_share, probabilities, horizon, required, price_native,
+        float(calc_inputs["fcf"]), currency)
 
     report = {
         "schemaVersion": SCHEMA,
@@ -458,9 +536,13 @@ def build(args) -> dict:
         "asset": {
             "name": args.name,
             "ticker": args.ticker_label,
-            "currentUsd": f"${price_usd:,.2f}",
-            "currentKrw": f"₩{args.price_krw:,.0f}",
-            "exchangeNote": "원화 가격은 사용자 제공 환산값",
+            # 통화 이름을 키에 박지 않는다. currentUsd 라는 필드가 있으면
+            # KRW 종목은 그 칸을 비워두거나 거짓말을 해야 한다.
+            "currency": currency,
+            "current": price_str(price_native),
+            "currentBase": f"₩{args.price_krw:,.0f}",
+            "baseNote": ("기준통화(KRW) 환산값 — 사용자 제공" if currency != "KRW"
+                         else "기준통화와 동일"),
         },
         "priceEvidence": price_evidence,
         "incomeStatement": {
@@ -468,8 +550,8 @@ def build(args) -> dict:
             # 매출총이익 − R&D − SG&A = 영업이익. 항등식이 어긋나면 위에서 막힌다.
             "equation": [
                 {"label": "매출총이익", "value": money_m(gp_now)},
-                {"label": "R&D", "value": f"−{money_m(rnd_now)}", "sign": "minus"},
-                {"label": "SG&A", "value": f"−{money_m(sgna_now)}", "sign": "minus"},
+                *[{"label": e["label"], "value": f"−{money_m(e['now'])}",
+                   "sign": "minus"} for e in expenses],
                 {"label": "영업이익", "value": money_m(op_now), "sign": "equals"},
             ],
             "rows": income_rows,
@@ -499,14 +581,14 @@ def build(args) -> dict:
                 f"연 수익률 {basis.get('position_return_pct', 0):.1f}% · "
                 f"목표 {required:.1f}%"
             ),
-            "entryCeiling": f"${hurdle_price:,.2f}",
+            "entryCeiling": price_str(hurdle_price),
             "entryCeilingNote": (
                 f"세 시나리오를 확률로 섞어 계산했을 때 목표 {required:.1f}%를 "
-                f"만족하는 가격이다. 현재가의 {hurdle_price / price_usd * 100:.0f}% "
+                f"만족하는 가격이다. 현재가의 {hurdle_price / price_native * 100:.0f}% "
                 "수준이라, 가격이 내려온다고 풀릴 문제가 아니다. "
                 "FCF 궤적이 바뀌어야 한다."
             ),
-            "bullOnlyCeiling": f"${bull_only_price:,.2f}",
+            "bullOnlyCeiling": price_str(bull_only_price),
             "bullOnlyNote": (
                 "강세 시나리오 하나만 쓰면 이 가격이 나온다. IPS 가 정한 자가 "
                 "아니므로 매수 기준으로 쓰지 않는다 — 이 가격에서도 세 시나리오를 "
@@ -518,12 +600,13 @@ def build(args) -> dict:
             "highlights": highlights,
         },
         "reviewMap": [
-            {"when": f"지금 · ${price_usd:,.2f}", "state": decision["verdict"],
+            {"when": f"지금 · {price_str(price_native)}", "state": decision["verdict"],
              "action": "가격만 보고 진입하지 않습니다.",
              "why": f"연 수익률 {basis.get('position_return_pct', 0):.1f}%가 "
                     f"목표 {required:.1f}%에 못 미칩니다.", "signal": "bad"},
-            {"when": "다음 분기 10-Q", "state": "강제 재검토",
-             "action": "edgar_fetch fundamentals 로 스냅샷을 다시 만들고 "
+            {"when": ("다음 분기보고서" if source_label == "DART" else "다음 분기 10-Q"),
+             "state": "강제 재검토",
+             "action": f"{fetcher} fundamentals 로 스냅샷을 다시 만들고 "
                        "reverse_dcf 를 재실행합니다.",
              "why": "가격보다 투자 회수 여부가 더 중요한 판정 변수입니다.",
              "signal": "watch"},
@@ -559,7 +642,7 @@ def build(args) -> dict:
                     "name": {"bear": "약세", "base": "기준", "bull": "강세"}[name],
                     "probability": f"{probabilities[name] * 100:.0f}%",
                     "fcfGrowth": f"10년간 {calc_inputs['scenario_growth_pct'][name]:.0f}%",
-                    "valuePerShare": f"${per_share[name]:,.2f}",
+                    "valuePerShare": price_str(per_share[name]),
                     "totalGap": f"현재가 대비 {calc_scen[name]['total_return_pct']:+.1f}%",
                     "annualizedReturn": f"{calc_scen[name]['return_pct']:+.1f}% p.a.",
                     "signal": "bad" if calc_scen[name]["return_pct"] < 0 else "watch",
@@ -588,7 +671,7 @@ def build(args) -> dict:
         "detailedAnalysis": narrative["detailedAnalysis"],
         "sources": narrative["sources"] + [
             {"label": "밸류에이션 입력",
-             "detail": f"EDGAR 스냅샷 {fundamentals['fundamentals_id']} · "
+             "detail": f"{source_label} 스냅샷 {fundamentals['fundamentals_id']} · "
                        f"{fundamentals['period_end']} 기준"},
             {"label": "판정 엔진",
              "detail": f"trade_check {result['metadata']['engine_version']} · "
@@ -600,10 +683,12 @@ def build(args) -> dict:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="엔진 산출물 → 화면용 판정 리포트")
-    p.add_argument("--ticker", default="TSLA")
-    p.add_argument("--ticker-label", default="TSLA · NASDAQ")
-    p.add_argument("--name", default="Tesla")
-    p.add_argument("--quantity", type=float, default=10)
+    # 기본값을 TSLA 로 두면 인자를 빠뜨렸을 때 다른 종목 리포트에 TSLA 가
+    # 섞인다. 전부 필수로 받는다.
+    p.add_argument("--ticker", required=True, help="엔진에 넘길 asset_id")
+    p.add_argument("--ticker-label", required=True, help="화면 표시용 (예: 005930 · KOSPI)")
+    p.add_argument("--name", required=True)
+    p.add_argument("--quantity", type=float, required=True)
     p.add_argument("--price-krw", type=float, required=True)
     p.add_argument("--price-as-of", required=True)
     p.add_argument("--price-note", required=True)
@@ -613,9 +698,12 @@ def main() -> None:
     p.add_argument("--analysis", required=True)
     p.add_argument("--calculations", default=str(ROOT / "knowledge/calculations"))
     p.add_argument("--fundamentals", required=True)
-    p.add_argument("--prices", default=str(ROOT / "knowledge/prices/TSLA.csv"))
-    p.add_argument("--narrative", default=str(DASHBOARD / "data/narrative.json"))
-    p.add_argument("--output", default=str(DASHBOARD / "data/decision-report.json"))
+    p.add_argument("--market", default="KR", help="보유하지 않은 종목의 시장")
+    p.add_argument("--risk-class", default="STOCK",
+                   help="보유하지 않은 종목의 위험등급 (IPS 한도가 여기 걸린다)")
+    p.add_argument("--prices", required=True)
+    p.add_argument("--narrative", required=True)
+    p.add_argument("--output", required=True)
     args = p.parse_args()
 
     report = build(args)

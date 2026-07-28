@@ -1,5 +1,5 @@
 import reportData from "../data/decision-report.json";
-import chartData from "../data/tsla-price-chart.json";
+import chartData from "../data/price-chart.json";
 import type {
   DecisionReport,
   PriceChart as PriceChartData,
@@ -75,7 +75,8 @@ export default function Home() {
           <span>{report.asset.ticker}</span>
           <span>{report.meta.financialAsOf} 반영</span>
           <span className="asset-price">
-            {report.asset.currentUsd} · {report.asset.currentKrw}
+            {report.asset.current}{report.asset.currency === "KRW"
+              ? "" : ` · ${report.asset.currentBase}`}
           </span>
         </div>
 
@@ -109,8 +110,9 @@ export default function Home() {
               </div>
               <div>
                 <dt>현재 참고가</dt>
-                <dd>{report.asset.currentUsd} · {report.asset.currentKrw}</dd>
-                <small>{report.asset.exchangeNote}</small>
+                <dd>{report.asset.current}{report.asset.currency === "KRW"
+                  ? "" : ` · ${report.asset.currentBase}`}</dd>
+                <small>{report.asset.baseNote}</small>
               </div>
             </dl>
           </aside>
@@ -226,10 +228,10 @@ export default function Home() {
           <div className="chart-shell">
             <div className="chart-head">
               <div>
-                <strong>TSLA 일별 종가</strong>
+                <strong>{report.asset.ticker.split(" · ")[0]} 일별 종가</strong>
                 <span>{chart.summary.period}</span>
               </div>
-              <span>{chart.summary.sessions} · USD</span>
+              <span>{chart.summary.sessions} · {report.asset.currency}</span>
             </div>
 
             <PriceChart chart={chart} />

@@ -26,9 +26,13 @@ export interface DecisionReport {
   asset: {
     name: string;
     ticker: string;
-    currentUsd: string;
-    currentKrw: string;
-    exchangeNote: string;
+    /** 거래 통화 코드. 화면은 표시만 하고 환산하지 않는다. */
+    currency: string;
+    /** 거래 통화 표시가. 통화 이름을 키에 박으면 다른 시장에서 칸이 빈다. */
+    current: string;
+    /** 기준통화(KRW) 환산가. 거래 통화가 KRW 면 같은 값이다. */
+    currentBase: string;
+    baseNote: string;
   };
   decision: {
     /** 엔진의 원본 판정. 자연어로 완화하지 않는다. */
