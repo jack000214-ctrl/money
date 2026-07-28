@@ -175,7 +175,12 @@ def resolve_inputs(a):
         a.net_debt = values["net_debt"]
         provenance = {
             "verified": True,
-            "source": "edgar_fundamentals",
+            # 출처를 스냅샷이 스스로 말하게 한다. 여기에 "edgar_fundamentals" 를
+            # 박아두면 DART 원문에서 만든 스냅샷도 EDGAR 라고 기록돼, 나중에
+            # 어느 원문에서 온 값인지 감사할 수 없다.
+            # 새 키를 넣으면 calculation_id 지문이 바뀌어 이미 저장된 계산이
+            # 전부 어긋난다. 통화는 스냅샷에 있고 생성기가 거기서 읽는다.
+            "source": snapshot.get("source", "edgar_fundamentals"),
             "fundamentals_id": snapshot["fundamentals_id"],
             "period_end": snapshot["period_end"],
             # 파일 해시까지 지문에 넣는다. 스냅샷이 바뀌면 계산 ID 가 바뀐다.

@@ -30,6 +30,10 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw" / "dart"
 CACHE_DIR = ROOT / "data" / "cache"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from contracts import (SCHEMA_VERSION, ContractError,  # noqa: E402
+                       fundamentals_id_for, save_validated_fundamentals)
+
 # reprt_code: 정기보고서 종류
 REPORTS = {
     "1q": "11013",   # 1분기보고서
@@ -319,6 +323,449 @@ def to_int(v):
         return None
 
 
+# ---------------------------------------------------------------------------
+# 역산 DCF 입력 스냅샷 (fundamentals)
+# ---------------------------------------------------------------------------
+#
+# EDGAR 판(edgar_fetch.py fundamentals)과 같은 계약을 만들지만 두 가지가 다르다.
+#
+# 1) **기간 관습이 표마다 다르다.** 같은 fnlttSinglAcntAll 응답 안에서
+#    손익계산서의 thstrm_amount 는 해당 3개월인데 현금흐름표의 thstrm_amount 는
+#    연초 누계다 (삼성전자 2025 영업활동현금흐름: 1Q 165,809 → 반기 339,410 →
+#    3Q 565,155 → 연간 853,151 억). 실측으로 확인했다. 그래서 현금흐름만
+#    차감 복원하고 손익은 그대로 쓴다. 이걸 뒤집으면 capex 가 조용히 배로 뛴다.
+# 2) **손익 항등식이 K-IFRS 모양이다.** 삼성전자 손익계산서에는 연구개발비
+#    항목이 없고 판매비와관리비 총액만 있다 (R&D 는 주석). 실제로
+#    매출총이익 819,132 − 판관비 246,804 = 영업이익 572,328 으로 정확히 맞는다.
+#    US-GAAP 처럼 R&D 를 따로 빼면 항등식이 깨지므로, 비용 라인은 고정 키가
+#    아니라 **순서 있는 목록**으로 담고 화면이 그대로 그린다.
+#
+# 계정은 account_nm 보다 account_id(IFRS/DART 표준코드)를 먼저 본다.
+# 표기는 회사마다 바뀌지만 표준코드는 안 바뀐다.
+
+REPORT_SEQUENCE = [("1q", 1), ("half", 2), ("3q", 3), ("annual", 4)]
+
+# 현금흐름 — 누계로 들어오므로 차감 복원한다
+CF_OCF_IDS = ["ifrs-full_CashFlowsFromUsedInOperatingActivities"]
+CF_CAPEX_IDS = [
+    "ifrs-full_PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"]
+CF_INTANGIBLE_IDS = [
+    "ifrs-full_PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"]
+
+# 손익 — 이미 3개월이다
+IS_REVENUE_IDS = ["ifrs-full_Revenue"]
+IS_GROSS_IDS = ["ifrs-full_GrossProfit"]
+IS_OPINC_IDS = ["dart_OperatingIncomeLoss", "ifrs-full_ProfitLossFromOperatingActivities"]
+IS_NET_IDS = ["ifrs-full_ProfitLoss"]
+IS_NET_PARENT_IDS = ["ifrs-full_ProfitLossAttributableToOwnersOfParent"]
+IS_DILUTED_EPS_IDS = ["ifrs-full_DilutedEarningsLossPerShare"]
+# 매출총이익에서 영업이익까지 빼는 비용 라인. 회사마다 개수가 다르다.
+IS_EXPENSE_IDS = [
+    ("dart_TotalSellingGeneralAdministrativeExpenses", "판매비와관리비"),
+    ("ifrs-full_ResearchAndDevelopmentExpense", "연구개발비"),
+    ("dart_SellingExpenses", "판매비"),
+    ("dart_AdministrativeExpenses", "관리비"),
+]
+
+# 재무상태 — 시점값
+BS_CASH_IDS = ["ifrs-full_CashAndCashEquivalents"]
+BS_SHORT_INV_IDS = [
+    "ifrs-full_ShorttermDepositsNotClassifiedAsCashEquivalents",
+    "ifrs-full_CurrentFinancialAssetsAtFairValueThroughProfitOrLoss",
+    "dart_ShortTermTradingFinancialAssets",
+]
+# 총차입 기준으로 잡는다. 삼성전자는 단기차입금(195,463억)이 장기차입금
+# (73,938억)보다 크다. EDGAR 판처럼 장기만 보면 순부채가 12조 넘게 틀린다.
+BS_DEBT_IDS = [
+    ("-단기차입금-", "단기차입금"),
+    ("ifrs-full_ShorttermBorrowings", "단기차입금"),
+    ("ifrs-full_NoncurrentPortionOfNoncurrentBonds", "사채"),
+    ("ifrs-full_NoncurrentPortionOfNoncurrentLoans", "장기차입금"),
+    ("ifrs-full_CurrentPortionOfLongtermBorrowings", "유동성장기부채"),
+    ("ifrs-full_Bonds", "사채"),
+]
+BS_DEBT_NAMES = ["단기차입금", "사채", "장기차입금", "유동성장기부채",
+                 "유동성사채", "장기성미지급금"]
+
+
+def acct(rows, sj_divs, ids=(), names=()):
+    """표준코드 우선, 계정명 폴백으로 계정 한 건을 찾는다."""
+    if isinstance(sj_divs, str):
+        sj_divs = (sj_divs,)
+    pool = [r for r in rows if r.get("sj_div") in sj_divs]
+    for want in ids:
+        for r in pool:
+            if (r.get("account_id") or "").strip() == want:
+                return r
+    for want in names:
+        w = want.replace(" ", "")
+        for r in pool:
+            if (r.get("account_nm") or "").replace(" ", "") == w:
+                return r
+    return None
+
+
+def amount(row, field="thstrm_amount"):
+    return None if row is None else to_int(row.get(field))
+
+
+def fetch_all(corp_code, year, report, fs, key):
+    """정기보고서 전체 계정. 없으면 None."""
+    return request(
+        "fnlttSinglAcntAll.json",
+        {"corp_code": corp_code, "bsns_year": str(year),
+         "reprt_code": REPORTS[report], "fs_div": fs},
+        key, allow_empty=True)
+
+
+def restore_cf_quarters(by_report, ids, label):
+    """누계 현금흐름을 3개월로 되돌린다.
+
+    Q1 = 1분기, Q2 = 반기 − 1분기, Q3 = 3분기 − 반기, Q4 = 연간 − 3분기.
+    한 구간이라도 빠지면 그 분기는 만들지 않는다. 없는 값을 0 으로 때우면
+    분기 합이 TTM 과 맞아 계약을 통과하면서 내용이 틀린다.
+    """
+    cumulative = {}
+    for report, q in REPORT_SEQUENCE:
+        rows = by_report.get(report)
+        if not rows:
+            continue
+        row = acct(rows, "CF", ids)
+        value = amount(row)
+        if value is not None:
+            cumulative[q] = value
+
+    out = {}
+    for q in (1, 2, 3, 4):
+        if q not in cumulative:
+            continue
+        if q == 1:
+            out[1] = {"val": float(cumulative[1]), "derived": False}
+        elif q - 1 in cumulative:
+            out[q] = {"val": float(cumulative[q] - cumulative[q - 1]),
+                      "derived": True}
+    if not out:
+        raise LookupError(f"{label}: 현금흐름 계정을 찾지 못했다 ({ids})")
+    return out
+
+
+def restore_is_quarters(by_report, ids, names=()):
+    """손익 3개월 값. 4분기만 연간 − 3분기누계로 만든다."""
+    out = {}
+    for report, q in REPORT_SEQUENCE[:3]:
+        rows = by_report.get(report)
+        if not rows:
+            continue
+        row = acct(rows, ("IS", "CIS"), ids, names)
+        value = amount(row)
+        if value is not None:
+            out[q] = {"val": float(value), "derived": False}
+
+    annual_rows, third_rows = by_report.get("annual"), by_report.get("3q")
+    if annual_rows and third_rows:
+        year_row = acct(annual_rows, ("IS", "CIS"), ids, names)
+        ytd_row = acct(third_rows, ("IS", "CIS"), ids, names)
+        year_val = amount(year_row)
+        # 3분기 보고서의 누계 필드. 3개월 값(thstrm_amount)과 다른 칸이다.
+        ytd_val = amount(ytd_row, "thstrm_add_amount")
+        if year_val is not None and ytd_val is not None:
+            out[4] = {"val": float(year_val - ytd_val), "derived": True}
+    return out
+
+
+def series_rows(per_year, want, end_key):
+    """{(fy, q): {...}} 를 계약이 요구하는 정렬된 목록으로 자른다."""
+    keys = sorted(per_year)
+    if end_key not in keys:
+        return None
+    stop = keys.index(end_key) + 1
+    picked = keys[max(0, stop - want):stop]
+    if len(picked) < want:
+        return None
+    # 연속성 확인. 사이가 비면 TTM 창이 실제로 12개월이 아니다.
+    idx = [fy * 4 + q for fy, q in picked]
+    if idx != list(range(idx[0], idx[0] + want)):
+        return None
+    return [{"fy": fy, "quarter": q, **per_year[(fy, q)]} for fy, q in picked]
+
+
+QUARTER_END = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}
+
+
+def cmd_fundamentals(a, key):
+    info = resolve(a.stock_code, key)
+    corp, name = info["corp_code"], info["corp_name"]
+    years = list(range(a.year - 2, a.year + 1))
+
+    raw, by_year = {}, {}
+    for year in years:
+        by_report = {}
+        for report, _ in REPORT_SEQUENCE:
+            data = fetch_all(corp, year, report, a.fs, key)
+            if data:
+                by_report[report] = data["list"]
+                raw[f"{year}_{report}"] = data
+        if by_report:
+            by_year[year] = by_report
+
+    if not by_year:
+        fail(f"{name}: {years} 구간에서 재무제표를 받지 못했다")
+
+    # --- 현금흐름 4분기 ---
+    ocf, capex, intangible = {}, {}, {}
+    for year, by_report in by_year.items():
+        try:
+            for q, row in restore_cf_quarters(by_report, CF_OCF_IDS, "영업현금흐름").items():
+                ocf[(year, q)] = row
+            for q, row in restore_cf_quarters(by_report, CF_CAPEX_IDS, "capex").items():
+                capex[(year, q)] = row
+        except LookupError as exc:
+            fail(str(exc))
+        try:
+            for q, row in restore_cf_quarters(
+                    by_report, CF_INTANGIBLE_IDS, "무형자산취득").items():
+                intangible[(year, q)] = row
+        except LookupError:
+            pass  # 무형자산 취득이 없는 회사도 있다. capex 정의에 영향 없음
+
+    latest = max(k for k in ocf if k in capex)
+    if a.period_end:
+        want = [k for k in sorted(ocf)
+                if f"{k[0]}-{QUARTER_END[k[1]]}" == a.period_end]
+        if not want:
+            fail(f"--period-end {a.period_end} 에 해당하는 분기가 없다")
+        latest = want[0]
+
+    ocf_rows = series_rows(ocf, 4, latest)
+    capex_rows = series_rows(capex, 4, latest)
+    if not ocf_rows or not capex_rows:
+        fail(f"{latest} 기준 연속 4분기를 확보하지 못했다. 추정하지 않는다.\n"
+             f"  영업현금흐름 확보: {sorted(ocf)}\n  capex 확보: {sorted(capex)}")
+
+    period_end = f"{latest[0]}-{QUARTER_END[latest[1]]}"
+    for row in ocf_rows + capex_rows:
+        row["end"] = f"{row['fy']}-{QUARTER_END[row['quarter']]}"
+        row["filed"] = None
+
+    ocf_ttm = sum(r["val"] for r in ocf_rows)
+    capex_ttm = sum(r["val"] for r in capex_rows)
+
+    # --- 손익 8분기 (전년 동기 비교용) ---
+    income, expense_lines = {}, []
+    plan = [("revenue", IS_REVENUE_IDS, REV_NAMES),
+            ("gross_profit", IS_GROSS_IDS, ["매출총이익"]),
+            ("operating_income", IS_OPINC_IDS, OP_NAMES),
+            ("net_income", IS_NET_IDS, ["당기순이익", "분기순이익", "반기순이익"])]
+
+    present = [(aid, label) for aid, label in IS_EXPENSE_IDS
+               if acct(by_year[latest[0]].get("1q") or
+                       next(iter(by_year[latest[0]].values())),
+                       ("IS", "CIS"), [aid])]
+    for aid, label in present:
+        key_name = f"expense_{len(expense_lines)}"
+        expense_lines.append({"key": key_name, "label": label})
+        plan.append((key_name, [aid], [label]))
+
+    for key_name, ids, names in plan:
+        per_year = {}
+        for year, by_report in by_year.items():
+            for q, row in restore_is_quarters(by_report, ids, names).items():
+                per_year[(year, q)] = row
+        rows = series_rows(per_year, a.income_quarters, latest)
+        if rows is None:
+            fail(f"손익 {key_name}: {latest} 기준 연속 {a.income_quarters}분기를 "
+                 f"확보하지 못했다 (확보: {sorted(per_year)})")
+        for row in rows:
+            row["end"] = f"{row['fy']}-{QUARTER_END[row['quarter']]}"
+            row["filed"] = None
+        income[key_name] = {"tag": ids[0], "ttm": sum(r["val"] for r in rows[-4:]),
+                            "quarters": rows}
+
+    # 손익 항등식 확인 — 매출총이익 − 비용라인 = 영업이익
+    if expense_lines:
+        gross = income["gross_profit"]["quarters"][-1]["val"]
+        spend = sum(income[e["key"]]["quarters"][-1]["val"] for e in expense_lines)
+        op = income["operating_income"]["quarters"][-1]["val"]
+        if abs(gross - spend - op) > max(abs(op) * 0.005, 1e8):
+            fail("손익 항등식이 맞지 않는다: 매출총이익 "
+                 f"{gross/1e8:,.0f}억 − 비용 {spend/1e8:,.0f}억 = "
+                 f"{(gross-spend)/1e8:,.0f}억 인데 영업이익은 {op/1e8:,.0f}억 이다. "
+                 "비용 라인이 중복되거나 빠졌다")
+
+    # --- 재무상태 시점값 ---
+    bs_report = None
+    for report, q in REPORT_SEQUENCE:
+        if q == latest[1] and by_year.get(latest[0], {}).get(report):
+            bs_report = by_year[latest[0]][report]
+    if bs_report is None:
+        fail(f"{period_end} 재무상태표를 찾지 못했다")
+
+    cash_row = acct(bs_report, "BS", BS_CASH_IDS, ["현금및현금성자산"])
+    if cash_row is None:
+        fail("현금및현금성자산을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
+    cash = float(amount(cash_row))
+
+    short_inv, short_inv_detail = 0.0, []
+    for aid in BS_SHORT_INV_IDS:
+        row = acct(bs_report, "BS", [aid])
+        if row is not None and amount(row) is not None:
+            short_inv += float(amount(row))
+            short_inv_detail.append({"label": row.get("account_nm"),
+                                     "account_id": aid, "value": float(amount(row))})
+    if not short_inv_detail:
+        row = acct(bs_report, "BS", (), ["단기금융상품"])
+        if row is not None and amount(row) is not None:
+            short_inv = float(amount(row))
+            short_inv_detail.append({"label": "단기금융상품", "account_id": None,
+                                     "value": short_inv})
+
+    debt, debt_detail, seen = 0.0, [], set()
+    for aid, label in BS_DEBT_IDS:
+        row = acct(bs_report, "BS", [aid]) if not aid.startswith("-") else None
+        if row is None:
+            row = acct(bs_report, "BS", (), [label])
+        if row is None:
+            continue
+        marker = (row.get("account_nm"), row.get("thstrm_amount"))
+        if marker in seen or amount(row) is None:
+            continue
+        seen.add(marker)
+        debt += float(amount(row))
+        debt_detail.append({"label": row.get("account_nm"),
+                            "account_id": row.get("account_id"),
+                            "value": float(amount(row))})
+    if not debt_detail:
+        fail("차입금 계정을 하나도 찾지 못했다. 무차입이라고 단정하지 않는다")
+
+    # --- 희석주식수: 지배주주 순이익 ÷ 희석주당이익 ---
+    parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS, ["지배기업 소유주지분"])
+    eps_row = acct(bs_report, ("IS", "CIS"), IS_DILUTED_EPS_IDS, ["희석주당이익(손실)"])
+    parent_ni, diluted_eps = amount(parent_row), amount(eps_row)
+    if not parent_ni or not diluted_eps:
+        fail("희석주당이익 또는 지배기업 소유주지분 순이익을 찾지 못했다. "
+             "주식수를 기억으로 채우지 않는다")
+    # 분기 EPS 이므로 분기 지배주주 순이익으로 나눈다. 같은 기간이라 상쇄된다.
+    shares = float(parent_ni) / float(diluted_eps)
+
+    total = request("stockTotqySttus.json",
+                    {"corp_code": corp, "bsns_year": str(a.year - 1),
+                     "reprt_code": REPORTS["annual"]}, key, allow_empty=True)
+    # isu_stock_totqy 는 **발행할** 주식의 총수(수권주식)다 — 삼성전자는 250억주로
+    # 실제 발행주식과 4배 가까이 다르다. 합계 행을 그대로 쓰면 대조가 무의미하다.
+    # 실제 유통주식은 종류주식별 distb_stock_co 의 합이다.
+    share_cross = None
+    if total:
+        raw["stockTotqySttus"] = total
+        outstanding = 0.0
+        for r in total.get("list", []):
+            if (r.get("se") or "").strip() in ("합계", "비고"):
+                continue
+            value = to_int(r.get("distb_stock_co"))
+            if value:
+                outstanding += float(value)
+        share_cross = outstanding or None
+    if share_cross and abs(shares / share_cross - 1) > 0.05:
+        print(f"⚠ 희석주식수 {shares:,.0f} 와 유통주식수 합 {share_cross:,.0f} 가 "
+              f"{abs(shares/share_cross-1)*100:.1f}% 어긋난다. "
+              "우선주·전환증권 취급을 확인할 것", file=sys.stderr)
+
+    raw_path = save_raw(f"fundamentals_{a.stock_code}", raw)
+
+    values = {
+        "ocf_ttm": ocf_ttm,
+        "capex_ttm": capex_ttm,
+        "fcf_ttm": ocf_ttm - capex_ttm,
+        "shares_diluted": shares,
+        "cash_and_equivalents": cash,
+        "short_term_investments": short_inv,
+        "long_term_debt": debt,
+        "net_debt": debt - cash - short_inv,
+    }
+
+    snapshot = {
+        "schema_version": SCHEMA_VERSION,
+        "instrument_id": a.stock_code,
+        "company_name": name,
+        "corp_code": corp,
+        "currency": "KRW",
+        "period_end": period_end,
+        "created_at": datetime.now(timezone.utc).astimezone().isoformat(
+            timespec="seconds"),
+        "source": "opendart_fnlttSinglAcntAll",
+        "fs_div": a.fs,
+        "definitions": {
+            # 이 두 줄이 없으면 다른 시장 스냅샷과 말없이 다른 것을 비교하게 된다.
+            "capex": "유형자산의 취득만. 무형자산 취득은 intangible_capex_ttm 에 따로 둔다"
+                     " (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
+            "long_term_debt": "총차입 (단기차입금·사채·장기차입금 합). 계정명은 "
+                              "debt_detail 참조. 장기만 세면 순부채가 틀린다",
+            "shares_diluted": "지배기업 소유주지분 순이익 ÷ 희석주당이익",
+            "cash_flow_period": "현금흐름표는 연초 누계로 들어오므로 차감 복원했다 "
+                                "(derived=true 인 분기)",
+            "income_period": "손익계산서 thstrm_amount 는 이미 3개월이다. "
+                             "4분기만 연간 − 3분기누계로 만들었다",
+        },
+        "quarters": {
+            "ocf": [{k: r[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
+                    for r in ocf_rows],
+            "capex": [{k: r[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
+                      for r in capex_rows],
+        },
+        "values": values,
+        "intangible_capex_ttm": (
+            sum(intangible[k]["val"] for k in [(r["fy"], r["quarter"]) for r in ocf_rows]
+                if k in intangible)
+            if all((r["fy"], r["quarter"]) in intangible for r in ocf_rows) else None),
+        "short_term_investments_detail": short_inv_detail,
+        "debt_detail": debt_detail,
+        "expense_lines": expense_lines,
+        "income_statement": income,
+        "share_count_cross_check": share_cross,
+        "raw_locator": str(raw_path.relative_to(ROOT)),
+    }
+    snapshot["fundamentals_id"] = fundamentals_id_for(snapshot)
+
+    try:
+        path = save_validated_fundamentals(a.out_dir, snapshot)
+    except ContractError as exc:
+        for message in exc.errors:
+            print(f"INVALID: {message}", file=sys.stderr)
+        return 1
+
+    unit = 1e8
+    print(f"{name} ({a.stock_code}) — 기준 {period_end} / 단위 억원 / "
+          f"{'연결' if a.fs == 'CFS' else '별도'}")
+    print("=" * 74)
+    print(f"{'영업현금흐름 TTM':<22}{ocf_ttm/unit:>14,.0f}")
+    print(f"{'capex TTM (유형)':<22}{capex_ttm/unit:>14,.0f}")
+    print(f"{'FCF TTM':<22}{values['fcf_ttm']/unit:>14,.0f}   = 영업현금흐름 − capex")
+    if snapshot["intangible_capex_ttm"]:
+        print(f"{'  (무형자산 취득 TTM)':<22}"
+              f"{snapshot['intangible_capex_ttm']/unit:>14,.0f}   ※ capex 에 미포함")
+    print(f"{'희석주식수':<22}{shares/1e6:>14,.1f}M")
+    print(f"{'순부채':<22}{values['net_debt']/unit:>14,.0f}   "
+          f"(차입 {debt/unit:,.0f} − 현금 {cash/unit:,.0f} − 단기투자 {short_inv/unit:,.0f})")
+    print(f"\n[ 현금흐름 분기 복원 — 누계 차감 ]")
+    for o, c in zip(ocf_rows, capex_rows):
+        mark = "차감" if o["derived"] else "직접"
+        print(f"  FY{o['fy']} Q{o['quarter']}  {o['end']}  "
+              f"영업 {o['val']/unit:>9,.0f}  capex {c['val']/unit:>9,.0f}  "
+              f"FCF {(o['val']-c['val'])/unit:>9,.0f}  ({mark})")
+    print(f"\n[ 손익 항등식 — 최근 분기 ]")
+    print(f"  매출총이익 {income['gross_profit']['quarters'][-1]['val']/unit:,.0f}", end="")
+    for e in expense_lines:
+        print(f" − {e['label']} {income[e['key']]['quarters'][-1]['val']/unit:,.0f}",
+              end="")
+    print(f" = 영업이익 {income['operating_income']['quarters'][-1]['val']/unit:,.0f}")
+    print(f"\n[ 차입 내역 ]")
+    for d in debt_detail:
+        print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억")
+    print(f"\nfundamentals_id  {snapshot['fundamentals_id']}")
+    print(f"저장: {path.relative_to(ROOT)}")
+    print(f"원본: {raw_path.relative_to(ROOT)}")
+    return 0
+
+
 def cmd_financials(a, key):
     info = resolve(a.stock_code, key)
     reprt = REPORTS[a.report]
@@ -432,15 +879,27 @@ def main():
     q.add_argument("--years", nargs="+", required=True, help="예: 2024 2025 2026")
     q.add_argument("--fs", choices=["CFS", "OFS"], default="CFS")
 
+    d = sub.add_parser("fundamentals",
+                       help="역산 DCF 입력 스냅샷 (TTM FCF·희석주식수·순부채)")
+    d.add_argument("stock_code")
+    d.add_argument("--year", type=int, required=True,
+                   help="가장 최근 분기가 속한 사업연도. 앞 2년까지 함께 받는다")
+    d.add_argument("--period-end", help="기준 분기말 YYYY-MM-DD (기본: 확보된 최근 분기)")
+    d.add_argument("--fs", choices=["CFS", "OFS"], default="CFS")
+    d.add_argument("--income-quarters", type=int, default=8,
+                   help="손익 시계열 분기 수. 전년 동기 비교에 최소 5개가 필요하다")
+    d.add_argument("--out-dir", default=str(ROOT / "knowledge" / "fundamentals"))
+
     a = p.parse_args()
     key = load_key()
-    {
+    return {
         "resolve": cmd_resolve,
         "filings": cmd_filings,
         "financials": cmd_financials,
         "quarters": cmd_quarters,
+        "fundamentals": cmd_fundamentals,
     }[a.cmd](a, key)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)
