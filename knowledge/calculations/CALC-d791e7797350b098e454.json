@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-d791e7797350b098e454",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "214450",
+  "created_at": "2026-07-28T17:12:41+09:00",
+  "source_ids": [
+    "SRC-214450-FUND-1Q26"
+  ],
+  "inputs": {
+    "price": 375000.0,
+    "shares": 10389659.798209216,
+    "fcf": 149907313807.0,
+    "net_debt": -203935322538.0,
+    "discount_rate_pct": 13.0,
+    "terminal_growth_pct": 2.5,
+    "years": 10,
+    "input_provenance": {
+      "verified": true,
+      "source": "opendart_fnlttSinglAcntAll",
+      "fundamentals_id": "FUND-10b61939f61fc04135c9",
+      "period_end": "2026-03-31",
+      "fundamentals_sha256": "124b397252af90c82ece91c4881465a5276750c1f92dae1904e8778ceb3457c2"
+    },
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -6.42,
+      "base": 10.0,
+      "bull": 16.22
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -6.42,
+        "value_per_share": 99977.09348521072,
+        "total_return_pct": -73.33944173727714,
+        "return_pct": -48.36613682599097
+      },
+      "base": {
+        "growth_pct": 10.0,
+        "value_per_share": 252059.0912343273,
+        "total_return_pct": -32.78424233751272,
+        "return_pct": -18.014783245705036
+      },
+      "bull": {
+        "growth_pct": 16.22,
+        "value_per_share": 375118.37712302007,
+        "total_return_pct": 0.031567232805351786,
+        "return_pct": 0.015782370986516803
+      }
+    },
+    "implied_growth_pct": 16.215144208139797,
+    "implied_growth_status": "SOLVED"
+  }
+}

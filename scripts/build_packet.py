@@ -214,6 +214,27 @@ def event_packet(asset_id: str, symbol: str | None, days: int) -> dict:
         gaps = list(data.get("_gaps", []))
         if age_h > 24:
             gaps.append(f"사건 수집이 {age_h:.0f}시간 전이다 — collect_events.py 재실행")
+
+        # 뉴스 헤드라인이 있으면 급변일에 붙인다. 공시로 설명되지 않는 날에
+        # 모델이 매번 웹 조사로 넘어가던 자리다. **전부 EXPLORATORY 다.**
+        news = _news_by_date(asset_id)
+        moves = []
+        for move in data.get("moves", []):
+            entry = dict(move)
+            headlines = news.get(move["date"])
+            if headlines is not None:
+                entry["candidate_headlines"] = headlines
+            moves.append(entry)
+        unexplained = [m["date"] for m in moves if not m.get("candidate_filings")]
+        if unexplained and not news:
+            gaps.append(
+                f"공시로 설명되지 않는 급변 {len(unexplained)}건에 뉴스가 없다 — "
+                f"news_fetch.py {asset_id} --query <회사명>")
+        no_material = [d for d in unexplained
+                       if d in news and not news[d]]
+        if no_material:
+            gaps.append(f"공시도 뉴스도 없는 급변 {len(no_material)}건 "
+                        f"({', '.join(no_material[:5])}) — 수급·동종사·지수 쪽을 본다")
         return {
             "source": "collect_events.py",
             "collected_at": data.get("collected_at"),
@@ -223,16 +244,38 @@ def event_packet(asset_id: str, symbol: str | None, days: int) -> dict:
             "market_decomposition": data.get("market_decomposition"),
             "benchmark": data.get("benchmark"),
             "latest": data.get("latest"),
-            # 급변일마다 후보 공시가 붙어 있다. 인과는 모델이 고른다.
-            "moves": data.get("moves"),
-            "unexplained_moves": [m["date"] for m in data.get("moves", [])
-                                  if not m.get("candidate_filings")],
-            "moved_with_market": [m["date"] for m in data.get("moves", [])
+            # 급변일마다 후보 공시·헤드라인이 붙어 있다. 인과는 모델이 고른다.
+            "moves": moves,
+            "unexplained_moves": unexplained,
+            "moved_with_market": [m["date"] for m in moves
                                   if m.get("moved_with_market")],
             "_note": data.get("_note"),
+            "_headline_note": ("candidate_headlines 는 EXPLORATORY 다. 시간적으로 "
+                               "가까운 기사일 뿐 원인이 아니며, 공시·재무 원문으로 "
+                               "확인하기 전에는 FACT 로 승격하지 않는다"),
             "_gaps": gaps,
         }
     return _event_from_prices(asset_id, symbol, days)
+
+
+def _news_by_date(asset_id: str) -> dict[str, list[dict]]:
+    """news_fetch.py 산출물을 급변일 → 헤드라인으로 뒤집는다.
+
+    제목·언론사·날짜만 남긴다. 링크와 본문은 패킷을 부풀리기만 하고,
+    필요하면 원본 파일을 열면 된다.
+    """
+    path = ROOT / "knowledge" / "news" / f"{asset_id}.json"
+    if not path.exists():
+        return {}
+    data = load_json(path)
+    out: dict[str, list[dict]] = {}
+    for event in data.get("events", []):
+        out[event["date"]] = [
+            {"date": h.get("date"), "source": h.get("source"),
+             "title": h.get("title"), "grade": "EXPLORATORY"}
+            for h in event.get("headlines", [])
+        ]
+    return out
 
 
 def _event_from_prices(asset_id: str, symbol: str | None, days: int) -> dict:
@@ -454,6 +497,92 @@ def market_regime_packet(market: str) -> dict:
     }
 
 
+def _etf_constituents(etf_id: str) -> tuple[list[dict], str | None]:
+    """knowledge/etfs/{ETF}/holdings-*.csv 중 가장 최근 것.
+
+    파일명의 날짜로 고른다. 디렉터리에 여러 시점이 쌓이는 구조이므로
+    수정시각이 아니라 **데이터 기준일**로 골라야 한다.
+    """
+    etf_dir = ROOT / "knowledge" / "etfs" / etf_id
+    if not etf_dir.is_dir():
+        return [], None
+    files = sorted(etf_dir.glob("holdings-*.csv"))
+    if not files:
+        return [], None
+    latest = files[-1]
+    with latest.open(encoding="utf-8-sig") as f:
+        lines = [ln for ln in f if not ln.lstrip().startswith("#")]
+    rows = [r for r in csv.DictReader(lines) if r.get("holding_id")]
+    return rows, latest.name.removeprefix("holdings-").removesuffix(".csv")
+
+
+def _lookthrough(holdings: list[dict]) -> dict:
+    """ETF 를 관통해 섹터와 단일종목 노출을 다시 센다.
+
+    **커버리지를 100% 로 정규화하지 않는다.** SCHD 구성종목 파일은 상위 20종목
+    (69.72%)뿐이다. 남은 30% 를 아는 종목들 비율대로 나눠 담으면 섹터 비중이
+    실제보다 정확해 보이는 거짓 정밀도가 생긴다. 못 본 부분은 못 본 채로
+    '미분류(ETF 미커버)' 에 남긴다 — 하한이라는 사실이 표에 보여야 한다.
+    """
+    sector: dict[str, float] = {}
+    names: dict[str, dict] = {}
+    coverage: list[dict] = []
+    gaps: list[str] = []
+
+    for h in holdings:
+        if h.get("risk_class") == "CASH":
+            continue
+        value = float(h["value_krw"])
+        if h.get("asset_type") != "ETF":
+            key = h.get("sector") or "미분류"
+            sector[key] = sector.get(key, 0.0) + value
+            entry = names.setdefault(
+                h["asset_id"], {"name": h["name"], "value_krw": 0.0, "via": []})
+            entry["value_krw"] += value
+            entry["via"].append("직접")
+            continue
+
+        rows, as_of = _etf_constituents(h["asset_id"])
+        if not rows:
+            sector["미분류"] = sector.get("미분류", 0.0) + value
+            gaps.append(f"{h['asset_id']} 구성종목 파일이 없다 — "
+                        f"knowledge/etfs/{h['asset_id']}/holdings-*.csv")
+            continue
+
+        covered = 0.0
+        for row in rows:
+            try:
+                weight = float(row["weight_pct"]) / 100.0
+            except (TypeError, ValueError):
+                continue
+            covered += weight
+            part = value * weight
+            key = (row.get("sector") or "").strip() or "미분류"
+            sector[key] = sector.get(key, 0.0) + part
+            entry = names.setdefault(
+                row["holding_id"],
+                {"name": row.get("holding_name") or row["holding_id"],
+                 "value_krw": 0.0, "via": []})
+            entry["value_krw"] += part
+            entry["via"].append(h["asset_id"])
+
+        remainder = value * max(0.0, 1.0 - covered)
+        if remainder > 0:
+            sector["미분류(ETF 미커버)"] = sector.get("미분류(ETF 미커버)", 0.0) + remainder
+        coverage.append({
+            "etf_id": h["asset_id"], "as_of": as_of,
+            "constituents": len(rows),
+            "covered_pct": round(covered * 100, 2),
+            "value_krw": value,
+            "uncovered_krw": round(remainder, 0),
+        })
+        if covered < 0.95:
+            gaps.append(f"{h['asset_id']} 구성종목 커버리지 {covered*100:.1f}% — "
+                        f"나머지 {remainder:,.0f}원은 섹터를 모른다")
+
+    return {"sector": sector, "names": names, "coverage": coverage, "_gaps": gaps}
+
+
 def portfolio_packet(asset_id: str) -> dict:
     """포트폴리오 패킷 — 보유 비중과 신규 매수 여력."""
     path = ROOT / "knowledge" / "portfolio" / "holdings.csv"
@@ -480,6 +609,51 @@ def portfolio_packet(asset_id: str) -> dict:
             by_sector.get(h.get("sector") or "미분류", 0.0) + float(h["value_krw"]))
 
     held = next((h for h in holdings if h["asset_id"] == asset_id), None)
+    look = _lookthrough(holdings)
+
+    # 관통 비중을 승인 IPS 한도와 대조한다. 이 대조가 없으면 "헬스케어 36.7%"
+    # 는 그냥 숫자이고, 그것이 한도 위반인지는 모델이 IPS 를 따로 열어야 안다.
+    # 관통 전 표면 비중(30.6%)은 한도 안이었으므로, 이 검사는 통과하던 것을
+    # 위반으로 뒤집는다 — 룩스루를 붙인 이유가 정확히 이것이다.
+    breaches = []
+    ips_path = ROOT / "knowledge" / "portfolio" / "ips.json"
+    sector_limit = None
+    if ips_path.exists():
+        limits = load_json(ips_path).get("portfolio_limits") or {}
+        sector_limit = limits.get("sector_total_assets_pct")
+    if isinstance(sector_limit, (int, float)) and total:
+        for name, value in look["sector"].items():
+            pct = value / total * 100
+            if name.startswith("미분류"):
+                continue
+            if pct > sector_limit:
+                breaches.append({
+                    "sector": name, "pct": round(pct, 2),
+                    "limit_pct": sector_limit,
+                    "surface_pct": round(by_sector.get(name, 0.0) / total * 100, 2),
+                })
+    # 한도 초과를 그냥 던지면 "줄여야 한다"로 읽힌다. 그건 위험 관리 도구를
+    # 수익 판단 자리에 놓는 것이다 (2026-07-28 에 실제로 그렇게 틀렸다).
+    # 섹터 한도는 **분산** 장치인데, 섹터 라벨이 실제로 같이 움직이는지는
+    # 라벨이 아니라 상관이 말한다. 그리고 "그 섹터에 돈을 둘 가치가 있나"는
+    # 상대강도가 말한다. 두 맥락을 초과 메시지에 붙여 함께 읽히게 한다.
+    strength = {}
+    sp = ROOT / "knowledge" / "market" / "sector-strength.json"
+    if sp.exists():
+        for e in load_json(sp).get("sectors", []):
+            w = e.get("windows", {}).get("12개월", {})
+            strength[e.get("sector")] = w.get("excess_pct")
+    for b in breaches:
+        hint = strength.get(b["sector"])
+        tail = ""
+        if hint is not None:
+            tail = (f" 참고: {b['sector']} 는 12개월 시장 대비 {hint:+.1f}%p "
+                    "(sector-strength.json). 한도는 분산 장치이지 "
+                    "'약한 섹터'라는 뜻이 아니다")
+        look["_gaps"].insert(0, (
+            f"관통 기준 {b['sector']} {b['pct']}% 가 IPS 한도 {b['limit_pct']}% 를 "
+            f"넘는다 (표면 비중은 {b['surface_pct']}% 로 한도 안이었다).{tail}"))
+
     return {
         "as_of": meta.get("as_of"),
         "total_assets_krw": total,
@@ -494,8 +668,29 @@ def portfolio_packet(asset_id: str) -> dict:
         ],
         "sector_pct": {k: round(v / total * 100, 2) for k, v in sorted(
             by_sector.items(), key=lambda kv: -kv[1])},
+        "sector_pct_note": "ETF 를 관통하지 않은 표면 비중. 아래 lookthrough 를 쓴다",
+        # ETF 관통 — SCHD 42.1M·MSTY 5.4M 이 '미분류' 로 앉아 있으면 섹터 집중을
+        # 볼 수 없다. MSTY 는 MSTR 단일 노출이라 특히 표면 비중이 거짓말을 한다.
+        "lookthrough": {
+            "sector_pct": {k: round(v / total * 100, 2) for k, v in sorted(
+                look["sector"].items(), key=lambda kv: -kv[1])},
+            "top_names_pct": {
+                k: round(v["value_krw"] / total * 100, 2)
+                for k, v in sorted(look["names"].items(),
+                                   key=lambda kv: -kv[1]["value_krw"])[:12]},
+            "name_detail": {
+                k: {"name": v["name"], "value_krw": round(v["value_krw"], 0),
+                    "via": sorted(set(v["via"]))}
+                for k, v in sorted(look["names"].items(),
+                                   key=lambda kv: -kv[1]["value_krw"])[:12]},
+            "etf_coverage": look["coverage"],
+            "limit_breaches": breaches,
+            "_note": "커버리지 미달분은 정규화하지 않고 '미분류(ETF 미커버)' 로 "
+                     "남긴다. 섹터 비중은 여전히 하한이지만, 얼마나 하한인지가 "
+                     "etf_coverage 에 숫자로 있다",
+        },
         "this_asset_held": bool(held),
-        "_gaps": ["ETF 룩스루 미반영 — 섹터 비중은 하한이다"],
+        "_gaps": look["_gaps"],
     }
 
 

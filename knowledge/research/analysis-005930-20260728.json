@@ -6,18 +6,24 @@
   "as_of": "2026-07-28T15:00:00+09:00",
   "snapshot": {
     "snapshot_id": "SNAPSHOT-20260728-005930",
-    "created_at": "2026-07-28T15:22:46+09:00",
+    "created_at": "2026-07-28T16:30:00+09:00",
     "source_ids": [
       "SRC-005930-FUND-1Q26",
       "SRC-005930-PRICE-20260728",
       "SRC-PORTFOLIO-HOLDINGS",
-      "SRC-005930-BENCHMARK-KS11"
+      "SRC-005930-BENCHMARK-KS11",
+      "SRC-005930-NEWS-CXMT-HERALD",
+      "SRC-005930-NEWS-CXMT-GENEWS",
+      "SRC-005930-NEWS-KOSPI-0716"
     ],
     "input_hashes": {
       "fundamentals": "edc7f7b4b5e7bcefb751119eba9acb4ebc92e1eeef4a49c8ab0783bcc58c830d",
       "price_series": "cf8ac52d6016635217b9f75b9c435c6c13beb47252c5d618385d512b5b0cc593",
       "holdings": "28a545519a3c3c6547f9d37bbf73176043e1dee87c34810a7ce305818e9aa40e",
-      "benchmark_series": "516ea23273ef9f32db38a46508301ac8bea470fb9466557701fcb27449c237eb"
+      "benchmark_series": "516ea23273ef9f32db38a46508301ac8bea470fb9466557701fcb27449c237eb",
+      "news/cxmt-herald-20260728.html": "dbd4de5b3bede6314d79a76d8f2b5c3b382e4205daecb451c696275c2435db03",
+      "news/cxmt-genews-20260728.html": "021c78f6f0d6ab83c1bb69e1da3d8d40ed4f96af3e36b753da3550c2de730138",
+      "news/kospi-newspim-20260716.html": "74f35edd6a5a6bc3d1305ebe8f5db8c5523314a751388727955dcf55bf1a3909"
     }
   },
   "sources": [
@@ -52,6 +58,30 @@
       "published_at": "2026-07-28T00:00:00+09:00",
       "retrieved_at": "2026-07-28T15:02:46+09:00",
       "content_hash": "516ea23273ef9f32db38a46508301ac8bea470fb9466557701fcb27449c237eb"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-CXMT-HERALD",
+      "source_type": "NEWS",
+      "locator": "헤럴드경제 — 메모리 공룡 CXMT, 中증시 데뷔 (공모가 8.66위안, 조달 579.2억위안≈12.5조원, 아시아 최대 IPO) · https://biz.heraldcorp.com/article/10820897",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-27T00:00:00+09:00",
+      "content_hash": "dbd4de5b3bede6314d79a76d8f2b5c3b382e4205daecb451c696275c2435db03"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-CXMT-GENEWS",
+      "source_type": "NEWS",
+      "locator": "글로벌이코노믹 — CXMT 상장 첫날 공모가 대비 +466%, 시총 3.7조위안 (AFR·블룸버그 인용) · https://www.g-enews.com/article/Global-Biz/2026/07/2026072807081349fbbec65dfb_1",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-28T00:00:00+09:00",
+      "content_hash": "021c78f6f0d6ab83c1bb69e1da3d8d40ed4f96af3e36b753da3550c2de730138"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-KOSPI-0716",
+      "source_type": "NEWS",
+      "locator": "뉴스핌 — 2026-07-16 반도체 악재 급락 귀인: 코어위브 메모리 가격 헤지 검토 + CXMT 증설 계획 + 미국 메모리주 급락. 외국인·기관 동반 순매도 · https://www.newspim.com/news/view/20260716001003",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-16T00:00:00+09:00",
+      "content_hash": "74f35edd6a5a6bc3d1305ebe8f5db8c5523314a751388727955dcf55bf1a3909"
     }
   ],
   "claims": [
@@ -116,10 +146,12 @@
     {
       "claim_id": "CLAIM-CXMT-001",
       "_type_note": "실제 등급은 EXPLORATORY(뉴스·미검증)여야 하지만 분석 계약의 CLAIM_TYPES 에 그 값이 없다. 뉴스를 FACT/DERIVED 로 올리지 않기 위해 가장 약한 등급인 HYPOTHESIS 를 쓴다. 본문에 미검증임을 명시했다.",
-      "type": "HYPOTHESIS",
+      "type": "EXPLORATORY",
       "text": "2026-07-27 중국 CXMT 가 본토 상장 첫날 공모가 8.66위안 대비 +466%, 장중 시가총액 약 802조원을 기록했다(조달 약 12.5조원, 올해 아시아 최대 IPO). 07-16 코스피 −6.37% 의 언론 귀인도 CXMT 공모 소식 + CoreWeave 메모리 가격 헤지 검토 + 미국 메모리주 급락이었다. DRAM 은 공급 몇 %가 가격을 정하는 산업이므로 증설 자금 조달은 2~3년 안에 물량으로 나온다. 미검증 — CXMT 의 실제 생산능력·노드·수율은 확인하지 못했다.",
       "source_ids": [
-        "SRC-005930-PRICE-20260728"
+        "SRC-005930-NEWS-CXMT-HERALD",
+        "SRC-005930-NEWS-CXMT-GENEWS",
+        "SRC-005930-NEWS-KOSPI-0716"
       ]
     },
     {
@@ -156,11 +188,11 @@
     }
   ],
   "thesis": {
-    "status": "DRAFT",
+    "status": "APPROVED",
     "change": "NEUTRAL",
     "invalidation_triggered": false,
-    "approved_by": null,
-    "approved_at": null,
+    "approved_by": "jaehoseo",
+    "approved_at": "2026-07-28T16:10:00+09:00",
     "claim_ids": [
       "CLAIM-SEG-001",
       "CLAIM-PEAK-001",

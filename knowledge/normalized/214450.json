@@ -1,0 +1,182 @@
+{
+  "schema_version": "normalized-earnings/1.0.0",
+  "instrument_id": "214450",
+  "name": "파마리서치",
+  "fs": "CFS",
+  "created_at": "2026-07-28T17:12:18+09:00",
+  "source": "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)",
+  "grade": "DERIVED",
+  "_not_a_valuation_input": "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. DCF 에 쓰려면 사용자가 명시적으로 고르고 그 선택이 분석에 남아야 한다",
+  "ttm_series": [
+    {
+      "period_end": "2021-12-31",
+      "ocf_ttm": 65297140554.0,
+      "capex_ttm": 20644934216.0,
+      "fcf_ttm": 44652206338.0,
+      "revenue_ttm": 154082897894.0,
+      "fcf_margin_pct": 28.98
+    },
+    {
+      "period_end": "2022-03-31",
+      "ocf_ttm": 62867536531.0,
+      "capex_ttm": 22786055214.0,
+      "fcf_ttm": 40081481317.0,
+      "revenue_ttm": 164813475259.0,
+      "fcf_margin_pct": 24.32
+    },
+    {
+      "period_end": "2022-06-30",
+      "ocf_ttm": 65573013203.0,
+      "capex_ttm": 21994796859.0,
+      "fcf_ttm": 43578216344.0,
+      "revenue_ttm": 175719394946.0,
+      "fcf_margin_pct": 24.8
+    },
+    {
+      "period_end": "2022-09-30",
+      "ocf_ttm": 65743518394.0,
+      "capex_ttm": 20765267446.0,
+      "fcf_ttm": 44978250948.0,
+      "revenue_ttm": 183191482074.0,
+      "fcf_margin_pct": 24.55
+    },
+    {
+      "period_end": "2022-12-31",
+      "ocf_ttm": 59403807966.0,
+      "capex_ttm": 17213456322.0,
+      "fcf_ttm": 42190351644.0,
+      "revenue_ttm": 194758643934.0,
+      "fcf_margin_pct": 21.66
+    },
+    {
+      "period_end": "2023-03-31",
+      "ocf_ttm": 61733772500.0,
+      "capex_ttm": 14804711941.0,
+      "fcf_ttm": 46929060559.0,
+      "revenue_ttm": 204932469073.0,
+      "fcf_margin_pct": 22.9
+    },
+    {
+      "period_end": "2023-06-30",
+      "ocf_ttm": 57279628657.0,
+      "capex_ttm": 12789769848.0,
+      "fcf_ttm": 44489858809.0,
+      "revenue_ttm": 222030295896.0,
+      "fcf_margin_pct": 20.04
+    },
+    {
+      "period_end": "2023-09-30",
+      "ocf_ttm": 53239367604.0,
+      "capex_ttm": 10773516092.0,
+      "fcf_ttm": 42465851512.0,
+      "revenue_ttm": 244661129909.0,
+      "fcf_margin_pct": 17.36
+    },
+    {
+      "period_end": "2023-12-31",
+      "ocf_ttm": 64945249419.0,
+      "capex_ttm": 12062682282.0,
+      "fcf_ttm": 52882567137.0,
+      "revenue_ttm": 261010910564.0,
+      "fcf_margin_pct": 20.26
+    },
+    {
+      "period_end": "2024-03-31",
+      "ocf_ttm": 85849418032.0,
+      "capex_ttm": 13890367767.0,
+      "fcf_ttm": 71959050265.0,
+      "revenue_ttm": 280285086115.0,
+      "fcf_margin_pct": 25.67
+    },
+    {
+      "period_end": "2024-06-30",
+      "ocf_ttm": 104278856402.0,
+      "capex_ttm": 25082116950.0,
+      "fcf_ttm": 79196739452.0,
+      "revenue_ttm": 296593533037.0,
+      "fcf_margin_pct": 26.7
+    },
+    {
+      "period_end": "2024-09-30",
+      "ocf_ttm": 122269403779.0,
+      "capex_ttm": 26987345203.0,
+      "fcf_ttm": 95282058576.0,
+      "revenue_ttm": 316996822804.0,
+      "fcf_margin_pct": 30.06
+    },
+    {
+      "period_end": "2024-12-31",
+      "ocf_ttm": 138121879153.0,
+      "capex_ttm": 36414698107.0,
+      "fcf_ttm": 101707181046.0,
+      "revenue_ttm": 350115068641.0,
+      "fcf_margin_pct": 29.05
+    },
+    {
+      "period_end": "2025-03-31",
+      "ocf_ttm": 138913654024.0,
+      "capex_ttm": 41110413177.0,
+      "fcf_ttm": 97803240847.0,
+      "revenue_ttm": 392308502806.0,
+      "fcf_margin_pct": 24.93
+    },
+    {
+      "period_end": "2025-06-30",
+      "ocf_ttm": 147766565193.0,
+      "capex_ttm": 34549773296.0,
+      "fcf_ttm": 113216791897.0,
+      "revenue_ttm": 449809368652.0,
+      "fcf_margin_pct": 25.17
+    },
+    {
+      "period_end": "2025-09-30",
+      "ocf_ttm": 161094354637.0,
+      "capex_ttm": 35297081077.0,
+      "fcf_ttm": 125797273560.0,
+      "revenue_ttm": 496026988308.0,
+      "fcf_margin_pct": 25.36
+    },
+    {
+      "period_end": "2025-12-31",
+      "ocf_ttm": 183162279104.0,
+      "capex_ttm": 29727158506.0,
+      "fcf_ttm": 153435120598.0,
+      "revenue_ttm": 536289118812.0,
+      "fcf_margin_pct": 28.61
+    },
+    {
+      "period_end": "2026-03-31",
+      "ocf_ttm": 178904304944.0,
+      "capex_ttm": 28996991137.0,
+      "fcf_ttm": 149907313807.0,
+      "revenue_ttm": 565479409013.0,
+      "fcf_margin_pct": 26.51
+    }
+  ],
+  "normalization": {
+    "window": {
+      "from": "2021-12-31",
+      "to": "2026-03-31",
+      "ttm_points": 18
+    },
+    "current_fcf_ttm": 149907313807.0,
+    "peak": {
+      "period_end": "2025-12-31",
+      "fcf_ttm": 153435120598.0
+    },
+    "trough": {
+      "period_end": "2022-03-31",
+      "fcf_ttm": 40081481317.0
+    },
+    "amplitude_ratio": 3.83,
+    "amplitude_note": "최고 TTM ÷ 최저 TTM",
+    "bases": {
+      "mean_ttm": 77252923036.44444,
+      "median_ttm": 62420808701.0,
+      "mean_margin_on_current_revenue": 140405395705.6556
+    },
+    "mean_fcf_margin_pct": 24.83,
+    "current_vs_mean_x": 1.94
+  },
+  "normalized_id": "NORM-ff67e3c316d3e65e1177"
+}

@@ -1,0 +1,462 @@
+{
+  "schema_version": "1.1.0",
+  "instrument_id": "IBM",
+  "company_name": "INTERNATIONAL BUSINESS MACHINES CORP",
+  "cik": "0000051143",
+  "currency": "USD",
+  "period_end": "2026-06-30",
+  "created_at": "2026-07-28T16:36:56+09:00",
+  "tags": {
+    "ocf": "NetCashProvidedByUsedInOperatingActivities",
+    "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
+    "shares": "WeightedAverageNumberOfDilutedSharesOutstanding",
+    "cash": "CashAndCashEquivalentsAtCarryingValue",
+    "short_term_investments": "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+    "long_term_debt": "LongTermDebtNoncurrent"
+  },
+  "as_of": {
+    "cash": "2026-06-30",
+    "short_term_investments": "2021-03-31",
+    "long_term_debt": "2026-06-30",
+    "shares": "2026-06-30"
+  },
+  "quarters": {
+    "ocf": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": "2025-10-23",
+        "val": 3082000000,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": "2026-02-24",
+        "val": 4040000000,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": "2026-04-23",
+        "val": 5169000000,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": "2026-07-23",
+        "val": 2597000000,
+        "derived": true
+      }
+    ],
+    "capex": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": "2025-10-23",
+        "val": 255000000,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": "2026-02-24",
+        "val": 382000000,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": "2026-04-23",
+        "val": 232000000,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": "2026-07-23",
+        "val": 229000000,
+        "derived": true
+      }
+    ]
+  },
+  "values": {
+    "ocf_ttm": 14888000000.0,
+    "capex_ttm": 1098000000.0,
+    "fcf_ttm": 13790000000.0,
+    "shares_diluted": 953263534.0,
+    "cash_and_equivalents": 7172000000.0,
+    "short_term_investments": 600000000.0,
+    "long_term_debt": 56212000000.0,
+    "net_debt": 48440000000.0
+  },
+  "income_statement": {
+    "revenue": {
+      "tag": "Revenues",
+      "ttm": 69095000000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-10-30",
+          "val": 14968000000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-25",
+          "val": 17554000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-04-24",
+          "val": 14541000000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-07-24",
+          "val": 16978000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-10-23",
+          "val": 16330000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-24",
+          "val": 19686000000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-04-23",
+          "val": 15917000000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-07-23",
+          "val": 17162000000,
+          "derived": true
+        }
+      ]
+    },
+    "gross_profit": {
+      "tag": "GrossProfit",
+      "ttm": 40146000000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-10-30",
+          "val": 8420000000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-25",
+          "val": 10439000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-04-24",
+          "val": 8031000000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-07-24",
+          "val": 9977000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-10-23",
+          "val": 9361000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-24",
+          "val": 11928000000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-04-23",
+          "val": 8950000000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-07-23",
+          "val": 9907000000,
+          "derived": true
+        }
+      ]
+    },
+    "rnd": {
+      "tag": "ResearchAndDevelopmentExpense",
+      "ttm": 8754000000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-10-30",
+          "val": 1875000000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-25",
+          "val": 1967000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-04-24",
+          "val": 1950000000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-07-24",
+          "val": 2097000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-10-23",
+          "val": 2082000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-24",
+          "val": 2187000000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-04-23",
+          "val": 2173000000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-07-23",
+          "val": 2312000000,
+          "derived": true
+        }
+      ]
+    },
+    "sgna": {
+      "tag": "SellingGeneralAndAdministrativeExpense",
+      "ttm": 20281000000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-10-30",
+          "val": 4911000000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-25",
+          "val": 4865000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-04-24",
+          "val": 4886000000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-07-24",
+          "val": 5027000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-10-23",
+          "val": 4748000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-24",
+          "val": 5462000000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-04-23",
+          "val": 5089000000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-07-23",
+          "val": 4982000000,
+          "derived": true
+        }
+      ]
+    },
+    "operating_income": {
+      "tag": null,
+      "ttm": null,
+      "quarters": []
+    },
+    "net_income": {
+      "tag": "NetIncomeLoss",
+      "ttm": 10725000000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-10-30",
+          "val": -330000000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-25",
+          "val": 2914000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-04-24",
+          "val": 1055000000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-07-24",
+          "val": 2194000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-10-23",
+          "val": 1744000000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-24",
+          "val": 5600000000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-04-23",
+          "val": 1216000000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-07-23",
+          "val": 2165000000,
+          "derived": true
+        }
+      ]
+    }
+  },
+  "raw_locator": "data/raw/edgar/2026-07-28/fundamentals_IBM_073655.json",
+  "fundamentals_id": "FUND-1aacc280037168b23118"
+}

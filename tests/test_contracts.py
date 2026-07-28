@@ -284,6 +284,37 @@ class TestAnalysisContract(unittest.TestCase):
         errors = validate_analysis(data)
         self.assertTrue(any("scenarios.bear.claim_ids" in error for error in errors))
 
+    def test_exploratory_is_a_valid_claim_grade(self):
+        """뉴스를 넣으려고 등급을 세탁해야 했던 구멍. company-research 는
+        처음부터 EXPLORATORY 를 요구했는데 계약에 그 값이 없었다."""
+        data = valid_analysis()
+        data["claims"].append({
+            "claim_id": "CLAIM-NEWS", "type": "EXPLORATORY",
+            "text": "언론이 보도했고 원문으로 확인하지 못했다",
+            "source_ids": data["claims"][0]["source_ids"],
+        })
+        data["thesis"]["claim_ids"].append("CLAIM-NEWS")
+        self.assertEqual(validate_analysis(data), [])
+
+    def test_thesis_built_only_on_unverified_claims_fails(self):
+        """EXPLORATORY 를 열어 준 대가로 막아야 하는 구멍 — 뉴스만으로
+        세운 논지는 매매 근거가 아니다."""
+        data = valid_analysis()
+        data["claims"][0]["type"] = "EXPLORATORY"
+        errors = validate_analysis(data)
+        self.assertTrue(any("thesis.claim_ids" in e and "미검증 등급" in e
+                            for e in errors), errors)
+
+    def test_counter_thesis_may_mix_grades_if_one_is_verified(self):
+        data = valid_analysis()
+        data["claims"].append({
+            "claim_id": "CLAIM-RUMOR", "type": "EXPLORATORY",
+            "text": "확인 못 한 반대 근거",
+            "source_ids": data["claims"][0]["source_ids"],
+        })
+        data["counter_thesis"]["claim_ids"].append("CLAIM-RUMOR")
+        self.assertEqual(validate_analysis(data), [])
+
     def test_probabilities_must_sum_to_one(self):
         data = valid_analysis()
         data["expected_return"]["scenarios"]["bull"]["probability"] = 0.4

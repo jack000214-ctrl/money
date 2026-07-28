@@ -137,13 +137,26 @@ def resolve(ticker, ua, refresh=False):
 
 
 def concept(cik, tags, ua, unit="USD"):
-    """태그 후보를 순서대로 시도한다. 회사마다 쓰는 태그가 다르다."""
+    """태그 후보 중 **가장 최근 사실을 가진** 태그를 고른다. 회사마다 태그가 다르다.
+
+    앞선 판은 목록 순서대로 첫 번째로 데이터가 있는 태그를 썼다. 그런데 US-GAAP
+    태그는 폐기되고 교체된다 — IBM 은 `LongTermDebt` 를 2019-09-30 까지만 쓰고
+    이후 `LongTermDebtNoncurrent` 로 옮겼다. 순서대로 고르면 **2019년 차입금으로
+    2026년 순부채를 계산한다.** 그게 그대로 주당가치를 흔든다.
+
+    데이터가 있는지가 아니라 **언제까지 있는지**로 골라야 한다.
+    """
+    best_tag, best_points, best_end = None, [], ""
     for tag in tags:
         data = get(CONCEPT.format(cik=cik, tag=tag), ua, tolerate_404=True)
-        if data and data.get("units", {}).get(unit):
-            return tag, data["units"][unit]
         time.sleep(0.12)  # SEC 권장 10 req/s 이하
-    return None, []
+        points = (data or {}).get("units", {}).get(unit)
+        if not points:
+            continue
+        latest = max((p.get("end") or "") for p in points)
+        if latest > best_end:
+            best_tag, best_points, best_end = tag, points, latest
+    return best_tag, best_points
 
 
 def as_of_filter(points, as_of):
@@ -430,7 +443,18 @@ def cmd_fundamentals(a, ua):
     capex_tag, capex_ttm, capex_q = flow("capex", CAPEX_TAGS)
 
     # 손익계산서 분기값. 화면과 분석이 같은 원문을 보게 하려고 함께 담는다.
+    #
+    # **필수와 표시용을 구분한다.** DCF 입력은 영업현금흐름·capex·주식수·순부채이고
+    # 손익 항목은 어느 것도 거기 들어가지 않는다. 그런데 앞선 판은 여섯 항목을
+    # 전부 필수로 걸어서, IBM 처럼 `OperatingIncomeLoss` 를 아예 태깅하지 않는
+    # 회사에서 **검증된 밸류에이션 입력 전체가 막혔다.** 표시용 칸 하나가 없다고
+    # 원문에서 온 현금흐름을 버릴 이유는 없다.
+    #
+    # 못 찾은 항목은 지어내지 않는다 (매출총이익 − 판관비 같은 근사도 하지 않는다).
+    # `null` 로 두고 이유를 적어 UNKNOWN 임을 남긴다.
+    REQUIRED_INCOME = {"revenue", "net_income"}
     income_series = {}
+    income_missing = {}
     for key, tags in (("revenue", REVENUE_TAGS), ("gross_profit", ["GrossProfit"]),
                       ("rnd", ["ResearchAndDevelopmentExpense"]),
                       ("sgna", ["SellingGeneralAndAdministrativeExpense"]),
@@ -439,18 +463,37 @@ def cmd_fundamentals(a, ua):
         tag, pts = concept(cik, tags, ua)
         pts = as_of_filter(pts, a.as_of)
         raw[f"손익_{key}"] = {"tag": tag, "units": pts}
+
+        reason = None
+        total = None
+        recent: list = []
         if not pts:
-            fail(f"손익 {key}: 태그를 찾지 못했다")
-        total, _ = trailing_four_quarters(pts)
-        if total is None:
-            fail(f"손익 {key}: 연속 4분기를 확보하지 못했다")
-        # 전년 동기 비교에는 8분기가 필요하다. TTM 창(4분기)만 담으면
-        # rows[0] 이 1년 전이 아니라 3분기 전이라 YoY 가 조용히 틀린다.
-        recent = fiscal_quarters(pts)[-INCOME_QUARTERS:]
-        if len(recent) < INCOME_QUARTERS:
-            fail(f"손익 {key}: 전년 동기 비교에 필요한 "
-                 f"{INCOME_QUARTERS}분기를 확보하지 못했다 ({len(recent)}개)")
+            reason = f"태그를 찾지 못했다 (시도: {', '.join(tags)})"
+        else:
+            total, _ = trailing_four_quarters(pts)
+            if total is None:
+                reason = "연속 4분기를 확보하지 못했다"
+            else:
+                # 전년 동기 비교에는 8분기가 필요하다. TTM 창(4분기)만 담으면
+                # rows[0] 이 1년 전이 아니라 3분기 전이라 YoY 가 조용히 틀린다.
+                recent = fiscal_quarters(pts)[-INCOME_QUARTERS:]
+                if len(recent) < INCOME_QUARTERS:
+                    reason = (f"전년 동기 비교에 필요한 {INCOME_QUARTERS}분기를 "
+                              f"확보하지 못했다 ({len(recent)}개)")
+
+        if reason:
+            if key in REQUIRED_INCOME:
+                fail(f"손익 {key}: {reason}")
+            income_missing[key] = reason
+            income_series[key] = {"tag": tag, "ttm": None, "quarters": [],
+                                  "unknown_reason": reason}
+            continue
         income_series[key] = {"tag": tag, "ttm": float(total), "quarters": recent}
+
+    if income_missing:
+        for key, reason in income_missing.items():
+            print(f"※ 손익 {key}: {reason} → UNKNOWN 으로 남긴다 "
+                  "(DCF 입력에는 쓰이지 않는 표시용 항목이다)", file=sys.stderr)
 
     if [(q["fy"], q["quarter"]) for q in ocf_q] != [(q["fy"], q["quarter"]) for q in capex_q]:
         fail("영업현금흐름과 capex 의 분기 구간이 다르다. 서로 다른 기간을 "

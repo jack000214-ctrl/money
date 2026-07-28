@@ -1,0 +1,263 @@
+{
+  "schema_version": "sector-strength/1.0.0",
+  "as_of": "2026-07-27",
+  "built_at": "2026-07-28T16:47:59+09:00",
+  "benchmark": {
+    "symbol": "SPY",
+    "name": "S&P 500",
+    "returns_pct": {
+      "1개월": 0.65,
+      "3개월": 3.52,
+      "6개월": 7.23,
+      "12개월": 16.5
+    }
+  },
+  "source": "Yahoo Finance chart API · SPDR Select Sector ETF",
+  "grade": "DERIVED",
+  "_not_a_recommendation": "상대강도는 추세지 밸류에이션이 아니다. 약한 섹터가 싸서 오를 수도 있다. 이 표만으로 매매를 정하면 모멘텀 추종이 된다",
+  "_scope_warning": "미국 섹터 ETF 는 한국 종목의 섹터 대리가 아니다. 파마리서치(국내 에스테틱)를 XLV(미국 대형 제약·보험)로 재는 것은 근사조차 아니다",
+  "sectors": [
+    {
+      "symbol": "XLE",
+      "sector": "에너지",
+      "windows": {
+        "1개월": {
+          "return_pct": 7.89,
+          "excess_pct": 7.24
+        },
+        "3개월": {
+          "return_pct": 2.62,
+          "excess_pct": -0.9
+        },
+        "6개월": {
+          "return_pct": 18.64,
+          "excess_pct": 11.41
+        },
+        "12개월": {
+          "return_pct": 33.5,
+          "excess_pct": 17.0
+        }
+      }
+    },
+    {
+      "symbol": "XLK",
+      "sector": "IT",
+      "windows": {
+        "1개월": {
+          "return_pct": -5.56,
+          "excess_pct": -6.22
+        },
+        "3개월": {
+          "return_pct": 8.79,
+          "excess_pct": 5.27
+        },
+        "6개월": {
+          "return_pct": 20.13,
+          "excess_pct": 12.9
+        },
+        "12개월": {
+          "return_pct": 33.36,
+          "excess_pct": 16.87
+        }
+      }
+    },
+    {
+      "symbol": "XLV",
+      "sector": "헬스케어",
+      "windows": {
+        "1개월": {
+          "return_pct": 4.99,
+          "excess_pct": 4.34
+        },
+        "3개월": {
+          "return_pct": 13.33,
+          "excess_pct": 9.81
+        },
+        "6개월": {
+          "return_pct": 3.76,
+          "excess_pct": -3.47
+        },
+        "12개월": {
+          "return_pct": 20.36,
+          "excess_pct": 3.86
+        }
+      }
+    },
+    {
+      "symbol": "XLI",
+      "sector": "산업재",
+      "windows": {
+        "1개월": {
+          "return_pct": -0.5,
+          "excess_pct": -1.15
+        },
+        "3개월": {
+          "return_pct": 6.22,
+          "excess_pct": 2.7
+        },
+        "6개월": {
+          "return_pct": 11.56,
+          "excess_pct": 4.32
+        },
+        "12개월": {
+          "return_pct": 19.37,
+          "excess_pct": 2.87
+        }
+      }
+    },
+    {
+      "symbol": "XLB",
+      "sector": "소재",
+      "windows": {
+        "1개월": {
+          "return_pct": -0.87,
+          "excess_pct": -1.52
+        },
+        "3개월": {
+          "return_pct": -1.02,
+          "excess_pct": -4.54
+        },
+        "6개월": {
+          "return_pct": 2.84,
+          "excess_pct": -4.39
+        },
+        "12개월": {
+          "return_pct": 12.59,
+          "excess_pct": -3.91
+        }
+      }
+    },
+    {
+      "symbol": "XLU",
+      "sector": "유틸리티",
+      "windows": {
+        "1개월": {
+          "return_pct": -0.37,
+          "excess_pct": -1.02
+        },
+        "3개월": {
+          "return_pct": -1.08,
+          "excess_pct": -4.61
+        },
+        "6개월": {
+          "return_pct": 7.33,
+          "excess_pct": 0.1
+        },
+        "12개월": {
+          "return_pct": 8.37,
+          "excess_pct": -8.12
+        }
+      }
+    },
+    {
+      "symbol": "XLF",
+      "sector": "금융",
+      "windows": {
+        "1개월": {
+          "return_pct": 6.42,
+          "excess_pct": 5.76
+        },
+        "3개월": {
+          "return_pct": 10.62,
+          "excess_pct": 7.1
+        },
+        "6개월": {
+          "return_pct": 7.18,
+          "excess_pct": -0.05
+        },
+        "12개월": {
+          "return_pct": 7.18,
+          "excess_pct": -9.32
+        }
+      }
+    },
+    {
+      "symbol": "XLRE",
+      "sector": "리츠",
+      "windows": {
+        "1개월": {
+          "return_pct": 2.62,
+          "excess_pct": 1.97
+        },
+        "3개월": {
+          "return_pct": 4.4,
+          "excess_pct": 0.88
+        },
+        "6개월": {
+          "return_pct": 10.93,
+          "excess_pct": 3.7
+        },
+        "12개월": {
+          "return_pct": 6.94,
+          "excess_pct": -9.56
+        }
+      }
+    },
+    {
+      "symbol": "XLP",
+      "sector": "필수소비재",
+      "windows": {
+        "1개월": {
+          "return_pct": 1.69,
+          "excess_pct": 1.04
+        },
+        "3개월": {
+          "return_pct": 2.56,
+          "excess_pct": -0.96
+        },
+        "6개월": {
+          "return_pct": 2.96,
+          "excess_pct": -4.28
+        },
+        "12개월": {
+          "return_pct": 4.92,
+          "excess_pct": -11.58
+        }
+      }
+    },
+    {
+      "symbol": "XLY",
+      "sector": "경기소비재",
+      "windows": {
+        "1개월": {
+          "return_pct": -2.21,
+          "excess_pct": -2.87
+        },
+        "3개월": {
+          "return_pct": -6.61,
+          "excess_pct": -10.14
+        },
+        "6개월": {
+          "return_pct": -9.98,
+          "excess_pct": -17.22
+        },
+        "12개월": {
+          "return_pct": -0.5,
+          "excess_pct": -17.0
+        }
+      }
+    },
+    {
+      "symbol": "XLC",
+      "sector": "통신서비스",
+      "windows": {
+        "1개월": {
+          "return_pct": 1.97,
+          "excess_pct": 1.32
+        },
+        "3개월": {
+          "return_pct": -6.82,
+          "excess_pct": -10.34
+        },
+        "6개월": {
+          "return_pct": -7.95,
+          "excess_pct": -15.19
+        },
+        "12개월": {
+          "return_pct": -0.89,
+          "excess_pct": -17.39
+        }
+      }
+    }
+  ]
+}

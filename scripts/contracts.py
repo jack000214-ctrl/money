@@ -19,7 +19,18 @@ from typing import Any
 
 SCHEMA_VERSION = "1.1.0"
 IPS_STATUSES = {"DRAFT", "APPROVED", "SUPERSEDED"}
-CLAIM_TYPES = {"FACT", "DERIVED", "INFERENCE", "HYPOTHESIS", "UNKNOWN"}
+# EXPLORATORY = 뉴스·리포트에서 봤고 원문으로 확인하지 못한 주장. company-research
+# SKILL 은 처음부터 이 등급을 요구했는데 여기 없어서, 뉴스를 분석에 넣으려면
+# HYPOTHESIS 로 올려 적어야 했다 (2026-07-28 CXMT claim 이 그랬다). 등급을
+# 세탁해야 통과하는 계약은 등급 체계를 스스로 무너뜨린다.
+#
+# HYPOTHESIS 와 다른 점: HYPOTHESIS 는 "내가 세웠고 검증하려는 가설"이고,
+# EXPLORATORY 는 "남이 말했고 내가 확인 못 한 것"이다. 전자는 검증 계획이
+# 있고 후자는 출처의 신뢰도 문제다. 섞으면 무엇을 파야 하는지 알 수 없다.
+CLAIM_TYPES = {"FACT", "DERIVED", "INFERENCE", "EXPLORATORY", "HYPOTHESIS", "UNKNOWN"}
+# 원문으로 확인되지 않은 등급. 논지·반대논지의 뼈대를 이것만으로 세우면
+# "뉴스에서 봤다"가 매매 근거가 된다.
+UNVERIFIED_CLAIM_TYPES = {"EXPLORATORY", "HYPOTHESIS", "UNKNOWN"}
 THESIS_STATUSES = {"DRAFT", "REVIEWED", "APPROVED", "INVALIDATED"}
 THESIS_CHANGES = {"STRENGTHEN", "NEUTRAL", "WEAKEN", "POSSIBLY_INVALIDATE", "INVALIDATE"}
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
@@ -498,6 +509,7 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
         claims = []
     claim_ids: set[str] = set()
     claim_source_refs: dict[str, list[str]] = {}
+    claim_types: dict[str, Any] = {}
     for idx, claim in enumerate(claims):
         field = f"claims[{idx}]"
         if not isinstance(claim, dict):
@@ -514,6 +526,7 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
         refs = _id_list(claim.get("source_ids"), f"{field}.source_ids", errors)
         if claim_id:
             claim_source_refs[claim_id] = refs
+            claim_types[claim_id] = claim.get("type")
 
     thesis = data.get("thesis")
     if not isinstance(thesis, dict):
@@ -614,6 +627,20 @@ def validate_analysis(data: dict[str, Any]) -> list[str]:
         for claim_id in ids:
             if claim_id not in claim_ids:
                 errors.append(f"{field}: 존재하지 않는 주장 ID {claim_id}")
+
+    # EXPLORATORY 를 추가하면 뉴스를 등급 세탁 없이 넣을 수 있다. 그 대가로
+    # 새 구멍이 열린다 — 논지 전체를 뉴스로만 세우는 것이다. 논지와 반대 논지는
+    # 매매를 직접 움직이므로, 각각 원문에서 확인됐거나 코드가 계산한 주장을
+    # 최소 하나는 딛고 서야 한다. 시나리오까지 강제하지는 않는다: 강세 시나리오가
+    # 본래 가설인 종목이 있고, 그건 정직한 표기다.
+    for field, ids in (("thesis.claim_ids", thesis_claim_ids),
+                       ("counter_thesis.claim_ids", counter_claim_ids)):
+        known = [claim_types.get(cid) for cid in ids if cid in claim_ids]
+        if known and not any(t in {"FACT", "DERIVED"} for t in known):
+            errors.append(
+                f"{field}: 전부 미검증 등급이다 ({', '.join(sorted(set(map(str, known))))}). "
+                "FACT 또는 DERIVED 주장을 최소 하나 딛어야 한다 — "
+                "뉴스만으로 세운 논지는 매매 근거가 아니다")
     return errors
 
 

@@ -119,8 +119,15 @@ flowchart TD
 - `FACT`: 원문에서 직접 확인한 사실
 - `DERIVED`: 코드가 계산한 값
 - `INFERENCE`: 사실과 계산에서 도출한 해석
-- `HYPOTHESIS`: 향후 검증할 가설
+- `EXPLORATORY`: 뉴스·리포트에서 봤고 원문으로 확인하지 못한 것
+- `HYPOTHESIS`: 내가 세웠고 앞으로 검증할 가설
 - `UNKNOWN`: 현재 자료로 판단할 수 없는 내용
+
+`EXPLORATORY` 와 `HYPOTHESIS` 를 섞지 않는다. 전자는 **출처의 신뢰도** 문제이고
+후자는 **검증 계획**이 있는 내 주장이다. 섞으면 무엇을 파야 하는지 알 수 없다.
+
+논지와 반대 논지는 각각 `FACT` 또는 `DERIVED` 주장을 최소 하나 딛어야 한다
+(`scripts/contracts.py`). 뉴스만으로 세운 논지는 매매 근거가 아니다.
 
 ### 필수 출력 항목
 

@@ -127,7 +127,15 @@ data_freshness:
 | `DERIVED` | 코드가 계산 | 계산 ID |
 | `EXPLORATORY` | 뉴스·리포트에서 봄, 미검증 | URL |
 | `INFERENCE` | 위에서 도출한 해석 | — |
+| `HYPOTHESIS` | 내가 세운 가설, 검증 예정 | — |
 | `UNKNOWN` | 판단 불가 | — |
+
+이 여섯 등급이 `analysis.json` 계약의 `type` 값과 정확히 같다
+(`scripts/contracts.py` 의 `CLAIM_TYPES`). **뉴스를 넣으려고 `HYPOTHESIS` 로
+올려 적지 않는다** — `EXPLORATORY` 가 그 자리다.
+
+단, **논지와 반대 논지는 각각 `FACT` 또는 `DERIVED` 를 최소 하나 딛어야 한다.**
+전부 미검증 등급이면 계약이 거부한다.
 
 **증권사 목표주가와 컨센서스는 `EXPLORATORY`다.** 컨센서스는 자주 틀린다 — 틀린 이력이 있으면 프로파일에 적는다.
 

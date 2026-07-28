@@ -885,19 +885,29 @@ def evaluate_trade(
             # 가정을 쓰지 않으므로 계측되지 않은 다이얼이 없다.
             if calculation is not None:
                 scenarios = calculation.get("outputs", {}).get("scenarios", {})
+                # 주당가치를 내지 않는 계산기도 있다 (수익률만 산출). 키가
+                # 있는지가 아니라 **숫자인지**로 걸러야 한다 — 앞선 판은 키만
+                # 보고 None 을 곱해서 터졌다.
                 values = {
-                    name: scenarios[name].get("value_per_share")
+                    name: float(scenarios[name]["value_per_share"])
                     for name in ("bear", "base", "bull")
                     if isinstance(scenarios.get(name), dict)
+                    and isinstance(scenarios[name].get("value_per_share"), (int, float))
+                    and not isinstance(scenarios[name].get("value_per_share"), bool)
                 }
                 probs = {
                     name: expected["scenarios"][name]["probability"]
                     for name in values
-                    if name in expected.get("scenarios", {})
+                    if isinstance(expected.get("scenarios", {}).get(name), dict)
+                    and isinstance(expected["scenarios"][name].get("probability"),
+                                   (int, float))
                 }
                 calc_price = calculation.get("inputs", {}).get("price")
-                if len(values) == 3 and len(probs) == 3 and calc_price:
-                    weighted_value = sum(values[n] * probs[n] for n in values)
+                weighted_value = (sum(values[n] * probs[n] for n in values)
+                                  if len(values) == 3 and len(probs) == 3 else 0.0)
+                # 가치가 0 이하면 비율이 성립하지 않는다. 안전마진을 조용히
+                # 건너뛴다 — 없는 것과 0 은 다르므로 값을 지어내지 않는다.
+                if calc_price and weighted_value > 0:
                     margin = (weighted_value - calc_price) / weighted_value * 100.0
                     # 가치보다 비쌀 때 margin_pct 는 하한이 없다 (가치의 3배면
                     # -200%). 읽히는 값은 '가치의 몇 %에 거래되는가'다.
@@ -1260,6 +1270,10 @@ def main():
     p.add_argument("--concentration-override-reason",
                    help="표준 한도를 넘겨 집중하는 사유. 절대 상한은 해제되지 않는다")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--no-log", action="store_true",
+                   help="판정을 knowledge/decisions/ 에 남기지 않는다. "
+                        "기본은 남기는 것이다 — 기록을 선택으로 두면 "
+                        "기록된 판정만으로 문턱을 채점하게 된다")
     a = p.parse_args()
 
     evaluated_at = None
@@ -1290,6 +1304,24 @@ def main():
         concentration_override_reason=a.concentration_override_reason,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2) if a.json else render_text(result))
+
+    # 판정을 디스크에 남긴다 — 손으로 decision_log.py record 를 부르는 것에
+    # 의존하면, 기록되는 판정은 "기록하는 것을 기억한 판정"뿐이다. 그 표본으로
+    # 자기 문턱을 채점하면 채점 자체가 편향된다. 기록은 부작용이어야 한다.
+    #
+    # **기록 실패가 판정을 뒤엎지 않는다.** 판정은 이미 화면에 나갔고, 저장은
+    # 부수적이다. 여기서 예외를 올리면 정상 판정이 비정상 종료로 보인다.
+    if not a.no_log:
+        try:
+            from decision_log import append, entry_from_result
+            entry = entry_from_result(result, origin="live")
+            path = append(entry["asset_id"], entry)
+            if not a.json:
+                print(f"\n판정 기록: {path.relative_to(ROOT)}  "
+                      f"({entry['decision_snapshot_id']})")
+        except Exception as exc:  # noqa: BLE001 — 기록 실패는 판정을 막지 않는다
+            print(f"※ 판정 기록 실패 (판정 자체는 유효하다): {exc}", file=sys.stderr)
+
     return exit_code_for_verdict(result["decision"]["verdict"])
 
 

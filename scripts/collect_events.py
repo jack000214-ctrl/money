@@ -293,11 +293,15 @@ def main() -> int:
         "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. "
                  "여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 "
                  "그건 모델의 몫이다",
+        # 공시로 설명 안 되는 날은 뉴스 쪽을 본다. 뉴스가 이미 수집돼 있으면
+        # build_packet 이 헤드라인을 붙이므로 여기서 다시 요구하지 않는다.
         "_gaps": ([] if not unattributed else [
             f"공시로 설명되지 않는 급변 {len(unattributed)}건 "
             f"({', '.join(m['date'] for m in unattributed[:6])}"
             f"{' 외' if len(unattributed) > 6 else ''}) — 산업 뉴스·동종사·지수 "
-            "movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"]),
+            "movement 가 원인일 수 있다."
+            + ("" if (ROOT / "knowledge" / "news" / f"{a.stock_code}.json").exists()
+               else f" news_fetch.py {a.stock_code} --query <회사명> 로 헤드라인을 붙인다")]),
     }
 
     out = Path(a.out) if a.out else OUT_DIR / f"{a.stock_code}.json"
