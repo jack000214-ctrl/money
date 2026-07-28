@@ -1,7 +1,7 @@
 {
   "schema_version": "decision-packet/1.0.0",
   "asset_id": "005930",
-  "built_at": "2026-07-28T15:14:36+09:00",
+  "built_at": "2026-07-28T15:35:26+09:00",
   "_contract": {
     "모델에게 강제하는 산출물": [
       "가장 강한 매수 논지",
@@ -61,7 +61,7 @@
         "주식수와 자본정책 `FACT`",
         "밸류에이션 `DERIVED` — 계산 산출물 있음",
         "주가 궤적 `DERIVED`",
-        "하락 드라이버 — 사용자 가설의 검증",
+        "하락 드라이버 — 88%가 시장 요인이다",
         "논지 초안 `INFERENCE` — 승인 안 됨",
         "무효화 조건 초안 `INFERENCE` — 관측 가능하게 썼으나 미승인",
         "미해결 질문",
@@ -74,258 +74,132 @@
     },
     "event": {
       "source": "collect_events.py",
-      "collected_at": "2026-07-28T15:10:06+09:00",
+      "collected_at": "2026-07-28T15:21:15+09:00",
       "window": {
-        "since": "2026-05-29",
+        "since": "2026-04-29",
         "until": "2026-07-28",
-        "trading_days": 41
+        "trading_days": 60
       },
-      "threshold_pct": 5.0,
+      "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
+      "market_decomposition": {
+        "available": true,
+        "benchmark_symbol": "^KS11",
+        "legs": [
+          {
+            "label": "구간 저점 → 고점",
+            "from": "2026-04-30",
+            "to": "2026-06-18",
+            "asset_pct": 64.4,
+            "market_pct": 37.4,
+            "excess_pct": 19.7,
+            "reading": "종목 +64.4% 중 시장이 +37.4%, 종목 고유는 +19.7%"
+          },
+          {
+            "label": "구간 고점 → 현재",
+            "from": "2026-06-18",
+            "to": "2026-07-28",
+            "asset_pct": -38.1,
+            "market_pct": -33.4,
+            "excess_pct": -7.1,
+            "reading": "종목 -38.1% 중 시장이 -33.4%, 종목 고유는 -7.1%"
+          },
+          {
+            "label": "구간 저점 → 현재",
+            "from": "2026-04-30",
+            "to": "2026-07-28",
+            "asset_pct": 1.7,
+            "market_pct": -8.5,
+            "excess_pct": 11.2,
+            "reading": "종목 +1.7% 중 시장이 -8.5%, 종목 고유는 +11.2%"
+          },
+          {
+            "label": "구간 전체",
+            "from": "2026-04-29",
+            "to": "2026-07-28",
+            "asset_pct": -0.8,
+            "market_pct": -9.8,
+            "excess_pct": 10.0,
+            "reading": "종목 -0.8% 중 시장이 -9.8%, 종목 고유는 +10.0%"
+          }
+        ],
+        "verdict": "고점 대비 하락의 약 88% 가 시장 요인이다. 종목 고유 원인을 찾기 전에 시장 하락을 먼저 설명해야 한다"
+      },
+      "benchmark": {
+        "symbol": "^KS11",
+        "available": true
+      },
       "latest": {
         "date": "2026-07-28",
         "close": 224250.0
       },
       "moves": [
         {
+          "date": "2026-05-06",
+          "close": 266000.0,
+          "change_pct": 14.41,
+          "benchmark_pct": 6.45,
+          "excess_pct": 7.96,
+          "threshold_pct": 3.37,
+          "sigma_used": 1.69,
+          "moved_with_market": false,
+          "direction": "up",
+          "volume": 53097996,
+          "volume_vs_avg": 1.71,
+          "candidate_filings": []
+        },
+        {
           "date": "2026-06-01",
           "close": 349000.0,
           "change_pct": 10.09,
+          "benchmark_pct": 3.68,
+          "excess_pct": 6.41,
+          "threshold_pct": 3.78,
+          "sigma_used": 1.89,
+          "moved_with_market": false,
           "direction": "up",
           "volume": 45052488,
-          "volume_vs_avg": 1.5,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-05",
-          "close": 329000.0,
-          "change_pct": -6.4,
-          "direction": "down",
-          "volume": 33725012,
-          "volume_vs_avg": 1.12,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-08",
-          "close": 295500.0,
-          "change_pct": -10.18,
-          "direction": "down",
-          "volume": 38929682,
-          "volume_vs_avg": 1.3,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-09",
-          "close": 322000.0,
-          "change_pct": 8.97,
-          "direction": "up",
-          "volume": 30124249,
-          "volume_vs_avg": 1.0,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-10",
-          "close": 302500.0,
-          "change_pct": -6.06,
-          "direction": "down",
-          "volume": 1191,
-          "volume_vs_avg": 0.0,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-12",
-          "close": 322500.0,
-          "change_pct": 7.86,
-          "direction": "up",
-          "volume": 31006148,
-          "volume_vs_avg": 1.03,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-23",
-          "close": 310000.0,
-          "change_pct": -12.31,
-          "direction": "down",
-          "volume": 41266630,
-          "volume_vs_avg": 1.37,
+          "volume_vs_avg": 1.45,
           "candidate_filings": []
         },
         {
           "date": "2026-06-24",
           "close": 340500.0,
           "change_pct": 9.84,
+          "benchmark_pct": 3.26,
+          "excess_pct": 6.58,
+          "threshold_pct": 4.22,
+          "sigma_used": 2.11,
+          "moved_with_market": false,
           "direction": "up",
           "volume": 47809959,
-          "volume_vs_avg": 1.59,
+          "volume_vs_avg": 1.54,
           "candidate_filings": []
         },
         {
-          "date": "2026-06-25",
-          "close": 358500.0,
-          "change_pct": 5.29,
-          "direction": "up",
-          "volume": 36157158,
-          "volume_vs_avg": 1.2,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-06-26",
-          "close": 339500.0,
-          "change_pct": -5.3,
+          "date": "2026-06-29",
+          "close": 323000.0,
+          "change_pct": -4.86,
+          "benchmark_pct": -0.2,
+          "excess_pct": -4.66,
+          "threshold_pct": 4.5,
+          "sigma_used": 2.25,
+          "moved_with_market": false,
           "direction": "down",
-          "volume": 39735951,
-          "volume_vs_avg": 1.32,
+          "volume": 35436521,
+          "volume_vs_avg": 1.14,
           "candidate_filings": []
-        },
-        {
-          "date": "2026-07-01",
-          "close": 314500.0,
-          "change_pct": -5.84,
-          "direction": "down",
-          "volume": 24968382,
-          "volume_vs_avg": 0.83,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-02",
-          "close": 286000.0,
-          "change_pct": -9.06,
-          "direction": "down",
-          "volume": 38905074,
-          "volume_vs_avg": 1.3,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-03",
-          "close": 309500.0,
-          "change_pct": 8.22,
-          "direction": "up",
-          "volume": 31520538,
-          "volume_vs_avg": 1.05,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-07",
-          "close": 296000.0,
-          "change_pct": -6.92,
-          "direction": "down",
-          "volume": 32421032,
-          "volume_vs_avg": 1.08,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-08",
-          "close": 277500.0,
-          "change_pct": -6.25,
-          "direction": "down",
-          "volume": 33525758,
-          "volume_vs_avg": 1.12,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-13",
-          "close": 254500.0,
-          "change_pct": -10.7,
-          "direction": "down",
-          "volume": 31882652,
-          "volume_vs_avg": 1.06,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-15",
-          "close": 279500.0,
-          "change_pct": 6.27,
-          "direction": "up",
-          "volume": 24873414,
-          "volume_vs_avg": 0.83,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-16",
-          "close": 255000.0,
-          "change_pct": -8.77,
-          "direction": "down",
-          "volume": 27001478,
-          "volume_vs_avg": 0.9,
-          "candidate_filings": []
-        },
-        {
-          "date": "2026-07-21",
-          "close": 259000.0,
-          "change_pct": 6.15,
-          "direction": "up",
-          "volume": 20386896,
-          "volume_vs_avg": 0.68,
-          "candidate_filings": [
-            {
-              "filed": "2026-07-21",
-              "name": "최대주주등소유주식변동신고서              ",
-              "rcept_no": "20260721801260",
-              "scheduled": false
-            }
-          ]
-        },
-        {
-          "date": "2026-07-24",
-          "close": 249500.0,
-          "change_pct": -7.59,
-          "direction": "down",
-          "volume": 26175580,
-          "volume_vs_avg": 0.87,
-          "candidate_filings": [
-            {
-              "filed": "2026-07-24",
-              "name": "주식등의대량보유상황보고서(일반)",
-              "rcept_no": "20260724000625",
-              "scheduled": false
-            },
-            {
-              "filed": "2026-07-23",
-              "name": "풍문또는보도에대한해명(미확정)              ",
-              "rcept_no": "20260723800875",
-              "scheduled": false
-            }
-          ]
-        },
-        {
-          "date": "2026-07-28",
-          "close": 224250.0,
-          "change_pct": -11.71,
-          "direction": "down",
-          "volume": 22783047,
-          "volume_vs_avg": 0.76,
-          "candidate_filings": [
-            {
-              "filed": "2026-07-24",
-              "name": "주식등의대량보유상황보고서(일반)",
-              "rcept_no": "20260724000625",
-              "scheduled": false
-            }
-          ]
         }
       ],
       "unexplained_moves": [
+        "2026-05-06",
         "2026-06-01",
-        "2026-06-05",
-        "2026-06-08",
-        "2026-06-09",
-        "2026-06-10",
-        "2026-06-12",
-        "2026-06-23",
         "2026-06-24",
-        "2026-06-25",
-        "2026-06-26",
-        "2026-07-01",
-        "2026-07-02",
-        "2026-07-03",
-        "2026-07-07",
-        "2026-07-08",
-        "2026-07-13",
-        "2026-07-15",
-        "2026-07-16"
+        "2026-06-29"
       ],
+      "moved_with_market": [],
       "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
       "_gaps": [
-        "공시로 설명되지 않는 급변 18건 (2026-06-01, 2026-06-05, 2026-06-08, 2026-06-09, 2026-06-10, 2026-06-12 외) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"
+        "공시로 설명되지 않는 급변 4건 (2026-05-06, 2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"
       ]
     },
     "unknowns": {
@@ -344,9 +218,62 @@
       "_note": "이 목록이 조사 요구 루프의 입력이다. 모델이 여기서 골라 '채워라'를 요청하면 프로그램이 수집해 패킷을 다시 만든다"
     },
     "memory": {
-      "total_decisions": 1,
-      "blocked": 0,
-      "scored": [],
+      "total_decisions": 8,
+      "blocked": 7,
+      "scored": [
+        {
+          "decided_at": "2023-01-02",
+          "origin": "replay",
+          "price": 55500.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -14.76,
+          "outcome": {
+            "3m": 67.32,
+            "12m": 43.42
+          }
+        },
+        {
+          "decided_at": "2025-07-28",
+          "origin": "replay",
+          "price": 70400.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -14.36,
+          "outcome": {
+            "3m": 342.47,
+            "12m": 218.54
+          }
+        },
+        {
+          "decided_at": "2025-11-20",
+          "origin": "replay",
+          "price": 100600.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -27.98,
+          "outcome": {
+            "3m": 1181.32
+          }
+        },
+        {
+          "decided_at": "2026-01-02",
+          "origin": "replay",
+          "price": 128500.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -36.28,
+          "outcome": {
+            "3m": 342.67
+          }
+        },
+        {
+          "decided_at": "2026-04-01",
+          "origin": "replay",
+          "price": 189650.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -41.61,
+          "outcome": {
+            "3m": 660.48
+          }
+        }
+      ],
       "pending": [
         {
           "decided_at": "2026-07-28",
@@ -355,9 +282,40 @@
           "verdict": "RESEARCH_REQUIRED",
           "expected_return_pct": -42.85899471518286,
           "outcome": {}
+        },
+        {
+          "decided_at": "2022-09-30",
+          "origin": "replay",
+          "price": 53100.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -13.98,
+          "outcome": {}
+        },
+        {
+          "decided_at": "2026-06-18",
+          "origin": "replay",
+          "price": 362500.0,
+          "verdict": "BLOCKED",
+          "expected_return_pct": -52.12,
+          "outcome": {}
         }
       ],
-      "lessons": [],
+      "lessons": [
+        {
+          "horizon_months": 3,
+          "scored": 5,
+          "missed_opportunities": 5,
+          "spearman": -0.6,
+          "note": "5건 중 5건은 거부했는데 이후 연율이 요구수익률을 넘겼다"
+        },
+        {
+          "horizon_months": 12,
+          "scored": 2,
+          "missed_opportunities": 2,
+          "spearman": null,
+          "note": "2건 중 2건은 거부했는데 이후 연율이 요구수익률을 넘겼다"
+        }
+      ],
       "_gaps": [],
       "_note": "origin=replay 는 과거 시점을 재현한 판정이다. 실제로 낸 판정과 같은 자로 비교하려고 같은 파일에 둔다"
     },
@@ -467,6 +425,62 @@
       "_gaps": [
         "ETF 룩스루 미반영 — 섹터 비중은 하한이다"
       ]
+    },
+    "market_regime": {
+      "collected_at": "2026-07-28T15:29:57+09:00",
+      "this_market": {
+        "market": "KR",
+        "regime": "STRESS",
+        "mark": "🟠",
+        "score": 3,
+        "notes": [
+          "주요 지수가 고점 대비 -43.1% — 약세장 구간"
+        ],
+        "volatility": {
+          "symbol": "^VIX",
+          "label": "VIX (참고 — 전역 지표라 점수 미반영)",
+          "value": 18.67,
+          "median": 17.44,
+          "percentile": 64.1,
+          "in_score": false
+        },
+        "indices": [
+          {
+            "symbol": "^KS11",
+            "name": "코스피",
+            "close": 6037.22,
+            "high": 9114.55,
+            "drawdown_pct": -33.8
+          },
+          {
+            "symbol": "^KQ11",
+            "name": "코스닥",
+            "close": 698.11,
+            "high": 1226.18,
+            "drawdown_pct": -43.1
+          }
+        ],
+        "worst_drawdown_pct": -43.1,
+        "guidance": [
+          "개별 종목 논지보다 시장 전체가 가격을 지배하는 구간이다.",
+          "**좋은 회사도 같이 빠진다.** 논지가 틀린 것이 아닐 수 있다.",
+          "분할 횟수를 2배로 늘리고 기간을 벌린다. 한 번에 넣지 않는다.",
+          "지금 무슨 일이 있는지 뉴스를 확인한다 — 판단이 아니라 사실 파악용."
+        ]
+      },
+      "all_markets": {
+        "US": {
+          "regime": "ELEVATED",
+          "worst_drawdown_pct": -8.0
+        },
+        "KR": {
+          "regime": "STRESS",
+          "worst_drawdown_pct": -43.1
+        }
+      },
+      "divergence": "시장별 체제가 다르다 — US ELEVATED, KR STRESS. 전역 위기가 아니라 특정 시장의 문제라는 뜻이므로, 원인을 그 시장에서 찾아야 한다",
+      "_note": "체제는 예측이 아니라 현재 상태의 분류다. 매수를 막는 신호가 아니라 **분할 횟수를 조절하는** 신호다. 위기장은 장기 투자자에게 매수 기회였던 경우가 많고, 문제는 한 번에 넣는 것이다.",
+      "_gaps": []
     }
   },
   "_missing_packets": {
@@ -480,7 +494,7 @@
     },
     {
       "packet": "event",
-      "gap": "공시로 설명되지 않는 급변 18건 (2026-06-01, 2026-06-05, 2026-06-08, 2026-06-09, 2026-06-10, 2026-06-12 외) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"
+      "gap": "공시로 설명되지 않는 급변 4건 (2026-05-06, 2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다. 뉴스 수집기가 아직 없다"
     },
     {
       "packet": "calculation",
