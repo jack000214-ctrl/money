@@ -226,6 +226,59 @@ def xbrl_facts(rcept_no, reprt, key, concept, want_dims=("ConsolidatedMember",),
     return sorted(dedup.values(), key=lambda r: r["end"] or "")
 
 
+def xbrl_facts_many(rcept_no, reprt, key, concepts,
+                    want_dims=("ConsolidatedMember",),
+                    exclude_dims=("OrdinarySharesMember", "PreferredSharesMember")):
+    """XBRL 원본을 한 번 받아 여러 개념을 동시에 뽑는다.
+
+    xbrl_facts 는 개념 하나에 zip 하나를 받는다. 보충용으로 9개 개념을 쓰면
+    같은 파일을 9번 받게 되어 보고서당 수 분이 걸린다.
+    """
+    blob = request("fnlttXbrl.xml", {"rcept_no": rcept_no, "reprt_code": reprt},
+                   key, binary=True)
+    if blob[:1] != b"P":
+        return {}
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        names = [n for n in z.namelist() if n.endswith(".xbrl")]
+        if not names:
+            return {}
+        root = ET.fromstring(z.read(names[0]))
+
+    ctx = {}
+    for c in root:
+        if not c.tag.endswith("}context"):
+            continue
+        start = end = None
+        dims = []
+        for e in c.iter():
+            tag = e.tag.split("}")[-1]
+            if tag == "startDate":
+                start = e.text
+            elif tag == "endDate":
+                end = e.text
+            elif tag == "instant":
+                start, end = None, e.text
+            elif tag == "explicitMember":
+                dims.append((e.text or "").split(":")[-1])
+        ctx[c.get("id")] = (start, end, dims)
+
+    wanted = set(concepts)
+    out = {c: {} for c in concepts}
+    for el in root:
+        name = el.tag.split("}")[-1]
+        if name not in wanted:
+            continue
+        start, end, dims = ctx.get(el.get("contextRef"), (None, None, []))
+        if want_dims and not all(d in dims for d in want_dims):
+            continue
+        if any(d in dims for d in exclude_dims):
+            continue
+        out[name][(start, end)] = {"start": start, "end": end,
+                                   "value": to_int(el.text), "dims": dims}
+    return {c: sorted(v.values(), key=lambda r: r["end"] or "")
+            for c, v in out.items()}
+
+
 def annual_report_rcept(corp_code, year, key):
     """해당 사업연도 사업보고서의 접수번호."""
     for y in (year + 1, year):
@@ -362,6 +415,9 @@ IS_DILUTED_EPS_IDS = ["ifrs-full_DilutedEarningsLossPerShare"]
 # 매출총이익에서 영업이익까지 빼는 비용 라인. 회사마다 개수가 다르다.
 IS_EXPENSE_IDS = [
     ("dart_TotalSellingGeneralAdministrativeExpenses", "판매비와관리비"),
+    # 파마리서치는 ifrs-full 쪽 표준코드를 쓰고 CIS 에 둔다. 회사마다 다르므로
+    # 후보를 넓게 잡고, 아래 항등식 검사가 실제로 맞는 조합만 통과시킨다.
+    ("ifrs-full_SellingGeneralAndAdministrativeExpense", "판매비와관리비"),
     ("ifrs-full_ResearchAndDevelopmentExpense", "연구개발비"),
     ("dart_SellingExpenses", "판매비"),
     ("dart_AdministrativeExpenses", "관리비"),
@@ -386,6 +442,89 @@ BS_DEBT_IDS = [
 ]
 BS_DEBT_NAMES = ["단기차입금", "사채", "장기차입금", "유동성장기부채",
                  "유동성사채", "장기성미지급금"]
+
+
+# fnlttSinglAcntAll 이 013 을 내는 회사·보고서 조합이 있다 (파마리서치 2025
+# 사업보고서). 그 보고서에서도 XBRL 원본은 정상적으로 받아진다. 아래 표는
+# 필요한 계정만 XBRL 개념명으로 되짚어, 013 인 보고서를 보충한다.
+# 이게 없으면 4분기 복원(연간 − 3분기)이 막혀 해당 종목의 최신 TTM 이 안 만들어진다.
+XBRL_SUPPLEMENT = [
+    ("CF", "ifrs-full_CashFlowsFromUsedInOperatingActivities",
+     "영업활동현금흐름", "CashFlowsFromUsedInOperatingActivities"),
+    ("CF", "ifrs-full_PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
+     "유형자산의 취득", "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"),
+    ("CF", "ifrs-full_PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities",
+     "무형자산의 취득", "PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"),
+    ("IS", "ifrs-full_Revenue", "매출액", "Revenue"),
+    ("IS", "ifrs-full_GrossProfit", "매출총이익", "GrossProfit"),
+    ("IS", "dart_OperatingIncomeLoss", "영업이익", "OperatingIncomeLoss"),
+    ("IS", "ifrs-full_ProfitLoss", "당기순이익", "ProfitLoss"),
+    ("IS", "dart_TotalSellingGeneralAdministrativeExpenses",
+     "판매비와관리비", "TotalSellingGeneralAdministrativeExpenses"),
+    ("IS", "ifrs-full_SellingGeneralAndAdministrativeExpense",
+     "판매비와관리비", "SellingGeneralAndAdministrativeExpense"),
+    ("IS", "ifrs-full_ResearchAndDevelopmentExpense",
+     "연구개발비", "ResearchAndDevelopmentExpense"),
+]
+
+
+def periodic_rcept(corp_code, year, report, key):
+    """정기보고서 접수번호. report 는 REPORTS 의 키."""
+    want = {"1q": ".03", "half": ".06", "3q": ".09", "annual": ".12"}[report]
+    prefix = {"1q": "분기보고서", "half": "반기보고서",
+              "3q": "분기보고서", "annual": "사업보고서"}[report]
+    for y in (year, year + 1):
+        data = request("list.json", {
+            "corp_code": corp_code, "bgn_de": f"{y}0101", "end_de": f"{y}1231",
+            "pblntf_ty": "A", "page_count": "100"}, key, allow_empty=True)
+        if not data:
+            continue
+        for r in data.get("list", []):
+            if r["report_nm"].startswith(prefix) and f"({year}{want})" in r["report_nm"]:
+                return r["rcept_no"]
+    return None
+
+
+def xbrl_rows(corp_code, year, report, key):
+    """013 인 보고서를 XBRL 원본으로 보충해 fnlttSinglAcntAll 모양으로 돌려준다.
+
+    연간 보고서의 사실은 1/1~12/31 구간이다. 손익은 그 구간값을
+    thstrm_amount 로, 현금흐름은 누계이므로 마찬가지로 thstrm_amount 로 둔다 —
+    아래 복원 로직이 기대하는 관습과 같다.
+    """
+    rcept = periodic_rcept(corp_code, year, report, key)
+    if not rcept:
+        return []
+    # zip 을 한 번만 받는다. 개념마다 xbrl_facts 를 부르면 같은 압축파일을
+    # 9번 내려받아 한 보고서에 수 분이 걸린다.
+    try:
+        by_concept = xbrl_facts_many(
+            rcept, REPORTS[report], key,
+            [c for _, _, _, c in XBRL_SUPPLEMENT])
+    except SystemExit:
+        return []
+
+    rows = []
+    for sj_div, account_id, account_nm, concept in XBRL_SUPPLEMENT:
+        facts = by_concept.get(concept, [])
+        # 해당 사업연도의 가장 긴 구간(= 연초 누계 또는 연간)을 고른다
+        best, best_days = None, -1
+        for f in facts:
+            if not f.get("start") or not f.get("end"):
+                continue
+            if not f["end"].startswith(str(year)):
+                continue
+            days = (date.fromisoformat(f["end"]) - date.fromisoformat(f["start"])).days
+            if days > best_days:
+                best, best_days = f, days
+        if best is None or best["value"] is None:
+            continue
+        rows.append({"sj_div": sj_div, "account_id": account_id,
+                     "account_nm": account_nm,
+                     "thstrm_amount": str(best["value"]),
+                     "thstrm_add_amount": str(best["value"]),
+                     "_source": "xbrl"})
+    return rows
 
 
 def acct(rows, sj_divs, ids=(), names=()):
@@ -497,7 +636,7 @@ def cmd_fundamentals(a, key):
     corp, name = info["corp_code"], info["corp_name"]
     years = list(range(a.year - 2, a.year + 1))
 
-    raw, by_year = {}, {}
+    raw, by_year, supplemented = {}, {}, []
     for year in years:
         by_report = {}
         for report, _ in REPORT_SEQUENCE:
@@ -505,8 +644,18 @@ def cmd_fundamentals(a, key):
             if data:
                 by_report[report] = data["list"]
                 raw[f"{year}_{report}"] = data
+                continue
+            # 013 — XBRL 원본으로 보충한다. 없는 채로 두면 4분기 복원이 막힌다.
+            rows = xbrl_rows(corp, year, report, key)
+            if rows:
+                by_report[report] = rows
+                raw[f"{year}_{report}_xbrl"] = rows
+                supplemented.append(f"{year} {report}")
         if by_report:
             by_year[year] = by_report
+    if supplemented:
+        print(f"※ fnlttSinglAcntAll 이 013 이라 XBRL 원본으로 보충: "
+              f"{', '.join(supplemented)}", file=sys.stderr)
 
     if not by_year:
         fail(f"{name}: {years} 구간에서 재무제표를 받지 못했다")
@@ -582,15 +731,24 @@ def cmd_fundamentals(a, key):
                             "quarters": rows}
 
     # 손익 항등식 확인 — 매출총이익 − 비용라인 = 영업이익
-    if expense_lines:
-        gross = income["gross_profit"]["quarters"][-1]["val"]
-        spend = sum(income[e["key"]]["quarters"][-1]["val"] for e in expense_lines)
-        op = income["operating_income"]["quarters"][-1]["val"]
-        if abs(gross - spend - op) > max(abs(op) * 0.005, 1e8):
-            fail("손익 항등식이 맞지 않는다: 매출총이익 "
-                 f"{gross/1e8:,.0f}억 − 비용 {spend/1e8:,.0f}억 = "
-                 f"{(gross-spend)/1e8:,.0f}억 인데 영업이익은 {op/1e8:,.0f}억 이다. "
-                 "비용 라인이 중복되거나 빠졌다")
+    #
+    # 이 검사를 `if expense_lines:` 안에 두면 **비용 라인을 하나도 못 찾았을 때
+    # 조용히 통과한다** — 정작 가장 크게 틀린 경우다. 파마리서치에서 실제로
+    # 매출총이익 1,129억 = 영업이익 573억 이라는 화면이 나왔다 (556억 누락).
+    # 그래서 라인이 없어도 항등식을 검사한다.
+    gross = income["gross_profit"]["quarters"][-1]["val"]
+    spend = sum(income[e["key"]]["quarters"][-1]["val"] for e in expense_lines)
+    op = income["operating_income"]["quarters"][-1]["val"]
+    residual = gross - spend - op
+    if abs(residual) > max(abs(op) * 0.005, 1e8):
+        detail = (", ".join(f"{e['label']} {income[e['key']]['quarters'][-1]['val']/1e8:,.0f}억"
+                            for e in expense_lines)
+                  or "찾은 비용 라인 없음")
+        fail("손익 항등식이 맞지 않는다: 매출총이익 "
+             f"{gross/1e8:,.0f}억 − ({detail}) = {(gross-spend)/1e8:,.0f}억 인데 "
+             f"영업이익은 {op/1e8:,.0f}억 이다 (차이 {residual/1e8:,.0f}억).\n"
+             "  IS_EXPENSE_IDS 에 이 회사의 비용 계정 표준코드를 추가한다. "
+             "원문 계정 목록: dart_fetch.py financials 로 확인")
 
     # --- 재무상태 시점값 ---
     bs_report = None
@@ -760,9 +918,16 @@ def cmd_fundamentals(a, key):
     print(f"\n[ 차입 내역 ]")
     for d in debt_detail:
         print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억")
+    def show(target):
+        # --out-dir 이 저장소 밖일 수 있다 (재현 테스트는 임시 디렉터리를 쓴다).
+        try:
+            return target.relative_to(ROOT)
+        except ValueError:
+            return target
+
     print(f"\nfundamentals_id  {snapshot['fundamentals_id']}")
-    print(f"저장: {path.relative_to(ROOT)}")
-    print(f"원본: {raw_path.relative_to(ROOT)}")
+    print(f"저장: {show(path)}")
+    print(f"원본: {show(raw_path)}")
     return 0
 
 

@@ -458,6 +458,15 @@ def build(args) -> dict:
         price_rows = list(_csv.DictReader(
             line for line in f if not line.startswith("#")))
     closes = [(r["date"], float(r["close"])) for r in price_rows]
+    # 시세 파일은 10년치다. 판단용 고점·저점은 최근 창에서 잡는다 —
+    # 10년 고점 대비 −70% 는 이 거래에 대해 아무것도 말해주지 않는다.
+    if args.price_lookback_days:
+        import datetime as _dt
+        cutoff = (_dt.date.fromisoformat(closes[-1][0])
+                  - _dt.timedelta(days=args.price_lookback_days)).isoformat()
+        windowed = [c for c in closes if c[0] >= cutoff]
+        if len(windowed) > 2:
+            closes = windowed
     hi = max(closes, key=lambda x: x[1])
     lo = min(closes, key=lambda x: x[1])
     two_ago = closes[-3][1]
@@ -702,6 +711,8 @@ def main() -> None:
     p.add_argument("--risk-class", default="STOCK",
                    help="보유하지 않은 종목의 위험등급 (IPS 한도가 여기 걸린다)")
     p.add_argument("--prices", required=True)
+    p.add_argument("--price-lookback-days", type=int, default=365,
+                   help="고점·저점을 잡을 최근 일수 (0 이면 전체)")
     p.add_argument("--narrative", required=True)
     p.add_argument("--output", required=True)
     args = p.parse_args()

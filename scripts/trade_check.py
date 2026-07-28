@@ -878,6 +878,52 @@ def evaluate_trade(
                        f"기대수익 {position_return:.1f}%({measure})가 "
                        f"요구수익률 {required:.1f}%보다 낮다")
 
+            # 안전마진 — 수렴 기간 가정 없이 '가치 대비 가격'만 잰다.
+            #
+            # 기대수익(연율)은 "몇 개월 안에 가치로 수렴한다"는 가정에 곱해져
+            # 있어서, 주가가 가치와 같아도 큰 음수가 나온다. 안전마진은 그
+            # 가정을 쓰지 않으므로 계측되지 않은 다이얼이 없다.
+            if calculation is not None:
+                scenarios = calculation.get("outputs", {}).get("scenarios", {})
+                values = {
+                    name: scenarios[name].get("value_per_share")
+                    for name in ("bear", "base", "bull")
+                    if isinstance(scenarios.get(name), dict)
+                }
+                probs = {
+                    name: expected["scenarios"][name]["probability"]
+                    for name in values
+                    if name in expected.get("scenarios", {})
+                }
+                calc_price = calculation.get("inputs", {}).get("price")
+                if len(values) == 3 and len(probs) == 3 and calc_price:
+                    weighted_value = sum(values[n] * probs[n] for n in values)
+                    margin = (weighted_value - calc_price) / weighted_value * 100.0
+                    # 가치보다 비쌀 때 margin_pct 는 하한이 없다 (가치의 3배면
+                    # -200%). 읽히는 값은 '가치의 몇 %에 거래되는가'다.
+                    price_to_value = calc_price / weighted_value * 100.0
+                    decision_basis["safety_margin"] = {
+                        "weighted_value_per_share": round(weighted_value, 4),
+                        "price": calc_price,
+                        "margin_pct": round(margin, 2),
+                        "price_pct_of_value": round(price_to_value, 1),
+                        "by_scenario": {
+                            n: round(calc_price / values[n] * 100.0, 1)
+                            for n in values
+                        },
+                        "measure": "확률가중 내재가치 대비 가격 (수렴 기간 가정 없음). "
+                                   "by_scenario 는 시나리오 가치의 몇 %에 거래되는가",
+                    }
+                    threshold = (policy.get("safety_margin") or {}).get(
+                        "caution_below_pct")
+                    if side == "buy" and isinstance(threshold, (int, float)) \
+                            and margin < threshold:
+                        _issue(issues, "CAUTION", "NO_SAFETY_MARGIN",
+                               f"안전마진 없음 — 확률가중 내재가치 "
+                               f"{weighted_value:,.0f} 의 {price_to_value:.0f}% 인 "
+                               f"{calc_price:,.0f} 에 산다 "
+                               f"(가치보다 {price_to_value - 100:.0f}% 비싸다)")
+
             # 하방 예산 — 약세 시나리오가 실현될 때 이 포지션 하나가 총자산에
             # 입히는 손실. base 만 보면 하방 -50%와 -5%가 똑같이 통과한다.
             bear_budget = policy["max_bear_loss_contribution_pct"]

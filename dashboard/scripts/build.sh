@@ -54,7 +54,8 @@ mkdir -p "$OUT"
 python3 scripts/build_price_chart.py \
   --input "$PRICES" --output "$OUT/chart.json" \
   --current "$CHART_CURRENT" --entry-ceiling "$CHART_ENTRY" \
-  --entry-label "$CHART_ENTRY_LABEL" --currency "$CURRENCY"
+  --entry-label "$CHART_ENTRY_LABEL" --currency "$CURRENCY" \
+  --lookback-days 365
 
 python3 scripts/build_decision_report.py \
   --ticker "$ASSET" --ticker-label "$TICKER_LABEL" --name "$NAME" \

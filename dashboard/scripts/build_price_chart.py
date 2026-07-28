@@ -11,6 +11,7 @@ import argparse
 import csv
 import json
 import math
+import datetime as dt
 from datetime import date
 from pathlib import Path
 
@@ -52,12 +53,22 @@ def main() -> None:
                         help="이 선이 무엇인지. 매수 트리거로 오해되지 않게 쓴다")
     parser.add_argument("--currency", default="USD", choices=sorted(CURRENCY_FORMATS),
                         help="표시 통화. 가격 문자열 형식을 정한다")
+    # 시세 CSV 는 재현 테스트용으로 10년치를 담는다. 판단 화면에 10년 고점을
+    # 띄우면 "고점 대비" 가 의사결정과 무관한 값이 된다. 화면은 창을 자른다.
+    parser.add_argument("--lookback-days", type=int, default=365,
+                        help="차트에 그릴 최근 일수 (0 이면 전체)")
     args = parser.parse_args()
 
     global money
     money = CURRENCY_FORMATS[args.currency]
 
     rows = read_prices(args.input)
+    if args.lookback_days:
+        cutoff = (dt.date.fromisoformat(rows[-1]["date"])
+                  - dt.timedelta(days=args.lookback_days)).isoformat()
+        windowed = [r for r in rows if r["date"] >= cutoff]
+        if len(windowed) > 2:
+            rows = windowed
     width, height = 1000, 360
     # 우측은 기준선 값 태그(62px) 자리를 비워둔다. 태그를 그림 위에 겹치면
     # 정작 봐야 할 가격 흐름을 가린다.

@@ -146,6 +146,18 @@ def concept(cik, tags, ua, unit="USD"):
     return None, []
 
 
+def as_of_filter(points, as_of):
+    """as_of 시점에 **실제로 제출돼 있던** 사실만 남긴다.
+
+    재현 테스트에서 이게 없으면 미래 정보로 과거를 판정한다. 2026 Q2 실적은
+    2026-07-23 에 제출됐으므로 2026-01-02 판정에 쓰면 안 된다. XBRL 사실마다
+    filed 가 있어서 그것으로 자른다.
+    """
+    if not as_of:
+        return points
+    return [p for p in points if (p.get("filed") or "9999-99-99") <= as_of]
+
+
 def quarterly(points):
     """10-Q/10-K 중 3개월 구간만 골라 최신순으로 돌려준다."""
     out = {}
@@ -405,6 +417,7 @@ def cmd_fundamentals(a, ua):
 
     def flow(label, tags):
         tag, pts = concept(cik, tags, ua)
+        pts = as_of_filter(pts, a.as_of)
         raw[label] = {"tag": tag, "units": pts}
         if not pts:
             fail(f"{label}: 태그를 찾지 못했다 ({', '.join(tags)})")
@@ -424,6 +437,7 @@ def cmd_fundamentals(a, ua):
                       ("operating_income", OPINC_TAGS),
                       ("net_income", ["NetIncomeLoss"])):
         tag, pts = concept(cik, tags, ua)
+        pts = as_of_filter(pts, a.as_of)
         raw[f"손익_{key}"] = {"tag": tag, "units": pts}
         if not pts:
             fail(f"손익 {key}: 태그를 찾지 못했다")
@@ -444,6 +458,7 @@ def cmd_fundamentals(a, ua):
 
     def point(label, tags, unit="USD"):
         tag, pts = concept(cik, tags, ua, unit=unit)
+        pts = as_of_filter(pts, a.as_of)
         raw[label] = {"tag": tag, "units": pts}
         if not pts:
             return None, None, None
@@ -461,6 +476,7 @@ def cmd_fundamentals(a, ua):
     debt_tag, debt, debt_at = point("장기차입금", DEBT_TAGS)
 
     shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares")
+    shares_pts = as_of_filter(shares_pts, a.as_of)
     raw["희석주식수"] = {"tag": shares_tag, "units": shares_pts}
     shares_q = quarterly(shares_pts) if shares_pts else []
     if not shares_q:
@@ -550,8 +566,15 @@ def cmd_fundamentals(a, ua):
               f"영업 {o['val']/1e6:>9,.0f}  capex {c['val']/1e6:>9,.0f}  "
               f"FCF {(o['val']-c['val'])/1e6:>9,.0f}  ({mark})")
     print(f"\nfundamentals_id  {snapshot['fundamentals_id']}")
-    print(f"저장: {path.relative_to(ROOT)}")
-    print(f"원본: {raw_path.relative_to(ROOT)}")
+    def show(target):
+        # --out-dir 이 저장소 밖일 수 있다 (재현 테스트는 임시 디렉터리를 쓴다).
+        try:
+            return target.relative_to(ROOT)
+        except ValueError:
+            return target
+
+    print(f"저장: {show(path)}")
+    print(f"원본: {show(raw_path)}")
     print("\n※ reverse_dcf 에 --fundamentals 로 넘기면 이 지문이 계산 산출물에 박힌다.")
     return 0
 
@@ -583,6 +606,9 @@ def main():
                         help="역산 DCF 입력 스냅샷 (TTM FCF·주식수·순부채)")
     fd.add_argument("ticker")
     fd.add_argument("--out-dir", default=str(FUNDAMENTALS_DIR))
+    fd.add_argument("--as-of",
+                    help="YYYY-MM-DD. 이 날짜까지 제출된 사실만 쓴다 (재현 테스트용). "
+                         "생략하면 최신 전부")
 
     a = p.parse_args()
     ua = user_agent()

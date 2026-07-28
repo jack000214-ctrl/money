@@ -5,7 +5,7 @@
   "corp_code": "00126380",
   "currency": "KRW",
   "period_end": "2026-03-31",
-  "created_at": "2026-07-28T09:59:59+09:00",
+  "created_at": "2026-07-28T13:35:37+09:00",
   "source": "opendart_fnlttSinglAcntAll",
   "fs_div": "CFS",
   "definitions": {
@@ -489,6 +489,6 @@
     }
   },
   "share_count_cross_check": 6630180138.0,
-  "raw_locator": "data/raw/dart/2026-07-28/fundamentals_005930_005959.json",
+  "raw_locator": "data/raw/dart/2026-07-28/fundamentals_005930_043537.json",
   "fundamentals_id": "FUND-413a84e45f2324987a32"
 }
