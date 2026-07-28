@@ -6,42 +6,84 @@
       "name": "price-005930",
       "path": "knowledge/prices/005930_KS.csv",
       "max_age_hours": 12,
-      "command": ["python3", "scripts/price_fetch.py", "history", "005930.KS", "--range", "10y"],
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "005930.KS",
+        "--range",
+        "10y"
+      ],
       "reads_before_decision": true
     },
     {
       "name": "price-214450",
       "path": "knowledge/prices/214450_KQ.csv",
       "max_age_hours": 12,
-      "command": ["python3", "scripts/price_fetch.py", "history", "214450.KQ", "--range", "10y"],
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "214450.KQ",
+        "--range",
+        "10y"
+      ],
       "reads_before_decision": true
     },
     {
       "name": "price-TSLA",
       "path": "knowledge/prices/TSLA.csv",
       "max_age_hours": 12,
-      "command": ["python3", "scripts/price_fetch.py", "history", "TSLA", "--range", "10y"],
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "TSLA",
+        "--range",
+        "10y"
+      ],
       "reads_before_decision": true
     },
     {
       "name": "price-IBM",
       "path": "knowledge/prices/IBM.csv",
       "max_age_hours": 12,
-      "command": ["python3", "scripts/price_fetch.py", "history", "IBM", "--range", "10y"],
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "IBM",
+        "--range",
+        "10y"
+      ],
       "reads_before_decision": false
     },
     {
       "name": "price-RXRX",
       "path": "knowledge/prices/RXRX.csv",
       "max_age_hours": 12,
-      "command": ["python3", "scripts/price_fetch.py", "history", "RXRX", "--range", "10y"],
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "RXRX",
+        "--range",
+        "10y"
+      ],
       "reads_before_decision": false
     },
     {
       "name": "fundamentals-005930",
       "path": "knowledge/fundamentals/005930-2026-03-31.json",
       "max_age_hours": 720,
-      "command": ["python3", "scripts/dart_fetch.py", "fundamentals", "005930", "--year", "2026"],
+      "command": [
+        "python3",
+        "scripts/dart_fetch.py",
+        "fundamentals",
+        "005930",
+        "--year",
+        "2026"
+      ],
       "reads_before_decision": true,
       "_note": "정기보고서는 분기마다 나온다. 30일 주기면 새 보고서를 놓치지 않는다"
     },
@@ -49,21 +91,39 @@
       "name": "fundamentals-214450",
       "path": "knowledge/fundamentals/214450-2026-03-31.json",
       "max_age_hours": 720,
-      "command": ["python3", "scripts/dart_fetch.py", "fundamentals", "214450", "--year", "2026"],
+      "command": [
+        "python3",
+        "scripts/dart_fetch.py",
+        "fundamentals",
+        "214450",
+        "--year",
+        "2026"
+      ],
       "reads_before_decision": true
     },
     {
       "name": "fundamentals-TSLA",
       "path": "knowledge/fundamentals/TSLA-2026-06-30.json",
       "max_age_hours": 720,
-      "command": ["python3", "scripts/edgar_fetch.py", "fundamentals", "TSLA"],
+      "command": [
+        "python3",
+        "scripts/edgar_fetch.py",
+        "fundamentals",
+        "TSLA"
+      ],
       "reads_before_decision": true
     },
     {
       "name": "events-005930",
       "path": "knowledge/events/005930.json",
       "max_age_hours": 24,
-      "command": ["python3", "scripts/collect_events.py", "005930", "--symbol", "005930.KS"],
+      "command": [
+        "python3",
+        "scripts/collect_events.py",
+        "005930",
+        "--symbol",
+        "005930.KS"
+      ],
       "reads_before_decision": true,
       "_note": "급변일과 그 무렵 공시를 나란히 놓는다. 인과는 붙이지 않는다"
     },
@@ -71,8 +131,96 @@
       "name": "events-214450",
       "path": "knowledge/events/214450.json",
       "max_age_hours": 24,
-      "command": ["python3", "scripts/collect_events.py", "214450", "--symbol", "214450.KQ"],
+      "command": [
+        "python3",
+        "scripts/collect_events.py",
+        "214450",
+        "--symbol",
+        "214450.KQ"
+      ],
       "reads_before_decision": true
+    },
+    {
+      "name": "price-KS11",
+      "path": "knowledge/prices/KS11.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^KS11",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": true,
+      "_note": "벤치마크. 시장 대비 분해와 체제 판정에 쓴다"
+    },
+    {
+      "name": "price-KQ11",
+      "path": "knowledge/prices/KQ11.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^KQ11",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": true
+    },
+    {
+      "name": "price-IXIC",
+      "path": "knowledge/prices/IXIC.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^IXIC",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": true
+    },
+    {
+      "name": "price-GSPC",
+      "path": "knowledge/prices/GSPC.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^GSPC",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": false
+    },
+    {
+      "name": "price-VIX",
+      "path": "knowledge/prices/VIX.csv",
+      "max_age_hours": 12,
+      "command": [
+        "python3",
+        "scripts/price_fetch.py",
+        "history",
+        "^VIX",
+        "--range",
+        "10y"
+      ],
+      "reads_before_decision": false
+    },
+    {
+      "name": "market-regime",
+      "path": "knowledge/market/regime.json",
+      "max_age_hours": 24,
+      "command": [
+        "python3",
+        "scripts/market_regime.py"
+      ],
+      "reads_before_decision": true,
+      "_note": "시장별 체제. 분할 횟수를 조절하는 신호이며 매수를 막는 신호가 아니다"
     }
   ]
 }

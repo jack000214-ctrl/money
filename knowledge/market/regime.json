@@ -1,0 +1,85 @@
+{
+  "schema_version": "market-regime/1.0.0",
+  "collected_at": "2026-07-28T15:29:57+09:00",
+  "lookback_days": 500,
+  "by_market": {
+    "US": {
+      "market": "US",
+      "regime": "ELEVATED",
+      "mark": "🟡",
+      "score": 1,
+      "notes": [],
+      "volatility": {
+        "symbol": "^VIX",
+        "label": "VIX",
+        "value": 18.67,
+        "median": 17.44,
+        "percentile": 64.1,
+        "in_score": true
+      },
+      "indices": [
+        {
+          "symbol": "^GSPC",
+          "name": "S&P 500",
+          "close": 7413.18,
+          "high": 7609.78,
+          "drawdown_pct": -2.6
+        },
+        {
+          "symbol": "^IXIC",
+          "name": "나스닥",
+          "close": 24932.08,
+          "high": 27093.9,
+          "drawdown_pct": -8.0
+        }
+      ],
+      "worst_drawdown_pct": -8.0,
+      "guidance": [
+        "평소보다 변동이 크다. 체결가가 계획과 어긋날 수 있다.",
+        "분할 횟수를 한 단계 늘린다."
+      ]
+    },
+    "KR": {
+      "market": "KR",
+      "regime": "STRESS",
+      "mark": "🟠",
+      "score": 3,
+      "notes": [
+        "주요 지수가 고점 대비 -43.1% — 약세장 구간"
+      ],
+      "volatility": {
+        "symbol": "^VIX",
+        "label": "VIX (참고 — 전역 지표라 점수 미반영)",
+        "value": 18.67,
+        "median": 17.44,
+        "percentile": 64.1,
+        "in_score": false
+      },
+      "indices": [
+        {
+          "symbol": "^KS11",
+          "name": "코스피",
+          "close": 6037.22,
+          "high": 9114.55,
+          "drawdown_pct": -33.8
+        },
+        {
+          "symbol": "^KQ11",
+          "name": "코스닥",
+          "close": 698.11,
+          "high": 1226.18,
+          "drawdown_pct": -43.1
+        }
+      ],
+      "worst_drawdown_pct": -43.1,
+      "guidance": [
+        "개별 종목 논지보다 시장 전체가 가격을 지배하는 구간이다.",
+        "**좋은 회사도 같이 빠진다.** 논지가 틀린 것이 아닐 수 있다.",
+        "분할 횟수를 2배로 늘리고 기간을 벌린다. 한 번에 넣지 않는다.",
+        "지금 무슨 일이 있는지 뉴스를 확인한다 — 판단이 아니라 사실 파악용."
+      ]
+    }
+  },
+  "_note": "체제는 예측이 아니라 현재 상태의 분류다. 매수를 막는 신호가 아니라 **분할 횟수를 조절하는** 신호다. 위기장은 장기 투자자에게 매수 기회였던 경우가 많고, 문제는 한 번에 넣는 것이다.",
+  "divergence": "시장별 체제가 다르다 — US ELEVATED, KR STRESS. 전역 위기가 아니라 특정 시장의 문제라는 뜻이므로, 원인을 그 시장에서 찾아야 한다"
+}

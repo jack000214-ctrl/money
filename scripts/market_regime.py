@@ -22,12 +22,48 @@ import urllib.request
 CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{s}?range={r}&interval=1d"
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
 
-INDICES = [
-    ("^GSPC", "S&P 500"),
-    ("^IXIC", "나스닥"),
-    ("^KS11", "코스피"),
-    ("^KQ11", "코스닥"),
-]
+# 체제는 **시장별로** 판정한다. 전역 최대낙폭을 쓰면 한국 종목을 살 때
+# S&P −2.6% 가 섞이고, 미국 종목을 살 때 코스피 −34% 가 섞인다. 2026-07-28 이
+# 정확히 그런 국면이었다 — 코스피 −34.1% / 코스닥 −42.9% 인데 S&P 는 −2.6%,
+# VIX 는 18.67(평시)로 **한국만 무너진 장세**였다. 섞으면 그 사실이 사라진다.
+MARKETS = {
+    "US": {
+        "indices": [("^GSPC", "S&P 500"), ("^IXIC", "나스닥")],
+        "vol": ("^VIX", "VIX"),
+    },
+    "KR": {
+        "indices": [("^KS11", "코스피"), ("^KQ11", "코스닥")],
+        # 한국 변동성 지수(VKOSPI)는 야후에 안정적으로 없다. 전역 VIX 를 참고로만
+        # 쓰고 점수에는 넣지 않는다 — 오늘처럼 VIX 가 평온한데 코스피만 무너지면
+        # VIX 를 점수에 넣는 순간 체제가 과소평가된다.
+        "vol": ("^VIX", "VIX (참고 — 전역 지표라 점수 미반영)"),
+        "vol_in_score": False,
+    },
+}
+INDICES = [("^GSPC", "S&P 500"), ("^IXIC", "나스닥"),
+           ("^KS11", "코스피"), ("^KQ11", "코스닥")]
+
+
+def safe_name(symbol):
+    return symbol.replace(".", "_").replace("^", "")
+
+
+def local_series(symbol, days):
+    """knowledge/prices/ 에 있으면 그것을 쓴다.
+
+    수집된 스냅샷을 쓰면 재현이 가능하고 네트워크 호출도 줄어든다. 없으면
+    야후에서 직접 받는다(그 경우 재현 불가라고 표시한다).
+    """
+    import csv as _csv
+    from pathlib import Path as _Path
+    path = (_Path(__file__).resolve().parent.parent
+            / "knowledge" / "prices" / f"{safe_name(symbol)}.csv")
+    if not path.exists():
+        return None
+    with path.open(encoding="utf-8") as f:
+        rows = list(_csv.DictReader(l for l in f if not l.startswith("#")))
+    closes = [float(r["close"]) for r in rows]
+    return closes[-days:] if days and len(closes) > days else closes
 
 
 def series(symbol, rng="2y"):
@@ -94,76 +130,130 @@ def percentile(values, x):
     return sum(1 for v in values if v < x) / len(values) * 100
 
 
-def main():
-    p = argparse.ArgumentParser(description="시장 체제 판정")
-    p.add_argument("--range", default="2y", help="비교 기간 (1y, 2y, 5y)")
-    a = p.parse_args()
+def analyse(market, rng, days):
+    """한 시장의 체제를 판정하고 구조화해 돌려준다."""
+    conf = MARKETS[market]
+    sym, vol_label = conf["vol"]
+    vol = local_series(sym, days) or series(sym, rng)
+    vol_now = vol[-1] if vol else None
+    vol_block = None
+    if vol:
+        vol_block = {
+            "symbol": sym, "label": vol_label, "value": round(vol_now, 2),
+            "median": round(statistics.median(vol), 2),
+            "percentile": round(percentile(vol, vol_now), 1),
+            "in_score": conf.get("vol_in_score", True),
+        }
 
-    print("=" * 70)
-    print(f"시장 체제 판정   (비교 기간 {a.range})")
-    print("=" * 70)
-
-    vix_now = None
-    vix = series("^VIX", a.range)
-    if vix:
-        vix_now = vix[-1]
-        print(f"\n[ 변동성 ]")
-        print(f"  VIX          {vix_now:>8.2f}   중앙값 {statistics.median(vix):>6.2f}   "
-              f"{a.range} 백분위 {percentile(vix, vix_now):>5.1f}%")
-
-    # 2. 지수별 고점 대비 낙폭
-    print(f"\n[ 최고점 대비 낙폭 ]")
-    worst = 0.0
-    for sym, name in INDICES:
-        s = series(sym, a.range)
-        if not s:
+    rows, worst = [], 0.0
+    for isym, name in conf["indices"]:
+        closes = local_series(isym, days) or series(isym, rng)
+        if not closes:
             continue
-        cur, hi = s[-1], max(s)
+        cur, hi = closes[-1], max(closes)
         dd = (cur / hi - 1) * 100
         worst = min(worst, dd)
-        flag = drawdown_label(dd)
-        print(f"  {name:<12}{cur:>12,.2f}   고점 {hi:>12,.2f}   {dd:>+7.1f}%{flag}")
+        rows.append({"symbol": isym, "name": name, "close": round(cur, 2),
+                     "high": round(hi, 2), "drawdown_pct": round(dd, 1)})
 
-    regime, mark, score, notes = classify(vix_now, worst)
+    score_vol = vol_now if conf.get("vol_in_score", True) else None
+    regime, mark, score, notes = classify(score_vol, worst)
+    return {
+        "market": market, "regime": regime, "mark": mark, "score": score,
+        "notes": notes, "volatility": vol_block, "indices": rows,
+        "worst_drawdown_pct": round(worst, 1),
+        "guidance": GUIDANCE[regime],
+    }
 
-    print("\n" + "=" * 70)
-    print(f"{mark} 체제: {regime}   (점수 {score})")
-    print("=" * 70)
-    for n in notes:
-        print(f"  • {n}")
-    if not notes:
-        print("  • 특이 신호 없음")
 
-    print("\n[ 이 체제에서 할 일 ]")
-    guide = {
-        "NORMAL": [
-            "평소 판단 기준이 통한다. 종목 분석대로 진행한다.",
-            "매수는 계획한 분할 횟수대로.",
-        ],
-        "ELEVATED": [
-            "평소보다 변동이 크다. 체결가가 계획과 어긋날 수 있다.",
-            "분할 횟수를 한 단계 늘린다.",
-        ],
-        "STRESS": [
-            "개별 종목 논지보다 시장 전체가 가격을 지배하는 구간이다.",
-            "**좋은 회사도 같이 빠진다.** 논지가 틀린 것이 아닐 수 있다.",
-            "분할 횟수를 2배로 늘리고 기간을 벌린다. 한 번에 넣지 않는다.",
-            "지금 무슨 일이 있는지 뉴스를 확인한다 — 판단이 아니라 사실 파악용.",
-        ],
-        "CRISIS": [
-            "체제 전환 국면이다. 과거 밸류에이션 밴드가 기준이 되지 않는다.",
-            "**팔지 않는 것이 첫 번째 할 일이다.** 공포 매도가 최대 손실원이다.",
-            "적립은 계속한다. 중단하면 복리가 끊긴다.",
-            "추가 매수는 최소 4~6회로 나누고 몇 달에 걸친다.",
-            "뉴스를 확인하되 헤드라인으로 매매하지 않는다.",
-        ],
-    }[regime]
-    for g in guide:
-        print(f"  • {g}")
+GUIDANCE = {
+    "NORMAL": [
+        "평소 판단 기준이 통한다. 종목 분석대로 진행한다.",
+        "매수는 계획한 분할 횟수대로.",
+    ],
+    "ELEVATED": [
+        "평소보다 변동이 크다. 체결가가 계획과 어긋날 수 있다.",
+        "분할 횟수를 한 단계 늘린다.",
+    ],
+    "STRESS": [
+        "개별 종목 논지보다 시장 전체가 가격을 지배하는 구간이다.",
+        "**좋은 회사도 같이 빠진다.** 논지가 틀린 것이 아닐 수 있다.",
+        "분할 횟수를 2배로 늘리고 기간을 벌린다. 한 번에 넣지 않는다.",
+        "지금 무슨 일이 있는지 뉴스를 확인한다 — 판단이 아니라 사실 파악용.",
+    ],
+    "CRISIS": [
+        "체제 전환 국면이다. 과거 밸류에이션 밴드가 기준이 되지 않는다.",
+        "**팔지 않는 것이 첫 번째 할 일이다.** 공포 매도가 최대 손실원이다.",
+        "적립은 계속한다. 중단하면 복리가 끊긴다.",
+        "추가 매수는 최소 4~6회로 나누고 몇 달에 걸친다.",
+        "뉴스를 확인하되 헤드라인으로 매매하지 않는다.",
+    ],
+}
 
-    print("\n※ 이 판정은 예측이 아니라 현재 상태의 분류다.")
-    print("※ 체제는 매수를 막는 신호가 아니라 **분할 횟수를 조절하는** 신호다.")
-    print("※ 위기장은 장기 투자자에게 매수 기회였던 경우가 많다. 문제는 한 번에 넣는 것이다.")
+
+def main():
+    p = argparse.ArgumentParser(description="시장 체제 판정 (시장별)")
+    p.add_argument("--range", default="2y", help="비교 기간 (1y, 2y, 5y)")
+    p.add_argument("--days", type=int, default=500,
+                   help="로컬 시세를 쓸 때 볼 거래일 수")
+    p.add_argument("--out", help="스냅샷 저장 경로 "
+                                 "(기본 knowledge/market/regime.json)")
+    p.add_argument("--json", action="store_true", help="표 대신 JSON 만 출력")
+    a = p.parse_args()
+
+    import datetime as _dt
+    from pathlib import Path as _Path
+    snapshot = {
+        "schema_version": "market-regime/1.0.0",
+        "collected_at": _dt.datetime.now(
+            _dt.timezone(_dt.timedelta(hours=9))).isoformat(timespec="seconds"),
+        "lookback_days": a.days,
+        "by_market": {m: analyse(m, a.range, a.days) for m in MARKETS},
+        "_note": "체제는 예측이 아니라 현재 상태의 분류다. 매수를 막는 신호가 "
+                 "아니라 **분할 횟수를 조절하는** 신호다. 위기장은 장기 투자자에게 "
+                 "매수 기회였던 경우가 많고, 문제는 한 번에 넣는 것이다.",
+    }
+    # 시장별 체제가 갈리면 그 사실 자체가 중요한 정보다
+    regimes = {m: v["regime"] for m, v in snapshot["by_market"].items()}
+    if len(set(regimes.values())) > 1:
+        snapshot["divergence"] = (
+            f"시장별 체제가 다르다 — {', '.join(f'{k} {v}' for k, v in regimes.items())}. "
+            "전역 위기가 아니라 특정 시장의 문제라는 뜻이므로, 원인을 그 시장에서 "
+            "찾아야 한다")
+
+    out = _Path(a.out) if a.out else (_Path(__file__).resolve().parent.parent
+                                      / "knowledge" / "market" / "regime.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n",
+                   encoding="utf-8")
+
+    if a.json:
+        print(json.dumps(snapshot, ensure_ascii=False, indent=2))
+        return
+
+    for market, block in snapshot["by_market"].items():
+        print("=" * 70)
+        print(f"{block['mark']} {market} 체제: {block['regime']}  (점수 {block['score']})")
+        print("=" * 70)
+        v = block["volatility"]
+        if v:
+            note = "" if v["in_score"] else "  ※ 점수 미반영"
+            print(f"  {v['label']:<34}{v['value']:>8.2f}   "
+                  f"중앙값 {v['median']:>6.2f}  백분위 {v['percentile']:>5.1f}%{note}")
+        for row in block["indices"]:
+            print(f"  {row['name']:<12}{row['close']:>12,.2f}   "
+                  f"고점 {row['high']:>12,.2f}   {row['drawdown_pct']:>+7.1f}%"
+                  f"{drawdown_label(row['drawdown_pct'])}")
+        for n in block["notes"] or ["특이 신호 없음"]:
+            print(f"  • {n}")
+        print("  [ 할 일 ]")
+        for g in block["guidance"]:
+            print(f"    - {g}")
+        print()
+
+    if "divergence" in snapshot:
+        print("!! " + snapshot["divergence"])
+    print(f"\n저장: {out}")
 
 
 if __name__ == "__main__":

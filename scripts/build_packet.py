@@ -421,6 +421,39 @@ def memory_packet(asset_id: str, score_months: list[int]) -> dict:
     }
 
 
+def market_regime_packet(market: str) -> dict:
+    """시장 국면 패킷 — 이 종목이 속한 시장이 평소인가.
+
+    오늘(2026-07-28) 이 패킷이 없었다면 놓쳤을 사실: 코스피 −33.8% / 코스닥
+    −43.1% 인데 S&P 는 −2.6%, VIX 는 18.67(평시)이다. **한국만 무너진 장세**라
+    CXMT·AI capex 같은 전역 요인으로는 설명되지 않는다.
+
+    체제는 매수를 막는 신호가 아니라 **분할 횟수를 조절하는** 신호다.
+    """
+    path = ROOT / "knowledge" / "market" / "regime.json"
+    if not path.exists():
+        return {"_gaps": ["시장 국면 스냅샷이 없다 — scripts/market_regime.py"]}
+    data = load_json(path)
+    age_h = (dt.datetime.now(dt.timezone.utc).timestamp()
+             - path.stat().st_mtime) / 3600
+    mine = (data.get("by_market") or {}).get(market)
+    gaps = []
+    if age_h > 24:
+        gaps.append(f"시장 국면이 {age_h:.0f}시간 전 값이다 — market_regime.py 재실행")
+    if mine is None:
+        gaps.append(f"{market} 시장의 국면이 스냅샷에 없다")
+    return {
+        "collected_at": data.get("collected_at"),
+        "this_market": mine,
+        "all_markets": {m: {"regime": v["regime"],
+                            "worst_drawdown_pct": v["worst_drawdown_pct"]}
+                        for m, v in (data.get("by_market") or {}).items()},
+        "divergence": data.get("divergence"),
+        "_note": data.get("_note"),
+        "_gaps": gaps,
+    }
+
+
 def portfolio_packet(asset_id: str) -> dict:
     """포트폴리오 패킷 — 보유 비중과 신규 매수 여력."""
     path = ROOT / "knowledge" / "portfolio" / "holdings.csv"
@@ -518,6 +551,11 @@ def main() -> int:
             "memory": memory_packet(a.asset_id, a.score_months),
             "calculation": calculation_packet(a.asset_id, a.rank_horizon),
             "portfolio": portfolio_packet(a.asset_id),
+            "market_regime": market_regime_packet(
+                "KR" if (parse_frontmatter(
+                    (company_dir(a.asset_id) / "profile.md").read_text(encoding="utf-8")
+                ).get("exchange") or "").upper() in ("KOSPI", "KOSDAQ") else "US"
+                if company_dir(a.asset_id) else "US"),
         },
     }
     packet["_missing_packets"] = {
