@@ -218,12 +218,17 @@ def event_packet(asset_id: str, symbol: str | None, days: int) -> dict:
             "source": "collect_events.py",
             "collected_at": data.get("collected_at"),
             "window": data.get("window"),
-            "threshold_pct": data.get("threshold_pct"),
+            "threshold": data.get("threshold"),
+            # 상시 필드 — 종목 고유 원인을 찾기 전에 시장 요인을 먼저 본다
+            "market_decomposition": data.get("market_decomposition"),
+            "benchmark": data.get("benchmark"),
             "latest": data.get("latest"),
             # 급변일마다 후보 공시가 붙어 있다. 인과는 모델이 고른다.
             "moves": data.get("moves"),
             "unexplained_moves": [m["date"] for m in data.get("moves", [])
                                   if not m.get("candidate_filings")],
+            "moved_with_market": [m["date"] for m in data.get("moves", [])
+                                  if m.get("moved_with_market")],
             "_note": data.get("_note"),
             "_gaps": gaps,
         }

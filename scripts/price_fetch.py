@@ -22,6 +22,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PRICE_DIR = ROOT / "knowledge" / "prices"
 CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range={rng}&interval=1d"
+
+
+def safe_name(symbol):
+    """심볼 → 파일명. 지수(^KS11)의 ^ 는 셸에서 사고를 내므로 떼어낸다."""
+    return symbol.replace(".", "_").replace("^", "")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
 
@@ -63,7 +68,7 @@ def fetch(symbol, rng):
 
 def save(symbol, meta, rows):
     PRICE_DIR.mkdir(parents=True, exist_ok=True)
-    path = PRICE_DIR / f"{symbol.replace('.', '_')}.csv"
+    path = PRICE_DIR / f"{safe_name(symbol)}.csv"
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write(f"# {symbol} 일별 종가 / 통화 {meta.get('currency')}\n")
         f.write(f"# 수집일 {datetime.now(timezone.utc).strftime('%Y-%m-%d')} "
@@ -75,7 +80,7 @@ def save(symbol, meta, rows):
 
 
 def load(symbol):
-    path = PRICE_DIR / f"{symbol.replace('.', '_')}.csv"
+    path = PRICE_DIR / f"{safe_name(symbol)}.csv"
     if not path.exists():
         fail(f"{path.relative_to(ROOT)} 가 없다. 먼저 history 로 수집한다.")
     with open(path, newline="", encoding="utf-8") as f:
