@@ -447,16 +447,67 @@ class TestRoutingContracts(unittest.TestCase):
     def test_event_packet_is_bound_to_registered_asset(self):
         asset = get_asset("005930")
         packet = {
-            "schema_version": "event-packet/1.0.0",
+            "schema_version": "event-packet/2.1.0",
             "asset_id": "005930",
             "symbol": "005930.KS",
             "collected_at": "2026-07-28T00:00:00+09:00",
-            "benchmark": {"symbol": "^KS11", "available": True},
+            "benchmark": {
+                "symbol": "^KS11",
+                "available": True,
+                "calendar_gaps": [],
+            },
+            "benchmark_comparison": {"benchmark_symbol": "^KS11", "legs": []},
+            "judged_on": "벤치마크 대비 beta=1 상대변동",
+            "last_bar": {"date": "2026-07-28", "settled": True},
             "moves": [],
         }
         self.assertEqual(event_contract_errors(packet, asset), [])
         packet["asset_id"] = "214450"
         self.assertTrue(event_contract_errors(packet, asset))
+
+    def test_event_packet_rejects_superseded_schema(self):
+        asset = get_asset("005930")
+        packet = self._valid_event_packet()
+        packet["schema_version"] = "event-packet/2.0.0"
+        self.assertTrue(event_contract_errors(packet, asset))
+
+    def test_event_packet_must_prove_it_checked_the_benchmark_calendar(self):
+        """구멍이 없으면 빈 배열이어야 한다. 필드가 없다는 것은 대조하지
+        않았다는 뜻이고, 그러면 상대변동을 믿을 근거가 없다."""
+        asset = get_asset("005930")
+        packet = self._valid_event_packet()
+        del packet["benchmark"]["calendar_gaps"]
+        self.assertIn(
+            "이벤트 packet에 벤치마크 캘린더 대조 결과가 없다",
+            event_contract_errors(packet, asset),
+        )
+
+    def test_event_packet_must_be_built_on_a_settled_session(self):
+        asset = get_asset("005930")
+        packet = self._valid_event_packet()
+        packet["last_bar"] = {"date": "2026-07-29", "settled": False}
+        self.assertIn(
+            "이벤트 packet이 확정 거래일 위에서 계산되지 않았다",
+            event_contract_errors(packet, asset),
+        )
+
+    @staticmethod
+    def _valid_event_packet() -> dict:
+        return {
+            "schema_version": "event-packet/2.1.0",
+            "asset_id": "005930",
+            "symbol": "005930.KS",
+            "collected_at": "2026-07-28T00:00:00+09:00",
+            "benchmark": {
+                "symbol": "^KS11",
+                "available": True,
+                "calendar_gaps": [],
+            },
+            "benchmark_comparison": {"benchmark_symbol": "^KS11", "legs": []},
+            "judged_on": "벤치마크 대비 beta=1 상대변동",
+            "last_bar": {"date": "2026-07-28", "settled": True},
+            "moves": [],
+        }
 
 
 class TestMemoryDigest(unittest.TestCase):

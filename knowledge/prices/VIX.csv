@@ -1,6 +1,7 @@
-# schema_version price-series/2.0.0
+# schema_version price-series/2.1.0
 # symbol ^VIX / currency USD
-# retrieved_at 2026-07-29T00:46:41+00:00 / source Yahoo Finance chart API
+# retrieved_at 2026-07-29T01:28:48+00:00 / source Yahoo Finance chart API
+# last_bar 2026-07-28 / session SETTLED
 date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2021-07-28,18.309999465942383,18.309999465942383,1,19.6200008392334,17.520000457763672,0
 2021-07-29,17.700000762939453,17.700000762939453,1,18.010000228881836,17.190000534057617,0

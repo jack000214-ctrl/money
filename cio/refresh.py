@@ -73,8 +73,8 @@ def event_contract_errors(
     errors = []
     if not isinstance(data, dict):
         return ["이벤트 packet은 JSON 객체여야 한다"]
-    if data.get("schema_version") != "event-packet/1.0.0":
-        errors.append("event-packet/1.0.0이 필요하다")
+    if data.get("schema_version") != "event-packet/2.1.0":
+        errors.append("event-packet/2.1.0이 필요하다")
     if data.get("asset_id") != asset["asset_id"]:
         errors.append("이벤트 packet의 asset_id가 요청 자산과 다르다")
     if data.get("symbol") != asset["price_symbol"]:
@@ -93,6 +93,21 @@ def event_contract_errors(
         or benchmark.get("symbol") != asset["benchmarks"][0]
     ):
         errors.append("이벤트 packet의 벤치마크가 registry와 다르다")
+    elif not isinstance(benchmark.get("calendar_gaps"), list):
+        # 구멍이 없으면 빈 배열이어야 한다. 필드 자체가 없다는 것은 캘린더를
+        # 대조하지 않았다는 뜻이고, 그러면 상대변동을 믿을 수 없다.
+        errors.append("이벤트 packet에 벤치마크 캘린더 대조 결과가 없다")
+    last_bar = data.get("last_bar")
+    if not isinstance(last_bar, dict) or last_bar.get("settled") is not True:
+        errors.append("이벤트 packet이 확정 거래일 위에서 계산되지 않았다")
+    comparison = data.get("benchmark_comparison")
+    if (
+        not isinstance(comparison, dict)
+        or comparison.get("benchmark_symbol") != asset["benchmarks"][0]
+    ):
+        errors.append("이벤트 packet의 벤치마크 비교가 registry와 다르다")
+    if not isinstance(data.get("judged_on"), str):
+        errors.append("이벤트 packet에 판정 기준 표기가 없다")
     moves = data.get("moves")
     if not isinstance(moves, list):
         errors.append("이벤트 packet의 moves 배열이 없다")
@@ -142,6 +157,34 @@ def _price_task(symbol: str, *, required: bool = True) -> RefreshTask:
     )
 
 
+KR_INDEX_MARKETS = {"^KS11": "KOSPI", "^KQ11": "KOSDAQ"}
+
+
+def _benchmark_backfill_task(symbol: str) -> RefreshTask:
+    """벤치마크 지수의 누락 거래일을 KRX 원문으로 메우는 작업.
+
+    Yahoo 는 거래일을 통째로 빠뜨리고도 정상 응답을 준다. price 수집이 파일을
+    덮어쓸 때마다 구멍도 함께 돌아오므로, 표식 파일이 가격 파일보다 오래되면
+    자동으로 다시 돈다.
+    """
+    market = KR_INDEX_MARKETS[symbol]
+    filename = safe_symbol(symbol)
+    return RefreshTask(
+        name=f"benchmark_backfill:{symbol}",
+        capability="BENCHMARK_BACKFILL",
+        artifact=f"knowledge/prices/_backfill/{filename}.json",
+        max_age_hours=12,
+        command=[
+            sys.executable,
+            "-m",
+            "collectors.krx",
+            "backfill",
+            market,
+        ],
+        dependencies=[f"knowledge/prices/{filename}.csv"],
+    )
+
+
 def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshTask]:
     asset = get_asset(asset_id)
     tasks: list[RefreshTask] = [_price_task(asset["price_symbol"])]
@@ -151,6 +194,12 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
         tasks.append(_price_task(symbol))
     for symbol, required in MARKET_PRICE_REQUIREMENTS[asset["market"]]:
         tasks.append(_price_task(symbol, required=required))
+    # 가격 수집 뒤에 놓는다 — 덮어쓴 파일 위에서 다시 메워야 한다.
+    for symbol in dict.fromkeys(
+        [*market_symbols, *(s for s, _ in MARKET_PRICE_REQUIREMENTS[asset["market"]])]
+    ):
+        if symbol in KR_INDEX_MARKETS:
+            tasks.append(_benchmark_backfill_task(symbol))
 
     if asset["asset_type"] == "STOCK":
         filing_source = asset["filing_source"]
@@ -237,6 +286,13 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     dependencies=[
                         f"knowledge/prices/{safe_symbol(asset['price_symbol'])}.csv",
                         f"knowledge/prices/{safe_symbol(primary_benchmark)}.csv",
+                        # 백필은 원래 retrieved_at 을 보존하므로 가격 파일의
+                        # 회수시각만 보면 구멍이 메워진 것을 알 수 없다. 표식이
+                        # 갱신되면 상대변동을 다시 계산해야 한다.
+                        *([
+                            "knowledge/prices/_backfill/"
+                            f"{safe_symbol(primary_benchmark)}.json"
+                        ] if primary_benchmark in KR_INDEX_MARKETS else []),
                     ],
                 )
             )
@@ -387,6 +443,7 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
                 first_line = handle.readline().strip()
                 metadata_line = handle.readline().strip()
                 retrieval_line = handle.readline().strip()
+                session_line = handle.readline().strip()
                 header = next(
                     csv.reader(
                         line
@@ -397,8 +454,8 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
                 )
         except OSError:
             return "가격 파일을 읽을 수 없다"
-        if first_line != "# schema_version price-series/2.0.0":
-            return "조정종가가 있는 price-series/2.0.0이 필요하다"
+        if first_line != "# schema_version price-series/2.1.0":
+            return "조정종가·세션상태가 있는 price-series/2.1.0이 필요하다"
         metadata = re.fullmatch(
             r"# symbol (.+) / currency ([A-Z]{3})",
             metadata_line,
@@ -420,6 +477,14 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             retrieved_at = None
         if retrieved_at is None or retrieved_at.tzinfo is None:
             return "가격 파일의 회수시각 메타데이터가 유효하지 않다"
+        # 마지막 봉이 확정 종가인지가 파일에 남아 있어야 한다. 장중 수집분은
+        # 진행 중인 봉을 확정 일봉과 같은 형태로 담는다.
+        if not re.fullmatch(
+            r"# last_bar \d{4}-\d{2}-\d{2} / session "
+            r"(SETTLED|UNSETTLED|UNKNOWN)",
+            session_line,
+        ):
+            return "가격 파일에 마지막 봉의 세션 상태가 없다"
         required_fields = {
             "date",
             "close",
@@ -430,6 +495,37 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         }
         if not required_fields.issubset(set(header)):
             return "가격 v2 필수 열이 없다"
+    if task.capability == "BENCHMARK_BACKFILL":
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "벤치마크 백필 기록을 읽을 수 없다"
+        if data.get("schema_version") != "price-backfill/1.0.0":
+            return "price-backfill/1.0.0이 필요하다"
+        filled = data.get("filled")
+        target = data.get("target")
+        if not isinstance(filled, list) or not isinstance(target, str):
+            return "벤치마크 백필 기록에 메운 거래일 목록이 없다"
+        # 기록이 스스로를 증명해야 한다. 대상 파일이 어떤 경로로든 다시 쓰여
+        # 메웠던 거래일이 사라지면, 기록만 남아 '메웠다'고 거짓말한다.
+        target_path = ROOT / "knowledge" / "prices" / target
+        if filled:
+            if not target_path.exists():
+                return "벤치마크 백필 대상 가격 파일이 없다"
+            try:
+                with target_path.open(encoding="utf-8-sig") as handle:
+                    present = {
+                        row.get("date")
+                        for row in csv.DictReader(
+                            line
+                            for line in handle
+                            if not line.lstrip().startswith("#")
+                        )
+                    }
+            except OSError:
+                return "벤치마크 백필 대상 가격 파일을 읽을 수 없다"
+            if not set(filled).issubset(present):
+                return "백필로 메웠던 거래일이 가격 파일에서 다시 사라졌다"
     if task.capability == "MARKET_STATE":
         try:
             data = json.loads(path.read_text(encoding="utf-8"))

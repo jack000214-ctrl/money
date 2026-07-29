@@ -37,6 +37,34 @@ def safe_name(symbol: str) -> str:
     return symbol.replace(".", "_").replace("^", "").replace("=", "")
 
 
+def session_state(meta: dict, last_date: str) -> str:
+    """마지막 봉이 확정 종가인지 판별한다.
+
+    장중에 수집하면 진행 중인 봉이 확정 일봉과 똑같은 형태로 저장된다. 하류의
+    거래량 배수·급변 판정은 그 행을 하루치로 가정하므로, 확정 여부를 파일에
+    남기지 않으면 개장 1시간짜리 거래량이 '평소 대비 0.3배'로 읽힌다.
+    장 시간을 하드코딩하지 않고 거래소가 선언한 세션 경계를 그대로 쓴다.
+    """
+    market_time = meta.get("regularMarketTime")
+    period = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
+    session_end = period.get("end")
+    offset = meta.get("gmtoffset")
+    if not all(
+        isinstance(value, int)
+        for value in (market_time, session_end, offset)
+    ):
+        return "UNKNOWN"
+    local_date = (
+        datetime.fromtimestamp(market_time + offset, timezone.utc)
+        .date()
+        .isoformat()
+    )
+    if local_date != last_date:
+        # 마지막 봉이 이전 세션이면 이미 닫힌 봉이다.
+        return "SETTLED"
+    return "SETTLED" if market_time >= session_end else "UNSETTLED"
+
+
 def fail(message: str) -> None:
     print(f"오류: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -130,12 +158,16 @@ def save(symbol: str, meta: dict, rows: list[dict]) -> Path:
             dir=PRICE_DIR,
             delete=False,
         ) as temporary:
-            temporary.write("# schema_version price-series/2.0.0\n")
+            temporary.write("# schema_version price-series/2.1.0\n")
             temporary.write(
                 f"# symbol {symbol} / currency {meta.get('currency') or 'UNKNOWN'}\n"
             )
             temporary.write(
                 f"# retrieved_at {retrieved_at} / source Yahoo Finance chart API\n"
+            )
+            temporary.write(
+                f"# last_bar {rows[-1]['date']} / "
+                f"session {session_state(meta, rows[-1]['date'])}\n"
             )
             writer = csv.DictWriter(temporary, fieldnames=FIELDS)
             writer.writeheader()
@@ -167,11 +199,17 @@ def load(symbol: str) -> list[dict[str, float | str]]:
 
 def cmd_history(args) -> None:
     meta, rows = fetch(args.symbol, args.range)
+    state = session_state(meta, rows[-1]["date"])
     path = save(args.symbol, meta, rows)
     print(
         f"{args.symbol} {meta.get('currency') or 'UNKNOWN'} {len(rows)}일 "
         f"{rows[0]['date']} ~ {rows[-1]['date']}"
     )
+    if state != "SETTLED":
+        print(
+            f"※ 마지막 봉 {rows[-1]['date']} 은 {state} — 확정 종가가 아니다. "
+            "거래량 배수와 급변 판정에서 제외된다"
+        )
     print(f"저장: {path.relative_to(ROOT)}")
 
 

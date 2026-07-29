@@ -63,6 +63,8 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
         with path.open(encoding="utf-8-sig") as handle:
             schema_line = handle.readline().strip()
             metadata_line = handle.readline().strip()
+            handle.readline()
+            session_line = handle.readline().strip()
     except OSError:
         return None, source
     metadata = re.fullmatch(
@@ -70,11 +72,15 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
         metadata_line,
     )
     if (
-        schema_line != "# schema_version price-series/2.0.0"
+        schema_line != "# schema_version price-series/2.1.0"
         or not metadata
         or metadata.group(1) != symbol
     ):
         return None, source
+    session = re.fullmatch(
+        r"# last_bar (\d{4}-\d{2}-\d{2}) / session (\w+)",
+        session_line,
+    )
     rows = _csv_rows(path)
     points = []
     adjusted_complete = True
@@ -150,6 +156,21 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             )
             if len(returns) >= 2
             else None,
+            # 마지막 행이 확정 종가인지. 장중 수집분이면 close·거래량·수익률이
+            # 전부 진행 중인 값이라 확정 일봉처럼 인용하면 안 된다.
+            "last_bar": {
+                "date": session.group(1) if session else points[-1][0],
+                "session": session.group(2) if session else "UNKNOWN",
+                "is_settled_close": bool(session)
+                and session.group(2) == "SETTLED",
+                "_warning": (
+                    "마지막 봉이 확정 종가가 아니다 — 장중 수집분이다. close 와 "
+                    "그것을 쓰는 수익률·낙폭·변동성은 진행 중인 값이며 종가로 "
+                    "인용하면 안 된다"
+                    if session and session.group(2) == "UNSETTLED"
+                    else None
+                ),
+            },
         },
         source,
     )
@@ -487,6 +508,13 @@ def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[s
             "as_of": data.get("collected_at"),
             "move_count": len(data.get("moves") or []),
             "recent_moves": moves,
+            # 판정이 어느 거래일 위에서 이뤄졌는지, 그리고 벤치마크 캘린더가
+            # 어긋나 상대변동을 포기한 날이 있는지. 둘 다 숫자의 신뢰도를
+            # 바꾸므로 요약에서 빠지면 안 된다.
+            "last_bar": data.get("last_bar"),
+            "benchmark_calendar_gaps": (
+                (data.get("benchmark") or {}).get("calendar_gaps")
+            ),
             "_warning": (
                 "excess_pct_beta_1은 벤치마크를 beta=1로 뺀 값이며 인과 비중이 아니다. "
                 "candidate_filings도 시간상 후보일 뿐 원인이 아니다"
@@ -956,7 +984,21 @@ def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
                 "owner": "MODEL",
                 "topic": "cycle_inputs",
                 "instruction": "메모리 가격·공급증설·재고·capex의 지속성을 확인한다",
-            }
+            },
+            {
+                "owner": "MODEL",
+                "topic": "memory_contract_prices",
+                "known_local_gap": (
+                    "DRAM·NAND 고정거래가격 시계열이 로컬에 없다"
+                ),
+                "instruction": (
+                    "로컬에 있는 것(가격·재무·재고·수급)은 전부 사이클의 결과이고, "
+                    "사이클을 움직이는 원인인 판가는 이 저장소에 없다. 재고자산과 "
+                    "DIO로 역추정할 수는 있으나 분기당 한 번, 45일 늦게 들어온다. "
+                    "판가는 직접 조사하고, 2차 출처를 썼다면 sources에 URL·시각을 "
+                    "남기는 동시에 unknowns에 '원문 스냅샷 없음'을 명시한다"
+                ),
+            },
         ],
         "CLINICAL_BIOTECH": [
             {

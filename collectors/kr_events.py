@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 from collectors.dart import load_key, request, resolve
 
 OUT_DIR = ROOT / "knowledge" / "events"
-SCHEMA = "event-packet/2.0.0"
+SCHEMA = "event-packet/2.1.0"
 
 # 신호를 덮는 공시. 임원 소유상황은 하루 수십 건, 정기보고서는 예정된 일정이다.
 NOISE_PREFIX = ("임원ㆍ주요주주특정증권등소유상황보고서",)
@@ -44,11 +44,40 @@ def benchmark_for(symbol: str) -> str:
     return BENCHMARKS.get(suffix, BENCHMARKS["US"])
 
 
-def daily_returns(series: list[tuple[str, float, int]]) -> dict[str, float]:
+def daily_returns(
+    series: list[tuple[str, float, int]],
+) -> dict[str, tuple[float, str]]:
+    """날짜별 (변동률, 그 계산에 쓴 직전 거래일).
+
+    직전 거래일을 함께 돌려주지 않으면 두 시계열의 캘린더가 어긋나도 알 수 없다.
+    Yahoo 가 벤치마크의 거래일 하나를 빠뜨리면 이틀치 변동이 하루로 합쳐지고,
+    종목에서 그 값을 빼는 순간 초과수익 부호까지 뒤집힌다.
+    """
     out = {}
     for i in range(1, len(series)):
-        out[series[i][0]] = (series[i][1] / series[i - 1][1] - 1) * 100
+        out[series[i][0]] = (
+            (series[i][1] / series[i - 1][1] - 1) * 100,
+            series[i - 1][0],
+        )
     return out
+
+
+def aligned_benchmark(
+    bench_returns: dict[str, tuple[float, str]],
+    date: str,
+    asset_prev: str,
+) -> float | None:
+    """두 시계열이 같은 직전 거래일을 쓸 때만 벤치마크 변동률을 준다.
+
+    벤치마크에 거래일 구멍이 있으면 그 값은 이틀치라 종목의 하루치에서 뺄 수
+    없다. 근사하지 않고 None 을 돌려준다 — 없는 것보다 틀린 것이 훨씬 나쁘다.
+    2026-07-28 코스피 -10.84% 폭락일이 Yahoo 에서 통째로 빠졌을 때, 이 확인이
+    없어서 다음 거래일 초과수익이 +13.39% 로 뒤집혀 나왔다.
+    """
+    row = bench_returns.get(date)
+    if row is None or row[1] != asset_prev:
+        return None
+    return row[0]
 
 
 def stdev(values: list[float]) -> float:
@@ -111,9 +140,27 @@ def closes(symbol: str) -> list[tuple[str, float, int]]:
     if not path.exists():
         print(f"오류: 시세 파일이 없다 — {path}", file=sys.stderr)
         raise SystemExit(1)
-    with path.open(encoding="utf-8") as f:
-        rows = list(csv.DictReader(l for l in f if not l.startswith("#")))
-    return [(r["date"], float(r["close"]), int(r["volume"])) for r in rows]
+    with path.open(encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(l for l in f if not l.lstrip().startswith("#")))
+    # 거래량은 비어 있을 수 있다 — 원문 백필로 메운 지수 행은 Yahoo 와 거래량
+    # 단위가 달라 값을 넣지 않는다. 종가만 있으면 수익률 계산에는 충분하다.
+    return [
+        (r["date"], float(r["close"]), int(float(r["volume"] or 0)))
+        for r in rows
+    ]
+
+
+def last_bar_settled(symbol: str) -> bool:
+    """마지막 봉이 확정 종가인지 가격 파일 헤더에서 읽는다."""
+    path = ROOT / "knowledge" / "prices" / f"{safe_name(symbol)}.csv"
+    with path.open(encoding="utf-8-sig") as f:
+        for line in f:
+            if not line.lstrip().startswith("#"):
+                break
+            if line.startswith("# last_bar "):
+                # "UNSETTLED" 도 "SETTLED" 로 끝난다 — 토큰으로 정확히 비교한다.
+                return line.rstrip().rsplit("session ", 1)[-1] == "SETTLED"
+    return True
 
 
 def main() -> int:
@@ -137,6 +184,14 @@ def main() -> int:
     a = p.parse_args()
 
     series = closes(a.symbol)
+    # 장중 수집분의 마지막 행은 진행 중인 봉이다. 거래량이 하루치가 아니라
+    # 급변 판정과 거래량 배수를 왜곡하므로 판정 대상에서 뺀다.
+    unsettled_bar = None if last_bar_settled(a.symbol) else series[-1][0]
+    if unsettled_bar:
+        series = series[:-1]
+        if len(series) < 2:
+            print(f"오류: {a.symbol} 에 확정된 거래일이 부족하다", file=sys.stderr)
+            return 1
     last_date = dt.date.fromisoformat(series[-1][0])
     since = last_date - dt.timedelta(days=a.days)
     window = [c for c in series if c[0] >= since.isoformat()]
@@ -146,7 +201,7 @@ def main() -> int:
     # 벤치마크 — 없으면 초과변동 없이 계속한다 (있는 게 훨씬 낫지만 필수는 아니다)
     bench_symbol = a.benchmark or benchmark_for(a.symbol)
     bench_path = ROOT / "knowledge" / "prices" / f"{safe_name(bench_symbol)}.csv"
-    bench_returns: dict[str, float] = {}
+    bench_returns: dict[str, tuple[float, str]] = {}
     if bench_path.exists():
         bench_returns = daily_returns(closes(bench_symbol))
     else:
@@ -158,10 +213,30 @@ def main() -> int:
     dates = [c[0] for c in series]
     index_of = {d: i for i, d in enumerate(dates)}
 
+    def aligned(date: str, asset_prev: str) -> float | None:
+        return aligned_benchmark(bench_returns, date, asset_prev)
+
+    # 벤치마크 캘린더가 어긋난 날. 판정에서 빼되 감추지 않고 패킷에 남긴다.
+    calendar_gaps = [
+        {"date": d, "asset_prev_trading_day": prev,
+         "benchmark_prev_trading_day": (bench_returns[d][1]
+                                        if d in bench_returns else None),
+         "reason": ("벤치마크에 그 거래일이 없다" if d not in bench_returns
+                    else "벤치마크의 직전 거래일이 종목과 다르다")}
+        for d, (_, prev) in returns.items()
+        if bench_returns and aligned(d, prev) is None
+    ]
+    window_gaps = [g for g in calendar_gaps if g["date"] >= since.isoformat()]
+
     # 상대변동으로 선별할 때는 임계값도 같은 계열의 표준편차로 계산한다.
-    judged_series = ({d: returns[d] - bench_returns[d]
-                      for d in returns if d in bench_returns}
-                     if bench_returns else returns)
+    judged_series = (
+        {d: value - value_b
+         for d, (value, prev) in returns.items()
+         for value_b in [aligned(d, prev)]
+         if value_b is not None}
+        if bench_returns
+        else {d: value for d, (value, _) in returns.items()}
+    )
 
     # 적응형 임계값. 관측 변동성이 국면마다 달라 고정값은 의미가 달라진다.
     fixed = None
@@ -172,7 +247,7 @@ def main() -> int:
     for i in range(1, len(window)):
         prev, cur = window[i - 1], window[i]
         change = (cur[1] / prev[1] - 1) * 100
-        bench = bench_returns.get(cur[0])
+        bench = aligned(cur[0], prev[0])
         excess = change - bench if bench is not None else None
 
         # 이 날짜 직전 vol_window 거래일의 표준편차 — 미래를 쓰지 않는다
@@ -249,6 +324,17 @@ def main() -> int:
             "available": bool(bench_returns),
             "daily_relative_method": "asset_return_pct - benchmark_return_pct "
                                      "(beta=1 조사 우선순위용)",
+            # 캘린더가 어긋난 날은 상대변동을 내지 않고 여기에 남긴다. 비어
+            # 있으면 구간의 모든 거래일이 두 시계열에서 같은 직전일을 썼다는 뜻이다.
+            "calendar_gaps": window_gaps,
+        },
+        "last_bar": {
+            "date": series[-1][0],
+            "settled": True,
+            "excluded_unsettled_bar": unsettled_bar,
+            "_note": ("장중 수집분의 미확정 봉을 판정에서 제외했다"
+                      if unsettled_bar else
+                      "수집 시점에 마지막 봉이 확정 종가였다"),
         },
         "benchmark_comparison": {
             **compare_with_benchmark(
@@ -267,11 +353,23 @@ def main() -> int:
         "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. "
                  "여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 "
                  "그건 모델의 몫이다",
-        "_gaps": ([] if not without_filings else [
-            f"근접 공시가 없는 급변 {len(without_filings)}건 "
-            f"({', '.join(m['date'] for m in without_filings[:6])}"
-            f"{' 외' if len(without_filings) > 6 else ''}) — 산업 뉴스·동종사·지수 "
-            "원문은 CIO 모델이 직접 추가 조사한다."]),
+        "_gaps": [
+            *([] if not without_filings else [
+                f"근접 공시가 없는 급변 {len(without_filings)}건 "
+                f"({', '.join(m['date'] for m in without_filings[:6])}"
+                f"{' 외' if len(without_filings) > 6 else ''}) — 산업 뉴스·동종사·지수 "
+                "원문은 CIO 모델이 직접 추가 조사한다."]),
+            *([] if not window_gaps else [
+                f"벤치마크 캘린더가 어긋난 거래일 {len(window_gaps)}건 "
+                f"({', '.join(g['date'] for g in window_gaps[:6])}"
+                f"{' 외' if len(window_gaps) > 6 else ''}) — 그 날의 상대변동은 "
+                "계산하지 않고 null 로 뒀다. 상대수익률로 인용하지 말 것. "
+                "복구: python3.13 -m collectors.krx backfill "
+                f"{'KOSDAQ' if bench_symbol == '^KQ11' else 'KOSPI'}"]),
+            *([] if not unsettled_bar else [
+                f"{unsettled_bar} 은 장중 미확정 봉이라 판정에서 제외했다 — "
+                "이 패킷의 마지막 거래일은 그 전날이다"]),
+        ],
     }
 
     out = Path(a.out) if a.out else OUT_DIR / f"{a.stock_code}.json"
@@ -283,6 +381,13 @@ def main() -> int:
           f"공시 {len(filings)}건 · 근접 공시 없음 {len(without_filings)}건")
     print(f"  판정 기준: {packet['threshold']} / {packet['judged_on']} "
           f"(벤치마크 {bench_symbol}{'' if bench_returns else ' 없음'})")
+    if unsettled_bar:
+        print(f"  ※ {unsettled_bar} 미확정 봉 제외 — 마지막 확정 거래일은 {last_date}")
+    if window_gaps:
+        market = "KOSDAQ" if bench_symbol == "^KQ11" else "KOSPI"
+        print(f"  ※ 벤치마크 캘린더 불일치 {len(window_gaps)}건 "
+              f"({', '.join(g['date'] for g in window_gaps[:6])}) — 그 날 상대변동은 "
+              f"내지 않았다.\n     복구: python3.13 -m collectors.krx backfill {market}")
     print(f"\n  {'날짜':11s}{'종목':>8s}{'지수':>8s}{'상대':>8s}{'기준':>7s}"
           f"{'거래량':>7s}  후보 공시")
     for m in moves:

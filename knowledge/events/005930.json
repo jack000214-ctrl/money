@@ -1,8 +1,8 @@
 {
-  "schema_version": "event-packet/1.0.0",
+  "schema_version": "event-packet/2.1.0",
   "asset_id": "005930",
   "symbol": "005930.KS",
-  "collected_at": "2026-07-28T16:26:12+09:00",
+  "collected_at": "2026-07-29T10:31:46+09:00",
   "window": {
     "since": "2026-04-29",
     "until": "2026-07-28",
@@ -11,55 +11,52 @@
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
   "benchmark": {
     "symbol": "^KS11",
-    "available": true
+    "available": true,
+    "daily_relative_method": "asset_return_pct - benchmark_return_pct (beta=1 조사 우선순위용)",
+    "calendar_gaps": []
   },
-  "market_decomposition": {
+  "last_bar": {
+    "date": "2026-07-28",
+    "settled": true,
+    "excluded_unsettled_bar": "2026-07-29",
+    "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
+  },
+  "benchmark_comparison": {
     "available": true,
     "benchmark_symbol": "^KS11",
+    "method": "(1 + asset_return) / (1 + benchmark_return) - 1 (beta=1 단순 비교)",
     "legs": [
-      {
-        "label": "구간 저점 → 고점",
-        "from": "2026-04-30",
-        "to": "2026-06-18",
-        "asset_pct": 64.4,
-        "market_pct": 37.4,
-        "excess_pct": 19.7,
-        "reading": "종목 +64.4% 중 시장이 +37.4%, 종목 고유는 +19.7%"
-      },
       {
         "label": "구간 고점 → 현재",
         "from": "2026-06-18",
         "to": "2026-07-28",
-        "asset_pct": -38.1,
-        "market_pct": -33.4,
-        "excess_pct": -7.1,
-        "reading": "종목 -38.1% 중 시장이 -33.4%, 종목 고유는 -7.1%"
+        "asset_return_pct": -39.3,
+        "benchmark_return_pct": -33.5,
+        "benchmark_relative_pct": -8.7
       },
       {
         "label": "구간 저점 → 현재",
-        "from": "2026-04-30",
+        "from": "2026-07-28",
         "to": "2026-07-28",
-        "asset_pct": 1.7,
-        "market_pct": -8.5,
-        "excess_pct": 11.2,
-        "reading": "종목 +1.7% 중 시장이 -8.5%, 종목 고유는 +11.2%"
+        "asset_return_pct": 0.0,
+        "benchmark_return_pct": 0.0,
+        "benchmark_relative_pct": 0.0
       },
       {
         "label": "구간 전체",
         "from": "2026-04-29",
         "to": "2026-07-28",
-        "asset_pct": -0.8,
-        "market_pct": -9.8,
-        "excess_pct": 10.0,
-        "reading": "종목 -0.8% 중 시장이 -9.8%, 종목 고유는 +10.0%"
+        "asset_return_pct": -2.7,
+        "benchmark_return_pct": -10.0,
+        "benchmark_relative_pct": 8.1
       }
     ],
-    "verdict": "고점 대비 하락의 약 88% 가 시장 요인이다. 종목 고유 원인을 찾기 전에 시장 하락을 먼저 설명해야 한다"
+    "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
-  "judged_on": "지수 대비 초과변동",
+  "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
     "date": "2026-07-28",
-    "close": 224250.0
+    "close": 220000.0
   },
   "moves": [
     {
@@ -70,10 +67,9 @@
       "excess_pct": 7.96,
       "threshold_pct": 3.37,
       "sigma_used": 1.69,
-      "moved_with_market": false,
       "direction": "up",
       "volume": 53097996,
-      "volume_vs_avg": 1.71,
+      "volume_vs_avg": 1.7,
       "candidate_filings": []
     },
     {
@@ -84,10 +80,9 @@
       "excess_pct": 6.41,
       "threshold_pct": 3.78,
       "sigma_used": 1.89,
-      "moved_with_market": false,
       "direction": "up",
       "volume": 45052488,
-      "volume_vs_avg": 1.45,
+      "volume_vs_avg": 1.44,
       "candidate_filings": []
     },
     {
@@ -98,10 +93,9 @@
       "excess_pct": 6.58,
       "threshold_pct": 4.22,
       "sigma_used": 2.11,
-      "moved_with_market": false,
       "direction": "up",
       "volume": 47809959,
-      "volume_vs_avg": 1.54,
+      "volume_vs_avg": 1.53,
       "candidate_filings": []
     },
     {
@@ -112,10 +106,9 @@
       "excess_pct": -4.66,
       "threshold_pct": 4.5,
       "sigma_used": 2.25,
-      "moved_with_market": false,
       "direction": "down",
       "volume": 35436521,
-      "volume_vs_avg": 1.14,
+      "volume_vs_avg": 1.13,
       "candidate_filings": []
     }
   ],
@@ -141,6 +134,7 @@
   ],
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
-    "공시로 설명되지 않는 급변 4건 (2026-05-06, 2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 movement 가 원인일 수 있다."
+    "근접 공시가 없는 급변 4건 (2026-05-06, 2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
+    "2026-07-29 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
   ]
 }

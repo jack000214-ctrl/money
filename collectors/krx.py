@@ -247,6 +247,131 @@ def cmd_index(a, key):
           "'하락의 몇 %가 시장인가' 도 원문 위에 선다.")
 
 
+def price_rows(path: Path) -> tuple[list[str], list[dict]]:
+    """가격 CSV를 주석 헤더와 데이터 행으로 나눠 읽는다."""
+    header, lines = [], []
+    with path.open(encoding="utf-8-sig") as f:
+        for line in f:
+            (header if line.lstrip().startswith("#") else lines).append(line)
+    return header, list(csv.DictReader(lines))
+
+
+def trading_calendar(market: str) -> set[str]:
+    """같은 시장 종목들이 실제로 거래된 날짜의 합집합.
+
+    지수 파일 혼자서는 자기 구멍을 볼 수 없다. 같은 거래소의 종목 시계열이
+    거래일 달력의 기준이 된다.
+    """
+    suffix = "_KQ.csv" if market == "KOSDAQ" else "_KS.csv"
+    days: set[str] = set()
+    for path in PRICE_DIR.glob(f"*{suffix}"):
+        if path.name.endswith("_krx.csv"):
+            continue
+        _, rows = price_rows(path)
+        days.update(r["date"] for r in rows if r.get("date"))
+    return days
+
+
+def cmd_backfill(a, key):
+    """벤치마크 지수 시계열의 누락 거래일을 KRX 원문으로 메운다.
+
+    Yahoo 는 거래일을 통째로 빠뜨리고도 정상 응답을 준다. 그러면 일별 상대변동이
+    이틀치를 하루로 합쳐 계산돼 초과수익 부호까지 뒤집힌다 (2026-07-28 코스피
+    -10.84% 폭락일이 실제로 그렇게 사라졌다). 여기서 원문으로 되메운다.
+    """
+    spec = BENCHMARKS[a.market]
+    csv_path = PRICE_DIR / spec["yahoo"]
+    if not csv_path.exists():
+        fail(f"{csv_path.name} 이 없다. 먼저 collectors.price history 로 수집한다")
+
+    header, rows = price_rows(csv_path)
+    if not rows:
+        fail(f"{csv_path.name} 에 데이터 행이 없다")
+    have = {r["date"] for r in rows}
+    first, last = min(have), max(have)
+    calendar = trading_calendar(a.market)
+    if not calendar:
+        fail(f"{a.market} 종목 시계열이 없어 거래일 달력을 만들 수 없다")
+
+    missing = sorted(d for d in calendar if first <= d <= last and d not in have)
+    marker = PRICE_DIR / "_backfill" / f"{spec['yahoo'].replace('.csv', '')}.json"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+
+    if not missing:
+        marker.write_text(json.dumps({
+            "schema_version": "price-backfill/1.0.0",
+            "symbol": spec["symbol"], "target": spec["yahoo"],
+            "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(
+                timespec="seconds"),
+            "calendar_source": f"{a.market} 종목 시계열 {len(calendar)}거래일",
+            "checked_range": {"from": first, "to": last},
+            "filled": [], "unfilled": [],
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"{spec['symbol']} {first} ~ {last} — 누락 거래일 없다")
+        return
+
+    if len(missing) > a.limit:
+        fail(f"누락 {len(missing)}일이 --limit {a.limit} 을 넘는다 "
+             f"(날짜당 1회 호출). 확인 후 --limit 를 올린다:\n  "
+             f"{', '.join(missing[:10])}{' …' if len(missing) > 10 else ''}")
+
+    filled, unfilled = [], []
+    for date in missing:
+        payload = request(spec["endpoint"], {"basDd": date.replace("-", "")}, key)
+        found = payload.get("OutBlock_1") or payload.get("outBlock_1") or []
+        row = next((r for r in found if r.get(F_IDX_NM) == spec["index_name"]), None)
+        close = num(row.get(F_IDX_CLOSE)) if row else None
+        if close is None:
+            # 휴장일이면 KRX 도 주지 않는다 — 그건 구멍이 아니다.
+            unfilled.append(date)
+            time.sleep(0.2)
+            continue
+        rows.append({
+            "date": date,
+            "close": close,
+            # 지수에는 배당 재투자 조정이 없어 Yahoo 도 adjclose = close 다.
+            "adjusted_close": close,
+            "split_adjustment_factor": 1.0,
+            "high": num(row.get(F_IDX_HIGH)),
+            "low": num(row.get(F_IDX_LOW)),
+            # KRX 의 지수 거래량(시장 전체 주식 수)은 Yahoo 의 지수 거래량과
+            # 단위가 다르다 (2026-07-27 Yahoo 275,700 vs KRX 330,556,522).
+            # 한 열에 두 단위를 섞느니 비운다 — 지수 거래량은 쓰는 곳이 없다.
+            "volume": None,
+        })
+        filled.append(date)
+        time.sleep(0.2)
+
+    if filled:
+        rows.sort(key=lambda r: r["date"])
+        fields = ["date", "close", "adjusted_close", "split_adjustment_factor",
+                  "high", "low", "volume"]
+        kept = [ln for ln in header if not ln.startswith("# backfilled")]
+        with csv_path.open("w", newline="", encoding="utf-8") as f:
+            f.writelines(kept)
+            f.write(f"# backfilled {','.join(filled)} / source KRX Open API "
+                    f"({spec['endpoint']}) — 거래소 원문\n")
+            w = csv.DictWriter(f, fieldnames=fields)
+            w.writeheader()
+            w.writerows(rows)
+
+    marker.write_text(json.dumps({
+        "schema_version": "price-backfill/1.0.0",
+        "symbol": spec["symbol"], "target": spec["yahoo"],
+        "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(
+            timespec="seconds"),
+        "calendar_source": f"{a.market} 종목 시계열 {len(calendar)}거래일",
+        "checked_range": {"from": first, "to": last},
+        "filled": filled, "unfilled": unfilled,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(f"{spec['symbol']} {first} ~ {last}")
+    print(f"  메움 {len(filled)}일: {', '.join(filled) or '—'}")
+    if unfilled:
+        print(f"  KRX 에도 없음 {len(unfilled)}일 (휴장 추정): {', '.join(unfilled)}")
+    print(f"기록: {marker.relative_to(ROOT)}")
+
+
 def cmd_snapshot(a, key):
     rows = fetch_day(a.market, a.date, key)
     path = save_raw(f"bydd_{a.market}_{a.date}", rows)
@@ -323,10 +448,15 @@ def main():
     i.add_argument("market", choices=list(BENCHMARKS))
     i.add_argument("--date", required=True, help="YYYY-MM-DD")
 
+    b = sub.add_parser("backfill", help="벤치마크 지수의 누락 거래일을 원문으로 메움")
+    b.add_argument("market", choices=list(BENCHMARKS))
+    b.add_argument("--limit", type=int, default=20,
+                   help="한 번에 메울 최대 일수 (날짜당 1회 호출)")
+
     a = p.parse_args()
     key = load_key()
-    {"verify": cmd_verify, "snapshot": cmd_snapshot,
-     "history": cmd_history, "index": cmd_index}[a.cmd](a, key)
+    {"verify": cmd_verify, "snapshot": cmd_snapshot, "history": cmd_history,
+     "index": cmd_index, "backfill": cmd_backfill}[a.cmd](a, key)
 
 
 if __name__ == "__main__":
