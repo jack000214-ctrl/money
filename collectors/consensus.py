@@ -1,0 +1,363 @@
+#!/usr/bin/env python3
+"""증권사 컨센서스와 목표주가 개정 이력을 시계열로 수집한다.
+
+목표주가 자체는 근거가 약하다. 매도 리포트가 사실상 나오지 않아 목표가는 거의
+항상 현재가 위에 있고, 주가를 따라 개정된다. 손으로 몇 개를 골라 평균 내면
+시점이 다른 값이 섞여 더 나빠진다.
+
+그래서 여기서 모으는 것은 세 가지다.
+
+1. **컨센서스 EPS** — 애널리스트의 결론(목표가)이 아니라 입력(이익 추정)이다.
+   멀티플은 모델이 직접 정한다.
+2. **분산** — 추정기관수와 목표가 최소·최대. 15곳이 420,000~540,000으로 갈리면
+   평균 494,000은 합의가 아니라 평균일 뿐이다.
+3. **개정 이력** — 상향·하향 전환은 관측 가능한 사건이다. 평균값 하나로는
+   교보가 650,000에서 530,000으로 내린 것을 볼 수 없다.
+
+출처는 FnGuide 가 네이버에 제공하는 기업분석 페이지이므로 등급은 `EXPLORATORY`
+다. 컨센서스는 출처 정의상 '최근 3개월간 증권사 발표 추정치의 평균'이다.
+
+사용:
+    python3.13 -m collectors.consensus 214450
+    python3.13 -m collectors.consensus 005930 --show
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import re
+import statistics
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT_DIR = ROOT / "knowledge" / "consensus"
+RAW_DIR = ROOT / "data" / "raw" / "naver"
+
+SCHEMA = "consensus-packet/1.0.0"
+URL = "https://navercomp.wisereport.co.kr/v2/company/c1010001.aspx?cmp_cd={code}"
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+SOURCE = "FnGuide via navercomp.wisereport.co.kr"
+SOURCE_NOTE = (
+    "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY "
+    "등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다"
+)
+# 개정 이력을 셀 기간. 출처가 말하는 3개월 컨센서스와 맞춘다.
+REVISION_WINDOW_DAYS = 90
+# '지금의 견해'를 보는 좁은 창. 실적 시즌 한 번이 지나갈 정도의 길이다.
+RECENT_WINDOW_DAYS = 30
+
+
+def fail(message: str) -> None:
+    print(f"오류: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def fetch(code: str) -> str:
+    request = urllib.request.Request(
+        URL.format(code=code), headers={"User-Agent": UA}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = response.read()
+    except urllib.error.HTTPError as exc:
+        fail(f"HTTP {exc.code} — {code}")
+    except urllib.error.URLError as exc:
+        fail(f"연결 실패 — {exc.reason}")
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
+        return body.decode("euc-kr", "replace")
+
+
+def cells(row: str) -> list[str]:
+    return [
+        text
+        for text in (
+            re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", cell)).strip()
+            for cell in re.findall(r"<t[hd].*?</t[hd]>", row, re.S)
+        )
+        if text
+    ]
+
+
+def table_rows(html: str, table_id: str) -> list[list[str]]:
+    start = html.find(f'id="{table_id}"')
+    if start < 0:
+        return []
+    segment = html[start : html.find("</table>", start)]
+    return [
+        parsed
+        for row in re.findall(r"<tr.*?</tr>", segment, re.S)
+        if (parsed := cells(row))
+    ]
+
+
+def number(text: str | None) -> float | None:
+    if not text:
+        return None
+    cleaned = text.replace(",", "").replace("%", "").strip()
+    try:
+        value = float(cleaned)
+    except ValueError:
+        return None
+    return value
+
+
+def parse_date(text: str) -> str | None:
+    """'26/07/28' 을 ISO 날짜로. 2000년대만 다룬다."""
+    match = re.fullmatch(r"(\d{2})/(\d{2})/(\d{2})", text.strip())
+    if not match:
+        return None
+    year, month, day = match.groups()
+    return f"20{year}-{month}-{day}"
+
+
+def parse_summary(html: str) -> dict:
+    """투자의견·목표주가·EPS·PER·추정기관수. 헤더 행 다음이 값 행이다."""
+    rows = table_rows(html, "cTB15")
+    header = next(
+        (row for row in rows if "추정기관수" in row),
+        None,
+    )
+    if header is None:
+        fail("투자의견 컨센서스 표(cTB15)를 찾지 못했다. 페이지 구조가 바뀌었다")
+    values = rows[rows.index(header) + 1] if rows.index(header) + 1 < len(rows) else []
+    # 값 행은 [투자의견, 목표주가, EPS, PER, 추정기관수] 순서다. 앞에 등급
+    # 그림용 숫자가 한 번 더 붙는 경우가 있어 뒤에서 다섯 개를 취한다.
+    tail = values[-5:]
+    if len(tail) < 5:
+        fail("컨센서스 요약 값을 읽지 못했다")
+    rating, target, eps, per, count = (number(value) for value in tail)
+    return {
+        "rating": rating,
+        "target_price": target,
+        "eps": eps,
+        "per": per,
+        "institution_count": int(count) if count is not None else None,
+    }
+
+
+def parse_brokers(html: str) -> list[dict]:
+    """제공처별 목표가와 직전 목표가. 직전값이 없는 행도 있다."""
+    out = []
+    for row in table_rows(html, "cTB24"):
+        if row[0] == "제공처" or len(row) < 3:
+            continue
+        date = parse_date(row[1])
+        if date is None:
+            continue
+        target = number(row[2])
+        prior = number(row[3]) if len(row) >= 5 else None
+        change = number(row[4]) if len(row) >= 5 else None
+        out.append({
+            "broker": row[0],
+            "date": date,
+            "target_price": target,
+            "prior_target_price": prior,
+            "change_pct": change,
+            "rating": row[-2] if len(row) >= 7 else row[-1],
+        })
+    return out
+
+
+def _dispersion(brokers: list[dict], as_of: str, days: int) -> dict:
+    cutoff = (dt.date.fromisoformat(as_of) - dt.timedelta(days=days)).isoformat()
+    rows = [
+        b for b in brokers
+        if b["date"] >= cutoff and b["target_price"]
+    ]
+    targets = [b["target_price"] for b in rows]
+    return {
+        "window_days": days,
+        "count": len(targets),
+        "min": min(targets) if targets else None,
+        "max": max(targets) if targets else None,
+        "median": statistics.median(targets) if targets else None,
+        "mean": round(statistics.fmean(targets), 0) if targets else None,
+        "spread_pct": round((max(targets) / min(targets) - 1) * 100, 2)
+        if len(targets) >= 2 and min(targets) > 0
+        else None,
+        "oldest": min((b["date"] for b in rows), default=None),
+        "newest": max((b["date"] for b in rows), default=None),
+    }
+
+
+def summarize(brokers: list[dict], as_of: str) -> tuple[dict, dict]:
+    """분산과 개정 방향. 평균 하나로는 볼 수 없는 것들이다.
+
+    분산은 두 창으로 낸다. 넓은 창은 출처가 말하는 컨센서스와 같은 범위이고,
+    좁은 창은 지금의 견해다. 둘이 벌어져 있으면 평균값에 오래된 목표가가 섞여
+    있다는 뜻이다 — 주가가 저점이던 시절에 잡은 목표가와 어제 잡은 목표가는
+    같은 값이 아니다.
+    """
+    dispersion = {
+        "consensus_window": _dispersion(brokers, as_of, REVISION_WINDOW_DAYS),
+        "recent": _dispersion(brokers, as_of, RECENT_WINDOW_DAYS),
+        "_note": (
+            "목표가가 넓게 갈릴수록 평균은 합의가 아니라 평균일 뿐이다. 두 창의 "
+            "최대·최소가 다르면 오래된 목표가가 평균을 끌고 있다는 신호이며, "
+            "그 목표가는 지금과 다른 주가 수준에서 잡힌 값이다"
+        ),
+    }
+    cutoff = (
+        dt.date.fromisoformat(as_of) - dt.timedelta(days=REVISION_WINDOW_DAYS)
+    ).isoformat()
+    recent = [
+        b for b in brokers
+        if b["date"] >= cutoff and b["change_pct"] is not None
+    ]
+    raised = [b for b in recent if b["change_pct"] > 0]
+    lowered = [b for b in recent if b["change_pct"] < 0]
+    revisions = {
+        "window_days": REVISION_WINDOW_DAYS,
+        "observed": len(recent),
+        "raised": len(raised),
+        "lowered": len(lowered),
+        "unchanged": len(recent) - len(raised) - len(lowered),
+        "largest_raise": max(
+            (b for b in raised), key=lambda b: b["change_pct"], default=None
+        ),
+        "largest_cut": min(
+            (b for b in lowered), key=lambda b: b["change_pct"], default=None
+        ),
+        "_note": (
+            "상향·하향 전환은 관측 가능한 사건이다. 목표가 수준보다 방향이 "
+            "정보를 담는다"
+        ),
+    }
+    return dispersion, revisions
+
+
+def build(code: str, html: str) -> dict:
+    summary = parse_summary(html)
+    brokers = parse_brokers(html)
+    if not brokers:
+        fail("제공처별 목표주가 표(cTB24)를 찾지 못했다. 페이지 구조가 바뀌었다")
+    as_of = max(b["date"] for b in brokers)
+    dispersion, revisions = summarize(brokers, as_of)
+    return {
+        "schema_version": SCHEMA,
+        "asset_id": code,
+        "collected_at": dt.datetime.now(
+            dt.timezone(dt.timedelta(hours=9))
+        ).isoformat(timespec="seconds"),
+        "as_of": as_of,
+        "source": SOURCE,
+        "source_grade": "EXPLORATORY",
+        "summary": summary,
+        "dispersion": dispersion,
+        "revisions": revisions,
+        "brokers": brokers,
+        "_warning": (
+            "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 "
+            "사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 "
+            "개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. "
+            "밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다"
+        ),
+        "_source_note": SOURCE_NOTE,
+    }
+
+
+def merge_history(path: Path, packet: dict) -> dict:
+    """기준일이 다른 스냅샷만 시계열로 쌓는다. 같은 날 여러 번 돌려도 안 늘어난다."""
+    history = []
+    if path.exists():
+        try:
+            history = json.loads(path.read_text(encoding="utf-8")).get("history") or []
+        except (OSError, json.JSONDecodeError):
+            history = []
+    point = {
+        "as_of": packet["as_of"],
+        "collected_at": packet["collected_at"],
+        **{
+            key: packet["summary"][key]
+            for key in ("rating", "target_price", "eps", "per", "institution_count")
+        },
+    }
+    history = [row for row in history if row.get("as_of") != packet["as_of"]]
+    history.append(point)
+    history.sort(key=lambda row: row["as_of"])
+    packet["history"] = history
+    return packet
+
+
+def show(packet: dict) -> None:
+    summary = packet["summary"]
+    dispersion = packet["dispersion"]
+    revisions = packet["revisions"]
+    print(f"{packet['asset_id']} 컨센서스 — 기준 {packet['as_of']}")
+    print(f"  투자의견 {summary['rating']} · 추정기관 "
+          f"{summary['institution_count']}곳")
+    print(f"  목표주가 컨센서스 {summary['target_price']:,.0f}원 "
+          f"(출처 평균, 최근 3개월)")
+    for label, key in (("전체 3개월", "consensus_window"), ("최근 30일", "recent")):
+        window = dispersion[key]
+        if not window["count"]:
+            continue
+        print(f"    {label:<9} {window['count']:>2}곳 "
+              f"{window['min']:>9,.0f} ~ {window['max']:>9,.0f} "
+              f"(스프레드 {window['spread_pct']}%) "
+              f"{window['oldest']}~{window['newest']}")
+    wide, near = dispersion["consensus_window"], dispersion["recent"]
+    if wide["max"] and near["max"] and wide["max"] > near["max"]:
+        print(f"    ※ 전체 창의 최고 {wide['max']:,.0f}원은 최근 30일 밖 값이다 — "
+              "평균이 옛 목표가에 끌리고 있다")
+    print(f"  컨센서스 EPS {summary['eps']:,.0f}원 · PER {summary['per']}배")
+    print(f"\n  최근 {revisions['window_days']}일 개정 {revisions['observed']}건 — "
+          f"상향 {revisions['raised']} / 하향 {revisions['lowered']} / "
+          f"유지 {revisions['unchanged']}")
+    for label, row in (("최대 상향", revisions["largest_raise"]),
+                       ("최대 하향", revisions["largest_cut"])):
+        if row:
+            print(f"    {label}: {row['broker']} "
+                  f"{row['prior_target_price']:,.0f} → "
+                  f"{row['target_price']:,.0f} ({row['change_pct']:+.2f}%)")
+    if len(packet.get("history", [])) > 1:
+        print("\n  기준일별 컨센서스 추이")
+        for row in packet["history"][-6:]:
+            print(f"    {row['as_of']}  목표 {row['target_price']:>10,.0f}  "
+                  f"EPS {row['eps']:>8,.0f}  기관 {row['institution_count']:>3}")
+    print(f"\n※ {SOURCE_NOTE}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="증권사 컨센서스·목표주가 개정 이력 (EXPLORATORY 등급)"
+    )
+    parser.add_argument("asset_id")
+    parser.add_argument("--show", action="store_true", help="저장본만 출력")
+    args = parser.parse_args()
+
+    path = OUT_DIR / f"{args.asset_id}.json"
+    if args.show:
+        if not path.exists():
+            fail(f"{path.relative_to(ROOT)} 가 없다. 먼저 수집한다")
+        show(json.loads(path.read_text(encoding="utf-8")))
+        return 0
+
+    html = fetch(args.asset_id)
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    raw_path = RAW_DIR / (
+        f"consensus_{args.asset_id}_"
+        f"{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+    )
+    raw_path.write_text(html, encoding="utf-8")
+
+    packet = merge_history(path, build(args.asset_id, html))
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    show(packet)
+    print(f"저장: {path.relative_to(ROOT)}")
+    print(f"원본: {raw_path.relative_to(ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

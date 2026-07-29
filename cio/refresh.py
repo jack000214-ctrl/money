@@ -266,6 +266,21 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
             )
 
         if asset["market"] == "KR":
+            tasks.append(
+                RefreshTask(
+                    name=f"consensus:{asset['asset_id']}",
+                    capability="CONSENSUS",
+                    artifact=f"knowledge/consensus/{asset['asset_id']}.json",
+                    max_age_hours=24,
+                    command=[
+                        sys.executable,
+                        "-m",
+                        "collectors.consensus",
+                        asset["asset_id"],
+                    ],
+                    required=False,
+                )
+            )
             primary_benchmark = asset["benchmarks"][0]
             tasks.append(
                 RefreshTask(
@@ -495,6 +510,21 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         }
         if not required_fields.issubset(set(header)):
             return "가격 v2 필수 열이 없다"
+    if task.capability == "CONSENSUS":
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "컨센서스 packet을 읽을 수 없다"
+        if data.get("schema_version") != "consensus-packet/1.0.0":
+            return "consensus-packet/1.0.0이 필요하다"
+        if data.get("asset_id") != task.name.split(":", 1)[-1]:
+            return "컨센서스 packet의 asset_id가 요청 자산과 다르다"
+        # 분산 없이 평균만 남으면 '몇 곳이 얼마나 갈리는가'를 잃는다.
+        dispersion = data.get("dispersion")
+        if not isinstance(dispersion, dict) or not isinstance(
+            dispersion.get("recent"), dict
+        ):
+            return "컨센서스 packet에 최근 목표가 분산이 없다"
     if task.capability == "BENCHMARK_BACKFILL":
         try:
             data = load_json(path)

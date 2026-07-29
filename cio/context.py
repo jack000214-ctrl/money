@@ -619,6 +619,75 @@ def _optional_collection_summaries(
     summaries: dict[str, Any] = {}
     sources: list[dict[str, Any]] = []
 
+    if asset["market"] == "KR":
+        path = KNOWLEDGE_DIR / "consensus" / f"{asset_id}.json"
+        if path.exists():
+            try:
+                data = load_json(path)
+            except (ContractError, OSError):
+                data = None
+            if data:
+                near = (data.get("dispersion") or {}).get("recent") or {}
+                wide = (data.get("dispersion") or {}).get(
+                    "consensus_window"
+                ) or {}
+                revisions = data.get("revisions") or {}
+                history = data.get("history") or []
+                # 제공처 16곳을 그대로 실으면 패킷만 무거워지고 읽히지 않는다.
+                # 남기는 것은 이익 추정(멀티플은 모델이 정한다), 얼마나 갈리는가,
+                # 어느 쪽으로 개정되는가 셋뿐이다.
+                summaries["consensus"] = {
+                    "as_of": data.get("as_of"),
+                    "consensus_eps": (data.get("summary") or {}).get("eps"),
+                    "consensus_per": (data.get("summary") or {}).get("per"),
+                    "rating": (data.get("summary") or {}).get("rating"),
+                    "institution_count": (data.get("summary") or {}).get(
+                        "institution_count"
+                    ),
+                    "target_price_mean": (data.get("summary") or {}).get(
+                        "target_price"
+                    ),
+                    "target_recent_30d": {
+                        key: near.get(key)
+                        for key in ("count", "min", "max", "median", "spread_pct")
+                    },
+                    "target_window_90d": {
+                        key: wide.get(key)
+                        for key in ("count", "min", "max", "spread_pct")
+                    },
+                    "stale_targets_lift_the_mean": bool(
+                        wide.get("max")
+                        and near.get("max")
+                        and wide["max"] > near["max"]
+                    ),
+                    "revisions": {
+                        key: revisions.get(key)
+                        for key in (
+                            "window_days",
+                            "observed",
+                            "raised",
+                            "lowered",
+                            "unchanged",
+                        )
+                    },
+                    "history_points": len(history),
+                    "_warning": (
+                        "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 "
+                        "리포트가 거의 나오지 않아 목표가는 대체로 현재가 위에 "
+                        "있고 주가를 따라 개정되므로 '목표가가 현재가보다 높다'는 "
+                        "정보가 아니다. 밸류에이션에는 consensus_eps 를 쓰고 "
+                        "멀티플은 직접 정한다. 2차 출처(EXPLORATORY)다"
+                    ),
+                }
+                sources.append(
+                    {
+                        "source_id": f"CONSENSUS:{asset_id}",
+                        "kind": "SECONDARY_ESTIMATE",
+                        "path": str(path.relative_to(ROOT)),
+                        "data_as_of": data.get("as_of"),
+                    }
+                )
+
     if "KR_FLOW" in enabled:
         path = KNOWLEDGE_DIR / "flows" / f"{asset_id}.csv"
         if path.exists():
