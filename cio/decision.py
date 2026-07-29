@@ -14,6 +14,13 @@ from cio.paths import KNOWLEDGE_DIR, ROOT
 
 SCHEMA_VERSION = "cio-decision/1.0.0"
 VERDICTS = {"BUY_NOW", "WAIT", "AVOID", "INSUFFICIENT"}
+ACTION_DIRECTIONS = {"ADD", "HOLD", "TRIM", "EXIT"}
+# 판단 기반 — 자산 자체가 나쁘다는 주장이라 verdict와 같은 편에 서야 한다.
+JUDGMENT_SELL_REASONS = {"THESIS_BROKEN", "VALUATION", "BETTER_OPPORTUNITY"}
+# 제약 기반 — 자산이 좋아도 낼 수 있다. 대신 제약임을 밝혀야 하고, 사후 평가는
+# 이 둘을 절대 같은 통에 넣지 않는다. 가격 예측력과 위험 관리 비용은 다른 것이다.
+CONSTRAINT_SELL_REASONS = {"CONCENTRATION", "RISK_BUDGET", "LIQUIDITY_NEED"}
+SELL_REASONS = JUDGMENT_SELL_REASONS | CONSTRAINT_SELL_REASONS
 OUTCOME_METRIC = "TERMINAL_TOTAL_RETURN_ASSET_CURRENCY"
 CONTEXT_ID_RE = re.compile(r"^CTX-[0-9a-f]{20}$")
 ASSESSMENT_ID_RE = re.compile(r"^CIO-[0-9a-f]{20}$")
@@ -50,6 +57,7 @@ TOP_LEVEL_KEYS = {
     "scenario_probability_pct",
     "price_plan",
     "proposed_trade",
+    "action",
     "method",
     "thesis",
     "strongest_counter_thesis",
@@ -469,6 +477,65 @@ def validate_decision(
         and proposed_amount != 0
     ):
         errors.append(f"proposed_trade.amount: {verdict}의 현재 집행액은 0이어야 한다")
+
+    action = data.get("action")
+    if not isinstance(action, dict) or set(action) != {
+        "direction",
+        "quantity",
+        "sell_reason",
+        "rationale",
+    }:
+        errors.append("action: direction·quantity·sell_reason·rationale가 필요하다")
+    else:
+        direction = action.get("direction")
+        if direction not in ACTION_DIRECTIONS:
+            errors.append(
+                f"action.direction: {', '.join(sorted(ACTION_DIRECTIONS))} "
+                "중 하나여야 한다"
+            )
+        reason = action.get("sell_reason")
+        selling = direction in {"TRIM", "EXIT"}
+        if reason is not None and reason not in SELL_REASONS:
+            errors.append(
+                f"action.sell_reason: {', '.join(sorted(SELL_REASONS))} "
+                "중 하나이거나 null이어야 한다"
+            )
+        elif selling and reason is None:
+            errors.append("action.sell_reason: 매도에는 사유가 필요하다")
+        elif not selling and reason is not None:
+            errors.append("action.sell_reason: 매도가 아니면 null이어야 한다")
+        quantity = _number(
+            action.get("quantity"),
+            "action.quantity",
+            errors,
+            allow_null=not selling,
+        )
+        if selling and quantity is not None and quantity <= 0:
+            errors.append("action.quantity: 매도 수량은 0보다 커야 한다")
+        if not selling and quantity is not None:
+            errors.append("action.quantity: 매도가 아니면 null이어야 한다")
+        _nonempty(action.get("rationale"), "action.rationale", errors)
+        if insufficient and direction not in {None, "HOLD"}:
+            errors.append("action.direction: INSUFFICIENT에서는 HOLD여야 한다")
+        # 판단 기반 매도는 자산 자체가 나쁘다는 주장이므로 verdict와 같은 편에
+        # 서야 한다. "이 가격에 사겠다"와 "비싸서 판다"를 동시에 말할 수 없다.
+        # 제약 기반 매도는 자산이 좋아도 낼 수 있으나, 제약이라고 밝혀야 한다.
+        if reason in JUDGMENT_SELL_REASONS and verdict == "BUY_NOW":
+            errors.append(
+                f"action.sell_reason: {reason}은 자산 판단이라 "
+                "BUY_NOW와 함께 쓸 수 없다. 제약 때문이면 "
+                f"{', '.join(sorted(CONSTRAINT_SELL_REASONS))} 중에서 고른다"
+            )
+        if direction == "ADD" and proposed_amount is not None and proposed_amount <= 0:
+            errors.append("action.direction: ADD면 제안 금액이 0보다 커야 한다")
+        if (
+            direction in {"HOLD", "TRIM", "EXIT"}
+            and proposed_amount is not None
+            and proposed_amount > 0
+        ):
+            errors.append(
+                f"action.direction: {direction}인데 새로 사겠다는 금액이 있다"
+            )
 
     method = data.get("method")
     if not isinstance(method, dict) or set(method) != {

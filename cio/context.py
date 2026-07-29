@@ -805,6 +805,44 @@ def _portfolio_summary(
     existing = (
         _as_float(held.get("value_krw")) or 0.0 if held else 0.0
     )
+    # 보유 현황은 검토 가격 기준으로 다시 계산한다. CSV 의 value_krw 는 스냅샷
+    # 시점 값이라 오늘 비중을 그대로 쓰면 틀린다. 평단은 원가(평가액 - 평가손익)를
+    # 수량으로 나눠 복원한다 — 매도 판단에는 평단과 현재 비중이 반드시 필요하다.
+    held_quantity = _as_float(held.get("quantity")) if held else None
+    held_pnl_krw = _as_float(held.get("pnl_krw")) if held else None
+    cost_basis_krw = (
+        existing - held_pnl_krw if held_pnl_krw is not None else None
+    )
+    average_cost = (
+        cost_basis_krw / held_quantity
+        if cost_basis_krw is not None
+        and held_quantity
+        and held_quantity > 0
+        else None
+    )
+    if asset["market"] == "US":
+        average_cost = average_cost / fx if average_cost and fx else None
+    value_at_review_krw = None
+    if held_quantity is not None and price > 0:
+        in_asset_currency = held_quantity * price
+        value_at_review_krw = (
+            in_asset_currency * fx
+            if asset["market"] == "US" and fx is not None
+            else in_asset_currency
+            if asset["market"] != "US"
+            else None
+        )
+    # 다른 보유 종목은 스냅샷 그대로 두고 이 종목만 검토 가격으로 갈아끼운다.
+    total_at_review = (
+        total - existing + value_at_review_krw
+        if value_at_review_krw is not None
+        else total
+    )
+    unrealized_krw = (
+        value_at_review_krw - cost_basis_krw
+        if value_at_review_krw is not None and cost_basis_krw is not None
+        else None
+    )
     sufficient_cash = budget_krw is not None and budget_krw <= cash
     post_total = total
     post_weight = (
@@ -820,7 +858,39 @@ def _portfolio_summary(
             "existing_position": {
                 "held": held is not None,
                 "value_krw": round(existing, 2),
-                "quantity": _as_float(held.get("quantity")) if held else None,
+                "value_as_of": holdings_as_of,
+                "quantity": held_quantity,
+                "average_cost": round(average_cost, 4)
+                if average_cost is not None
+                else None,
+                "average_cost_currency": asset["currency"],
+                "cost_basis_krw": round(cost_basis_krw, 2)
+                if cost_basis_krw is not None
+                else None,
+                "value_at_review_price_krw": round(value_at_review_krw, 2)
+                if value_at_review_krw is not None
+                else None,
+                "unrealized_pnl_krw": round(unrealized_krw, 2)
+                if unrealized_krw is not None
+                else None,
+                "unrealized_pnl_pct": round(
+                    (value_at_review_krw / cost_basis_krw - 1) * 100, 2
+                )
+                if value_at_review_krw is not None
+                and cost_basis_krw
+                and cost_basis_krw > 0
+                else None,
+                "weight_at_review_price_pct": round(
+                    value_at_review_krw / total_at_review * 100, 2
+                )
+                if value_at_review_krw is not None and total_at_review > 0
+                else None,
+                "_role": (
+                    "검토 가격 기준으로 다시 계산한 현재 보유 상태다. 비중은 "
+                    "노출 측정치이며 그 자체로 매도 사유가 아니다 — 매도는 "
+                    "논지·밸류에이션이 주도하고, 비중은 명시된 한도가 있을 때만 "
+                    "제약으로 작동한다"
+                ),
             },
             "proposed_trade": {
                 "amount_krw": round(budget_krw, 2)
@@ -1230,7 +1300,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.0",
+        "prompt_version": "1.1",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,

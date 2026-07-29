@@ -11,7 +11,12 @@ from typing import Any
 
 from calculators.contracts import ContractError, load_json, stable_hash
 from cio.assets import ASSET_ID_RE, get_asset
-from cio.decision import find_context, require_valid_decision
+from cio.decision import (
+    CONSTRAINT_SELL_REASONS,
+    JUDGMENT_SELL_REASONS,
+    find_context,
+    require_valid_decision,
+)
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.refresh import safe_symbol
 
@@ -212,6 +217,76 @@ def _first_trigger(
     return None
 
 
+def _action_legs(
+    assessment: dict[str, Any],
+    realized: float,
+    complete: bool,
+) -> dict[str, Any]:
+    """보유분 행동을 두 다리로 나눠 관측한다.
+
+    분할매도는 하나의 판단이 아니라 두 개의 베팅이다 — 판 수량은 '앞으로 안 오를
+    것'에, 남긴 수량은 '오를 것'에 걸었다. 하나로 합치면 어느 쪽이 맞았는지
+    영원히 알 수 없다.
+
+    매도 다리는 부호가 반대다. `realized`(판단가에 샀다면 얻었을 수익률)가 양수면
+    판 쪽은 기회를 놓친 것이고, 음수면 손실을 피한 것이다. 이걸 뒤집지 않고
+    그대로 쓰면 좋은 매도가 전부 패배로 기록된다.
+
+    승패를 문턱으로 확정하지 않는 이유는 매도에 쓸 문턱이 계약에 없기 때문이다.
+    임의의 기준선을 만드는 대신 방향과 크기만 남기고, 사유별 집계는 회고에서 한다.
+    """
+    action = assessment.get("action") or {}
+    direction = action.get("direction")
+    reason = action.get("sell_reason")
+    legs: dict[str, Any] = {
+        "direction": direction,
+        "sell_reason": reason,
+        "sell_reason_tier": (
+            "JUDGMENT"
+            if reason in JUDGMENT_SELL_REASONS
+            else "CONSTRAINT"
+            if reason in CONSTRAINT_SELL_REASONS
+            else None
+        ),
+        "quantity": action.get("quantity"),
+        "sold_leg": None,
+        "retained_leg": None,
+        "_note": (
+            "판단 기반과 제약 기반 매도를 절대 같은 통에 넣지 않는다. 가격 "
+            "예측력과 위험 관리 비용은 다른 것이며, 섞으면 둘 다 못 읽는다"
+        ),
+    }
+    if direction not in {"TRIM", "EXIT"}:
+        return legs
+    # 판 수량 기준: 판단가 대비 이후 가격이 오르면 기회비용, 내리면 회피한 손실.
+    forgone = round(realized, 4)
+    legs["sold_leg"] = {
+        "quantity": action.get("quantity"),
+        "forgone_return_pct": forgone,
+        "outcome": None
+        if not complete
+        else "AVOIDED_LOSS"
+        if forgone < 0
+        else "MISSED_GAIN"
+        if forgone > 0
+        else "NEUTRAL",
+        "_note": "판 수량이 지평까지 냈을 수익률. 음수면 매도가 유리했다",
+    }
+    if direction == "TRIM":
+        legs["retained_leg"] = {
+            "return_pct": round(realized, 4),
+            "outcome": None
+            if not complete
+            else "GAIN"
+            if realized > 0
+            else "LOSS"
+            if realized < 0
+            else "NEUTRAL",
+            "_note": "남긴 수량이 지평까지 낸 수익률. 보유 판단의 결과다",
+        }
+    return legs
+
+
 def evaluate_assessment(
     assessment: dict[str, Any],
     *,
@@ -364,6 +439,7 @@ def evaluate_assessment(
                 direction="up",
             ),
         },
+        "action": _action_legs(assessment, realized, complete),
         "calibration": {
             "predicted_win_probability_pct": assessment["win_probability_pct"],
             "brier_score": round((probability - float(win_observed)) ** 2, 6)

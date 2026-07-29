@@ -88,6 +88,12 @@ def valid_decision():
             "currency": "USD",
             "rationale": "현재는 기다리므로 집행하지 않는다",
         },
+        "action": {
+            "direction": "HOLD",
+            "quantity": None,
+            "sell_reason": None,
+            "rationale": "보유분을 그대로 둔다",
+        },
         "method": {
             "valuation_family": "DCF",
             "why_fit": "양의 현금흐름이 있다",
@@ -314,6 +320,149 @@ class TestDecisionBoundary(unittest.TestCase):
         self.assertIsNotNone(result["triggers"]["stop"])
         self.assertIsNotNone(result["triggers"]["scale_out_start"])
         self.assertIsNotNone(result["calibration"]["brier_score"])
+
+
+class TestSellContract(unittest.TestCase):
+    """verdict(살 것인가)와 action(가진 것을 어쩔 것인가)의 경계."""
+
+    def _sell(self, **overrides):
+        data = valid_decision()
+        data["action"] = {
+            "direction": "TRIM",
+            "quantity": 25.0,
+            "sell_reason": "VALUATION",
+            "rationale": "고평가 구간이라 줄인다",
+            **overrides,
+        }
+        return normalize_decision(data)
+
+    def test_judgment_sell_cannot_coexist_with_buy_now(self):
+        """'이 가격에 사겠다'와 '비싸서 판다'를 동시에 말할 수 없다."""
+        data = self._sell()
+        data["verdict"] = "BUY_NOW"
+        data["proposed_trade"]["amount"] = 1000.0
+        errors = validate_decision(normalize_decision(data))
+        self.assertTrue(any("BUY_NOW와 함께 쓸 수 없다" in e for e in errors))
+
+    def test_constraint_sell_may_coexist_with_a_favourable_verdict(self):
+        """자산이 좋아도 제약 때문에는 팔 수 있다 — 대신 제약이라고 밝혀야 한다."""
+        data = self._sell(sell_reason="CONCENTRATION")
+        data["verdict"] = "BUY_NOW"
+        data["proposed_trade"]["amount"] = 0.0
+        errors = validate_decision(normalize_decision(data))
+        self.assertFalse(any("sell_reason" in e for e in errors), errors)
+
+    def test_sell_requires_a_reason_and_a_quantity(self):
+        missing_reason = self._sell(sell_reason=None)
+        self.assertTrue(
+            any("매도에는 사유가 필요하다" in e
+                for e in validate_decision(missing_reason))
+        )
+        missing_quantity = self._sell(quantity=None)
+        self.assertTrue(
+            any("action.quantity" in e
+                for e in validate_decision(missing_quantity))
+        )
+
+    def test_holding_cannot_carry_a_sell_reason_or_quantity(self):
+        data = self._sell(direction="HOLD")
+        errors = validate_decision(data)
+        self.assertTrue(any("매도가 아니면 null이어야 한다" in e for e in errors))
+
+    def test_selling_while_proposing_to_buy_is_rejected(self):
+        data = valid_decision()
+        data["verdict"] = "BUY_NOW"
+        data["proposed_trade"]["amount"] = 1000.0
+        data["action"] = {
+            "direction": "EXIT",
+            "quantity": 95.0,
+            "sell_reason": "LIQUIDITY_NEED",
+            "rationale": "현금이 필요하다",
+        }
+        errors = validate_decision(normalize_decision(data))
+        self.assertTrue(
+            any("새로 사겠다는 금액이 있다" in e for e in errors), errors
+        )
+
+
+class TestSellScoring(unittest.TestCase):
+    """매도는 부호가 반대다. 뒤집지 않으면 좋은 매도가 전부 패배로 남는다."""
+
+    def _evaluate(self, assessment, end_close):
+        rows = [
+            {
+                "date": "2026-01-02",
+                "close": 100.0,
+                "adjusted_close": 100.0,
+                "has_adjusted_close": True,
+                "split_adjustment_factor": 1.0,
+                "high": 100.0,
+                "low": 100.0,
+            },
+            {
+                "date": "2026-01-20",
+                "close": end_close,
+                "adjusted_close": end_close,
+                "has_adjusted_close": True,
+                "split_adjustment_factor": 1.0,
+                "high": end_close,
+                "low": end_close,
+            },
+            # 지평(2026-02-01) 이후 행이 있어야 평가가 완료로 확정된다.
+            {
+                "date": "2026-02-05",
+                "close": end_close,
+                "adjusted_close": end_close,
+                "has_adjusted_close": True,
+                "split_adjustment_factor": 1.0,
+                "high": end_close,
+                "low": end_close,
+            },
+        ]
+        with (
+            patch(
+                "cio.memory.get_asset",
+                return_value={"asset_id": "TSLA", "price_symbol": "TSLA"},
+            ),
+            patch("cio.memory.find_context", return_value=(valid_context(), None)),
+        ):
+            return evaluate_assessment(assessment, rows=rows)
+
+    def _trim(self, reason="CONCENTRATION"):
+        data = valid_decision()
+        data["horizon_months"] = 1
+        data["action"] = {
+            "direction": "TRIM",
+            "quantity": 25.0,
+            "sell_reason": reason,
+            "rationale": "일부만 줄인다",
+        }
+        return normalize_decision(data)
+
+    def test_a_falling_price_makes_the_sold_leg_an_avoided_loss(self):
+        result = self._evaluate(self._trim(), end_close=70.0)
+        legs = result["action"]
+        self.assertEqual(legs["sold_leg"]["outcome"], "AVOIDED_LOSS")
+        self.assertLess(legs["sold_leg"]["forgone_return_pct"], 0)
+        self.assertEqual(legs["retained_leg"]["outcome"], "LOSS")
+
+    def test_a_rising_price_makes_the_sold_leg_a_missed_gain(self):
+        result = self._evaluate(self._trim(), end_close=140.0)
+        legs = result["action"]
+        self.assertEqual(legs["sold_leg"]["outcome"], "MISSED_GAIN")
+        # 같은 사건이 남긴 수량에는 이득이다 — 두 다리를 분리하는 이유다.
+        self.assertEqual(legs["retained_leg"]["outcome"], "GAIN")
+
+    def test_sell_reason_tier_is_recorded_for_split_aggregation(self):
+        constraint = self._evaluate(self._trim("CONCENTRATION"), end_close=140.0)
+        judgment = self._evaluate(self._trim("VALUATION"), end_close=140.0)
+        self.assertEqual(constraint["action"]["sell_reason_tier"], "CONSTRAINT")
+        self.assertEqual(judgment["action"]["sell_reason_tier"], "JUDGMENT")
+
+    def test_holding_has_no_legs(self):
+        result = self._evaluate(normalize_decision(valid_decision()), 140.0)
+        self.assertIsNone(result["action"]["sold_leg"])
+        self.assertIsNone(result["action"]["retained_leg"])
 
 
 if __name__ == "__main__":

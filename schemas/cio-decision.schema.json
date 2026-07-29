@@ -22,6 +22,7 @@
     "scenario_probability_pct",
     "price_plan",
     "proposed_trade",
+    "action",
     "method",
     "thesis",
     "strongest_counter_thesis",
@@ -128,6 +129,30 @@
       "properties": {
         "amount": {"type": ["number", "null"], "minimum": 0},
         "currency": {"enum": ["KRW", "USD"]},
+        "rationale": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict가 '이 가격에 새 자금을 넣을 것인가'라면 action은 '가진 것을 어떻게 할 것인가'다. 두 질문은 서로 다르며 동시에 참일 수 있다.",
+      "type": "object",
+      "required": ["direction", "quantity", "sell_reason", "rationale"],
+      "properties": {
+        "direction": {"enum": ["ADD", "HOLD", "TRIM", "EXIT"]},
+        "quantity": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "sell_reason": {
+          "description": "판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 자산 자체에 대한 판정이라 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 자산이 좋아도 낼 수 있으나 제약임을 밝혀야 한다.",
+          "type": ["string", "null"],
+          "enum": [
+            "THESIS_BROKEN",
+            "VALUATION",
+            "BETTER_OPPORTUNITY",
+            "CONCENTRATION",
+            "RISK_BUDGET",
+            "LIQUIDITY_NEED",
+            null
+          ]
+        },
         "rationale": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
@@ -241,6 +266,13 @@
           },
           "proposed_trade": {
             "properties": {"amount": {"type": "null"}}
+          },
+          "action": {
+            "properties": {
+              "direction": {"const": "HOLD"},
+              "quantity": {"type": "null"},
+              "sell_reason": {"type": "null"}
+            }
           }
         }
       },
