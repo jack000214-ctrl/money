@@ -281,6 +281,27 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     required=False,
                 )
             )
+            # 동종은 같은 수집기로 같은 방식으로 모은다. 기준일·EPS 기준·PER
+            # 계산이 전부 같아야 배수 비교가 성립한다 — 언론이 인용한 남의
+            # 배수는 기준연도도 주가시점도 알 수 없어 비교에 쓸 수 없다.
+            for peer in asset.get("peers") or []:
+                tasks.append(
+                    RefreshTask(
+                        name=f"consensus_peer:{peer['asset_id']}",
+                        capability="CONSENSUS",
+                        artifact=(
+                            f"knowledge/consensus/{peer['asset_id']}.json"
+                        ),
+                        max_age_hours=168,
+                        command=[
+                            sys.executable,
+                            "-m",
+                            "collectors.consensus",
+                            peer["asset_id"],
+                        ],
+                        required=False,
+                    )
+                )
             primary_benchmark = asset["benchmarks"][0]
             tasks.append(
                 RefreshTask(
@@ -519,6 +540,11 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             return "consensus-packet/1.0.0이 필요하다"
         if data.get("asset_id") != task.name.split(":", 1)[-1]:
             return "컨센서스 packet의 asset_id가 요청 자산과 다르다"
+        estimates = data.get("estimates")
+        if not isinstance(estimates, dict) or not estimates.get("annual"):
+            # 연도별 추정이 밸류에이션의 본체다. 목표주가만 있는 packet 은
+            # 애널리스트의 결론만 있고 입력이 없는 상태다.
+            return "컨센서스 packet에 연도별 실적·추정이 없다"
         # 분산 없이 평균만 남으면 '몇 곳이 얼마나 갈리는가'를 잃는다.
         dispersion = data.get("dispersion")
         if not isinstance(dispersion, dict) or not isinstance(

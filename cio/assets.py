@@ -123,6 +123,29 @@ def validate_asset(asset_id: str, asset: Any) -> None:
         raise AssetRegistryError(f"{asset_id}: benchmark가 비어 있다")
     if any(not MARKET_SYMBOL_RE.fullmatch(item) for item in asset["benchmarks"]):
         raise AssetRegistryError(f"{asset_id}: benchmark symbol 형식이 안전하지 않다")
+    # 동종 비교군. 누구를 동종으로 볼지는 판단이므로 registry 에 명시해 검토
+    # 가능하게 둔다. 모델이 매번 즉흥으로 고르면 비교 자체가 재현되지 않는다.
+    peers = asset.get("peers", [])
+    if not isinstance(peers, list):
+        raise AssetRegistryError(f"{asset_id}: peers는 배열이어야 한다")
+    peer_ids = []
+    for peer in peers:
+        if (
+            not isinstance(peer, dict)
+            or not isinstance(peer.get("asset_id"), str)
+            or not ASSET_ID_RE.fullmatch(peer["asset_id"])
+            or not isinstance(peer.get("name"), str)
+            or not peer["name"].strip()
+        ):
+            raise AssetRegistryError(
+                f"{asset_id}: peers 항목은 asset_id와 name을 가져야 한다"
+            )
+        if peer["asset_id"] == asset_id:
+            raise AssetRegistryError(f"{asset_id}: 자기 자신을 동종에 둘 수 없다")
+        peer_ids.append(peer["asset_id"])
+    if len(peer_ids) != len(set(peer_ids)):
+        raise AssetRegistryError(f"{asset_id}: peers에 중복이 있다")
+
     optional_collectors = asset.get("optional_collectors", [])
     if (
         not isinstance(optional_collectors, list)

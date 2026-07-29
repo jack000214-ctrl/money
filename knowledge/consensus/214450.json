@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "214450",
-  "collected_at": "2026-07-29T11:08:55+09:00",
+  "collected_at": "2026-07-29T11:22:07+09:00",
   "as_of": "2026-07-28",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
@@ -11,6 +11,93 @@
     "eps": 19108.0,
     "per": 19.65,
     "institution_count": 15
+  },
+  "estimates": {
+    "annual": [
+      {
+        "period": "2023-12",
+        "fiscal_year": 2023,
+        "actual": true,
+        "revenue_100m": 2610.0,
+        "revenue_yoy_pct": 34.02,
+        "operating_income_100m": 923.0,
+        "net_income_100m": 766.0,
+        "eps": 7481.0,
+        "per": 14.64,
+        "pbr": 2.58,
+        "roe_pct": 19.71,
+        "ev_ebitda": 9.63,
+        "net_debt_ratio_pct": -27.26
+      },
+      {
+        "period": "2024-12",
+        "fiscal_year": 2024,
+        "actual": true,
+        "revenue_100m": 3501.0,
+        "revenue_yoy_pct": 34.14,
+        "operating_income_100m": 1261.0,
+        "net_income_100m": 920.0,
+        "eps": 8608.0,
+        "per": 30.49,
+        "pbr": 5.63,
+        "roe_pct": 18.93,
+        "ev_ebitda": 18.12,
+        "net_debt_ratio_pct": -40.02
+      },
+      {
+        "period": "2025-12",
+        "fiscal_year": 2025,
+        "actual": true,
+        "revenue_100m": 5363.0,
+        "revenue_yoy_pct": 53.18,
+        "operating_income_100m": 2144.0,
+        "net_income_100m": 1651.0,
+        "eps": 14209.0,
+        "per": 28.36,
+        "pbr": 6.76,
+        "roe_pct": 26.88,
+        "ev_ebitda": 16.45,
+        "net_debt_ratio_pct": -55.35
+      },
+      {
+        "period": "2026-12",
+        "fiscal_year": 2026,
+        "actual": false,
+        "revenue_100m": 6773.0,
+        "revenue_yoy_pct": 26.3,
+        "operating_income_100m": 2703.0,
+        "net_income_100m": 2210.0,
+        "eps": 19108.0,
+        "per": 19.65,
+        "pbr": 5.03,
+        "roe_pct": 28.46,
+        "ev_ebitda": 11.86,
+        "net_debt_ratio_pct": -56.0
+      },
+      {
+        "period": "2027-12",
+        "fiscal_year": 2027,
+        "actual": false,
+        "revenue_100m": 8280.0,
+        "revenue_yoy_pct": 22.24,
+        "operating_income_100m": 3379.0,
+        "net_income_100m": 2712.0,
+        "eps": 23448.0,
+        "per": 16.01,
+        "pbr": 3.98,
+        "roe_pct": 27.74,
+        "ev_ebitda": 9.03,
+        "net_debt_ratio_pct": -60.8
+      }
+    ],
+    "per_band_actual": {
+      "years": 3,
+      "min": 14.64,
+      "max": 30.49,
+      "median": 28.36,
+      "_note": "확정 실적 연도의 PER 범위다. 추정 연도 PER 은 주가가 이미 반영된 값이라 밴드에 넣지 않는다"
+    },
+    "_note": "금액 단위는 억원이다. (A)는 확정, (E)는 컨센서스 추정이다. PER 은 출처가 전 영업일 수정주가로 계산한 값이므로 오늘 주가와 다르다"
   },
   "dispersion": {
     "consensus_window": {
@@ -196,7 +283,7 @@
   "history": [
     {
       "as_of": "2026-07-28",
-      "collected_at": "2026-07-29T11:08:55+09:00",
+      "collected_at": "2026-07-29T11:22:07+09:00",
       "rating": 4.0,
       "target_price": 494000.0,
       "eps": 19108.0,

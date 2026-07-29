@@ -611,6 +611,98 @@ def _as_float(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
+def _estimate_rows(data: dict[str, Any]) -> dict[str, Any] | None:
+    """연도별 추정을 판단에 쓰는 열만 남겨 싣는다.
+
+    PBR·EV/EBITDA·순부채비율까지 넣으면 자산 하나에 표가 다섯 줄씩 붙는다.
+    멀티플 판단에 실제로 쓰는 것은 이익 추정과 그 종목 자신의 PER 밴드다.
+    """
+    estimates = data.get("estimates") or {}
+    rows = estimates.get("annual") or []
+    if not rows:
+        return None
+    return {
+        "unit": "억원",
+        "annual": [
+            {
+                "period": row["period"],
+                "actual": row["actual"],
+                "revenue": row["revenue_100m"],
+                "revenue_yoy_pct": row["revenue_yoy_pct"],
+                "operating_income": row["operating_income_100m"],
+                "eps": row["eps"],
+                "per_at_source_price": row["per"],
+                "roe_pct": row["roe_pct"],
+            }
+            for row in rows
+        ],
+        "per_band_actual": {
+            key: (estimates.get("per_band_actual") or {}).get(key)
+            for key in ("years", "min", "max", "median")
+        },
+        "_note": (
+            "확정 연도 PER 밴드는 이 종목이 실제로 거래돼 온 멀티플이다. "
+            "남의 목표주가 없이 만들 수 있는 자체 앵커이며, 여기에 사업 변화와 "
+            "위험을 반영해 멀티플을 정하는 것은 모델의 판단이다"
+        ),
+    }
+
+
+def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
+    """동종의 배수를 같은 소스·같은 방식으로 모아 비교한다.
+
+    언론이 인용하는 '에이피알 30배' 같은 값은 기준연도도 주가시점도 알 수 없어
+    비교에 쓸 수 없다. 여기서는 동종도 같은 수집기를 거치므로 EPS 기준·PER
+    계산·기준일이 전부 같다.
+    """
+    peers = asset.get("peers") or []
+    if not peers:
+        return None
+    rows = []
+    for peer in peers:
+        path = KNOWLEDGE_DIR / "consensus" / f"{peer['asset_id']}.json"
+        if not path.exists():
+            rows.append({**peer, "available": False})
+            continue
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            rows.append({**peer, "available": False})
+            continue
+        annual = ((data.get("estimates") or {}).get("annual")) or []
+        forward = next((row for row in annual if not row["actual"]), None)
+        band = (data.get("estimates") or {}).get("per_band_actual") or {}
+        rows.append({
+            "asset_id": peer["asset_id"],
+            "name": peer["name"],
+            "available": True,
+            "as_of": data.get("as_of"),
+            "forward_period": forward["period"] if forward else None,
+            "forward_per": forward["per"] if forward else None,
+            "forward_revenue_yoy_pct": (
+                forward["revenue_yoy_pct"] if forward else None
+            ),
+            "forward_roe_pct": forward["roe_pct"] if forward else None,
+            "per_band_actual_min": band.get("min"),
+            "per_band_actual_max": band.get("max"),
+        })
+    usable = [row["forward_per"] for row in rows if row.get("forward_per")]
+    return {
+        "basis": "동일 수집기·동일 기준일의 컨센서스 추정",
+        "peers": rows,
+        "forward_per_median": round(statistics.median(usable), 2)
+        if usable
+        else None,
+        "forward_per_min": min(usable) if usable else None,
+        "forward_per_max": max(usable) if usable else None,
+        "_warning": (
+            "동종 선정은 registry에 명시된 판단이며 자동으로 옳지 않다. "
+            "성장률·수익성이 다르면 같은 배수를 줄 이유가 없으므로 "
+            "forward_revenue_yoy_pct와 forward_roe_pct를 함께 본다"
+        ),
+    }
+
+
 def _optional_collection_summaries(
     asset: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -670,6 +762,7 @@ def _optional_collection_summaries(
                             "unchanged",
                         )
                     },
+                    "estimates": _estimate_rows(data),
                     "history_points": len(history),
                     "_warning": (
                         "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 "
@@ -687,6 +780,20 @@ def _optional_collection_summaries(
                         "data_as_of": data.get("as_of"),
                     }
                 )
+        peer_block = _peer_multiples(asset)
+        if peer_block:
+            summaries["peer_multiples"] = peer_block
+            for peer in asset.get("peers") or []:
+                peer_path = (
+                    KNOWLEDGE_DIR / "consensus" / f"{peer['asset_id']}.json"
+                )
+                if peer_path.exists():
+                    sources.append({
+                        "source_id": f"CONSENSUS_PEER:{peer['asset_id']}",
+                        "kind": "SECONDARY_ESTIMATE",
+                        "path": str(peer_path.relative_to(ROOT)),
+                        "data_as_of": None,
+                    })
 
     if "KR_FLOW" in enabled:
         path = KNOWLEDGE_DIR / "flows" / f"{asset_id}.csv"

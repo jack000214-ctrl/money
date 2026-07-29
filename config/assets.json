@@ -1,7 +1,13 @@
 {
   "schema_version": "asset-registry/1.0.0",
-  "supported_markets": ["KR", "US"],
-  "supported_asset_types": ["STOCK", "ETF"],
+  "supported_markets": [
+    "KR",
+    "US"
+  ],
+  "supported_asset_types": [
+    "STOCK",
+    "ETF"
+  ],
   "assets": {
     "005930": {
       "name": "삼성전자",
@@ -15,9 +21,18 @@
       "sector_code": "TECH_SEMICONDUCTORS",
       "industry": "메모리·전자기기",
       "analysis_lens": "SEMICONDUCTOR_CYCLE",
-      "valuation_family": ["NORMALIZED_CYCLE", "DCF"],
-      "benchmarks": ["^KS11"],
-      "optional_collectors": ["KR_FLOW", "KR_INVENTORY", "NORMALIZED_EARNINGS"]
+      "valuation_family": [
+        "NORMALIZED_CYCLE",
+        "DCF"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [
+        "KR_FLOW",
+        "KR_INVENTORY",
+        "NORMALIZED_EARNINGS"
+      ]
     },
     "214450": {
       "name": "파마리서치",
@@ -31,9 +46,31 @@
       "sector_code": "HEALTHCARE_DEVICES",
       "industry": "에스테틱 의료기기·화장품",
       "analysis_lens": "QUALITY_GROWTH",
-      "valuation_family": ["DCF", "PEER_MULTIPLE"],
-      "benchmarks": ["^KQ11"],
-      "optional_collectors": ["KR_FLOW", "KR_INVENTORY"]
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KQ11"
+      ],
+      "optional_collectors": [
+        "KR_FLOW",
+        "KR_INVENTORY"
+      ],
+      "peers": [
+        {
+          "asset_id": "145020",
+          "name": "휴젤"
+        },
+        {
+          "asset_id": "214150",
+          "name": "클래시스"
+        },
+        {
+          "asset_id": "278470",
+          "name": "에이피알"
+        }
+      ]
     },
     "TSLA": {
       "name": "Tesla",
@@ -47,8 +84,14 @@
       "sector_code": "CONSUMER_AUTOMOTIVE",
       "industry": "자동차·에너지·AI",
       "analysis_lens": "CAPITAL_INTENSIVE_GROWTH",
-      "valuation_family": ["DCF", "SUM_OF_PARTS"],
-      "benchmarks": ["^IXIC", "XLY"],
+      "valuation_family": [
+        "DCF",
+        "SUM_OF_PARTS"
+      ],
+      "benchmarks": [
+        "^IXIC",
+        "XLY"
+      ],
       "optional_collectors": []
     },
     "IBM": {
@@ -63,8 +106,14 @@
       "sector_code": "TECH_SERVICES",
       "industry": "기업용 소프트웨어·인프라·컨설팅",
       "analysis_lens": "MATURE_TECHNOLOGY",
-      "valuation_family": ["DCF", "PEER_MULTIPLE"],
-      "benchmarks": ["^GSPC", "XLK"],
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^GSPC",
+        "XLK"
+      ],
       "optional_collectors": []
     },
     "RXRX": {
@@ -79,8 +128,13 @@
       "sector_code": "HEALTHCARE_BIOTECH",
       "industry": "임상단계 AI 신약개발",
       "analysis_lens": "CLINICAL_BIOTECH",
-      "valuation_family": ["PIPELINE_RNPV"],
-      "benchmarks": ["^IXIC", "XBI"],
+      "valuation_family": [
+        "PIPELINE_RNPV"
+      ],
+      "benchmarks": [
+        "^IXIC",
+        "XBI"
+      ],
       "optional_collectors": []
     },
     "SCHD": {
@@ -93,8 +147,12 @@
       "sector_code": "DIVERSIFIED_EQUITY",
       "industry": "미국 배당성장 ETF",
       "analysis_lens": "BROAD_EQUITY_ETF",
-      "valuation_family": ["ETF_LOOKTHROUGH"],
-      "benchmarks": ["^GSPC"],
+      "valuation_family": [
+        "ETF_LOOKTHROUGH"
+      ],
+      "benchmarks": [
+        "^GSPC"
+      ],
       "etf": {
         "strategy": "PASSIVE_BROAD",
         "derivative_use": false,
@@ -114,8 +172,14 @@
       "sector_code": "SINGLE_STOCK_DERIVATIVE",
       "industry": "MSTR 옵션인컴 ETF",
       "analysis_lens": "SINGLE_STOCK_OPTION_INCOME",
-      "valuation_family": ["DERIVATIVE_PAYOFF", "ETF_LOOKTHROUGH"],
-      "benchmarks": ["MSTR", "^GSPC"],
+      "valuation_family": [
+        "DERIVATIVE_PAYOFF",
+        "ETF_LOOKTHROUGH"
+      ],
+      "benchmarks": [
+        "MSTR",
+        "^GSPC"
+      ],
       "etf": {
         "strategy": "COVERED_CALL_SINGLE_STOCK",
         "underlying": "MSTR",

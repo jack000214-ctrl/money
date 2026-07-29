@@ -39,6 +39,13 @@ RAW_DIR = ROOT / "data" / "raw" / "naver"
 
 SCHEMA = "consensus-packet/1.0.0"
 URL = "https://navercomp.wisereport.co.kr/v2/company/c1010001.aspx?cmp_cd={code}"
+# 연도별 추정실적은 별도 프레임이다. 목표주가보다 이쪽이 본체다 — 매출·영업이익·
+# EPS 추정과 함께 실적 연도의 PER 이 나오므로, 그 종목 자신의 멀티플 밴드를
+# 남의 목표가 없이 만들 수 있다.
+ESTIMATE_URL = (
+    "https://navercomp.wisereport.co.kr/v2/company/cF1002.aspx"
+    "?cmp_cd={code}&finGubun=IFRSL&frq=0&sec_cd=&arrSaveGubun="
+)
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 SOURCE = "FnGuide via navercomp.wisereport.co.kr"
@@ -57,9 +64,13 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def fetch(code: str) -> str:
+def fetch(code: str, url: str = URL) -> str:
     request = urllib.request.Request(
-        URL.format(code=code), headers={"User-Agent": UA}
+        url.format(code=code),
+        headers={
+            "User-Agent": UA,
+            "Referer": URL.format(code=code),
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -187,6 +198,60 @@ def _dispersion(brokers: list[dict], as_of: str, days: int) -> dict:
     }
 
 
+ESTIMATE_FIELDS = (
+    ("revenue_100m", 0),
+    ("revenue_yoy_pct", 1),
+    ("operating_income_100m", 2),
+    ("net_income_100m", 3),
+    ("eps", 4),
+    ("per", 5),
+    ("pbr", 6),
+    ("roe_pct", 7),
+    ("ev_ebitda", 8),
+    ("net_debt_ratio_pct", 9),
+)
+
+
+def parse_estimates(html: str) -> dict:
+    """연도별 실적·추정 표(cTB25). (A)는 확정, (E)는 컨센서스다."""
+    years = []
+    for row in table_rows(html, "cTB25"):
+        match = re.fullmatch(r"(\d{4})\.(\d{2})\((A|E)\)", row[0])
+        if not match:
+            continue
+        values = row[1:]
+        year = {
+            "period": f"{match.group(1)}-{match.group(2)}",
+            "fiscal_year": int(match.group(1)),
+            "actual": match.group(3) == "A",
+        }
+        for name, index in ESTIMATE_FIELDS:
+            year[name] = number(values[index]) if index < len(values) else None
+        years.append(year)
+    # 확정 연도의 PER 범위. 이 종목이 실제로 어떤 멀티플에 거래돼 왔는가 —
+    # 남의 목표주가 없이 만들 수 있는 유일한 밸류에이션 앵커다.
+    actual_pers = [
+        y["per"] for y in years if y["actual"] and y["per"] and y["per"] > 0
+    ]
+    return {
+        "annual": years,
+        "per_band_actual": {
+            "years": len(actual_pers),
+            "min": min(actual_pers) if actual_pers else None,
+            "max": max(actual_pers) if actual_pers else None,
+            "median": statistics.median(actual_pers) if actual_pers else None,
+            "_note": (
+                "확정 실적 연도의 PER 범위다. 추정 연도 PER 은 주가가 이미 "
+                "반영된 값이라 밴드에 넣지 않는다"
+            ),
+        },
+        "_note": (
+            "금액 단위는 억원이다. (A)는 확정, (E)는 컨센서스 추정이다. "
+            "PER 은 출처가 전 영업일 수정주가로 계산한 값이므로 오늘 주가와 다르다"
+        ),
+    }
+
+
 def summarize(brokers: list[dict], as_of: str) -> tuple[dict, dict]:
     """분산과 개정 방향. 평균 하나로는 볼 수 없는 것들이다.
 
@@ -233,7 +298,7 @@ def summarize(brokers: list[dict], as_of: str) -> tuple[dict, dict]:
     return dispersion, revisions
 
 
-def build(code: str, html: str) -> dict:
+def build(code: str, html: str, estimate_html: str = "") -> dict:
     summary = parse_summary(html)
     brokers = parse_brokers(html)
     if not brokers:
@@ -250,6 +315,7 @@ def build(code: str, html: str) -> dict:
         "source": SOURCE,
         "source_grade": "EXPLORATORY",
         "summary": summary,
+        "estimates": parse_estimates(estimate_html) if estimate_html else None,
         "dispersion": dispersion,
         "revisions": revisions,
         "brokers": brokers,
@@ -307,6 +373,20 @@ def show(packet: dict) -> None:
     if wide["max"] and near["max"] and wide["max"] > near["max"]:
         print(f"    ※ 전체 창의 최고 {wide['max']:,.0f}원은 최근 30일 밖 값이다 — "
               "평균이 옛 목표가에 끌리고 있다")
+    estimates = packet.get("estimates") or {}
+    if estimates.get("annual"):
+        print("\n  연도별 실적·추정 (억원)")
+        print(f"    {'연도':<10}{'매출':>9}{'YoY':>8}{'영업익':>9}"
+              f"{'EPS':>9}{'PER':>7}{'ROE':>7}")
+        for year in estimates["annual"]:
+            mark = "A" if year["actual"] else "E"
+            print(f"    {year['period']}({mark}) {year['revenue_100m']:>8,.0f}"
+                  f"{year['revenue_yoy_pct']:>7.1f}%{year['operating_income_100m']:>9,.0f}"
+                  f"{year['eps']:>9,.0f}{year['per']:>7.1f}{year['roe_pct']:>6.1f}%")
+        band = estimates["per_band_actual"]
+        if band["min"]:
+            print(f"    확정 연도 PER 밴드 {band['min']:.1f} ~ {band['max']:.1f}배 "
+                  f"(중앙 {band['median']:.1f}) — 멀티플 판단의 자체 앵커다")
     print(f"  컨센서스 EPS {summary['eps']:,.0f}원 · PER {summary['per']}배")
     print(f"\n  최근 {revisions['window_days']}일 개정 {revisions['observed']}건 — "
           f"상향 {revisions['raised']} / 하향 {revisions['lowered']} / "
@@ -341,14 +421,16 @@ def main() -> int:
         return 0
 
     html = fetch(args.asset_id)
+    estimate_html = fetch(args.asset_id, ESTIMATE_URL)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    raw_path = RAW_DIR / (
-        f"consensus_{args.asset_id}_"
-        f"{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-    )
+    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    raw_path = RAW_DIR / f"consensus_{args.asset_id}_{stamp}.html"
     raw_path.write_text(html, encoding="utf-8")
+    (RAW_DIR / f"estimates_{args.asset_id}_{stamp}.html").write_text(
+        estimate_html, encoding="utf-8"
+    )
 
-    packet = merge_history(path, build(args.asset_id, html))
+    packet = merge_history(path, build(args.asset_id, html, estimate_html))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
