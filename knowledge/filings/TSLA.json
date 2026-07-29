@@ -1,0 +1,476 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "TSLA",
+  "cik": "0001318605",
+  "collected_at": "2026-07-29T00:47:01+00:00",
+  "source": "SEC_EDGAR_SUBMISSIONS",
+  "forms_filter": [
+    "10-K",
+    "10-K/A",
+    "10-Q",
+    "10-Q/A",
+    "424B5",
+    "8-K",
+    "8-K/A",
+    "DEF 14A",
+    "S-1",
+    "S-1/A",
+    "S-3",
+    "S-3/A",
+    "S-3ASR"
+  ],
+  "raw_payload_sha256": "0315111c04a0db623f85da3187c7cea0437598ad0c8701053af95cd85a5908c4",
+  "raw_locator": "data/raw/edgar/objects/0315111c04a0db623f85da3187c7cea0437598ad0c8701053af95cd85a5908c4.json",
+  "filings": [
+    {
+      "filing_date": "2026-07-23",
+      "report_date": "2026-06-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-26-049270",
+      "primary_document": "tsla-20260630.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049270/tsla-20260630.htm"
+    },
+    {
+      "filing_date": "2026-07-22",
+      "report_date": "2026-07-22",
+      "form": "8-K",
+      "accession_number": "0001628280-26-049213",
+      "primary_document": "tsla-20260722.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049213/tsla-20260722.htm"
+    },
+    {
+      "filing_date": "2026-07-02",
+      "report_date": "2026-07-02",
+      "form": "8-K",
+      "accession_number": "0001628280-26-046717",
+      "primary_document": "tsla-20260702.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026046717/tsla-20260702.htm"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": "2025-12-31",
+      "form": "10-K/A",
+      "accession_number": "0001104659-26-053166",
+      "primary_document": "tm2611837d1_10ka.htm",
+      "description": "FORM 10-K/A",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465926053166/tm2611837d1_10ka.htm"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": "2026-03-31",
+      "form": "10-Q",
+      "accession_number": "0001628280-26-026673",
+      "primary_document": "tsla-20260331.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026026673/tsla-20260331.htm"
+    },
+    {
+      "filing_date": "2026-04-22",
+      "report_date": "2026-04-22",
+      "form": "8-K",
+      "accession_number": "0001628280-26-026551",
+      "primary_document": "tsla-20260422.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026026551/tsla-20260422.htm"
+    },
+    {
+      "filing_date": "2026-04-02",
+      "report_date": "2026-04-02",
+      "form": "8-K",
+      "accession_number": "0001628280-26-022956",
+      "primary_document": "tsla-20260402.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026022956/tsla-20260402.htm"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": "2025-12-31",
+      "form": "10-K",
+      "accession_number": "0001628280-26-003952",
+      "primary_document": "tsla-20251231.htm",
+      "description": "10-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026003952/tsla-20251231.htm"
+    },
+    {
+      "filing_date": "2026-01-28",
+      "report_date": "2026-01-28",
+      "form": "8-K",
+      "accession_number": "0001628280-26-003837",
+      "primary_document": "tsla-20260128.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026003837/tsla-20260128.htm"
+    },
+    {
+      "filing_date": "2026-01-02",
+      "report_date": "2026-01-02",
+      "form": "8-K",
+      "accession_number": "0001628280-26-000016",
+      "primary_document": "tsla-20260102.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026000016/tsla-20260102.htm"
+    },
+    {
+      "filing_date": "2025-11-07",
+      "report_date": "2025-11-06",
+      "form": "8-K",
+      "accession_number": "0001104659-25-108507",
+      "primary_document": "tm2530590d1_8k.htm",
+      "description": "FORM 8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925108507/tm2530590d1_8k.htm"
+    },
+    {
+      "filing_date": "2025-10-23",
+      "report_date": "2025-09-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-25-045968",
+      "primary_document": "tsla-20250930.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025045968/tsla-20250930.htm"
+    },
+    {
+      "filing_date": "2025-10-22",
+      "report_date": "2025-10-22",
+      "form": "8-K",
+      "accession_number": "0001628280-25-045861",
+      "primary_document": "tsla-20251022.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025045861/tsla-20251022.htm"
+    },
+    {
+      "filing_date": "2025-10-02",
+      "report_date": "2025-10-02",
+      "form": "8-K",
+      "accession_number": "0001628280-25-043530",
+      "primary_document": "tsla-20251002.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025043530/tsla-20251002.htm"
+    },
+    {
+      "filing_date": "2025-09-17",
+      "report_date": "2025-11-06",
+      "form": "DEF 14A",
+      "accession_number": "0001104659-25-090866",
+      "primary_document": "tm252289-12_def14a.htm",
+      "description": "FORM DEF 14A",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925090866/tm252289-12_def14a.htm"
+    },
+    {
+      "filing_date": "2025-09-05",
+      "report_date": "2025-09-03",
+      "form": "8-K",
+      "accession_number": "0001104659-25-087862",
+      "primary_document": "tm2525337d1_8k.htm",
+      "description": "FORM 8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925087862/tm2525337d1_8k.htm"
+    },
+    {
+      "filing_date": "2025-08-04",
+      "report_date": "2025-08-03",
+      "form": "8-K",
+      "accession_number": "0001104659-25-073263",
+      "primary_document": "tm2522385d1_8k.htm",
+      "description": "FORM 8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925073263/tm2522385d1_8k.htm"
+    },
+    {
+      "filing_date": "2025-07-24",
+      "report_date": "2025-06-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-25-035806",
+      "primary_document": "tsla-20250630.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025035806/tsla-20250630.htm"
+    },
+    {
+      "filing_date": "2025-07-23",
+      "report_date": "2025-07-23",
+      "form": "8-K",
+      "accession_number": "0001628280-25-035738",
+      "primary_document": "tsla-20250723.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025035738/tsla-20250723.htm"
+    },
+    {
+      "filing_date": "2025-07-10",
+      "report_date": "2025-07-09",
+      "form": "8-K",
+      "accession_number": "0001628280-25-034692",
+      "primary_document": "tsla-20250709.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025034692/tsla-20250709.htm"
+    },
+    {
+      "filing_date": "2025-07-02",
+      "report_date": "2025-07-02",
+      "form": "8-K",
+      "accession_number": "0001628280-25-033842",
+      "primary_document": "tsla-20250702.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025033842/tsla-20250702.htm"
+    },
+    {
+      "filing_date": "2025-05-16",
+      "report_date": "2025-05-15",
+      "form": "8-K",
+      "accession_number": "0001104659-25-050072",
+      "primary_document": "tm2515421d1_8k.htm",
+      "description": "FORM 8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925050072/tm2515421d1_8k.htm"
+    },
+    {
+      "filing_date": "2025-05-16",
+      "report_date": "2025-05-15",
+      "form": "8-K",
+      "accession_number": "0001628280-25-026148",
+      "primary_document": "tsla-20250515.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025026148/tsla-20250515.htm"
+    },
+    {
+      "filing_date": "2025-04-30",
+      "report_date": "2024-12-31",
+      "form": "10-K/A",
+      "accession_number": "0001104659-25-042659",
+      "primary_document": "tm252787d2_10ka.htm",
+      "description": "FORM 10-K/A",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465925042659/tm252787d2_10ka.htm"
+    },
+    {
+      "filing_date": "2025-04-23",
+      "report_date": "2025-03-31",
+      "form": "10-Q",
+      "accession_number": "0001628280-25-018911",
+      "primary_document": "tsla-20250331.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025018911/tsla-20250331.htm"
+    },
+    {
+      "filing_date": "2025-04-22",
+      "report_date": "2025-04-22",
+      "form": "8-K",
+      "accession_number": "0001628280-25-018851",
+      "primary_document": "tsla-20250422.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025018851/tsla-20250422.htm"
+    },
+    {
+      "filing_date": "2025-04-02",
+      "report_date": "2025-04-02",
+      "form": "8-K",
+      "accession_number": "0001628280-25-016070",
+      "primary_document": "tsla-20250402.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025016070/tsla-20250402.htm"
+    },
+    {
+      "filing_date": "2025-01-30",
+      "report_date": "2024-12-31",
+      "form": "10-K",
+      "accession_number": "0001628280-25-003063",
+      "primary_document": "tsla-20241231.htm",
+      "description": "10-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025003063/tsla-20241231.htm"
+    },
+    {
+      "filing_date": "2025-01-29",
+      "report_date": "2025-01-29",
+      "form": "8-K",
+      "accession_number": "0001628280-25-002993",
+      "primary_document": "tsla-20250129.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025002993/tsla-20250129.htm"
+    },
+    {
+      "filing_date": "2025-01-02",
+      "report_date": "2025-01-02",
+      "form": "8-K",
+      "accession_number": "0001628280-25-000007",
+      "primary_document": "tsla-20250102.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828025000007/tsla-20250102.htm"
+    },
+    {
+      "filing_date": "2024-10-24",
+      "report_date": "2024-09-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-24-043486",
+      "primary_document": "tsla-20240930.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024043486/tsla-20240930.htm"
+    },
+    {
+      "filing_date": "2024-10-23",
+      "report_date": "2024-10-23",
+      "form": "8-K",
+      "accession_number": "0001628280-24-043432",
+      "primary_document": "tsla-20241023.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024043432/tsla-20241023.htm"
+    },
+    {
+      "filing_date": "2024-10-02",
+      "report_date": "2024-10-02",
+      "form": "8-K",
+      "accession_number": "0001628280-24-041816",
+      "primary_document": "tsla-20241002.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024041816/tsla-20241002.htm"
+    },
+    {
+      "filing_date": "2024-07-24",
+      "report_date": "2024-06-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-24-032662",
+      "primary_document": "tsla-20240630.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024032662/tsla-20240630.htm"
+    },
+    {
+      "filing_date": "2024-07-23",
+      "report_date": "2024-07-23",
+      "form": "8-K",
+      "accession_number": "0001628280-24-032603",
+      "primary_document": "tsla-20240723.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024032603/tsla-20240723.htm"
+    },
+    {
+      "filing_date": "2024-07-02",
+      "report_date": "2024-07-02",
+      "form": "8-K",
+      "accession_number": "0001628280-24-030714",
+      "primary_document": "tsla-20240702.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024030714/tsla-20240702.htm"
+    },
+    {
+      "filing_date": "2024-06-14",
+      "report_date": "2024-06-13",
+      "form": "8-K",
+      "accession_number": "0001104659-24-071439",
+      "primary_document": "tm2413800d31_8k.htm",
+      "description": "FORM 8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465924071439/tm2413800d31_8k.htm"
+    },
+    {
+      "filing_date": "2024-04-29",
+      "report_date": "2024-06-13",
+      "form": "DEF 14A",
+      "accession_number": "0001104659-24-053333",
+      "primary_document": "tm2326076d15_def14a.htm",
+      "description": "FORM DEF14A",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465924053333/tm2326076d15_def14a.htm"
+    },
+    {
+      "filing_date": "2024-04-24",
+      "report_date": "2024-03-31",
+      "form": "10-Q",
+      "accession_number": "0001628280-24-017503",
+      "primary_document": "tsla-20240331.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024017503/tsla-20240331.htm"
+    },
+    {
+      "filing_date": "2024-04-23",
+      "report_date": "2024-04-23",
+      "form": "8-K",
+      "accession_number": "0000950170-24-046895",
+      "primary_document": "tsla-20240423.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017024046895/tsla-20240423.htm"
+    },
+    {
+      "filing_date": "2024-04-16",
+      "report_date": "2024-04-14",
+      "form": "8-K",
+      "accession_number": "0000950170-24-044588",
+      "primary_document": "tsla-20240414.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017024044588/tsla-20240414.htm"
+    },
+    {
+      "filing_date": "2024-04-02",
+      "report_date": "2024-04-02",
+      "form": "8-K",
+      "accession_number": "0000950170-24-040274",
+      "primary_document": "tsla-20240402.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017024040274/tsla-20240402.htm"
+    },
+    {
+      "filing_date": "2024-01-29",
+      "report_date": "2023-12-31",
+      "form": "10-K",
+      "accession_number": "0001628280-24-002390",
+      "primary_document": "tsla-20231231.htm",
+      "description": "10-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828024002390/tsla-20231231.htm"
+    },
+    {
+      "filing_date": "2024-01-24",
+      "report_date": "2024-01-24",
+      "form": "8-K",
+      "accession_number": "0000950170-24-007073",
+      "primary_document": "tsla-20240124.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017024007073/tsla-20240124.htm"
+    },
+    {
+      "filing_date": "2024-01-02",
+      "report_date": "2024-01-02",
+      "form": "8-K",
+      "accession_number": "0000950170-24-000282",
+      "primary_document": "tsla-20240102.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017024000282/tsla-20240102.htm"
+    },
+    {
+      "filing_date": "2023-10-23",
+      "report_date": "2023-09-30",
+      "form": "10-Q",
+      "accession_number": "0001628280-23-034847",
+      "primary_document": "tsla-20230930.htm",
+      "description": "10-Q",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828023034847/tsla-20230930.htm"
+    },
+    {
+      "filing_date": "2023-10-18",
+      "report_date": "2023-10-18",
+      "form": "8-K",
+      "accession_number": "0001628280-23-034588",
+      "primary_document": "tsla-20231018.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828023034588/tsla-20231018.htm"
+    },
+    {
+      "filing_date": "2023-10-10",
+      "report_date": "2023-05-16",
+      "form": "8-K/A",
+      "accession_number": "0000950170-23-052618",
+      "primary_document": "tsla-20230516.htm",
+      "description": "8-K/A",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023052618/tsla-20230516.htm"
+    },
+    {
+      "filing_date": "2023-10-02",
+      "report_date": "2023-10-02",
+      "form": "8-K",
+      "accession_number": "0000950170-23-050938",
+      "primary_document": "tsla-20231002.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023050938/tsla-20231002.htm"
+    },
+    {
+      "filing_date": "2023-08-07",
+      "report_date": "2023-08-04",
+      "form": "8-K",
+      "accession_number": "0000950170-23-038779",
+      "primary_document": "tsla-20230804.htm",
+      "description": "8-K",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023038779/tsla-20230804.htm"
+    }
+  ]
+}

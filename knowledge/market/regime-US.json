@@ -1,0 +1,94 @@
+{
+  "schema_version": "market-regime/2.0.0",
+  "collected_at": "2026-07-29T09:47:02+09:00",
+  "lookback_days": 500,
+  "by_market": {
+    "US": {
+      "market": "US",
+      "regime": "ELEVATED",
+      "mark": "🟡",
+      "score": 1,
+      "notes": [
+        "주요 지수 고점 대비 -8.2%"
+      ],
+      "indices": [
+        {
+          "symbol": "^GSPC",
+          "name": "S&P 500",
+          "as_of": "2026-07-28",
+          "close": 7428.7798,
+          "high": 7609.7798,
+          "drawdown_pct": -2.38
+        },
+        {
+          "symbol": "^IXIC",
+          "name": "NASDAQ",
+          "as_of": "2026-07-28",
+          "close": 24876.9121,
+          "high": 27093.9004,
+          "drawdown_pct": -8.18
+        }
+      ],
+      "volatility": {
+        "symbol": "^VIX",
+        "name": "VIX",
+        "as_of": "2026-07-28",
+        "value": 18.21,
+        "median": 17.44,
+        "percentile": 58.4,
+        "in_score": true
+      },
+      "worst_drawdown_pct": -8.18
+    }
+  },
+  "macro": {
+    "by_market": {
+      "US": [
+        {
+          "symbol": "KRW=X",
+          "name": "KRW/USD",
+          "as_of": "2026-07-29",
+          "value": 1454.28,
+          "median": 1437.68,
+          "percentile": 63.4
+        },
+        {
+          "symbol": "^TNX",
+          "name": "US 10Y yield",
+          "as_of": "2026-07-28",
+          "value": 4.604,
+          "median": 4.275,
+          "percentile": 95.6
+        }
+      ]
+    }
+  },
+  "input_sources": [
+    {
+      "symbol": "^GSPC",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-07-28"
+    },
+    {
+      "symbol": "^IXIC",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-07-28"
+    },
+    {
+      "symbol": "^VIX",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-07-28"
+    },
+    {
+      "symbol": "KRW=X",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-07-29"
+    },
+    {
+      "symbol": "^TNX",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-07-28"
+    }
+  ],
+  "_note": "측정값이며 투자 행동을 지시하지 않는다"
+}
