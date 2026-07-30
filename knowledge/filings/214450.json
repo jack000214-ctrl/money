@@ -1,0 +1,472 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "214450",
+  "corp_code": "00970453",
+  "collected_at": "2026-07-30T04:19:35+00:00",
+  "source": "DART_LIST",
+  "since": "20250601",
+  "until": "20260730",
+  "pblntf_types": [
+    "A",
+    "B",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "a5d996184222db3537d2eec3166de16846656141113015a3e7c402b9b0301fe8",
+      "raw_locator": "data/raw/dart/objects/a5d996184222db3537d2eec3166de16846656141113015a3e7c402b9b0301fe8.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "2ac9fea408639ff4b8b664766512886386252188dac74a817faf6606ab6970a1",
+      "raw_locator": "data/raw/dart/objects/2ac9fea408639ff4b8b664766512886386252188dac74a817faf6606ab6970a1.json"
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "41cb1abccba9e0cd04b84541cb154e202e6f70fba9008fd85f169156ec454730",
+      "raw_locator": "data/raw/dart/objects/41cb1abccba9e0cd04b84541cb154e202e6f70fba9008fd85f169156ec454730.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-07-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260714900293",
+      "description": "결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260714900293"
+    },
+    {
+      "filing_date": "2026-06-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260626900400",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626900400"
+    },
+    {
+      "filing_date": "2026-06-12",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260612900306",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260612900306"
+    },
+    {
+      "filing_date": "2026-06-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260609900404",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260609900404"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515001997",
+      "description": "분기보고서 (2026.03)",
+      "filer": "파마리서치",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001997"
+    },
+    {
+      "filing_date": "2026-05-08",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260508900237",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508900237"
+    },
+    {
+      "filing_date": "2026-05-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260506900522",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260506900522"
+    },
+    {
+      "filing_date": "2026-04-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260427900233",
+      "description": "결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260427900233"
+    },
+    {
+      "filing_date": "2026-03-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260330900248",
+      "description": "기업가치제고계획(자율공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260330900248"
+    },
+    {
+      "filing_date": "2026-03-27",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260327901012",
+      "description": "정기주주총회결과",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260327901012"
+    },
+    {
+      "filing_date": "2026-03-19",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260319901689",
+      "description": "감사보고서제출",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260319901689"
+    },
+    {
+      "filing_date": "2026-03-19",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260319001417",
+      "description": "사업보고서 (2025.12)",
+      "filer": "파마리서치",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260319001417"
+    },
+    {
+      "filing_date": "2026-03-12",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260312901349",
+      "description": "주주총회집중일개최사유신고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260312901349"
+    },
+    {
+      "filing_date": "2026-03-09",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260309901189",
+      "description": "[기재정정]주주총회소집결의",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260309901189"
+    },
+    {
+      "filing_date": "2026-03-06",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260306900578",
+      "description": "주주총회소집결의",
+      "filer": "파마리서치",
+      "remark": "코정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260306900578"
+    },
+    {
+      "filing_date": "2026-02-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260210900521",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260210900521"
+    },
+    {
+      "filing_date": "2026-02-04",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260204901329",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260204901329"
+    },
+    {
+      "filing_date": "2026-02-04",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260204900782",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변동",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260204900782"
+    },
+    {
+      "filing_date": "2026-01-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260130900232",
+      "description": "[기재정정]결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260130900232"
+    },
+    {
+      "filing_date": "2026-01-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260126900355",
+      "description": "결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260126900355"
+    },
+    {
+      "filing_date": "2025-12-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251216900481",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251216900481"
+    },
+    {
+      "filing_date": "2025-12-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251216900475",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251216900475"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251114901083",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114901083"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": "2025-09-30",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20251114000932",
+      "description": "분기보고서 (2025.09)",
+      "filer": "파마리서치",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114000932"
+    },
+    {
+      "filing_date": "2025-11-11",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20251111900180",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251111900180"
+    },
+    {
+      "filing_date": "2025-10-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251024900102",
+      "description": "결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251024900102"
+    },
+    {
+      "filing_date": "2025-08-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250821900613",
+      "description": "불성실공시법인미지정              (지정유예)",
+      "filer": "코스닥시장본부",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250821900613"
+    },
+    {
+      "filing_date": "2025-08-14",
+      "report_date": "2025-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20250814002565",
+      "description": "반기보고서 (2025.06)",
+      "filer": "파마리서치",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250814002565"
+    },
+    {
+      "filing_date": "2025-08-08",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20250808900097",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250808900097"
+    },
+    {
+      "filing_date": "2025-08-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250801900499",
+      "description": "결산실적공시예고",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250801900499"
+    },
+    {
+      "filing_date": "2025-07-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250731900707",
+      "description": "불성실공시법인지정예고              (공시번복)",
+      "filer": "코스닥시장본부",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250731900707"
+    },
+    {
+      "filing_date": "2025-07-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250708900228",
+      "description": "[기재정정]기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250708900228"
+    },
+    {
+      "filing_date": "2025-07-08",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20250708900076",
+      "description": "기타주요경영사항              (회사분할결정 철회)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250708900076"
+    },
+    {
+      "filing_date": "2025-07-08",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20250708000069",
+      "description": "[기재정정]주요사항보고서(회사분할결정)",
+      "filer": "파마리서치",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250708000069"
+    },
+    {
+      "filing_date": "2025-06-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250627900334",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250627900334"
+    },
+    {
+      "filing_date": "2025-06-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250627900320",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250627900320"
+    },
+    {
+      "filing_date": "2025-06-20",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250620900091",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250620900091"
+    },
+    {
+      "filing_date": "2025-06-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250618900651",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250618900651"
+    },
+    {
+      "filing_date": "2025-06-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250616900182",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250616900182"
+    },
+    {
+      "filing_date": "2025-06-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250613900097",
+      "description": "주식소각결정",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900097"
+    },
+    {
+      "filing_date": "2025-06-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250613900052",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900052"
+    },
+    {
+      "filing_date": "2025-06-13",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20250613900043",
+      "description": "주권매매거래정지              (분할)",
+      "filer": "코스닥시장본부",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900043"
+    },
+    {
+      "filing_date": "2025-06-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20250613000005",
+      "description": "주요사항보고서(회사분할결정)",
+      "filer": "파마리서치",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613000005"
+    }
+  ]
+}

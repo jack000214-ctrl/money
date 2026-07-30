@@ -22,14 +22,35 @@ python3.13 -m cio prepare <asset_id> \
 - `request`: 자산, 가격·통화, 금액·통화, 기준시각과 질문
 - `asset`: 시장, 상품 유형, 산업, 분석 렌즈, 방법론 후보, 벤치마크
 - `validation`: PC가 확인한 준비 상태와 문제 목록
-- `context`: 가격 요약, 벤치마크, 시장, 재무, 미국 제출 문서 색인, 적용 가능 계산,
-  이벤트, ETF 구조, 포트폴리오 영향, 최근 판단 요약
+- `context`: 가격 요약, 벤치마크, 시장, 재무, 공시 색인(DART·SEC), 적용 가능 계산,
+  이벤트, ETF 구조, 포트폴리오 영향, 최근 판단, 미해결 수집 요청, 보존한 웹 원문
 - `research_requirements`: 로컬 데이터 밖에서 모델이 확인할 질문
 - `evidence_index`: 로컬 산출물의 ID, 경로와 기준시점
 - `model_contract`: 공통 prompt와 decision schema 위치
 
 전체 공시·뉴스·과거 대화를 넣지 않는다. 모델은 evidence index와 요약으로 시작하고,
 결론을 바꿀 수 있는 빈칸만 추가 조사한다.
+
+### 판단을 이어 붙이는 블록
+
+한 종목을 여러 번 묻는 것이 이 시스템의 정상 사용법이므로, 컨텍스트는 직전
+판단을 이어받을 수 있을 만큼만 함께 싣는다.
+
+| 블록 | 내용 | 왜 |
+|---|---|---|
+| `prior_assessments[].carried_forward` | 직전 판단의 논지·가격계획·무효화 신호 | 모델이 자기 계획을 확인하고 시작하게 한다 |
+| `prior_assessments[].price_vs_prior_plan` | 그 문턱과 현재 종가의 산술 대조 | 문턱 도달 여부는 PC가 계산한다 |
+| `prior_assessments[].usable: false` | 현재 계약으로 재검증되지 않는 판단 | 계약이 바뀌었을 때 기억이 조용히 사라지지 않게 한다 |
+| `open_research_requests` | 아직 처리되지 않은 모델의 수집 요청 | 요청이 편지함에서 썩지 않게 한다 |
+| `web_snapshots` | 모델이 이전에 보존한 웹 원문 목록 | 같은 조사를 반복하지 않게 한다 |
+| `fundamentals.reporting_lag` | 로컬 재무 기준일 이후의 공시 | 신선도를 시계가 아니라 결산 캘린더로 잰다 |
+
+`carried_forward`는 그대로 따르라는 명령이 아니다. 같은 자리를 처음 보는 것처럼
+다시 계산하지 말고, 판단이 바뀌었으면 무엇이 바뀌었는지 말하라는 요구다.
+
+packet이 예산(`MAX_CONTEXT_JSON_BYTES`)을 넘으면 서술부터 버리고 가격 문턱과
+무효화 신호를 남긴다. 버린 항목은 `validation.optional_gaps`에
+`TRIMMED_FOR_BUDGET`으로 기록되며, 원문은 `knowledge/assessments/`에 그대로 있다.
 
 ## 출력: `cio-decision/1.0.0`
 
@@ -47,6 +68,39 @@ python3.13 -m cio prepare <asset_id> \
 | 논지 | 핵심 논지, 가장 강한 반대 논지, 관측 가능한 무효화 신호 |
 | 근거 | 방법론·가정, 모르는 것, 추가 조사 요청, 출처와 evidence ID |
 | 재현성 | context ID와 모델·prompt 버전 |
+
+### `research_requests` — 편지함이 아니라 대기열
+
+모델이 "로컬에 이것이 필요하다"고 적는 필수 필드다. 이 요청은 assessment 안에서
+끝나지 않는다.
+
+```bash
+python3.13 -m cio requests <asset_id>                    # 미해결·해결 목록
+python3.13 -m cio requests <asset_id> \
+  --resolve REQ-3e547a42822d --state DONE --note "무엇을 했는지"
+```
+
+요청의 신원은 정규화한 본문의 sha256이다. 같은 요청을 여러 판단에서 반복하면
+`asked_count`가 올라가고, 그 횟수가 우선순위 신호가 된다. 미해결 요청은 다음
+컨텍스트의 `open_research_requests`로 되돌아온다.
+
+**해결 판정은 사용자만 한다.** 모델이 자기 요청을 닫을 수 있으면 "요청했는데
+아직 없다"는 신호가 의미를 잃기 때문이다. `state`는 `DONE`(만들었다),
+`DECLINED`(만들지 않기로 했다), `SUPERSEDED`(다른 것으로 대체됐다)다.
+
+### 근거 보존
+
+모델이 조사한 원문은 인용 전에 로컬에 남긴다.
+
+```bash
+python3.13 -m cio snapshot <URL> --asset <asset_id> --label <이름> --note "왜"
+python3.13 -m collectors.dart document <14자리 접수번호>
+```
+
+`snapshot`은 받은 바이트를 그대로 내용 지문으로 저장한다. 광고나 마크업을
+걷어내지 않는다 — 페이지 구조는 언제든 바뀌지만 저장한 바이트는 바뀌지 않고,
+무엇이 본문인지는 그 파일을 읽는 모델이 판단한다. 응답이 프레임 껍데기면
+`shell_page_warning`이 붙으며 그 스냅샷은 내용 근거가 아니다.
 
 ### Verdict
 

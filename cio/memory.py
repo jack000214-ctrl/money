@@ -14,6 +14,7 @@ from cio.assets import ASSET_ID_RE, get_asset
 from cio.decision import (
     CONSTRAINT_SELL_REASONS,
     JUDGMENT_SELL_REASONS,
+    assessment_id_for,
     find_context,
     require_valid_decision,
 )
@@ -466,25 +467,68 @@ def evaluate_assessment(
     return evaluation
 
 
-def score_asset(asset_id: str) -> list[Path]:
+def score_asset(asset_id: str) -> dict[str, Any]:
+    """저장된 판단을 이후 가격으로 사후평가한다.
+
+    한 건이 현재 계약으로 재검증되지 않는다고 해서 그 종목의 평가 전체가
+    멈추면 안 된다. 계약은 앞으로도 바뀔 것이고, 그때마다 축적된 평가가
+    통째로 막히면 사후평가는 영영 돌지 않는다. 평가할 수 없는 건은 이유와
+    함께 건너뛰고 보고한다.
+
+    다만 **변조는 건너뛰지 않는다.** 저장된 판단이 자기 내용 지문과 다르면
+    그것은 계약 변화가 아니라 기억이 손상된 것이므로 즉시 멈춘다.
+    """
     asset = get_asset(asset_id)
     assessment_dir = _memory_asset_dir("assessments", asset["asset_id"])
     if not assessment_dir.exists():
-        return []
+        return {"asset_id": asset["asset_id"], "evaluated": [], "skipped": []}
     rows = _price_rows(asset["price_symbol"])
-    paths = []
+    evaluated: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
     for assessment_path in sorted(assessment_dir.glob("CIO-*.json")):
         assessment = load_json(assessment_path)
-        context, _ = find_context(str(assessment.get("context_id") or ""))
-        assessment = require_valid_decision(assessment, context=context)
-        evaluation = evaluate_assessment(assessment, rows=rows)
+        stored_id = assessment.get("assessment_id")
+        try:
+            if stored_id != assessment_id_for(assessment):
+                raise ContractError(
+                    [
+                        f"{assessment_path.name}: 저장된 판단이 자기 내용 지문과 "
+                        "다르다 — 기록이 변조됐다"
+                    ]
+                )
+        except (TypeError, ValueError) as exc:
+            raise ContractError(
+                [f"{assessment_path.name}: 판단을 지문화할 수 없다"]
+            ) from exc
+        try:
+            context, _ = find_context(str(assessment.get("context_id") or ""))
+            valid = require_valid_decision(assessment, context=context)
+            evaluation = evaluate_assessment(valid, rows=rows)
+        except ContractError as exc:
+            skipped.append(
+                {
+                    "assessment_id": stored_id,
+                    "reason": "; ".join(exc.errors[:2]),
+                }
+            )
+            continue
         out = _memory_asset_dir(
             "evaluations", asset["asset_id"]
         ) / f"{evaluation['evaluation_id']}.json"
         if not out.exists():
             _atomic_json(out, evaluation)
-        paths.append(out)
-    return paths
+        evaluated.append(
+            {
+                "assessment_id": stored_id,
+                "evaluation_id": evaluation["evaluation_id"],
+                "path": str(out.relative_to(ROOT)),
+            }
+        )
+    return {
+        "asset_id": asset["asset_id"],
+        "evaluated": evaluated,
+        "skipped": skipped,
+    }
 
 
 def _atomic_json(path: Path, data: dict[str, Any]) -> None:

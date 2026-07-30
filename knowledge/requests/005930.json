@@ -1,0 +1,23 @@
+{
+  "schema_version": "research-ledger/1.0.0",
+  "asset_id": "005930",
+  "updated_at": "2026-07-30T13:30:54+09:00",
+  "resolutions": [
+    {
+      "request_id": "REQ-3e547a42822d",
+      "text": "price 수집기에 장중/장마감 구분을 넣어 달라. 미완성 봉이 확정 일봉과 같은 형태로 저장돼 거래량 배수와 급변 판정을 왜곡한다",
+      "state": "DONE",
+      "note": "price 수집기에 last_bar 세션 구분 추가 — context.price.last_bar.is_settled_close",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-30T13:30:54+09:00"
+    },
+    {
+      "request_id": "REQ-6a387a84de00",
+      "text": "^KS11·^KQ11 시계열의 누락 거래일을 KRX 원문(idx/kospi_dd_trd)으로 자동 메우는 백필 경로가 필요하다. 이번에 폭락일 하루가 비어 상대변동 부호가 뒤집혔다",
+      "state": "DONE",
+      "note": "benchmark_backfill 태스크로 KRX 원문 백필 배선",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-30T13:30:54+09:00"
+    }
+  ]
+}

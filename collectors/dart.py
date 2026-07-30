@@ -14,6 +14,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import urllib.error
@@ -343,27 +344,251 @@ def cmd_resolve(a, key):
     print(f"최종변경일 {info['modify_date']}  상장사 총 {len(corp_code_map(key)):,}개")
 
 
+FILING_DIR = ROOT / "knowledge" / "filings"
+FILING_INDEX_LIMIT = 60
+DART_VIEWER = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
+
+# 공시유형을 지정하지 않으면 임원·주요주주 소유상황보고서 같은 지분공시가
+# 목록을 뒤덮는다. 삼성전자는 그것만 하루 십수 건이라 정기보고서와 잠정실적이
+# 첫 페이지에서 밀려난다. 필요한 갈래만 따로 받아 합친다.
+DART_FILING_TYPES = (
+    ("A", "정기공시"),
+    ("B", "주요사항보고"),
+    ("I", "거래소공시"),
+    ("F", "외부감사관련"),
+)
+
+# DART 는 SEC 의 form 코드 같은 것이 없고 보고서 이름만 준다. 이름으로 최소한의
+# 갈래만 나눈다. 분류에 실패하면 OTHER 로 두고, 판단은 원래 이름(description)을
+# 읽는 모델이 한다 — 여기서 뜻을 지어내지 않는다.
+DART_FORM_RULES = (
+    ("ANNUAL_REPORT", ("사업보고서",)),
+    ("HALF_REPORT", ("반기보고서",)),
+    ("QUARTER_REPORT", ("분기보고서",)),
+    ("AUDIT_REPORT", ("감사보고서",)),
+    ("MATERIAL_EVENT", ("주요사항보고서",)),
+    ("PROVISIONAL_RESULT", ("잠정실적", "영업(잠정)실적", "손익구조")),
+    ("FAIR_DISCLOSURE", ("공정공시",)),
+    ("EQUITY_CHANGE", ("유상증자", "무상증자", "전환사채", "신주인수권", "자기주식")),
+    ("GOVERNANCE", ("합병", "분할", "영업양수", "영업양도", "주주총회")),
+)
+DART_PRIMARY_REPORT_FORMS = {
+    "ANNUAL_REPORT",
+    "HALF_REPORT",
+    "QUARTER_REPORT",
+    "AUDIT_REPORT",
+}
+PERIOD_MARK = re.compile(r"\((\d{4})\.(\d{2})\)")
+LAST_DAY = {1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30,
+            7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
+
+
+def classify_dart_form(report_name):
+    for form, keywords in DART_FORM_RULES:
+        if any(keyword in report_name for keyword in keywords):
+            return form
+    return "OTHER"
+
+
+def dart_report_date(report_name):
+    """정기보고서 이름의 (YYYY.MM) 표기에서 대상 기간말을 읽는다.
+
+    표기가 없으면 None 이다. 접수일에서 기간을 역산하지 않는다 — 그것은
+    추측이고, 이 색인은 추측을 담지 않는다.
+    """
+    match = PERIOD_MARK.search(report_name or "")
+    if not match:
+        return None
+    year, month = int(match.group(1)), int(match.group(2))
+    if not 1 <= month <= 12:
+        return None
+    day = LAST_DAY[month]
+    if month == 2 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+        day = 28
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def filing_rows_from_list(payload, *, stock_code, limit=FILING_INDEX_LIMIT):
+    """DART list.json 원문에서 공시 색인 행을 만든다.
+
+    수집기와 검증기가 같은 함수를 쓴다. 그래야 저장된 색인이 원문에서 다시
+    나오는지 기계로 확인할 수 있다.
+    """
+    if not isinstance(payload, dict):
+        raise ContractError(["DART list.json 원문이 객체가 아니다"])
+    rows = payload.get("list")
+    if not isinstance(rows, list):
+        raise ContractError(["DART list.json 에 list 배열이 없다"])
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ContractError(["DART 공시 행이 객체가 아니다"])
+        if str(row.get("stock_code") or "").strip() != stock_code:
+            continue
+        rcept_no = str(row.get("rcept_no") or "").strip()
+        rcept_dt = str(row.get("rcept_dt") or "").strip()
+        report_name = str(row.get("report_nm") or "").strip()
+        if not re.fullmatch(r"\d{14}", rcept_no):
+            raise ContractError([f"DART 접수번호 형식이 아니다: {rcept_no}"])
+        if not re.fullmatch(r"\d{8}", rcept_dt):
+            raise ContractError([f"DART 접수일 형식이 아니다: {rcept_dt}"])
+        if not report_name:
+            raise ContractError([f"DART 보고서 이름이 없다: {rcept_no}"])
+        result.append({
+            "filing_date": f"{rcept_dt[:4]}-{rcept_dt[4:6]}-{rcept_dt[6:]}",
+            "report_date": dart_report_date(report_name),
+            "form": classify_dart_form(report_name),
+            "accession_number": rcept_no,
+            "description": report_name,
+            "filer": str(row.get("flr_nm") or "").strip() or None,
+            "remark": str(row.get("rm") or "").strip() or None,
+            "document_url": DART_VIEWER.format(rcept_no=rcept_no),
+        })
+    return merge_filing_rows([result], limit=limit)
+
+
+def merge_filing_rows(row_groups, *, limit=FILING_INDEX_LIMIT):
+    """공시유형별로 받은 목록을 접수번호 기준으로 합친다."""
+    merged = {}
+    for rows in row_groups:
+        for row in rows:
+            merged[row["accession_number"]] = row
+    ordered = sorted(
+        merged.values(),
+        key=lambda item: (item["filing_date"], item["accession_number"]),
+        reverse=True,
+    )
+    return ordered[:limit]
+
+
+DOCUMENT_DIR = ROOT / "data" / "raw" / "dart" / "documents"
+
+
+def cmd_document(a, key):
+    """접수번호로 공시 원문을 받는다.
+
+    DART 뷰어 주소(dsaf001/main.do)는 iframe 껍데기라 그대로 저장해도 본문이
+    없다. OpenDART document.xml 은 원문 XML 을 zip 으로 준다 — 근거로 인용할
+    수 있는 것은 이쪽이다.
+    """
+    rcept_no = a.rcept_no.strip()
+    if not re.fullmatch(r"\d{14}", rcept_no):
+        fail("접수번호는 14자리 숫자다")
+    blob = request("document.xml", {"rcept_no": rcept_no}, key, binary=True)
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(blob))
+        names = [n for n in archive.namelist() if not n.endswith("/")]
+        if not names:
+            fail(f"{rcept_no}: 원문 zip 이 비어 있다")
+        documents = {}
+        for name in names:
+            raw = archive.read(name)
+            for charset in ("utf-8", "euc-kr", "cp949"):
+                try:
+                    documents[name] = raw.decode(charset)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                documents[name] = raw.decode("utf-8", errors="replace")
+    except zipfile.BadZipFile:
+        # 조회 실패는 zip 이 아니라 상태 XML 로 돌아온다.
+        detail = blob[:400].decode("utf-8", errors="replace")
+        fail(f"{rcept_no}: 원문을 받지 못했다 — {detail}")
+
+    payload = {"rcept_no": rcept_no, "documents": documents}
+    path = save_raw(f"document_{rcept_no}", payload)
+    total = sum(len(text) for text in documents.values())
+    print(f"접수번호 {rcept_no}  문서 {len(documents)}개  {total:,}자")
+    print(f"원문 저장: {path.relative_to(ROOT)}")
+    print(f"인용 ID: DARTDOC:{rcept_no}")
+    for name in sorted(documents):
+        print(f"  {name}  {len(documents[name]):,}자")
+
+
 def cmd_filings(a, key):
     info = resolve(a.stock_code, key)
-    data = request(
-        "list.json",
-        {
-            "corp_code": info["corp_code"],
-            "bgn_de": a.since,
-            "end_de": a.until or date.today().strftime("%Y%m%d"),
-            "page_count": "100",
-        },
-        key,
-    )
-    path = save_raw(f"filings_{a.stock_code}", data)
-    rows = data.get("list", [])
+    until = a.until or date.today().strftime("%Y%m%d")
+    raw_sources = []
+    row_groups = []
+    for type_code, type_name in DART_FILING_TYPES:
+        data = request(
+            "list.json",
+            {
+                "corp_code": info["corp_code"],
+                "bgn_de": a.since,
+                "end_de": until,
+                "pblntf_ty": type_code,
+                "page_count": "100",
+            },
+            key,
+            # 해당 유형의 공시가 하나도 없는 것은 정상이다.
+            allow_empty=True,
+        )
+        if data is None:
+            # 이 기간에 해당 유형 공시가 없다. 보존할 원문이 없으므로
+            # 비어 있었다는 사실만 남긴다.
+            raw_sources.append({
+                "pblntf_ty": type_code,
+                "pblntf_ty_name": type_name,
+                "empty": True,
+            })
+            continue
+        path = save_raw(f"filings_{a.stock_code}_{type_code}", data)
+        raw_sources.append({
+            "pblntf_ty": type_code,
+            "pblntf_ty_name": type_name,
+            "raw_payload_sha256": path.stem,
+            "raw_locator": str(path.relative_to(ROOT)),
+        })
+        try:
+            row_groups.append(
+                filing_rows_from_list(data, stock_code=a.stock_code)
+            )
+        except ContractError as exc:
+            fail(f"{type_name}: " + "; ".join(exc.errors))
+    rows = merge_filing_rows(row_groups)
+    if not rows:
+        fail(f"{a.stock_code}: {a.since} 이후 이 종목의 공시가 없다")
+    snapshot = {
+        "schema_version": "filing-index/1.0.0",
+        "asset_id": a.stock_code,
+        "corp_code": info["corp_code"],
+        "collected_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "source": "DART_LIST",
+        "since": a.since,
+        "until": until,
+        "pblntf_types": [code for code, _ in DART_FILING_TYPES],
+        "raw_sources": raw_sources,
+        "filings": rows,
+    }
+    FILING_DIR.mkdir(parents=True, exist_ok=True)
+    index_path = FILING_DIR / f"{a.stock_code}.json"
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=FILING_DIR, delete=False
+        ) as handle:
+            json.dump(snapshot, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+            tmp = handle.name
+        os.replace(tmp, index_path)
+    finally:
+        if tmp and Path(tmp).exists():
+            Path(tmp).unlink()
 
     print(f"{info['corp_name']} 공시 {len(rows)}건  ({a.since} ~ {a.until or '오늘'})")
     print(f"원본 저장: {path.relative_to(ROOT)}")
+    print(f"색인 저장: {index_path.relative_to(ROOT)}")
     print("-" * 88)
     for r in rows:
-        note = f"  [{r['rm']}]" if r.get("rm") else ""
-        print(f"{r['rcept_dt']}  {r['report_nm'][:52]:<54} {r['rcept_no']}{note}")
+        note = f"  [{r['remark']}]" if r.get("remark") else ""
+        print(
+            f"{r['filing_date']}  {r['form']:<19}"
+            f"{r['description'][:44]:<46} {r['accession_number']}{note}"
+        )
 
 
 REV_NAMES = ["매출액", "수익(매출액)", "영업수익"]
@@ -1037,6 +1262,9 @@ def main():
     f.add_argument("--since", required=True, help="YYYYMMDD")
     f.add_argument("--until", help="YYYYMMDD (기본: 오늘)")
 
+    doc = sub.add_parser("document", help="접수번호로 공시 원문 받기")
+    doc.add_argument("rcept_no", help="14자리 접수번호")
+
     s = sub.add_parser("financials", help="재무제표")
     s.add_argument("stock_code")
     s.add_argument("--year", required=True)
@@ -1064,6 +1292,7 @@ def main():
     return {
         "resolve": cmd_resolve,
         "filings": cmd_filings,
+        "document": cmd_document,
         "financials": cmd_financials,
         "quarters": cmd_quarters,
         "fundamentals": cmd_fundamentals,

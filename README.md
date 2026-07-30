@@ -69,6 +69,23 @@ python3.13 -m cio score 005930
 출력은 깨진 JSON까지 버리지 않고 `knowledge/quarantine/`에 격리한다. `score` 결과는
 `knowledge/evaluations/`에 쌓인다.
 
+모델이 판단에 남긴 수집 요청은 사용자가 읽고 닫는 대기열이다. 처리되기 전까지
+다음 컨텍스트에 다시 실려 나간다.
+
+```bash
+python3.13 -m cio requests 005930
+python3.13 -m cio requests 005930 --resolve REQ-3e547a42822d --state DONE \
+  --note "collectors/dart.py filings 배선"
+```
+
+모델이 조사한 원문은 인용하기 전에 로컬에 보존한다. 받은 그대로 저장하며
+정제하지 않는다.
+
+```bash
+python3.13 -m cio snapshot <URL> --asset 005930 --label dram-price-2026q3
+python3.13 -m collectors.dart document 20260730800077   # 한국 공시 원문
+```
+
 컨텍스트가 참조한 근거와 prompt/schema는 내용 지문으로
 `knowledge/evidence/`에 중복 없이 보존된다. 이후 원본 파일이 갱신돼도 당시 모델이
 사용한 입력은 바뀌지 않는다.

@@ -21,10 +21,13 @@ from calculators.contracts import (
     validate_calculation,
     validate_fundamentals,
 )
+from collectors.web import recent_snapshots
 from cio.assets import get_asset
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
+from cio.requests import open_requests_for_context
 from cio.refresh import (
+    DART_PRIMARY_REPORT_FORMS,
     SEC_PRIMARY_REPORT_FORMS,
     event_contract_errors,
     inspect_plan,
@@ -33,7 +36,11 @@ from cio.refresh import (
 
 KST = dt.timezone(dt.timedelta(hours=9))
 CONTEXT_SCHEMA = "cio-context/1.0.0"
-MAX_CONTEXT_JSON_BYTES = 24_000
+# 직전 판단의 가격계획·무효화 신호와 미해결 수집 요청까지 싣게 되면서 24_000을
+# 넘겼다. 예산의 목적은 "원문을 통째로 넣지 않는다"이지 특정 바이트가 아니다.
+# 32_000은 여전히 한 종목 한 판단 분량이며, 넘칠 때는 _fit_context_budget 이
+# 서술부터 버리고 결정에 직접 쓰이는 숫자를 남긴다.
+MAX_CONTEXT_JSON_BYTES = 32_000
 
 
 class ContextError(ValueError):
@@ -279,8 +286,12 @@ def _latest_fundamentals(
 def _filing_summary(
     asset: dict[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """미국 주식의 최신 SEC 제출 문서를 작은 탐색 색인으로 만든다."""
-    if asset["market"] != "US" or asset["asset_type"] != "STOCK":
+    """주식의 최신 공시를 작은 탐색 색인으로 만든다.
+
+    미국은 SEC EDGAR, 한국은 DART다. 색인일 뿐이며 문서의 뜻은 모델이 원문을
+    읽고 판단한다.
+    """
+    if asset["asset_type"] != "STOCK":
         return None, None
     asset_id = asset["asset_id"]
     path = KNOWLEDGE_DIR / "filings" / f"{asset_id}.json"
@@ -307,6 +318,10 @@ def _filing_summary(
         errors.append("공시 색인에 제출 문서가 없다")
     if errors:
         return {"contract_errors": errors}, source
+    is_dart = data.get("source") == "DART_LIST"
+    primary_forms = (
+        DART_PRIMARY_REPORT_FORMS if is_dart else SEC_PRIMARY_REPORT_FORMS
+    )
     primary_reports = []
     material_events = []
     for filing in filings:
@@ -323,27 +338,111 @@ def _filing_summary(
                 "document_url",
             )
         }
+        if is_dart and filing.get("remark"):
+            compact["remark"] = filing["remark"]
         target = (
             primary_reports
-            if filing.get("form") in SEC_PRIMARY_REPORT_FORMS
+            if filing.get("form") in primary_forms
             else material_events
         )
         target.append(compact)
     if not primary_reports:
         return {"contract_errors": ["공시 색인의 제출 문서가 유효하지 않다"]}, source
+    summary = {
+        "collected_at": data.get("collected_at"),
+        "latest_primary_reports": primary_reports[:4],
+        "latest_material_events": material_events[:8],
+        "_note": (
+            "제출 문서 탐색용 색인이다. 문서의 의미와 투자 영향은 모델이 "
+            f"{'DART' if is_dart else 'SEC'} 원문을 읽고 판단한다. 여기 없는 "
+            "공시가 있을 수 있으니 결론이 특정 공시에 걸리면 원문을 직접 "
+            "확인한다"
+        ),
+    }
+    if is_dart:
+        summary["corp_code"] = data.get("corp_code")
+        summary["since"] = data.get("since")
+        summary["_form_note"] = (
+            "form은 DART 보고서 이름으로 나눈 갈래이지 법정 서식 코드가 "
+            "아니다. 정확한 성격은 description 원문을 읽는다"
+        )
+    else:
+        summary["cik"] = data.get("cik")
     return (
-        {
-            "collected_at": data.get("collected_at"),
-            "cik": data.get("cik"),
-            "latest_primary_reports": primary_reports[:4],
-            "latest_material_events": material_events[:6],
-            "_note": (
-                "제출 문서 탐색용 색인이다. 문서의 의미와 투자 영향은 모델이 "
-                "SEC 원문을 읽고 판단한다"
-            ),
-        },
+        summary,
         source,
     )
+
+
+RESULT_DISCLOSURE_FORMS = {"PROVISIONAL_RESULT", "FAIR_DISCLOSURE", "8-K"}
+
+
+def _reporting_lag(
+    fundamentals: dict[str, Any] | None,
+    filings: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """로컬 재무가 결산 캘린더에서 몇 걸음 뒤에 있는지 계산한다.
+
+    신선도를 "언제 받았나"로만 재면 3월 말 재무를 7월에 받아도 FRESH가 된다.
+    회사가 이미 다음 분기를 공시했는지는 시계가 아니라 공시 목록이 답한다.
+    """
+    if not fundamentals or not isinstance(filings, dict):
+        return None
+    period_end = fundamentals.get("period_end")
+    if not isinstance(period_end, str):
+        return None
+    primary = filings.get("latest_primary_reports") or []
+    events = filings.get("latest_material_events") or []
+    if not isinstance(primary, list) or not isinstance(events, list):
+        return None
+
+    newer_reports = [
+        {
+            "form": item.get("form"),
+            "report_date": item.get("report_date"),
+            "filing_date": item.get("filing_date"),
+            "description": item.get("description"),
+            "document_url": item.get("document_url"),
+        }
+        for item in primary
+        if isinstance(item, dict)
+        and isinstance(item.get("report_date"), str)
+        and item["report_date"] > period_end
+    ]
+    newer_disclosures = [
+        {
+            "form": item.get("form"),
+            "filing_date": item.get("filing_date"),
+            "description": item.get("description"),
+            "document_url": item.get("document_url"),
+        }
+        for item in events
+        if isinstance(item, dict)
+        and item.get("form") in RESULT_DISCLOSURE_FORMS
+        and isinstance(item.get("filing_date"), str)
+        and item["filing_date"] > period_end
+    ]
+    days_since = None
+    try:
+        days_since = (
+            dt.date.today() - dt.date.fromisoformat(period_end)
+        ).days
+    except ValueError:
+        pass
+    return {
+        "local_period_end": period_end,
+        "days_since_period_end": days_since,
+        "newer_periodic_report_filed": bool(newer_reports),
+        "newer_periodic_reports": newer_reports[:2],
+        "disclosures_after_local_period": newer_disclosures[:4],
+        "_warning": (
+            "로컬 재무는 local_period_end 기준이다. "
+            "disclosures_after_local_period 가 비어 있지 않으면 그 기간 이후의 "
+            "실적 정보가 이미 공시로 나와 있다는 뜻이며, 로컬 숫자만으로 "
+            "최신 상태를 논하면 안 된다. 그 공시는 요약·잠정치라 감사받은 "
+            "재무제표와 항목 정의가 다를 수 있으니 원문을 읽고 구분해 쓴다"
+        ),
+    }
 
 
 def _latest_calculation(
@@ -1108,13 +1207,201 @@ def _portfolio_summary(
     )
 
 
-def _memory_digest(asset_id: str) -> list[dict[str, Any]]:
+def _clip(text: Any, limit: int) -> str | None:
+    """긴 서술을 자르되 잘렸다는 사실과 원문 위치를 남긴다."""
+    if not isinstance(text, str):
+        return None
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+    return (
+        stripped[:limit].rstrip()
+        + f"…〔{len(stripped)}자 중 {limit}자. 전문은 assessment 파일에 있다〕"
+    )
+
+
+def _prior_plan_check(
+    plan: Any,
+    *,
+    latest_close: float | None,
+    close_date: str | None,
+    close_is_settled: bool | None,
+) -> dict[str, Any] | None:
+    """직전 가격계획의 각 문턱을 현재 종가와 기계적으로 대조한다.
+
+    판단이 아니라 산술이다. 모델이 자기가 세운 손절·재검토 가격이 이미
+    닿았는지를 매번 다시 계산하지 않게 하는 것이 목적이다.
+    """
+    if not isinstance(plan, dict) or latest_close is None:
+        return None
+    if not math.isfinite(latest_close) or latest_close <= 0:
+        return None
+
+    def level(name: str) -> float | None:
+        value = plan.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return float(value) if math.isfinite(value) else None
+
+    stop = level("stop_price")
+    reask_below = level("reask_below")
+    reask_above = level("reask_above")
+    scale_out = level("scale_out_start")
+    entry_low = level("entry_range_low")
+    entry_high = level("entry_range_high")
+    preferred = level("preferred_entry")
+    triggered: list[str] = []
+    if stop is not None and latest_close <= stop:
+        triggered.append("stop_price")
+    if reask_below is not None and latest_close <= reask_below:
+        triggered.append("reask_below")
+    if reask_above is not None and latest_close >= reask_above:
+        triggered.append("reask_above")
+    if scale_out is not None and latest_close >= scale_out:
+        triggered.append("scale_out_start")
+    return {
+        "close": latest_close,
+        "close_date": close_date,
+        "close_is_settled": close_is_settled,
+        "stop_price": stop,
+        "stop_breached": None if stop is None else latest_close <= stop,
+        "reask_below": reask_below,
+        "reask_below_reached": (
+            None if reask_below is None else latest_close <= reask_below
+        ),
+        "reask_above": reask_above,
+        "reask_above_reached": (
+            None if reask_above is None else latest_close >= reask_above
+        ),
+        "scale_out_start": scale_out,
+        "scale_out_reached": (
+            None if scale_out is None else latest_close >= scale_out
+        ),
+        "in_entry_range": (
+            None
+            if entry_low is None or entry_high is None
+            else entry_low <= latest_close <= entry_high
+        ),
+        "close_vs_preferred_entry_pct": (
+            None
+            if preferred is None or preferred <= 0
+            else round((latest_close / preferred - 1) * 100, 2)
+        ),
+        "triggered": triggered,
+        "_note": (
+            "종가와 문턱의 산술 비교일 뿐이다. 장중 저가·고가로 스쳤는지는 "
+            "보지 않으며, 문턱에 닿았다는 사실이 그때의 논지가 여전히 옳다는 "
+            "뜻도 아니다. 왜 닿았는지는 모델이 판단한다"
+        ),
+    }
+
+
+def _compact_size(value: Any) -> int:
+    return len(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    )
+
+
+# context_id는 예산을 잰 뒤에 채워지므로 그 자리만큼 미리 비워둔다.
+CONTEXT_ID_RESERVE_BYTES = 64
+
+
+def _fit_context_budget(packet: dict[str, Any]) -> None:
+    """예산을 넘으면 이어받은 서술부터 단계적으로 버린다.
+
+    직전 논지가 길다는 이유로 packet 자체를 만들지 못하면 판단이 멈춘다.
+    가격계획·무효화 신호·문턱 대조는 결정에 직접 쓰이므로 마지막까지 남기고,
+    서사부터 버린다. 무엇을 버렸는지는 packet 안에 남긴다.
+
+    기록 자체도 packet을 키우므로 기록을 먼저 넣고 그 위에서 잰다.
+    """
+    limit = MAX_CONTEXT_JSON_BYTES - CONTEXT_ID_RESERVE_BYTES
+
+    def fits() -> bool:
+        return _compact_size(packet) <= limit
+
+    if fits():
+        return
+    trimmed: list[str] = []
+    packet["validation"]["optional_gaps"].append(
+        {
+            "task": "context_packet",
+            "state": "TRIMMED_FOR_BUDGET",
+            "trimmed": trimmed,
+            "reason": (
+                "packet 예산을 넘어 아래 항목을 잘라냈다. 원문은 "
+                "knowledge/assessments/ 에 그대로 있고 미해결 요청 전체는 "
+                "`python3.13 -m cio requests <asset_id>`로 볼 수 있다"
+            ),
+        }
+    )
+    rows = packet["context"].get("prior_assessments") or []
+    carried = next(
+        (row["carried_forward"] for row in rows if row.get("carried_forward")),
+        {},
+    )
+    # 서사부터 버린다 — 가격 문턱과 무효화 신호는 이번 판단에서 바로 대조해야
+    # 하지만, 지난번 논지의 문장은 필요하면 원문을 열어보면 된다.
+    for field in ("thesis", "strongest_counter_thesis"):
+        if carried.get(field) is None:
+            continue
+        carried[field] = None
+        trimmed.append(f"prior_assessments.carried_forward.{field}")
+        if fits():
+            return
+    open_requests = packet["context"].get("open_research_requests") or []
+    while len(open_requests) > 2 and not fits():
+        open_requests.pop(-2)
+        if "open_research_requests" not in trimmed:
+            trimmed.append("open_research_requests")
+    if fits():
+        return
+    if carried.get("invalidation_signals") is not None:
+        carried["invalidation_signals"] = None
+        trimmed.append("prior_assessments.carried_forward.invalidation_signals")
+
+
+def _memory_digest(
+    asset_id: str,
+    *,
+    latest_close: float | None = None,
+    close_date: str | None = None,
+    close_is_settled: bool | None = None,
+) -> list[dict[str, Any]]:
     directory = KNOWLEDGE_DIR / "assessments" / asset_id
     if not directory.exists():
         return []
 
     assessments = []
-    for path in directory.glob("CIO-*.json"):
+    # 계약이 바뀌면 과거 판단이 재검증에 실패한다. 그때 조용히 버리면 모델은
+    # "이 종목은 처음 본다"고 착각한다. 실을 수 없다는 사실 자체를 싣는다.
+    unusable: list[dict[str, Any]] = []
+
+    def _unusable(path: Path, data: Any, reason: str) -> None:
+        record = data if isinstance(data, dict) else {}
+        unusable.append(
+            {
+                "assessment_id": record.get("assessment_id") or path.stem,
+                "created_at": record.get("created_at"),
+                "verdict": record.get("verdict"),
+                "usable": False,
+                "reason": reason,
+                "path": str(path.relative_to(ROOT)),
+                "_note": (
+                    "이 판단은 남아 있지만 현재 계약으로 재검증되지 않아 논지를 "
+                    "이어받지 않았다. 여기 보이는 값은 검증되지 않은 참고용이며 "
+                    "근거로 인용하면 안 된다"
+                ),
+            }
+        )
+
+    for path in sorted(directory.glob("CIO-*.json")):
+        data: Any = None
         try:
             data = load_json(path)
             context_id = str(data.get("context_id") or "")
@@ -1122,15 +1409,36 @@ def _memory_digest(asset_id: str) -> list[dict[str, Any]]:
                 KNOWLEDGE_DIR / "contexts" / asset_id / f"{context_id}.json"
             )
             context = load_json(context_path)
-        except (ContractError, OSError):
+        except (ContractError, OSError) as exc:
+            _unusable(path, data, f"판단 또는 그 context를 읽을 수 없다: {exc}")
             continue
-        if validate_context_integrity(context, expected_id=context_id):
+        integrity_errors = validate_context_integrity(
+            context, expected_id=context_id
+        )
+        if integrity_errors:
+            _unusable(
+                path,
+                data,
+                "당시 context의 무결성 검사가 실패한다: "
+                + "; ".join(integrity_errors[:2]),
+            )
             continue
         try:
             normalized = require_valid_decision(data, context=context)
-        except ContractError:
+        except ContractError as exc:
+            _unusable(
+                path,
+                data,
+                "현재 판단 계약으로 재검증되지 않는다: "
+                + "; ".join(exc.errors[:2]),
+            )
             continue
         if normalized != data or data.get("asset_id") != asset_id:
+            _unusable(
+                path,
+                data,
+                "저장된 판단이 정규화 결과나 자산 ID와 일치하지 않는다",
+            )
             continue
         assessments.append((data, context))
     assessments.sort(
@@ -1181,38 +1489,69 @@ def _memory_digest(asset_id: str) -> list[dict[str, Any]]:
         ):
             evaluations[data["assessment_id"]] = data
 
+    selected = assessments[-3:]
     result = []
-    for data, context in assessments[-3:]:
+    for index, (data, context) in enumerate(selected):
         request = context.get("request") or {}
         evaluation = evaluations.get(data.get("assessment_id"))
-        result.append(
-            {
-                "assessment_id": data.get("assessment_id"),
-                "created_at": data.get("created_at"),
-                "model": data.get("model"),
-                "verdict": data.get("verdict"),
-                "win_probability_pct": data.get("win_probability_pct"),
-                "asked_price": request.get("price"),
-                "latest_evaluation": {
-                    "complete": (evaluation.get("window") or {}).get("complete"),
-                    "latest_available_date": (
-                        evaluation.get("window") or {}
-                    ).get("latest_available_date"),
-                    "return_to_end_pct": (evaluation.get("price") or {}).get(
-                        "return_to_end_pct"
-                    ),
-                    "win_observed": (evaluation.get("thresholds") or {}).get(
-                        "win_observed"
-                    ),
-                    "brier_score": (evaluation.get("calibration") or {}).get(
-                        "brier_score"
-                    ),
-                }
-                if evaluation
-                else None,
+        row = {
+            "assessment_id": data.get("assessment_id"),
+            "created_at": data.get("created_at"),
+            "model": data.get("model"),
+            "verdict": data.get("verdict"),
+            "action": (data.get("action") or {}).get("direction"),
+            "win_probability_pct": data.get("win_probability_pct"),
+            "horizon_months": data.get("horizon_months"),
+            "asked_price": request.get("price"),
+            "latest_evaluation": {
+                "complete": (evaluation.get("window") or {}).get("complete"),
+                "latest_available_date": (
+                    evaluation.get("window") or {}
+                ).get("latest_available_date"),
+                "return_to_end_pct": (evaluation.get("price") or {}).get(
+                    "return_to_end_pct"
+                ),
+                "win_observed": (evaluation.get("thresholds") or {}).get(
+                    "win_observed"
+                ),
+                "brier_score": (evaluation.get("calibration") or {}).get(
+                    "brier_score"
+                ),
             }
-        )
-    return result
+            if evaluation
+            else None,
+        }
+        # 가장 최근 판단만 논지까지 싣는다. 세 건을 모두 실으면 packet 예산을
+        # 넘고, 모델이 확인해야 하는 것은 "지금 살아 있는 계획"이다.
+        if index == len(selected) - 1:
+            plan = data.get("price_plan")
+            counter = data.get("strongest_counter_thesis") or {}
+            signals = data.get("invalidation_signals")
+            row["carried_forward"] = {
+                "thesis": _clip(data.get("thesis"), 550),
+                "strongest_counter_thesis": _clip(counter.get("text"), 400),
+                "price_plan": plan if isinstance(plan, dict) else None,
+                "invalidation_signals": (
+                    [_clip(signal, 220) for signal in signals[:6]]
+                    if isinstance(signals, list)
+                    else None
+                ),
+                "_role": (
+                    "직전 판단의 살아 있는 계획이다. 이번 판단은 이 무효화 "
+                    "신호와 재검토 사건이 실제로 발생했는지 먼저 확인한 뒤 "
+                    "시작한다. 과거 결론을 따르라는 뜻이 아니라, 바뀐 것이 "
+                    "무엇인지 명시하라는 뜻이다"
+                ),
+            }
+            row["price_vs_prior_plan"] = _prior_plan_check(
+                plan,
+                latest_close=latest_close,
+                close_date=close_date,
+                close_is_settled=close_is_settled,
+            )
+        result.append(row)
+    unusable.sort(key=lambda item: str(item.get("created_at") or ""))
+    return result + unusable[-3:]
 
 
 def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
@@ -1312,6 +1651,7 @@ def build_context(
     if asset["market"] == "KR" and amount_currency != "KRW":
         problems.append("한국 자산의 입력 금액은 KRW여야 한다")
     sources: list[dict[str, Any]] = []
+    optional_gaps: list[dict[str, Any]] = []
     price_summary, source = _price_summary(asset["price_symbol"])
     if price_summary and asset["asset_type"] == "ETF":
         price_summary["_note"] = (
@@ -1333,6 +1673,27 @@ def build_context(
         filings, source = _filing_summary(asset)
         if source:
             sources.append(source)
+        reporting_lag = _reporting_lag(fundamentals, filings)
+        if reporting_lag and fundamentals:
+            fundamentals["reporting_lag"] = reporting_lag
+            if reporting_lag["newer_periodic_report_filed"]:
+                problems.append(
+                    "재무 스냅샷보다 새 정기보고서가 이미 공시됐다 — "
+                    "fundamentals를 다시 수집해야 한다"
+                )
+            elif reporting_lag["disclosures_after_local_period"]:
+                optional_gaps.append(
+                    {
+                        "task": f"fundamentals:{asset['asset_id']}",
+                        "state": "SUPERSEDED_BY_DISCLOSURE",
+                        "reason": (
+                            "로컬 재무 기준일 이후에 실적 관련 공시가 "
+                            f"{len(reporting_lag['disclosures_after_local_period'])}건 "
+                            "나왔다. 다음 정기보고서 전까지 이 숫자가 최신이 "
+                            "아닐 수 있으니 공시 원문을 확인한다"
+                        ),
+                    }
+                )
     calculation, calculation_source = _latest_calculation(
         asset,
         candidate_price=price,
@@ -1368,7 +1729,6 @@ def build_context(
         sources.append(fx_source)
 
     plan = inspect_plan(asset["asset_id"], include_optional=True)
-    optional_gaps = []
     for task in plan:
         if task.required and task.state != "FRESH":
             problems.append(f"{task.name}: {task.state}")
@@ -1476,7 +1836,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.1",
+        "prompt_version": "1.2",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -1511,24 +1871,31 @@ def build_context(
             "etf": etf,
             "structured_optional": structured_optional,
             "portfolio": portfolio,
-            "prior_assessments": _memory_digest(asset["asset_id"]),
+            "prior_assessments": _memory_digest(
+                asset["asset_id"],
+                latest_close=(price_summary or {}).get("close"),
+                close_date=(price_summary or {}).get("as_of"),
+                close_is_settled=(
+                    ((price_summary or {}).get("last_bar") or {}).get(
+                        "is_settled_close"
+                    )
+                ),
+            ),
             "research_requirements": _research_requirements(asset),
+            "open_research_requests": open_requests_for_context(
+                asset["asset_id"]
+            ),
+            "web_snapshots": recent_snapshots(asset["asset_id"]),
         },
         "evidence_index": evidence_index,
         "model_contract": model_contract,
     }
+    _fit_context_budget(packet)
     packet["context_id"] = stable_hash(
         {key: value for key, value in packet.items() if key != "context_id"},
         "CTX-",
     )
-    compact_size = len(
-        json.dumps(
-            packet,
-            ensure_ascii=False,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
-    )
+    compact_size = _compact_size(packet)
     if compact_size > MAX_CONTEXT_JSON_BYTES:
         raise ContextError(
             f"context packet이 {compact_size} bytes로 제한 "

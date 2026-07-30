@@ -6,11 +6,18 @@ import sys
 from dataclasses import asdict
 
 from calculators.contracts import ContractError, load_json
-from cio.assets import all_assets, register_asset
+from collectors.web import snapshot
+from cio.assets import all_assets, get_asset, register_asset
 from cio.context import build_context
 from cio.decision import find_context, require_valid_decision
 from cio.memory import record_decision_file, score_asset
 from cio.refresh import inspect_plan, plan_json, run_refresh
+from cio.requests import (
+    RESOLUTION_STATES,
+    format_requests,
+    request_state,
+    resolve_request,
+)
 
 MIN_PYTHON = (3, 13)
 
@@ -135,10 +142,41 @@ def cmd_record(args) -> int:
     return 0
 
 
-def cmd_score(args) -> int:
-    paths = score_asset(args.asset_id)
-    print(json.dumps([str(path) for path in paths], ensure_ascii=False, indent=2))
+def cmd_snapshot(args) -> int:
+    get_asset(args.asset_id)
+    result = snapshot(
+        args.url,
+        asset_id=args.asset_id,
+        label=args.label,
+        note=args.note,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
+
+
+def cmd_requests(args) -> int:
+    if args.resolve:
+        path = resolve_request(
+            args.asset_id,
+            args.resolve,
+            state=args.state,
+            note=args.note,
+        )
+        print(f"saved: {path}")
+        return 0
+    state = request_state(args.asset_id)
+    if args.json:
+        print(json.dumps(state, ensure_ascii=False, indent=2))
+    else:
+        print(format_requests(state))
+    return 0
+
+
+def cmd_score(args) -> int:
+    report = score_asset(args.asset_id)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    # 건너뛴 판단이 있으면 조용히 성공으로 끝내지 않는다.
+    return 0 if not report["skipped"] else 3
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -194,6 +232,31 @@ def build_parser() -> argparse.ArgumentParser:
     record = sub.add_parser("record", help="검증된 decision을 기억에 저장")
     record.add_argument("decision")
     record.set_defaults(func=cmd_record)
+
+    snapshot_parser = sub.add_parser(
+        "snapshot", help="조사한 웹 원문을 근거로 보존"
+    )
+    snapshot_parser.add_argument("url")
+    snapshot_parser.add_argument("--asset", dest="asset_id", required=True)
+    snapshot_parser.add_argument(
+        "--label", required=True, help="소문자-하이픈 짧은 이름"
+    )
+    snapshot_parser.add_argument("--note", help="왜 남기는지 한 줄")
+    snapshot_parser.set_defaults(func=cmd_snapshot)
+
+    requests_parser = sub.add_parser(
+        "requests", help="모델이 낸 수집 요청의 미해결/해결 상태"
+    )
+    requests_parser.add_argument("asset_id")
+    requests_parser.add_argument(
+        "--resolve", metavar="REQUEST_ID", help="요청 ID 또는 그 앞부분"
+    )
+    requests_parser.add_argument(
+        "--state", choices=list(RESOLUTION_STATES), default="DONE"
+    )
+    requests_parser.add_argument("--note", help="무엇을 했는지 한 줄")
+    requests_parser.add_argument("--json", action="store_true")
+    requests_parser.set_defaults(func=cmd_requests)
 
     score = sub.add_parser("score", help="저장된 decision을 가격으로 사후평가")
     score.add_argument("asset_id")

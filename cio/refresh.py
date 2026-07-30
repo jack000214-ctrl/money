@@ -13,9 +13,17 @@ from pathlib import Path
 from typing import Any
 
 from calculators.contracts import (
+    ContractError,
     load_json,
     load_raw_snapshot,
     validate_fundamentals,
+)
+from collectors.dart import (
+    DART_FILING_TYPES,
+    DART_PRIMARY_REPORT_FORMS,
+    FILING_INDEX_LIMIT as DART_FILING_INDEX_LIMIT,
+    filing_rows_from_list,
+    merge_filing_rows,
 )
 from collectors.edgar import filing_rows_from_submissions
 from cio.assets import get_asset
@@ -60,6 +68,7 @@ SEC_PRIMARY_REPORT_FORMS = {
     "S-1/A",
 }
 SEC_FILING_INDEX_LIMIT = 50
+DART_FILING_LOOKBACK_DAYS = 400
 
 
 def safe_symbol(symbol: str) -> str:
@@ -220,6 +229,29 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                         asset["asset_id"],
                         "--year",
                         str(dt.date.today().year),
+                    ],
+                )
+            )
+            # 재무 수치만으로는 "그 사이 무슨 일이 있었나"에 답할 수 없다.
+            # 잠정실적·주요사항보고서는 분기보고서보다 먼저 나오고, 모델이
+            # 원문을 읽을 진입점이 되는 것이 이 색인의 목적이다.
+            tasks.append(
+                RefreshTask(
+                    name=f"filings:{asset['asset_id']}",
+                    capability="FILINGS",
+                    artifact=f"knowledge/filings/{asset['asset_id']}.json",
+                    max_age_hours=24,
+                    command=[
+                        sys.executable,
+                        "-m",
+                        "collectors.dart",
+                        "filings",
+                        asset["asset_id"],
+                        "--since",
+                        (
+                            dt.date.today()
+                            - dt.timedelta(days=DART_FILING_LOOKBACK_DAYS)
+                        ).strftime("%Y%m%d"),
                     ],
                 )
             )
@@ -472,6 +504,73 @@ def _deduplicate(tasks: list[RefreshTask]) -> list[RefreshTask]:
     return result
 
 
+def _dart_filing_index_error(data: dict[str, Any], asset_id: str) -> str | None:
+    """DART 공시 색인이 저장된 원문에서 그대로 다시 나오는지 확인한다.
+
+    SEC 색인과 같은 기준이다 — 색인은 원문의 파생물이어야 하고, 손으로
+    고칠 수 있는 별개의 사실이 되면 안 된다.
+    """
+    corp_code = data.get("corp_code")
+    if not isinstance(corp_code, str) or not re.fullmatch(r"\d{8}", corp_code):
+        return "공시 색인의 DART 고유번호 형식이 잘못됐다"
+    if not re.fullmatch(r"\d{8}", str(data.get("since") or "")):
+        return "공시 색인의 조회 시작일이 없다"
+    expected_types = [code for code, _ in DART_FILING_TYPES]
+    if data.get("pblntf_types") != expected_types:
+        return "공시 색인의 공시유형 필터가 수집 계약과 다르다"
+    raw_sources = data.get("raw_sources")
+    if not isinstance(raw_sources, list) or len(raw_sources) != len(
+        expected_types
+    ):
+        return "공시 색인의 원문 목록이 공시유형 수와 다르다"
+    if [item.get("pblntf_ty") for item in raw_sources] != expected_types:
+        return "공시 색인의 원문 목록이 공시유형 순서와 다르다"
+    row_groups = []
+    for item in raw_sources:
+        if item.get("empty") is True:
+            continue
+        digest = item.get("raw_payload_sha256")
+        if not isinstance(digest, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", digest
+        ):
+            return "공시 색인의 원문 지문 형식이 잘못됐다"
+        locator = f"data/raw/dart/objects/{digest}.json"
+        if (
+            item.get("raw_locator") != locator
+            or not (ROOT / locator).is_file()
+        ):
+            return "공시 색인의 원문 위치가 유효하지 않다"
+        try:
+            raw_document = load_raw_snapshot(
+                ROOT / locator,
+                expected_digest=digest,
+                expected_source="opendart.fss.or.kr",
+            )
+            row_groups.append(
+                filing_rows_from_list(
+                    raw_document["payload"],
+                    stock_code=asset_id,
+                    limit=DART_FILING_INDEX_LIMIT,
+                )
+            )
+        except (OSError, ValueError):
+            return "공시 색인의 DART 원문에서 목록을 재현할 수 없다"
+    filings = data.get("filings")
+    if (
+        not isinstance(filings, list)
+        or not filings
+        or len(filings) > DART_FILING_INDEX_LIMIT
+    ):
+        return "공시 색인의 제출 문서 수가 유효하지 않다"
+    if filings != merge_filing_rows(row_groups, limit=DART_FILING_INDEX_LIMIT):
+        return "공시 색인이 DART 원문의 공시 목록과 다르다"
+    if not any(
+        filing.get("form") in DART_PRIMARY_REPORT_FORMS for filing in filings
+    ):
+        return "공시 색인에 정기보고서가 없다"
+    return None
+
+
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
     if task.capability == "PRICE":
         try:
@@ -657,14 +756,18 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         if data.get("asset_id") != expected_id:
             return "공시 색인의 asset_id가 요청 자산과 다르다"
         collected_at = data.get("collected_at")
-        if not collected_at or not data.get("cik"):
-            return "공시 색인의 수집시각 또는 CIK가 없다"
+        if not collected_at:
+            return "공시 색인의 수집시각이 없다"
         try:
             collected_time = dt.datetime.fromisoformat(collected_at)
         except (TypeError, ValueError):
             return "공시 색인의 수집시각 형식이 잘못됐다"
         if collected_time.tzinfo is None:
             return "공시 색인의 수집시각에 시간대가 없다"
+        if data.get("source") == "DART_LIST":
+            return _dart_filing_index_error(data, expected_id)
+        if not data.get("cik"):
+            return "공시 색인의 CIK가 없다"
         if data.get("source") != "SEC_EDGAR_SUBMISSIONS":
             return "공시 색인의 출처가 SEC submissions가 아니다"
         if data.get("forms_filter") != sorted(SEC_FILING_FORMS):

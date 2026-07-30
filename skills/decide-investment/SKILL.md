@@ -31,9 +31,22 @@ the CIO verdict with a Python rule or confuse PC validation with investment judg
 5. Read the saved context plus `prompts/cio-system.md` and
    `schemas/cio-decision.schema.json`. Open evidence files only when a material question
    requires them; do not load the repository indiscriminately.
+   Before forming a view, settle three things the context now carries:
+   `prior_assessments[].carried_forward` and `price_vs_prior_plan` (did your own
+   invalidation signals or price thresholds fire?), `open_research_requests` (what you
+   already asked for and still do not have), and `fundamentals.reporting_lag`
+   (disclosures newer than the local financials).
 6. Investigate current qualitative gaps yourself. Prefer regulator, exchange, issuer,
-   and primary filings. If evidence remains decision-critical and unavailable, ask the
-   user or return `INSUFFICIENT`.
+   and primary filings. Preserve anything decision-critical before citing it:
+
+   ```bash
+   python3.13 -m cio snapshot URL --asset ASSET --label short-name --note "why"
+   python3.13 -m collectors.dart document RCEPT_NO   # Korean filing original
+   ```
+
+   Use `filings.latest_material_events` for the Korean accession numbers; the DART
+   viewer URL is a frame shell and `snapshot` will tell you so. If evidence remains
+   decision-critical and unavailable, ask the user or return `INSUFFICIENT`.
 7. Produce one provider-neutral decision JSON artifact. Complete the strongest
    counter-thesis before settling the verdict. Choose a method suited to the asset:
    do not force company DCF onto ETFs, steady-state DCF onto clinical biotech, or one
@@ -65,6 +78,12 @@ the CIO verdict with a Python rule or confuse PC validation with investment judg
 - Keep local source IDs and all newly researched sources in the decision record.
 - Do not soften a conclusion because the user owns the asset or wants to buy it.
 - Do not place or simulate an order unless the user separately requests it.
+- Write `research_requests` as a real queue, not a wish list. The user reads it with
+  `python3.13 -m cio requests ASSET` and it returns to you as
+  `open_research_requests` until resolved. Repeating a request verbatim without
+  attempting the gap yourself wastes the turn.
+- Never mark your own request resolved. Only the user closes one, with
+  `python3.13 -m cio requests ASSET --resolve REQ-xxxx --state DONE --note "..."`.
 
 ## Evaluation
 
