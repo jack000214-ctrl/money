@@ -15,6 +15,7 @@ from calculators.contracts import ContractError
 from cio import requests as requests_module
 from cio.requests import (
     RequestError,
+    format_requests,
     collect_requests,
     open_requests_for_context,
     request_id,
@@ -146,6 +147,110 @@ class TestResolve(RequestLedgerTest):
         path.write_text('{"schema_version": "wrong"}', encoding="utf-8")
         with self.assertRaises(ContractError):
             request_state(ASSET)
+
+
+class TestClustering(RequestLedgerTest):
+    """모델은 같은 요청을 매번 조금씩 다르게 쓴다. 마침표 하나, 어미 하나가
+    달라 목록이 같은 말로 채워지면 asked_count 가 언제나 1이 되어 반복
+    신호가 죽는다."""
+
+    HALF_REPORT_A = (
+        "2026년 8월 반기보고서 공시 직후 fundamentals와 kr_inventory를 "
+        "재수집해 이 판단을 다시 돌려 달라 — 재고·DIO가 이 결론의 축이다"
+    )
+    HALF_REPORT_B = (
+        "2026년 8월 반기보고서 공시 직후 fundamentals와 kr_inventory를 "
+        "재수집하고 이 판단을 다시 돌려 달라 — 재고·DIO가 이 결론의 축이고, "
+        "지금 미해결 요청 중 가장 시급하다."
+    )
+    PREFERRED_A = "우선주(005935) 가격을 수집해 시가총액 계산을 정확히 할 수 있게 해 달라"
+    PREFERRED_B = "우선주(005935) 가격을 수집해 시가총액 계산을 정확히 할 수 있게 해 달라."
+
+    def test_trailing_punctuation_does_not_split_a_request(self):
+        write_assessment(self.root, "CIO-a", [self.PREFERRED_A], "2026-07-01T09:00:00+09:00")
+        write_assessment(self.root, "CIO-b", [self.PREFERRED_B], "2026-07-30T09:00:00+09:00")
+        state = request_state(ASSET)
+        self.assertEqual(len(state["open"]), 1)
+        self.assertEqual(state["open"][0]["asked_count"], 2)
+
+    def test_reworded_request_joins_the_same_cluster(self):
+        write_assessment(self.root, "CIO-a", [self.HALF_REPORT_A], "2026-07-01T09:00:00+09:00")
+        write_assessment(self.root, "CIO-b", [self.HALF_REPORT_B], "2026-07-30T09:00:00+09:00")
+        state = request_state(ASSET)
+        self.assertEqual(len(state["open"]), 1)
+        self.assertEqual(state["open"][0]["asked_count"], 2)
+        self.assertEqual(len(state["open"][0]["variants"]), 1)
+
+    def test_different_requests_are_not_merged(self):
+        write_assessment(
+            self.root, "CIO-a", [self.PREFERRED_A, self.HALF_REPORT_A]
+        )
+        state = request_state(ASSET)
+        self.assertEqual(len(state["open"]), 2)
+
+    def test_short_texts_are_never_fuzzy_matched(self):
+        # 짧은 문자열은 유사도가 부풀려진다. '요청 0'과 '요청 1'은 세 글자 중
+        # 둘이 같아 0.8이 나오는데 전혀 다른 요청이다.
+        write_assessment(self.root, "CIO-a", ["요청 0", "요청 1", "요청 2"])
+        self.assertEqual(len(request_state(ASSET)["open"]), 3)
+
+    def test_long_requests_differing_only_in_one_clause_still_merge(self):
+        self.assertGreaterEqual(
+            requests_module._similar(
+                requests_module._compare_key(self.HALF_REPORT_A),
+                requests_module._compare_key(self.HALF_REPORT_B),
+            ),
+            requests_module.SIMILARITY_THRESHOLD,
+        )
+
+    def test_representative_is_the_earliest_so_the_id_is_stable(self):
+        write_assessment(self.root, "CIO-a", [self.PREFERRED_A], "2026-07-01T09:00:00+09:00")
+        first = request_state(ASSET)["open"][0]["request_id"]
+        write_assessment(self.root, "CIO-b", [self.PREFERRED_B], "2026-07-30T09:00:00+09:00")
+        self.assertEqual(request_state(ASSET)["open"][0]["request_id"], first)
+
+    def test_variants_are_shown_so_a_wrong_merge_is_visible(self):
+        write_assessment(self.root, "CIO-a", [self.HALF_REPORT_A], "2026-07-01T09:00:00+09:00")
+        write_assessment(self.root, "CIO-b", [self.HALF_REPORT_B], "2026-07-30T09:00:00+09:00")
+        rendered = format_requests(request_state(ASSET))
+        self.assertIn("↔", rendered)
+
+
+class TestClusterResolution(RequestLedgerTest):
+    A = "동종 배수의 시계열을 쌓아 달라. 지금은 스냅샷 비교라 시간축을 볼 수 없다"
+    B = "동종 배수의 시계열을 쌓아 달라. 지금은 스냅샷 비교라 시간축을 볼 수 없다."
+
+    def setUp(self):
+        super().setUp()
+        write_assessment(self.root, "CIO-a", [self.A], "2026-07-01T09:00:00+09:00")
+
+    def test_resolving_covers_a_later_rewording(self):
+        # 이미 만든 것을 모델이 다시 요청한다고 미해결로 돌아오면 안 된다.
+        resolve_request(ASSET, request_id(self.A), state="DONE", note="만들었다")
+        write_assessment(self.root, "CIO-b", [self.B], "2026-07-30T09:00:00+09:00")
+        state = request_state(ASSET)
+        self.assertEqual(state["open"], [])
+        self.assertEqual(len(state["resolved"]), 1)
+        self.assertEqual(state["resolved"][0]["asked_count"], 2)
+
+    def test_can_resolve_by_a_member_id_not_just_the_representative(self):
+        write_assessment(self.root, "CIO-b", [self.B], "2026-07-30T09:00:00+09:00")
+        resolve_request(ASSET, request_id(self.B), state="DONE")
+        self.assertEqual(request_state(ASSET)["open"], [])
+
+    def test_resolution_is_stored_against_the_stable_representative(self):
+        write_assessment(self.root, "CIO-b", [self.B], "2026-07-30T09:00:00+09:00")
+        resolve_request(ASSET, request_id(self.B), state="DONE")
+        ledger = json.loads(
+            (self.root / "requests" / f"{ASSET}.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(len(ledger["resolutions"]), 1)
+        self.assertEqual(ledger["resolutions"][0]["request_id"], request_id(self.A))
+
+    def test_context_block_reports_the_cluster_count(self):
+        write_assessment(self.root, "CIO-b", [self.B], "2026-07-30T09:00:00+09:00")
+        block = open_requests_for_context(ASSET)
+        self.assertEqual(block[0]["asked_count"], 2)
 
 
 class TestContextBlock(RequestLedgerTest):

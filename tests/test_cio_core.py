@@ -94,6 +94,22 @@ def valid_decision():
             "sell_reason": None,
             "rationale": "보유분을 그대로 둔다",
         },
+        "drivers": [
+            {
+                "name": "자동차 판매량과 마진",
+                "weight_pct": 70,
+                "basis": "매출의 대부분",
+                "researched": True,
+                "finding": "분기 인도량이 둔화됐다",
+            },
+            {
+                "name": "에너지 저장",
+                "weight_pct": 30,
+                "basis": "성장률은 높으나 규모가 작다",
+                "researched": False,
+                "skipped_reason": "규모가 작아 이 가격 판단을 바꾸지 못한다",
+            },
+        ],
         "method": {
             "valuation_family": "DCF",
             "why_fit": "양의 현금흐름이 있다",

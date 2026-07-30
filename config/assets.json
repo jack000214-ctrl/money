@@ -31,7 +31,8 @@
       "optional_collectors": [
         "KR_FLOW",
         "KR_INVENTORY",
-        "NORMALIZED_EARNINGS"
+        "NORMALIZED_EARNINGS",
+        "KR_SEGMENTS"
       ]
     },
     "214450": {

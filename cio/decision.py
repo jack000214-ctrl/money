@@ -58,6 +58,7 @@ TOP_LEVEL_KEYS = {
     "price_plan",
     "proposed_trade",
     "action",
+    "drivers",
     "method",
     "thesis",
     "strongest_counter_thesis",
@@ -67,6 +68,81 @@ TOP_LEVEL_KEYS = {
     "sources",
     "evidence_refs",
 }
+
+
+DRIVER_KEYS = {"name", "weight_pct", "basis", "researched", "finding", "skipped_reason"}
+DRIVER_REQUIRED = {"name", "weight_pct", "basis", "researched"}
+
+
+def _validate_drivers(drivers: Any, errors: list[str]) -> None:
+    """이익 동인의 배분과, 무엇을 조사하고 무엇을 건너뛰었는지를 검사한다.
+
+    동인이 여럿인 회사에서 조사 순서를 정하지 않으면, 이익에 거의 영향이 없는
+    이야기에 판단의 무게가 실린다. 비중의 합을 100으로 강제하는 것은 그래서다 —
+    "다 중요하다"는 배분이 아니다. 조사하지 않은 동인은 이유를 남겨야 하며,
+    그 이유는 다음 판단으로 넘어가 누적된다.
+    """
+    if not isinstance(drivers, list) or not drivers:
+        errors.append("drivers: 이익 동인을 최소 하나 이상 명시해야 한다")
+        return
+    if len(drivers) > 8:
+        errors.append("drivers: 8개를 넘을 수 없다")
+        return
+    total = 0.0
+    names: list[str] = []
+    for index, driver in enumerate(drivers):
+        label = f"drivers[{index}]"
+        if not isinstance(driver, dict):
+            errors.append(f"{label}: 객체여야 한다")
+            continue
+        unknown = set(driver) - DRIVER_KEYS
+        if unknown or not DRIVER_REQUIRED.issubset(driver):
+            errors.append(
+                f"{label}: name·weight_pct·basis·researched가 필요하다"
+            )
+            continue
+        name = _nonempty(driver.get("name"), f"{label}.name", errors)
+        if name:
+            names.append(name)
+        _nonempty(driver.get("basis"), f"{label}.basis", errors)
+        weight = _number(
+            driver.get("weight_pct"),
+            f"{label}.weight_pct",
+            errors,
+            minimum=0.000001,
+            maximum=100,
+        )
+        if weight is not None:
+            total += float(weight)
+        researched = driver.get("researched")
+        if not isinstance(researched, bool):
+            errors.append(f"{label}.researched: true 또는 false여야 한다")
+            continue
+        finding = driver.get("finding")
+        skipped = driver.get("skipped_reason")
+        if researched:
+            if not isinstance(finding, str) or not finding.strip():
+                errors.append(
+                    f"{label}.finding: 조사했다면 무엇을 알아냈는지 남겨야 한다"
+                )
+            if skipped is not None:
+                errors.append(
+                    f"{label}.skipped_reason: 조사한 동인에는 건너뛴 이유가 없다"
+                )
+        else:
+            if not isinstance(skipped, str) or not skipped.strip():
+                errors.append(
+                    f"{label}.skipped_reason: 건너뛰었다면 왜 결론을 바꾸지 "
+                    "못하는지 밝혀야 한다"
+                )
+            if finding is not None:
+                errors.append(
+                    f"{label}.finding: 조사하지 않은 동인에는 결과가 없다"
+                )
+    if len(names) != len(set(names)):
+        errors.append("drivers: 동인 이름이 중복됐다")
+    if names and abs(total - 100) > 0.01:
+        errors.append(f"drivers: weight_pct의 합은 100이어야 한다 ({total})")
 
 
 def _nonempty(value: Any, field: str, errors: list[str]) -> str | None:
@@ -536,6 +612,8 @@ def validate_decision(
             errors.append(
                 f"action.direction: {direction}인데 새로 사겠다는 금액이 있다"
             )
+
+    _validate_drivers(data.get("drivers"), errors)
 
     method = data.get("method")
     if not isinstance(method, dict) or set(method) != {

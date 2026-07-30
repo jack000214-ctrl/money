@@ -464,14 +464,14 @@ def merge_filing_rows(row_groups, *, limit=FILING_INDEX_LIMIT):
 DOCUMENT_DIR = ROOT / "data" / "raw" / "dart" / "documents"
 
 
-def cmd_document(a, key):
-    """접수번호로 공시 원문을 받는다.
+def fetch_document(rcept_no, key):
+    """접수번호로 공시 원문을 받아 내용 주소로 보존하고 (문서, 경로) 를 준다.
 
     DART 뷰어 주소(dsaf001/main.do)는 iframe 껍데기라 그대로 저장해도 본문이
     없다. OpenDART document.xml 은 원문 XML 을 zip 으로 준다 — 근거로 인용할
     수 있는 것은 이쪽이다.
     """
-    rcept_no = a.rcept_no.strip()
+    rcept_no = str(rcept_no).strip()
     if not re.fullmatch(r"\d{14}", rcept_no):
         fail("접수번호는 14자리 숫자다")
     blob = request("document.xml", {"rcept_no": rcept_no}, key, binary=True)
@@ -495,9 +495,13 @@ def cmd_document(a, key):
         # 조회 실패는 zip 이 아니라 상태 XML 로 돌아온다.
         detail = blob[:400].decode("utf-8", errors="replace")
         fail(f"{rcept_no}: 원문을 받지 못했다 — {detail}")
-
     payload = {"rcept_no": rcept_no, "documents": documents}
-    path = save_raw(f"document_{rcept_no}", payload)
+    return documents, save_raw(f"document_{rcept_no}", payload)
+
+
+def cmd_document(a, key):
+    rcept_no = a.rcept_no.strip()
+    documents, path = fetch_document(rcept_no, key)
     total = sum(len(text) for text in documents.values())
     print(f"접수번호 {rcept_no}  문서 {len(documents)}개  {total:,}자")
     print(f"원문 저장: {path.relative_to(ROOT)}")

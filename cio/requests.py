@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import difflib
 import hashlib
 import json
 import os
@@ -33,6 +34,12 @@ LEDGER_SCHEMA = "research-ledger/1.0.0"
 RESOLUTION_STATES = ("DONE", "DECLINED", "SUPERSEDED")
 MAX_CONTEXT_REQUESTS = 4
 MAX_CONTEXT_REQUEST_CHARS = 160
+# 같은 뜻의 요청은 0.69 이상, 서로 다른 요청은 0.45 미만에 몰린다. 그 골짜기다.
+SIMILARITY_THRESHOLD = 0.62
+# 짧은 문자열은 유사도가 부풀려진다 — "요청 0"과 "요청 1"은 세 글자 중 둘이
+# 같아 0.8이 나온다. 실제 요청은 문장이라 30자를 넘으므로, 그 아래는 묶지
+# 않고 정확히 같을 때만 하나로 본다.
+MIN_CLUSTER_CHARS = 30
 
 
 class RequestError(ValueError):
@@ -47,6 +54,81 @@ def request_id(text: str) -> str:
     normalized = _normalize(text)
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     return f"REQ-{digest[:12]}"
+
+
+def _compare_key(text: str) -> str:
+    """비교용 표기. 구두점과 공백을 버리고 글자만 남긴다."""
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", text)
+
+
+def _similar(left: str, right: str) -> float:
+    if len(left) < MIN_CLUSTER_CHARS or len(right) < MIN_CLUSTER_CHARS:
+        return 1.0 if left == right else 0.0
+    return difflib.SequenceMatcher(None, left, right).ratio()
+
+
+def cluster_requests(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """같은 뜻의 요청을 한 묶음으로 만든다.
+
+    요청의 신원은 본문 해시라 문장이 한 글자만 달라도 다른 ID가 된다. 모델은
+    매 판단에서 같은 요청을 조금씩 다르게 쓰기 때문에 — 마침표 하나, '재수집해'
+    와 '재수집하고' — 그대로 두면 목록이 사실상 같은 말로 채워지고 asked_count
+    가 언제나 1이 되어 반복 신호가 죽는다.
+
+    실제 데이터에서 같은 뜻의 요청은 유사도 0.69 이상, 서로 다른 요청은 0.45
+    미만에 몰려 있어 그 사이가 비어 있다. 임계값은 그 골짜기 한가운데다.
+    묶인 문장은 variants 로 함께 보여 잘못 묶였으면 눈에 띄게 한다.
+    """
+    ordered = sorted(entries, key=lambda item: item["first_asked_at"])
+    clusters: list[list[dict[str, Any]]] = []
+    keys: list[list[str]] = []
+    for entry in ordered:
+        key = _compare_key(entry["text"])
+        for index, group_keys in enumerate(keys):
+            if any(
+                _similar(key, other) >= SIMILARITY_THRESHOLD
+                for other in group_keys
+            ):
+                clusters[index].append(entry)
+                group_keys.append(key)
+                break
+        else:
+            clusters.append([entry])
+            keys.append([key])
+
+    result = []
+    for members in clusters:
+        # 대표는 가장 먼저 요청된 것이다. 나중 문장이 추가돼도 ID 가 바뀌지
+        # 않아야 해결 기록이 살아남는다.
+        head = members[0]
+        result.append(
+            {
+                "request_id": head["request_id"],
+                "text": head["text"],
+                "member_ids": [member["request_id"] for member in members],
+                "variants": [
+                    member["text"] for member in members[1:]
+                ],
+                "first_asked_at": min(
+                    member["first_asked_at"] for member in members
+                ),
+                "last_asked_at": max(
+                    member["last_asked_at"] for member in members
+                ),
+                "asked_count": sum(member["asked_count"] for member in members),
+                "asked_by": [
+                    identifier
+                    for member in members
+                    for identifier in member["asked_by"]
+                ],
+                "from_unverified_assessment": all(
+                    member["from_unverified_assessment"] for member in members
+                ),
+            }
+        )
+    return sorted(
+        result, key=lambda item: (item["last_asked_at"], item["request_id"])
+    )
 
 
 def ledger_path(asset_id: str) -> Path:
@@ -163,19 +245,31 @@ def request_state(asset_id: str) -> dict[str, Any]:
     for item in ledger["resolutions"]:
         if isinstance(item, dict) and isinstance(item.get("request_id"), str):
             resolved[item["request_id"]] = item
-    known = collect_requests(asset_id)
+    known = cluster_requests(collect_requests(asset_id))
     open_requests = []
     closed_requests = []
     for entry in known:
-        resolution = resolved.get(entry["request_id"])
+        # 묶음 안의 어느 문장이든 해결됐으면 그 뜻은 해결된 것이다. 모델이
+        # 같은 요청을 다시 쓴다고 해서 이미 만든 것이 미해결로 돌아오면 안 된다.
+        resolution = next(
+            (
+                resolved[member]
+                for member in entry["member_ids"]
+                if member in resolved
+            ),
+            None,
+        )
         if resolution:
             closed_requests.append({**entry, "resolution": resolution})
         else:
             open_requests.append(entry)
+    clustered_ids = {
+        member for entry in known for member in entry["member_ids"]
+    }
     orphan_resolutions = [
         item
         for request_id_value, item in resolved.items()
-        if request_id_value not in {entry["request_id"] for entry in known}
+        if request_id_value not in clustered_ids
     ]
     return {
         "asset_id": asset_id,
@@ -197,7 +291,11 @@ def resolve_request(
         raise RequestError(
             f"state는 {' | '.join(RESOLUTION_STATES)} 중 하나여야 한다"
         )
-    known = {entry["request_id"]: entry for entry in collect_requests(asset_id)}
+    # 묶음 대표 ID 로도, 묶인 개별 문장의 ID 로도 닫을 수 있어야 한다.
+    known = {}
+    for cluster in cluster_requests(collect_requests(asset_id)):
+        for member in cluster["member_ids"]:
+            known[member] = cluster
     matches = [
         identifier
         for identifier in known
@@ -214,18 +312,24 @@ def resolve_request(
             f"{request_id_value}가 {len(matches)}개 요청과 일치한다: "
             + ", ".join(sorted(matches))
         )
-    identifier = matches[0]
+    cluster = known[matches[0]]
+    # 해결은 묶음 대표에 건다. 대표는 가장 먼저 요청된 문장이라 나중에 비슷한
+    # 요청이 더 들어와도 바뀌지 않는다.
+    identifier = cluster["request_id"]
     ledger = load_ledger(asset_id)
     now = dt.datetime.now(KST).isoformat(timespec="seconds")
+    member_ids = set(cluster["member_ids"])
     resolutions = [
         item
         for item in ledger["resolutions"]
-        if not (isinstance(item, dict) and item.get("request_id") == identifier)
+        if not (
+            isinstance(item, dict) and item.get("request_id") in member_ids
+        )
     ]
     resolutions.append(
         {
             "request_id": identifier,
-            "text": known[identifier]["text"],
+            "text": cluster["text"],
             "state": state,
             "note": note,
             # 해결 판정은 사람의 것이다. 모델이 자기 요청을 스스로 닫으면
@@ -304,6 +408,9 @@ def format_requests(state: dict[str, Any]) -> str:
             f"최근 {entry['last_asked_at'][:10]}{flag}"
         )
         lines.append(f"      {entry['text']}")
+        # 묶인 문장을 보여줘야 잘못 묶였을 때 눈에 띈다.
+        for variant in entry.get("variants") or []:
+            lines.append(f"      ↔ {variant[:100]}")
     lines.append("")
     lines.append(f"해결 {len(state['resolved'])}건")
     for entry in state["resolved"]:

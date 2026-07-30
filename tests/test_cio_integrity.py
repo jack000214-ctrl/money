@@ -572,9 +572,30 @@ class TestMemoryDigest(unittest.TestCase):
                 json.dumps(evaluation), encoding="utf-8"
             )
             with patch("cio.context.KNOWLEDGE_DIR", knowledge):
-                digest = _memory_digest("TSLA")
+                digest = _memory_digest(
+                    "TSLA", latest_close=75.0, close_date="2026-07-27"
+                )
             self.assertEqual([item["asked_price"] for item in digest], [101, 102, 103])
             self.assertEqual(digest[-1]["latest_evaluation"]["return_to_end_pct"], 12.3)
+
+            carried = digest[-1]["carried_forward"]
+            self.assertIsNotNone(carried["price_plan"])
+            self.assertTrue(carried["invalidation_signals"])
+            # 조사하지 않은 동인이 다음 판단으로 넘어가야 같은 것을 계속
+            # 미루고 있다는 사실이 드러난다.
+            skipped = [
+                item for item in carried["drivers"] if item["researched"] is False
+            ]
+            self.assertEqual(len(skipped), 1)
+            self.assertEqual(skipped[0]["name"], "에너지 저장")
+            self.assertTrue(skipped[0]["skipped_reason"])
+            # 문턱 대조는 PC 가 산술로 답한다. 75달러는 손절가 80 아래이고
+            # 재검토 하단 85 도 지났다.
+            check = digest[-1]["price_vs_prior_plan"]
+            self.assertEqual(
+                sorted(check["triggered"]), ["reask_below", "stop_price"]
+            )
+            self.assertFalse(check["in_entry_range"])
 
 
 if __name__ == "__main__":

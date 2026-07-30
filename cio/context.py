@@ -23,6 +23,7 @@ from calculators.contracts import (
 )
 from collectors.web import recent_snapshots
 from cio.assets import get_asset
+from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.requests import open_requests_for_context
@@ -36,11 +37,14 @@ from cio.refresh import (
 
 KST = dt.timezone(dt.timedelta(hours=9))
 CONTEXT_SCHEMA = "cio-context/1.0.0"
-# 직전 판단의 가격계획·무효화 신호와 미해결 수집 요청까지 싣게 되면서 24_000을
-# 넘겼다. 예산의 목적은 "원문을 통째로 넣지 않는다"이지 특정 바이트가 아니다.
-# 32_000은 여전히 한 종목 한 판단 분량이며, 넘칠 때는 _fit_context_budget 이
-# 서술부터 버리고 결정에 직접 쓰이는 숫자를 남긴다.
-MAX_CONTEXT_JSON_BYTES = 32_000
+# 예산의 목적은 "원문을 통째로 넣지 않는다"이지 특정 바이트가 아니다.
+# 24_000 → 32_000 → 40_000 으로 올라온 이유는 매번 같다. 직전 판단의 계획,
+# 부문 배분, 공시 색인, 검색 가능한 원문 목록처럼 **한 블록이 조사 몇 턴을
+# 대체하는** 것들이 들어왔기 때문이다. 절약의 기준은 packet 크기가 아니라
+# 판단 하나에 드는 총 토큰이며, 사업보고서 100만 자를 넣지 않는다는 원칙은
+# 그대로다. 넘칠 때는 _fit_context_budget 이 서술부터 버리고 결정에 직접
+# 쓰이는 숫자를 남긴다.
+MAX_CONTEXT_JSON_BYTES = 40_000
 
 
 class ContextError(ValueError):
@@ -954,6 +958,38 @@ def _optional_collection_summaries(
                     }
                 )
 
+    if "KR_SEGMENTS" in enabled:
+        path = KNOWLEDGE_DIR / "segments" / f"{asset_id}.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        if isinstance(data, dict) and data.get("latest_mix"):
+            summaries["segments"] = {
+                "report": data.get("report_name"),
+                "period": data.get("latest_period"),
+                "mix": data["latest_mix"],
+                "_role": (
+                    "이 회사가 어느 부문으로 돈을 버는지다. drivers 의 비중을 "
+                    "감으로 주지 말고 여기서 시작한다 — 영업이익 비중이 한 자리인 "
+                    "부문의 뉴스는 그만큼만 무게를 갖는다. 매출 비중과 영업이익 "
+                    "비중이 크게 다른 것이 이 표의 요점이다"
+                ),
+                "_warning": (
+                    "정기보고서 기준이라 그 이후 분기는 반영되지 않는다. "
+                    "회사가 적은 비중이며 내부거래 제거 방식에 따라 합이 100이 "
+                    "아닐 수 있다"
+                ),
+            }
+            sources.append(
+                {
+                    "source_id": f"KR_SEGMENTS:{asset_id}",
+                    "kind": "FILING_DERIVED",
+                    "path": str(path.relative_to(ROOT)),
+                    "data_as_of": data.get("filing_date"),
+                }
+            )
+
     if "NORMALIZED_EARNINGS" in enabled:
         path = KNOWLEDGE_DIR / "normalized" / f"{asset_id}.json"
         try:
@@ -1527,7 +1563,24 @@ def _memory_digest(
             plan = data.get("price_plan")
             counter = data.get("strongest_counter_thesis") or {}
             signals = data.get("invalidation_signals")
+            drivers = data.get("drivers")
             row["carried_forward"] = {
+                "drivers": (
+                    [
+                        {
+                            "name": driver.get("name"),
+                            "weight_pct": driver.get("weight_pct"),
+                            "researched": driver.get("researched"),
+                            "skipped_reason": _clip(
+                                driver.get("skipped_reason"), 160
+                            ),
+                        }
+                        for driver in drivers
+                        if isinstance(driver, dict)
+                    ]
+                    if isinstance(drivers, list)
+                    else None
+                ),
                 "thesis": _clip(data.get("thesis"), 550),
                 "strongest_counter_thesis": _clip(counter.get("text"), 400),
                 "price_plan": plan if isinstance(plan, dict) else None,
@@ -1540,7 +1593,9 @@ def _memory_digest(
                     "직전 판단의 살아 있는 계획이다. 이번 판단은 이 무효화 "
                     "신호와 재검토 사건이 실제로 발생했는지 먼저 확인한 뒤 "
                     "시작한다. 과거 결론을 따르라는 뜻이 아니라, 바뀐 것이 "
-                    "무엇인지 명시하라는 뜻이다"
+                    "무엇인지 명시하라는 뜻이다. drivers 는 그때의 이익 동인 "
+                    "배분이며 researched:false 였던 것은 아직 한 번도 보지 않은 "
+                    "동인이다 — 계속 미루고 있는지 확인한다"
                 ),
             }
             row["price_vs_prior_plan"] = _prior_plan_check(
@@ -1574,14 +1629,25 @@ def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
                 "owner": "MODEL",
                 "topic": "memory_contract_prices",
                 "known_local_gap": (
-                    "DRAM·NAND 고정거래가격 시계열이 로컬에 없다"
+                    "DRAM·NAND 고정거래가격 시계열이 로컬에 없다. 자동 수집을 "
+                    "만들지 않기로 한 결정이며 게으름이 아니다 — 고정거래가격은 "
+                    "TrendForce 유료 구간이고, 무료로 구할 수 있는 것(현물가·"
+                    "수출물가지수·수출단가)을 '판가'라고 부르면 2차 출처를 1차인 "
+                    "척하는 것이 된다"
                 ),
                 "instruction": (
                     "로컬에 있는 것(가격·재무·재고·수급)은 전부 사이클의 결과이고, "
                     "사이클을 움직이는 원인인 판가는 이 저장소에 없다. 재고자산과 "
                     "DIO로 역추정할 수는 있으나 분기당 한 번, 45일 늦게 들어온다. "
-                    "판가는 직접 조사하고, 2차 출처를 썼다면 sources에 URL·시각을 "
-                    "남기는 동시에 unknowns에 '원문 스냅샷 없음'을 명시한다"
+                    "판가는 매번 직접 조사한다. 조사에서 시간을 아끼려면 무엇이 "
+                    "열려 있는지부터 알아둔다 — TrendForce 현물가(trendforce.com/"
+                    "price/dram/dram_spot)는 로그인 없이 품목별 일간 시세가 "
+                    "보이고, 고정거래가격은 회원 전용이라 언론 인용으로만 접근된다. "
+                    "현물가는 고정거래가격의 대체재가 아니라 선행지표다 — 계약가는 "
+                    "늦게 반영되므로 사이클 전환은 현물에서 먼저 보인다. 둘을 "
+                    "같은 것으로 섞어 쓰지 않는다. 결론을 좌우하는 근거는 인용 "
+                    "전에 `python3.13 -m cio snapshot`으로 보존하고, 끝내 2차 "
+                    "출처뿐이라면 그 사실을 unknowns에 남긴다"
                 ),
             },
         ],
@@ -1836,7 +1902,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.2",
+        "prompt_version": "1.3",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -1886,6 +1952,7 @@ def build_context(
                 asset["asset_id"]
             ),
             "web_snapshots": recent_snapshots(asset["asset_id"]),
+            "local_documents": documents_for_context(asset["asset_id"]),
         },
         "evidence_index": evidence_index,
         "model_contract": model_contract,

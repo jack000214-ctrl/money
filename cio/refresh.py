@@ -468,6 +468,25 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
                 required=False,
             )
         )
+    if "KR_SEGMENTS" in enabled:
+        tasks.append(
+            RefreshTask(
+                name=f"segments:{asset['asset_id']}",
+                capability="KR_SEGMENTS",
+                artifact=f"knowledge/segments/{asset['asset_id']}.json",
+                # 정기보고서에서 나오므로 분기에 한 번만 바뀐다.
+                max_age_hours=2160,
+                required=False,
+                dependencies=[f"knowledge/filings/{asset['asset_id']}.json"],
+                command=[
+                    sys.executable,
+                    "-m",
+                    "collectors.kr_segments",
+                    asset["asset_id"],
+                ],
+            )
+        )
+
     if "NORMALIZED_EARNINGS" in enabled:
         year = dt.date.today().year
         tasks.append(

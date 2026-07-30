@@ -19,7 +19,12 @@ FILING_PROFILE_BY_MARKET = {
     "US": "SEC_DOMESTIC_US_GAAP",
 }
 OPTIONAL_COLLECTORS_BY_ROUTE = {
-    ("KR", "STOCK"): {"KR_FLOW", "KR_INVENTORY", "NORMALIZED_EARNINGS"},
+    ("KR", "STOCK"): {
+        "KR_FLOW",
+        "KR_INVENTORY",
+        "NORMALIZED_EARNINGS",
+        "KR_SEGMENTS",
+    },
     ("US", "STOCK"): set(),
     ("KR", "ETF"): set(),
     ("US", "ETF"): set(),

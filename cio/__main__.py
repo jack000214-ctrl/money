@@ -10,6 +10,15 @@ from collectors.web import snapshot
 from cio.assets import all_assets, get_asset, register_asset
 from cio.context import build_context
 from cio.decision import find_context, require_valid_decision
+from cio.documents import (
+    DEFAULT_CONTEXT_CHARS,
+    DEFAULT_MAX_MATCHES,
+    DocumentError,
+    documents_for,
+    format_documents,
+    format_search,
+    search_asset,
+)
 from cio.memory import record_decision_file, score_asset
 from cio.refresh import inspect_plan, plan_json, run_refresh
 from cio.requests import (
@@ -142,6 +151,31 @@ def cmd_record(args) -> int:
     return 0
 
 
+def cmd_docs(args) -> int:
+    catalog = documents_for(args.asset_id)
+    if args.json:
+        print(json.dumps(catalog, ensure_ascii=False, indent=2))
+    else:
+        print(format_documents(catalog))
+    return 0
+
+
+def cmd_search(args) -> int:
+    result = search_asset(
+        args.asset_id,
+        args.pattern,
+        context_chars=args.context,
+        max_matches=args.limit,
+        fixed=args.fixed,
+        doc_id=args.doc,
+    )
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(format_search(result))
+    return 0 if result["total_matches"] else 1
+
+
 def cmd_snapshot(args) -> int:
     get_asset(args.asset_id)
     result = snapshot(
@@ -233,6 +267,31 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("decision")
     record.set_defaults(func=cmd_record)
 
+    docs_parser = sub.add_parser(
+        "docs", help="검색 가능한 원문과 아직 받지 않은 공시"
+    )
+    docs_parser.add_argument("asset_id")
+    docs_parser.add_argument("--json", action="store_true")
+    docs_parser.set_defaults(func=cmd_docs)
+
+    search_parser = sub.add_parser(
+        "search", help="보존한 원문 안에서 찾기"
+    )
+    search_parser.add_argument("asset_id")
+    search_parser.add_argument("pattern", help="정규식 또는 문자열")
+    search_parser.add_argument(
+        "--context", type=int, default=DEFAULT_CONTEXT_CHARS, help="앞뒤 문맥 글자 수"
+    )
+    search_parser.add_argument(
+        "--limit", type=int, default=DEFAULT_MAX_MATCHES, help="표시할 최대 건수"
+    )
+    search_parser.add_argument(
+        "--fixed", action="store_true", help="정규식이 아니라 문자 그대로"
+    )
+    search_parser.add_argument("--doc", help="특정 문서 ID 안에서만")
+    search_parser.add_argument("--json", action="store_true")
+    search_parser.set_defaults(func=cmd_search)
+
     snapshot_parser = sub.add_parser(
         "snapshot", help="조사한 웹 원문을 근거로 보존"
     )
@@ -276,7 +335,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         return args.func(args)
-    except (ContractError, ValueError, OSError) as exc:
+    except (ContractError, DocumentError, ValueError, OSError) as exc:
         messages = exc.errors if isinstance(exc, ContractError) else [str(exc)]
         for message in messages:
             print(f"ERROR: {message}", file=sys.stderr)

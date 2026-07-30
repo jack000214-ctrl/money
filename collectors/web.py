@@ -89,13 +89,29 @@ def _title(body: str) -> str | None:
     return text[:200] or None
 
 
+def _user_agent(host: str) -> str:
+    """호스트가 요구하는 신원을 쓴다.
+
+    SEC 는 연락처 없는 요청을 403 으로 막는다. 이 저장소에는 이미 그 목적의
+    SEC_USER_AGENT 가 있으므로, 일반 UA 로 보내 실패하는 대신 그것을 쓴다.
+    """
+    if host == "sec.gov" or host.endswith(".sec.gov"):
+        from collectors.edgar import user_agent
+
+        return user_agent()
+    return USER_AGENT
+
+
 def fetch(url: str) -> dict[str, Any]:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         fail("http 또는 https URL만 수집한다")
     if not parsed.netloc:
         fail("호스트가 없는 URL이다")
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": _user_agent(parsed.netloc.split(":")[0].lower())},
+    )
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             raw = response.read(MAX_BYTES + 1)

@@ -36,8 +36,24 @@ the CIO verdict with a Python rule or confuse PC validation with investment judg
    invalidation signals or price thresholds fire?), `open_research_requests` (what you
    already asked for and still do not have), and `fundamentals.reporting_lag`
    (disclosures newer than the local financials).
-6. Investigate current qualitative gaps yourself. Prefer regulator, exchange, issuer,
-   and primary filings. Preserve anything decision-critical before citing it:
+6. Search the local originals before searching the web. `local_documents` lists what
+   is already stored; its body is not in the packet because one annual report runs to
+   a million characters.
+
+   ```bash
+   python3.13 -m cio docs ASSET                # what is stored, what is not fetched
+   python3.13 -m cio search ASSET "부 문 \|"   # segment revenue table, for example
+   ```
+
+   Company-structure facts — segment revenue and mix, major customers, order backlog,
+   capacity, input suppliers, market share — are in the annual report. Citing a news
+   article for them is using a secondary source while the primary one sits on disk.
+   Check segment weights first: researching a division's latest news before knowing
+   whether it is 5% or 50% of operating profit misallocates the whole analysis.
+
+   Then investigate what is genuinely absent — market reaction, competitor moves,
+   pricing, anything after the last filing. Preserve what is decision-critical before
+   citing it:
 
    ```bash
    python3.13 -m cio snapshot URL --asset ASSET --label short-name --note "why"
@@ -47,8 +63,13 @@ the CIO verdict with a Python rule or confuse PC validation with investment judg
    Use `filings.latest_material_events` for the Korean accession numbers; the DART
    viewer URL is a frame shell and `snapshot` will tell you so. If evidence remains
    decision-critical and unavailable, ask the user or return `INSUFFICIENT`.
-7. Produce one provider-neutral decision JSON artifact. Complete the strongest
-   counter-thesis before settling the verdict. Choose a method suited to the asset:
+7. Produce one provider-neutral decision JSON artifact. Fill `drivers` first: list the
+   asset's earnings drivers, allocate `weight_pct` summing to 100, and for each say
+   whether you researched it (`finding`) or skipped it (`skipped_reason`). Ground the
+   `basis` in the segment table from the local filings where one exists. Skipping is
+   legitimate; skipping silently is not, and the skip carries into the next decision
+   via `carried_forward.drivers`. Complete the strongest counter-thesis before
+   settling the verdict. Choose a method suited to the asset:
    do not force company DCF onto ETFs, steady-state DCF onto clinical biotech, or one
    peak-year multiple onto a cyclical business. For `INSUFFICIENT`, keep the measurable
    win/failure definitions but set all probabilities, returns, price levels, and proposed
