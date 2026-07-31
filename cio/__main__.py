@@ -27,6 +27,7 @@ from cio.requests import (
     request_state,
     resolve_request,
 )
+from cio.pipeline import PipelineError, format_pipeline, record_program
 from cio.retire import RetireError, format_survey, retire, survey
 
 MIN_PYTHON = (3, 13)
@@ -207,6 +208,29 @@ def cmd_requests(args) -> int:
     return 0
 
 
+def cmd_pipeline(args) -> int:
+    if not args.name:
+        print(format_pipeline(args.asset_id))
+        return 0
+    try:
+        path = record_program(
+            args.asset_id,
+            name=args.name,
+            stage=args.stage,
+            indication=args.indication,
+            next_milestone=args.milestone,
+            expected_readout=args.readout,
+            source=args.source,
+            note=args.note,
+        )
+    except PipelineError as exc:
+        print(f"오류: {exc.message}", file=sys.stderr)
+        return 2
+    print(f"saved: {path}")
+    print(format_pipeline(args.asset_id))
+    return 0
+
+
 def cmd_retire(args) -> int:
     if not args.reason:
         print(format_survey(survey(args.asset_id)))
@@ -349,6 +373,19 @@ def build_parser() -> argparse.ArgumentParser:
     requests_parser.add_argument("--note", help="무엇을 했는지 한 줄")
     requests_parser.add_argument("--json", action="store_true")
     requests_parser.set_defaults(func=cmd_requests)
+
+    pipeline_parser = sub.add_parser(
+        "pipeline", help="임상 파이프라인 기록 (이름 없이 부르면 조회)"
+    )
+    pipeline_parser.add_argument("asset_id")
+    pipeline_parser.add_argument("--name", help="프로그램 이름")
+    pipeline_parser.add_argument("--stage", default="PHASE1")
+    pipeline_parser.add_argument("--indication", help="적응증")
+    pipeline_parser.add_argument("--milestone", help="다음 이벤트")
+    pipeline_parser.add_argument("--readout", help="예상 발표일 YYYY-MM-DD")
+    pipeline_parser.add_argument("--source", default="", help="출처 (필수)")
+    pipeline_parser.add_argument("--note", help="한 줄 메모")
+    pipeline_parser.set_defaults(func=cmd_pipeline)
 
     retire_parser = sub.add_parser(
         "retire", help="판단을 폐기 보관소로 옮긴다 (사유 없이 부르면 상태만 표시)"

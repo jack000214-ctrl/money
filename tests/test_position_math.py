@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 import tempfile
@@ -218,6 +219,50 @@ class TestJudgmentBoundary(TempPortfolio):
         blob = json.dumps(result, ensure_ascii=False)
         for field in ("stop_price", "target_price", "limit_pct", "breach"):
             self.assertNotIn(field, blob)
+
+    def test_every_boolean_verdict_exposes_its_raw_number_and_threshold(self):
+        """불리언은 금지 어휘 검사를 통과하면서 판정을 실어 나른다.
+
+        실제로 그렇게 새어 나갔다 — `appears_active` 는 코드에 숨은 14일
+        문턱으로 "적립이 돌아가는 중"을 단정했고, 어떤 금지 단어도 쓰지
+        않았기 때문에 위의 어휘 검사를 그냥 통과했다.
+
+        규칙: 계산기가 불리언을 내려면 **그 판정을 뒤집을 수 있어야 한다** —
+        원시 숫자와 문턱을 함께 내서 모델이 자기 기준으로 다시 계산할 수
+        있어야 한다. 숫자만 내고 불리언을 안 내는 것이 언제나 안전한 선택이다.
+        """
+        result = position_module.build("AAA", 300000.0, currency="KRW")
+        rec = result["reconciliation"]
+        # 허용: 불리언 + 원시값 + 이름 붙은 문턱이 함께 나온다
+        self.assertIn("within_tolerance", rec)
+        self.assertIsNotNone(rec["average_cost_diff_pct"])
+        self.assertIsNotNone(rec["tolerance_pct"])
+        for rung in result["ladder"]:
+            self.assertIn("exceeds_available_cash", rung)
+            self.assertIn("cash_after", rung)  # 뒤집을 수 있는 원시값
+        # 금지: 문턱이 코드에만 있는 상태 판정
+        blob = json.dumps(self._data_only(result), ensure_ascii=False)
+        for field in ("appears_active", "is_active", "is_expensive",
+                      "is_overweight", "should_"):
+            self.assertNotIn(field, blob)
+
+    def test_recurring_buy_reports_dates_not_program_state(self):
+        """원장에는 체결 내역만 있고 적립 프로그램 설정은 없다.
+
+        마지막 적립 이후 며칠 지났는지는 사실이고, 그래서 지금 켜져 있는지는
+        추론이다. 원장이 답할 수 없는 것을 답한 척하지 않는다.
+        """
+        rows = ["settle_date,side,quantity,price_krw,fee_krw,tax_krw,note"]
+        rows += [f"2026-01-{day:02d},BUY,5,100000,0,0,적립 매수"
+                 for day in range(1, 9)]
+        (position_module.TRADES_DIR / "AAA.csv").write_text(
+            "\n".join(rows) + "\n", encoding="utf-8"
+        )
+        found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        self.assertEqual(found["trade_count"], 8)
+        self.assertEqual(found["last_date"], "2026-01-08")
+        self.assertEqual(found["days_since_last"], 52)
+        self.assertNotIn("appears_active", found)
 
 
 class TestReconciliation(TempPortfolio):

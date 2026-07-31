@@ -375,6 +375,7 @@ class TestRoutingContracts(unittest.TestCase):
                     "accessionNumber": ["0000000000-26-000001"],
                     "primaryDocument": ["tsla-20260630.htm"],
                     "primaryDocDescription": [""],
+                    "items": [""],
                 }
             },
         }
@@ -403,6 +404,8 @@ class TestRoutingContracts(unittest.TestCase):
                     "accession_number": "0000000000-26-000001",
                     "primary_document": "tsla-20260630.htm",
                     "description": None,
+                    "items": None,
+                    "item_labels": None,
                     "document_url": (
                         "https://www.sec.gov/Archives/edgar/data/"
                         "1318605/000000000026000001/tsla-20260630.htm"

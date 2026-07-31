@@ -1,6 +1,6 @@
 {
   "schema_version": "market-regime/2.0.0",
-  "collected_at": "2026-07-29T09:47:02+09:00",
+  "collected_at": "2026-07-31T10:57:26+09:00",
   "lookback_days": 500,
   "by_market": {
     "US": {
@@ -9,36 +9,36 @@
       "mark": "🟡",
       "score": 1,
       "notes": [
-        "주요 지수 고점 대비 -8.2%"
+        "주요 지수 고점 대비 -7.3%"
       ],
       "indices": [
         {
           "symbol": "^GSPC",
           "name": "S&P 500",
-          "as_of": "2026-07-28",
-          "close": 7428.7798,
+          "as_of": "2026-07-30",
+          "close": 7437.6299,
           "high": 7609.7798,
-          "drawdown_pct": -2.38
+          "drawdown_pct": -2.26
         },
         {
           "symbol": "^IXIC",
           "name": "NASDAQ",
-          "as_of": "2026-07-28",
-          "close": 24876.9121,
+          "as_of": "2026-07-30",
+          "close": 25122.1777,
           "high": 27093.9004,
-          "drawdown_pct": -8.18
+          "drawdown_pct": -7.28
         }
       ],
       "volatility": {
         "symbol": "^VIX",
         "name": "VIX",
-        "as_of": "2026-07-28",
-        "value": 18.21,
+        "as_of": "2026-07-30",
+        "value": 17.09,
         "median": 17.44,
-        "percentile": 58.4,
+        "percentile": 44.0,
         "in_score": true
       },
-      "worst_drawdown_pct": -8.18
+      "worst_drawdown_pct": -7.28
     }
   },
   "macro": {
@@ -47,18 +47,18 @@
         {
           "symbol": "KRW=X",
           "name": "KRW/USD",
-          "as_of": "2026-07-29",
-          "value": 1454.28,
-          "median": 1437.68,
-          "percentile": 63.4
+          "as_of": "2026-07-31",
+          "value": 1435.03,
+          "median": 1438.205,
+          "percentile": 47.8
         },
         {
           "symbol": "^TNX",
           "name": "US 10Y yield",
-          "as_of": "2026-07-28",
-          "value": 4.604,
+          "as_of": "2026-07-30",
+          "value": 4.663,
           "median": 4.275,
-          "percentile": 95.6
+          "percentile": 98.2
         }
       ]
     }
@@ -67,27 +67,27 @@
     {
       "symbol": "^GSPC",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-07-28"
+      "data_as_of": "2026-07-30"
     },
     {
       "symbol": "^IXIC",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-07-28"
+      "data_as_of": "2026-07-30"
     },
     {
       "symbol": "^VIX",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-07-28"
+      "data_as_of": "2026-07-30"
     },
     {
       "symbol": "KRW=X",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-07-29"
+      "data_as_of": "2026-07-31"
     },
     {
       "symbol": "^TNX",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-07-28"
+      "data_as_of": "2026-07-30"
     }
   ],
   "_note": "측정값이며 투자 행동을 지시하지 않는다"

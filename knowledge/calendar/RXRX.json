@@ -1,0 +1,80 @@
+{
+  "schema_version": "earnings-calendar/1.0.0",
+  "asset_id": "RXRX",
+  "collected_at": "2026-07-31T10:58:23+09:00",
+  "as_of_date": "2026-07-31",
+  "source": "SEC_EDGAR_SUBMISSIONS",
+  "source_grade": "PRIMARY",
+  "next_provisional_result": null,
+  "next_provisional_result_missing_reason": "미국에는 결산실적 공시예고에 해당하는 제도가 없다. 발표일은 회사가 8-K(Item 2.02)로 당일 알리며 사전 공시되지 않는다",
+  "expected_periodic_report": {
+    "date": "2026-08-05",
+    "estimated": true,
+    "report_class": "INTERIM",
+    "period_end": "2026-06-30",
+    "basis": "과거 INTERIM 보고서의 (결산기말 → 제출) 간격 중앙값 36.0일",
+    "sample_size": 6,
+    "business_days_remaining": 3,
+    "_content": "10-Q/10-K 본문이다. 현금·번레이트·희석주식수가 여기서 갱신된다. 실적 요약 자체는 보통 같은 날 8-K(Item 2.02)로 먼저 나온다"
+  },
+  "expected_periodic_report_missing_reason": null,
+  "periodic_report_lag": {
+    "observation_count": 8,
+    "observations": [
+      {
+        "period_end": "2024-12-31",
+        "filing_date": "2025-02-28",
+        "form": "10-K",
+        "report_class": "ANNUAL",
+        "lag_days": 59
+      },
+      {
+        "period_end": "2025-03-31",
+        "filing_date": "2025-05-05",
+        "form": "10-Q",
+        "report_class": "INTERIM",
+        "lag_days": 35
+      },
+      {
+        "period_end": "2025-06-30",
+        "filing_date": "2025-08-05",
+        "form": "10-Q",
+        "report_class": "INTERIM",
+        "lag_days": 36
+      },
+      {
+        "period_end": "2025-09-30",
+        "filing_date": "2025-11-05",
+        "form": "10-Q",
+        "report_class": "INTERIM",
+        "lag_days": 36
+      },
+      {
+        "period_end": "2025-12-31",
+        "filing_date": "2026-02-25",
+        "form": "10-K",
+        "report_class": "ANNUAL",
+        "lag_days": 56
+      },
+      {
+        "period_end": "2026-03-31",
+        "filing_date": "2026-05-06",
+        "form": "10-Q",
+        "report_class": "INTERIM",
+        "lag_days": 36
+      }
+    ],
+    "median_lag_days_by_class": {
+      "ANNUAL": 57.5,
+      "INTERIM": 36.0
+    },
+    "sample_size_by_class": {
+      "ANNUAL": 2,
+      "INTERIM": 6
+    },
+    "_note": "미국에는 실적 발표 예고 공시가 없다. 과거 (결산기말 → 10-Q/10-K 제출) 간격의 중앙값이며 추정이다. 10-Q(INTERIM)와 10-K(ANNUAL)는 법정 기한이 달라 따로 센다. 관측이 2건 미만인 부류는 내지 않는다"
+  },
+  "business_day_basis": "주말만 제외한 근사다. 미국 휴장일은 반영하지 않았으므로 실제 영업일 수는 이 값 이하다",
+  "_note": "추정일이며 회사가 언제든 앞뒤로 옮길 수 있다. 지연 제출은 NT 10-Q/NT 10-K 로 별도 공시되므로 그 서식이 보이면 추정을 버린다",
+  "_not_a_judgment": "이벤트까지 남은 날짜는 측정치다. 이벤트 전에 사지 말라는 지시가 아니라, 판단이 이벤트와 어디에 놓였는지 보이게 하는 값이다"
+}

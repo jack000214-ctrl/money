@@ -328,8 +328,8 @@ def build(stock_code: str, key: str, today: dt.date | None = None) -> dict:
                 ),
                 "business_days_remaining": report_days,
                 "_content": (
-                    "재고자산·부문별 매출·주요 매출처가 여기 있다. 잠정실적으로 "
-                    "답이 안 나오는 질문은 이 날을 기다려야 한다"
+                    "재고자산·부문별 매출·주요 매출처가 여기 나온다. 잠정실적 "
+                    "공정공시에는 이 항목들이 없다"
                 ),
             }
             if expected_report else None
@@ -348,8 +348,8 @@ def build(stock_code: str, key: str, today: dt.date | None = None) -> dict:
             "영업일 수는 이 값 이하다"
         ),
         "_note": (
-            "발표 예정일은 회사가 변경할 수 있다고 원문이 명시한다. 확정일로 "
-            "쓰면 안 되며, 날짜가 지나도 공시가 없으면 연기된 것이다"
+            "발표 예정일은 회사가 변경할 수 있다고 원문이 명시한다. 확정일이 "
+            "아니며, 날짜가 지나도 공시가 없으면 연기된 것이다"
         ),
         "_not_a_judgment": (
             "이벤트까지 남은 날짜는 측정치다. 이벤트 전에 사지 말라는 지시가 "

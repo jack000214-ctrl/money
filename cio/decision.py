@@ -58,6 +58,10 @@ TOP_LEVEL_KEYS = {
     "price_plan",
     "proposed_trade",
     "action",
+    # 적립매수 프로그램. required 에 넣지 않은 것은 의도다 — 필수로 만들면
+    # 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다. 계약을 조일 때마다
+    # 기억을 잃는 구조를 막기 위해 선택 필드로 둔다.
+    "recurring_plan",
     "drivers",
     "method",
     "thesis",
@@ -72,6 +76,71 @@ TOP_LEVEL_KEYS = {
 
 DRIVER_KEYS = {"name", "weight_pct", "basis", "researched", "finding", "skipped_reason"}
 DRIVER_REQUIRED = {"name", "weight_pct", "basis", "researched"}
+
+RECURRING_KEYS = {
+    "state", "amount_per_period", "currency", "period", "rationale",
+}
+RECURRING_REQUIRED = {"state", "rationale"}
+RECURRING_STATES = {"START", "CONTINUE", "PAUSE", "STOP", "NONE"}
+RECURRING_PERIODS = {"DAILY", "WEEKLY", "MONTHLY"}
+
+
+def _validate_recurring_plan(plan: Any, errors: list[str]) -> None:
+    """정기 자동매수 프로그램의 처분.
+
+    `action` 이 '지금 가진 것'을 다룬다면 이쪽은 '앞으로 자동으로 사질 것'을
+    다룬다. 둘을 나눈 이유는 **적립이 돌아가는 동안에는 판단하지 않아도 매수가
+    계속되기 때문**이다. 적립을 걸어 둔 종목에서 침묵은 HOLD 가 아니라
+    CONTINUE 다. 그 차이를 계약에 자리 없이 두면 모델은 이미 돌아가는 매수
+    프로그램을 모른 채 "지금 살까"에만 답하게 된다.
+
+    선택 필드다 — 없으면 검사하지 않는다.
+    """
+    if plan is None:
+        return
+    if not isinstance(plan, dict):
+        errors.append("recurring_plan: 객체 또는 null이어야 한다")
+        return
+    unknown = sorted(set(plan) - RECURRING_KEYS)
+    if unknown:
+        errors.append(f"recurring_plan: 알 수 없는 필드 {', '.join(unknown)}")
+    if not RECURRING_REQUIRED.issubset(plan):
+        errors.append("recurring_plan: state·rationale이 필요하다")
+        return
+    if plan.get("state") not in RECURRING_STATES:
+        errors.append(
+            f"recurring_plan.state: {' | '.join(sorted(RECURRING_STATES))} "
+            "중 하나여야 한다"
+        )
+    rationale = plan.get("rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        errors.append("recurring_plan.rationale: 비어 있을 수 없다")
+    period = plan.get("period")
+    if period is not None and period not in RECURRING_PERIODS:
+        errors.append(
+            f"recurring_plan.period: {' | '.join(sorted(RECURRING_PERIODS))} "
+            "또는 null이어야 한다"
+        )
+    currency = plan.get("currency")
+    if currency is not None and currency not in {"KRW", "USD"}:
+        errors.append("recurring_plan.currency: KRW · USD 또는 null이어야 한다")
+    amount = plan.get("amount_per_period")
+    if amount is not None and (
+        isinstance(amount, bool)
+        or not isinstance(amount, (int, float))
+        or not math.isfinite(amount)
+        or amount <= 0
+    ):
+        errors.append("recurring_plan.amount_per_period: 0보다 큰 수 또는 null")
+    # 계속·시작하려면 얼마를 얼마 간격으로인지가 있어야 한다. 그것 없이
+    # "계속한다"만 쓰면 다음 판단이 무엇을 이어받는지 알 수 없다.
+    if plan.get("state") in {"START", "CONTINUE"} and (
+        amount is None or period is None
+    ):
+        errors.append(
+            "recurring_plan: START·CONTINUE 는 amount_per_period 와 period 가 "
+            "있어야 한다"
+        )
 
 
 def _validate_drivers(drivers: Any, errors: list[str]) -> None:
@@ -614,6 +683,7 @@ def validate_decision(
             )
 
     _validate_drivers(data.get("drivers"), errors)
+    _validate_recurring_plan(data.get("recurring_plan"), errors)
 
     method = data.get("method")
     if not isinstance(method, dict) or set(method) != {

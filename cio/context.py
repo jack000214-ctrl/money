@@ -27,6 +27,7 @@ from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.requests import open_requests_for_context
+from cio.pipeline import pipeline_for_context
 from cio.retire import retired_summary
 from calculators.position import (
     PositionError,
@@ -359,6 +360,11 @@ def _filing_summary(
         }
         if is_dart and filing.get("remark"):
             compact["remark"] = filing["remark"]
+        # SEC 는 primaryDocDescription 이 거의 항상 form 코드와 같아서 제목만
+        # 보면 8-K 31건이 전부 "8-K"다. Item 라벨이 있어야 임상 결과 발표와
+        # 임원 교체를 구분할 수 있다.
+        if not is_dart and filing.get("item_labels"):
+            compact["item_labels"] = filing["item_labels"]
         target = (
             primary_reports
             if filing.get("form") in primary_forms
@@ -454,6 +460,11 @@ def _earnings_calendar_section(
         "_note": data.get("_note"),
         "_not_a_judgment": data.get("_not_a_judgment"),
     }
+    if data.get("next_provisional_result_missing_reason"):
+        summary["next_provisional_result"] = None
+        summary["next_provisional_result_missing_reason"] = data[
+            "next_provisional_result_missing_reason"
+        ]
     if isinstance(upcoming, dict):
         summary["next_provisional_result"] = {
             key: upcoming.get(key)
@@ -1228,6 +1239,8 @@ def _attach_position_math(
                 "걸리면 그 사실을 unknowns 에 남긴다"
             )
         }
+    if math_result.get("recurring_buy"):
+        portfolio["recurring_buy"] = math_result["recurring_buy"]
     if math_result.get("weights"):
         weight = math_result["weights"]
         portfolio["weights_by_denominator"] = {
@@ -2178,7 +2191,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.5",
+        "prompt_version": "1.7",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -2209,6 +2222,10 @@ def build_context(
             "fundamentals": fundamentals,
             "filings": filings,
             "earnings_calendar": earnings_calendar,
+            "clinical_pipeline": (
+                pipeline_for_context(asset["asset_id"])
+                if asset["analysis_lens"] == "CLINICAL_BIOTECH" else None
+            ),
             "multiples_at_review_price": (
                 position_multiples(
                     asset["asset_id"], price, estimates_only=True

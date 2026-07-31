@@ -310,6 +310,35 @@ def cmd_resolve(a, ua):
     print(f"{a.ticker.upper()} → CIK {info['cik']} ({info['name']})")
 
 
+# 8-K Item 번호 → 무엇에 관한 공시인가. SEC 서식 규정의 항목 이름이며
+# 해석이 아니라 라벨이다. 어떤 Item 이 중요한지는 자산마다 다르고 그 판단은
+# 모델이 한다 — 임상 바이오에서 8.01(기타)이 임상 데이터 발표 자리인 반면,
+# 성숙기업에서는 같은 항목이 배당 발표일 수 있다.
+SEC_8K_ITEMS = {
+    "1.01": "중요 계약 체결",
+    "1.02": "중요 계약 종료",
+    "1.03": "파산·법정관리",
+    "2.01": "자산 취득·처분 완료",
+    "2.02": "실적 발표",
+    "2.03": "채무 발생",
+    "2.04": "채무 조기상환 사유 발생",
+    "2.05": "구조조정 비용 확정",
+    "2.06": "자산 손상",
+    "3.01": "상장폐지·상장규정 미준수",
+    "3.02": "미등록 지분 매각",
+    "3.03": "증권 보유자 권리 변경",
+    "4.01": "감사인 변경",
+    "4.02": "과거 재무제표 신뢰 불가",
+    "5.01": "지배권 변동",
+    "5.02": "임원·이사 변동",
+    "5.03": "정관 변경·회계연도 변경",
+    "5.07": "주주총회 표결 결과",
+    "7.01": "Reg FD 공정공시",
+    "8.01": "기타 중요 사건",
+    "9.01": "재무제표·첨부서류",
+}
+
+
 def filing_rows_from_submissions(data, *, cik, forms=None, limit=20):
     """SEC submissions 원문에서 계약된 순서 그대로 작은 제출 목록을 만든다."""
     if not isinstance(limit, int) or limit <= 0:
@@ -327,6 +356,9 @@ def filing_rows_from_submissions(data, *, cik, forms=None, limit=20):
         "accession_number": "accessionNumber",
         "primary_document": "primaryDocument",
         "description": "primaryDocDescription",
+        # 8-K 의 실제 내용은 여기 있다. primaryDocDescription 은 거의 항상
+        # "8-K" 라서, items 없이는 임상 결과 발표와 임원 교체를 구분할 수 없다.
+        "items": "items",
     }
     arrays = {}
     for output_name, raw_name in field_names.items():
@@ -351,6 +383,11 @@ def filing_rows_from_submissions(data, *, cik, forms=None, limit=20):
         ):
             raise ContractError(["SEC submissions accession 또는 문서명이 문자열이 아니다"])
         description = arrays["description"][index]
+        item_codes = [
+            code.strip()
+            for code in str(arrays["items"][index] or "").split(",")
+            if code.strip()
+        ]
         rows.append(
             {
                 "filing_date": arrays["filing_date"][index],
@@ -359,6 +396,15 @@ def filing_rows_from_submissions(data, *, cik, forms=None, limit=20):
                 "accession_number": accession,
                 "primary_document": primary_document,
                 "description": description or None,
+                "items": item_codes or None,
+                "item_labels": (
+                    [
+                        f"{code} {SEC_8K_ITEMS[code]}"
+                        if code in SEC_8K_ITEMS else code
+                        for code in item_codes
+                    ]
+                    if item_codes else None
+                ),
                 "document_url": (
                     "https://www.sec.gov/Archives/edgar/data/"
                     f"{normalized_cik}/{accession.replace('-', '')}/"

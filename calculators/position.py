@@ -64,6 +64,11 @@ RECEIVE_SIDES = {"RECEIVE"}
 # 원장과 스냅샷이 이만큼 벌어지면 보고에서 눈에 띄게 표시한다.
 RECONCILE_TOLERANCE_PCT = 0.5
 
+# 적립매수(정기 자동매수) 판별. 증권사 내역서가 note 에 남기는 표시를 쓴다 —
+# 간격을 통계로 추정하면 우연히 규칙적인 수동 매수를 적립으로 오인한다.
+RECURRING_MARK = "적립"
+RECURRING_MIN_TRADES = 5
+
 # 평단의 권위는 증권사 스냅샷이다 (사용자 확정, 2026-07-31).
 #
 # 두 값이 벌어졌을 때 어느 쪽이 옳은지를 처음에는 열어 뒀는데, 사용자가
@@ -96,6 +101,13 @@ def _display(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def _iso_date(value: Any) -> dt.date | None:
+    try:
+        return dt.date.fromisoformat(str(value).strip())
+    except (ValueError, TypeError, AttributeError):
+        return None
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -225,6 +237,59 @@ def read_ledger(asset_id: str, currency_field: str) -> dict[str, Any]:
         "_note": (
             "settle_date 는 결제 기준일이지 체결일이 아니다. 체결일 기준 "
             "손익과는 시점이 다르다"
+        ),
+    }
+
+
+def recurring_pattern(asset_id: str, today: dt.date | None = None) -> dict[str, Any] | None:
+    """원장에서 적립매수(정기 자동매수) 흔적을 읽는다.
+
+    사용자가 자동 적립을 걸어 두면 원장에 같은 수량의 작은 매수가 매 영업일
+    쌓인다. RXRX 는 142건 중 129건이 그것이었다. 그런데 판단 계약에는 그런
+    개념이 없어서 — `action.direction` 은 ADD/HOLD/TRIM/EXIT 뿐이다 — 모델은
+    **이미 돌아가고 있는 매수 프로그램을 모른 채** "지금 살까"에 답하게 된다.
+
+    적립을 멈추거나 재개하는 것도 판단이다. 실제로 사용자는 2026-05 에
+    멈췄는데 그 결정은 어디에도 기록되지 않았다.
+
+    여기서는 흔적만 센다. 계속할지 멈출지는 모델이 정한다.
+    """
+    path = TRADES_DIR / f"{asset_id}.csv"
+    if not path.exists():
+        return None
+    today = today or dt.date.today()
+    rows = _rows(path)
+    marked = [
+        row for row in rows
+        if RECURRING_MARK in str(row.get("note") or "")
+        and str(row.get("side") or "").strip().upper() in BUY_SIDES
+    ]
+    if len(marked) < RECURRING_MIN_TRADES:
+        return None
+    dates = sorted(
+        date for row in marked
+        if (date := _iso_date(row.get("settle_date"))) is not None
+    )
+    if not dates:
+        return None
+    quantities = {_number(row.get("quantity")) for row in marked}
+    days_since_last = (today - dates[-1]).days
+    return {
+        "detected": True,
+        "marker": RECURRING_MARK,
+        "trade_count": len(marked),
+        "share_of_all_trades_pct": round(len(marked) / len(rows) * 100, 2),
+        "first_date": dates[0].isoformat(),
+        "last_date": dates[-1].isoformat(),
+        "days_since_last": days_since_last,
+        "quantity_per_trade": (
+            sorted(q for q in quantities if q is not None)[0]
+            if len(quantities) == 1 else None
+        ),
+        "_role": (
+            "원장에 남은 정기 자동매수 흔적이다. 원장에는 체결된 거래만 있고 "
+            "프로그램 설정은 없다 — 지금 켜져 있는지 꺼져 있는지는 여기서 알 "
+            "수 없으며 마지막 적립일과 경과일이 전부다"
         ),
     }
 
@@ -532,6 +597,7 @@ def build(
         "snapshot": snapshot,
         "reconciliation": reconcile(ledger, snapshot, is_krw),
         "at_review_price": at_price(ledger, price, currency),
+        "recurring_buy": recurring_pattern(asset_id),
         "multiples": multiples(asset_id, price),
         "_not_a_judgment": (
             "전부 결정론적 산술이다. 싸다·비싸다, 사도 된다·줄여라 같은 값은 "
@@ -548,6 +614,19 @@ def build(
     return result
 
 
+def _fmt(value: float | None, currency: str, *, signed: bool = False) -> str:
+    """통화에 맞는 자릿수로 찍는다.
+
+    원화 자릿수를 달러에 그대로 쓰면 $3.75 평단이 "4달러"가 된다. 3달러짜리
+    주식에서 그 반올림은 손익 판단을 통째로 지운다.
+    """
+    if value is None:
+        return "-"
+    digits = 0 if currency == "KRW" else 2
+    sign = "+" if signed else ""
+    return f"{value:{sign},.{digits}f}"
+
+
 def render(result: dict[str, Any]) -> None:
     ledger = result["ledger"]
     currency = result["currency"]
@@ -560,14 +639,24 @@ def render(result: dict[str, Any]) -> None:
           f"({ledger['first_settle_date']} ~ {ledger['last_settle_date']}, "
           f"{ledger['method']})")
     print(f"  보유 수량      {ledger['quantity']:,.6f}")
-    print(f"  취득원가       {ledger['cost_basis']:>18,.0f}{unit}")
-    print(f"  평단           {ledger['average_cost']:>18,.0f}{unit}")
-    print(f"  실현손익       {ledger['realized_pnl']:>+18,.0f}{unit}")
+    print(f"  취득원가       {_fmt(ledger['cost_basis'], currency):>18}{unit}")
+    print(f"  평단           {_fmt(ledger['average_cost'], currency):>18}{unit}")
+    print(f"  실현손익       {_fmt(ledger['realized_pnl'], currency, signed=True):>18}{unit}")
     print(f"  낸 수수료·세금 {ledger['fees_paid_krw']:,.0f} / "
           f"{ledger['taxes_paid_krw']:,.0f}원")
     if ledger.get("free_receipts"):
         free = ledger["free_receipts"]
         print(f"  무상입고       {free['events']}건 {free['quantity']:,.6f}주")
+
+    rep = result.get("recurring_buy")
+    if rep:
+        per = (f"{rep['quantity_per_trade']:g}주씩 "
+               if rep.get("quantity_per_trade") else "")
+        print(f"\n적립매수  {rep['trade_count']}건 "
+              f"({rep['share_of_all_trades_pct']}% of 전체) {per}"
+              f"{rep['first_date']} ~ {rep['last_date']}")
+        print(f"  마지막 적립 이후 {rep['days_since_last']}일 "
+              f"(프로그램 켜짐/꺼짐 여부는 원장에 없다)")
 
     rec = result["reconciliation"]
     print("\n원장 ↔ 증권사 스냅샷")
@@ -586,8 +675,8 @@ def render(result: dict[str, Any]) -> None:
 
     at = result["at_review_price"]
     print(f"\n검토가 평가")
-    print(f"  평가액         {at['market_value']:>18,.0f}{unit}")
-    print(f"  평가손익       {at['unrealized_pnl']:>+18,.0f}{unit} "
+    print(f"  평가액         {_fmt(at['market_value'], currency):>18}{unit}")
+    print(f"  평가손익       {_fmt(at['unrealized_pnl'], currency, signed=True):>18}{unit} "
           f"({at['unrealized_pnl_pct']:+.2f}%)")
     print(f"  평단 대비      {at['price_vs_average_cost']} "
           f"({at['price_vs_average_cost_pct']:+.2f}%)")

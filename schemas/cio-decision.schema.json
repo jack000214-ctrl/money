@@ -532,6 +532,55 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "recurring_plan": {
+      "description": "정기 자동매수(적립) 프로그램을 어떻게 할 것인가. action 이 '지금 가진 것'을 다룬다면 이쪽은 '앞으로 자동으로 사질 것'을 다룬다. 적립이 돌아가는 동안에는 판단하지 않아도 매수가 계속되므로, 침묵은 CONTINUE 와 같다.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "state",
+        "rationale"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "START",
+            "CONTINUE",
+            "PAUSE",
+            "STOP",
+            "NONE"
+          ]
+        },
+        "amount_per_period": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "currency": {
+          "enum": [
+            "KRW",
+            "USD",
+            null
+          ]
+        },
+        "period": {
+          "enum": [
+            "DAILY",
+            "WEEKLY",
+            "MONTHLY",
+            null
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "allOf": [

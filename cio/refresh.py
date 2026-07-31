@@ -314,6 +314,26 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     ],
                 )
             )
+            # 미국에는 발표 예고 공시가 없으므로 과거 (결산기말 → 제출) 간격
+            # 으로 추정한다. 방법은 다르지만 답하는 질문은 한국과 같다 —
+            # 다음 이벤트까지 며칠 남았나.
+            tasks.append(
+                RefreshTask(
+                    name=f"calendar:{asset['asset_id']}",
+                    capability="EARNINGS_CALENDAR",
+                    artifact=f"knowledge/calendar/{asset['asset_id']}.json",
+                    max_age_hours=24,
+                    dependencies=[
+                        f"knowledge/filings/{asset['asset_id']}.json"
+                    ],
+                    command=[
+                        sys.executable,
+                        "-m",
+                        "collectors.us_calendar",
+                        asset["asset_id"],
+                    ],
+                )
+            )
         else:
             raise ValueError(
                 f"{asset['asset_id']}: 지원하지 않는 filing_source {filing_source}"
