@@ -2,10 +2,10 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "214450",
   "symbol": "214450.KQ",
-  "collected_at": "2026-07-30T13:32:25+09:00",
+  "collected_at": "2026-07-31T09:31:25+09:00",
   "window": {
-    "since": "2026-04-30",
-    "until": "2026-07-29",
+    "since": "2026-05-01",
+    "until": "2026-07-30",
     "trading_days": 60
   },
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
@@ -16,9 +16,9 @@
     "calendar_gaps": []
   },
   "last_bar": {
-    "date": "2026-07-29",
+    "date": "2026-07-30",
     "settled": true,
-    "excluded_unsettled_bar": "2026-07-30",
+    "excluded_unsettled_bar": "2026-07-31",
     "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
   },
   "benchmark_comparison": {
@@ -37,34 +37,34 @@
       {
         "label": "구간 고점 → 현재",
         "from": "2026-07-29",
-        "to": "2026-07-29",
-        "asset_return_pct": 0.0,
-        "benchmark_return_pct": 0.0,
-        "benchmark_relative_pct": 0.0
+        "to": "2026-07-30",
+        "asset_return_pct": -11.0,
+        "benchmark_return_pct": -2.7,
+        "benchmark_relative_pct": -8.5
       },
       {
         "label": "구간 저점 → 현재",
         "from": "2026-06-08",
-        "to": "2026-07-29",
-        "asset_return_pct": 51.0,
-        "benchmark_return_pct": -27.3,
-        "benchmark_relative_pct": 107.6
+        "to": "2026-07-30",
+        "asset_return_pct": 34.4,
+        "benchmark_return_pct": -29.3,
+        "benchmark_relative_pct": 89.9
       },
       {
         "label": "구간 전체",
-        "from": "2026-04-30",
-        "to": "2026-07-29",
-        "asset_return_pct": 24.7,
-        "benchmark_return_pct": -44.4,
-        "benchmark_relative_pct": 124.4
+        "from": "2026-05-04",
+        "to": "2026-07-30",
+        "asset_return_pct": 2.7,
+        "benchmark_return_pct": -46.9,
+        "benchmark_relative_pct": 93.2
       }
     ],
     "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
   "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
-    "date": "2026-07-29",
-    "close": 391000.0
+    "date": "2026-07-30",
+    "close": 348000.0
   },
   "moves": [
     {
@@ -77,7 +77,7 @@
       "sigma_used": 1.98,
       "direction": "up",
       "volume": 218429,
-      "volume_vs_avg": 1.44,
+      "volume_vs_avg": 1.4,
       "candidate_filings": []
     },
     {
@@ -90,7 +90,7 @@
       "sigma_used": 2.42,
       "direction": "down",
       "volume": 91312,
-      "volume_vs_avg": 0.6,
+      "volume_vs_avg": 0.59,
       "candidate_filings": []
     },
     {
@@ -103,7 +103,7 @@
       "sigma_used": 2.57,
       "direction": "up",
       "volume": 139561,
-      "volume_vs_avg": 0.92,
+      "volume_vs_avg": 0.9,
       "candidate_filings": []
     },
     {
@@ -116,7 +116,7 @@
       "sigma_used": 2.69,
       "direction": "up",
       "volume": 198880,
-      "volume_vs_avg": 1.31,
+      "volume_vs_avg": 1.28,
       "candidate_filings": []
     },
     {
@@ -129,7 +129,7 @@
       "sigma_used": 3.18,
       "direction": "up",
       "volume": 298787,
-      "volume_vs_avg": 1.98,
+      "volume_vs_avg": 1.92,
       "candidate_filings": []
     },
     {
@@ -142,7 +142,7 @@
       "sigma_used": 3.53,
       "direction": "up",
       "volume": 145435,
-      "volume_vs_avg": 0.96,
+      "volume_vs_avg": 0.93,
       "candidate_filings": []
     },
     {
@@ -155,7 +155,7 @@
       "sigma_used": 3.91,
       "direction": "up",
       "volume": 369146,
-      "volume_vs_avg": 2.44,
+      "volume_vs_avg": 2.37,
       "candidate_filings": []
     },
     {
@@ -168,7 +168,7 @@
       "sigma_used": 4.04,
       "direction": "up",
       "volume": 452461,
-      "volume_vs_avg": 2.99,
+      "volume_vs_avg": 2.91,
       "candidate_filings": []
     }
   ],
@@ -219,6 +219,6 @@
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
     "근접 공시가 없는 급변 8건 (2026-05-14, 2026-05-21, 2026-06-24, 2026-06-25, 2026-07-07, 2026-07-13 외) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
-    "2026-07-30 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
+    "2026-07-31 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
   ]
 }

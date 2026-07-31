@@ -2,10 +2,10 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "005930",
   "symbol": "005930.KS",
-  "collected_at": "2026-07-30T13:30:25+09:00",
+  "collected_at": "2026-07-31T10:00:49+09:00",
   "window": {
-    "since": "2026-04-30",
-    "until": "2026-07-29",
+    "since": "2026-05-01",
+    "until": "2026-07-30",
     "trading_days": 60
   },
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
@@ -16,9 +16,9 @@
     "calendar_gaps": []
   },
   "last_bar": {
-    "date": "2026-07-29",
+    "date": "2026-07-30",
     "settled": true,
-    "excluded_unsettled_bar": "2026-07-30",
+    "excluded_unsettled_bar": "2026-07-31",
     "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
   },
   "benchmark_comparison": {
@@ -29,34 +29,34 @@
       {
         "label": "구간 고점 → 현재",
         "from": "2026-06-18",
-        "to": "2026-07-29",
-        "asset_return_pct": -42.5,
-        "benchmark_return_pct": -37.5,
-        "benchmark_relative_pct": -7.9
+        "to": "2026-07-30",
+        "asset_return_pct": -42.9,
+        "benchmark_return_pct": -38.3,
+        "benchmark_relative_pct": -7.5
       },
       {
         "label": "구간 저점 → 현재",
-        "from": "2026-07-29",
-        "to": "2026-07-29",
+        "from": "2026-07-30",
+        "to": "2026-07-30",
         "asset_return_pct": 0.0,
         "benchmark_return_pct": 0.0,
         "benchmark_relative_pct": 0.0
       },
       {
         "label": "구간 전체",
-        "from": "2026-04-30",
-        "to": "2026-07-29",
-        "asset_return_pct": -5.4,
-        "benchmark_return_pct": -14.2,
-        "benchmark_relative_pct": 10.2
+        "from": "2026-05-04",
+        "to": "2026-07-30",
+        "asset_return_pct": -11.0,
+        "benchmark_return_pct": -19.4,
+        "benchmark_relative_pct": 10.4
       }
     ],
     "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
   "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
-    "date": "2026-07-29",
-    "close": 208500.0
+    "date": "2026-07-30",
+    "close": 207000.0
   },
   "moves": [
     {
@@ -69,7 +69,7 @@
       "sigma_used": 1.69,
       "direction": "up",
       "volume": 53097996,
-      "volume_vs_avg": 1.66,
+      "volume_vs_avg": 1.64,
       "candidate_filings": []
     },
     {
@@ -82,7 +82,7 @@
       "sigma_used": 1.89,
       "direction": "up",
       "volume": 45052488,
-      "volume_vs_avg": 1.41,
+      "volume_vs_avg": 1.39,
       "candidate_filings": []
     },
     {
@@ -95,7 +95,7 @@
       "sigma_used": 2.11,
       "direction": "up",
       "volume": 47809959,
-      "volume_vs_avg": 1.49,
+      "volume_vs_avg": 1.47,
       "candidate_filings": []
     },
     {
@@ -108,11 +108,59 @@
       "sigma_used": 2.25,
       "direction": "down",
       "volume": 35436521,
-      "volume_vs_avg": 1.11,
+      "volume_vs_avg": 1.09,
       "candidate_filings": []
     }
   ],
   "filings_in_window": [
+    {
+      "filed": "2026-07-30",
+      "name": "특수관계인과의보험거래",
+      "rcept_no": "20260730000518",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "특수관계인에대한출자",
+      "rcept_no": "20260730000505",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "특수관계인에대한출자",
+      "rcept_no": "20260730000503",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "기타경영사항(자율공시)              ",
+      "rcept_no": "20260730800825",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "기타경영사항(자율공시)              ",
+      "rcept_no": "20260730800822",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "현금ㆍ현물배당결정              ",
+      "rcept_no": "20260730800137",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)              ",
+      "rcept_no": "20260730800103",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-30",
+      "name": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+      "rcept_no": "20260730800077",
+      "scheduled": false
+    },
     {
       "filed": "2026-07-29",
       "name": "[기재정정]임원ㆍ주요주주특정증권등소유상황보고서",
@@ -135,6 +183,6 @@
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
     "근접 공시가 없는 급변 4건 (2026-05-06, 2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
-    "2026-07-30 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
+    "2026-07-31 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
   ]
 }

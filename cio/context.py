@@ -27,6 +27,7 @@ from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.requests import open_requests_for_context
+from cio.retire import retired_summary
 from cio.refresh import (
     DART_PRIMARY_REPORT_FORMS,
     SEC_PRIMARY_REPORT_FORMS,
@@ -376,6 +377,104 @@ def _filing_summary(
         summary,
         source,
     )
+
+
+def _earnings_calendar_section(
+    asset: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """다음 실적 발표일과 정기보고서 예상일을 싣는다.
+
+    공시 색인은 "결산실적공시예고"라는 제목만 갖는다. 공시예정일은 원문
+    본문에만 있어서, 이벤트까지 며칠 남았는지가 패킷에 없었다. 이벤트 전에
+    살 것인가는 매수 판단의 1차 분기점이므로 색인과 따로 실어 눈에 띄게 한다.
+
+    잠정실적과 정기보고서를 나눠 싣는 이유는 담는 내용이 다르기 때문이다.
+    재고자산·부문별 매출은 잠정실적에 없다. 이 구분이 없으면 잠정실적만 보고
+    "확인했다"고 결론 낼 수 있다.
+    """
+    if asset["asset_type"] != "STOCK":
+        return None, None
+    asset_id = asset["asset_id"]
+    path = KNOWLEDGE_DIR / "calendar" / f"{asset_id}.json"
+    source = {
+        "source_id": f"EARNINGS_CALENDAR:{asset_id}",
+        "kind": "REGULATOR_FILING_DOCUMENT",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    if not path.exists():
+        return None, source
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return {"contract_errors": ["실적 캘린더 JSON을 읽을 수 없다"]}, source
+    source["data_as_of"] = data.get("collected_at")
+    if data.get("schema_version") != "earnings-calendar/1.0.0":
+        return (
+            {"contract_errors": ["earnings-calendar/1.0.0이 아니다"]},
+            source,
+        )
+    if data.get("asset_id") != asset_id:
+        return (
+            {"contract_errors": ["실적 캘린더의 asset_id가 registry와 다르다"]},
+            source,
+        )
+    upcoming = data.get("next_provisional_result")
+    report = data.get("expected_periodic_report")
+    if not isinstance(upcoming, dict) and not isinstance(report, dict):
+        return (
+            {
+                "as_of_date": data.get("as_of_date"),
+                "next_provisional_result": None,
+                "expected_periodic_report": None,
+                "_note": (
+                    "결산실적 공시예고가 색인에 없어 다음 발표일을 모른다. "
+                    "모른다는 것이지 발표가 없다는 뜻이 아니다"
+                ),
+            },
+            source,
+        )
+    summary: dict[str, Any] = {
+        "as_of_date": data.get("as_of_date"),
+        "business_day_basis": data.get("business_day_basis"),
+        "_note": data.get("_note"),
+        "_not_a_judgment": data.get("_not_a_judgment"),
+    }
+    if isinstance(upcoming, dict):
+        summary["next_provisional_result"] = {
+            key: upcoming.get(key)
+            for key in (
+                "disclosure_date",
+                "business_days_remaining",
+                "period_start",
+                "period_end",
+                "is_confirmed",
+                "notice_filing_date",
+                "evidence_ref",
+                "document_url",
+                "source_caveat",
+                "_content",
+            )
+        }
+    if isinstance(report, dict):
+        summary["expected_periodic_report"] = {
+            key: report.get(key)
+            for key in (
+                "date",
+                "business_days_remaining",
+                "estimated",
+                "report_class",
+                "basis",
+                "sample_size",
+                "_content",
+            )
+        }
+    elif data.get("expected_periodic_report_missing_reason"):
+        summary["expected_periodic_report"] = None
+        summary["expected_periodic_report_missing_reason"] = data[
+            "expected_periodic_report_missing_reason"
+        ]
+    return summary, source
 
 
 RESULT_DISCLOSURE_FORMS = {"PROVISIONAL_RESULT", "FAIR_DISCLOSURE", "8-K"}
@@ -1376,9 +1475,14 @@ def _fit_context_budget(packet: dict[str, Any]) -> None:
             ),
         }
     )
-    rows = packet["context"].get("prior_assessments") or []
+    digest = packet["context"].get("prior_assessments") or {}
+    rows = (digest.get("live") or []) if isinstance(digest, dict) else digest
     carried = next(
-        (row["carried_forward"] for row in rows if row.get("carried_forward")),
+        (
+            row["carried_forward"]
+            for row in rows
+            if isinstance(row, dict) and row.get("carried_forward")
+        ),
         {},
     )
     # 서사부터 버린다 — 가격 문턱과 무효화 신호는 이번 판단에서 바로 대조해야
@@ -1408,14 +1512,15 @@ def _memory_digest(
     latest_close: float | None = None,
     close_date: str | None = None,
     close_is_settled: bool | None = None,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     directory = KNOWLEDGE_DIR / "assessments" / asset_id
-    if not directory.exists():
-        return []
-
     assessments = []
     # 계약이 바뀌면 과거 판단이 재검증에 실패한다. 그때 조용히 버리면 모델은
     # "이 종목은 처음 본다"고 착각한다. 실을 수 없다는 사실 자체를 싣는다.
+    #
+    # verdict 도 가격도 싣지 않는다. 실을 수 없다고 써 놓고 인용할 수 있는 값을
+    # 함께 보내면 그 경고는 지켜지지 않는다 — 실제로 그렇게 해서 죽은 판단의
+    # 손절가가 근거로 쓰였다. 존재와 사유만 남기고 내용은 뺀다.
     unusable: list[dict[str, Any]] = []
 
     def _unusable(path: Path, data: Any, reason: str) -> None:
@@ -1424,19 +1529,13 @@ def _memory_digest(
             {
                 "assessment_id": record.get("assessment_id") or path.stem,
                 "created_at": record.get("created_at"),
-                "verdict": record.get("verdict"),
-                "usable": False,
                 "reason": reason,
-                "path": str(path.relative_to(ROOT)),
-                "_note": (
-                    "이 판단은 남아 있지만 현재 계약으로 재검증되지 않아 논지를 "
-                    "이어받지 않았다. 여기 보이는 값은 검증되지 않은 참고용이며 "
-                    "근거로 인용하면 안 된다"
-                ),
             }
         )
 
-    for path in sorted(directory.glob("CIO-*.json")):
+    for path in (
+        sorted(directory.glob("CIO-*.json")) if directory.exists() else []
+    ):
         data: Any = None
         try:
             data = load_json(path)
@@ -1606,7 +1705,41 @@ def _memory_digest(
             )
         result.append(row)
     unusable.sort(key=lambda item: str(item.get("created_at") or ""))
-    return result + unusable[-3:]
+    retired = retired_summary(asset_id)
+    digest: dict[str, Any] = {
+        "live_count": len(result),
+        "state": "CARRIED_FORWARD" if result else "NO_LIVE_JUDGMENT",
+        "live": result,
+    }
+    if unusable:
+        digest["not_carried"] = {
+            "count": len(unusable),
+            "class": "CONTRACT_FAILURE",
+            "items": unusable[-3:],
+            "_warning": (
+                "이 판단들은 파일로 남아 있지만 현재 계약으로 재검증되지 않아 "
+                "싣지 못했다. 의도적 폐기가 아니라 계약이 바뀌면서 끊긴 것이다. "
+                "verdict·가격계획·논지를 일부러 뺐으니 원본을 열어 인용하지 "
+                "않는다. 정리하려면 `cio retire <asset_id>`"
+            ),
+        }
+    if retired.get("count"):
+        digest["retired"] = {
+            **retired,
+            "_note": (
+                "사용자가 명시적으로 폐기한 판단이다. 있었다는 사실만 남기고 "
+                "내용은 싣지 않는다"
+            ),
+        }
+    digest["_directive"] = (
+        "직전 판단이 살아 있다. 무효화 신호와 재검토 문턱이 실제로 닿았는지 "
+        "먼저 확인하고, 바뀐 것을 명시한 뒤 시작한다"
+        if result
+        else "이 자산에 유효한 판단이 0건이다. 이어받을 논지가 없으므로 "
+        "처음부터 판단한다. 아래 목록은 그런 판단이 있었다는 사실일 뿐이며 "
+        "그 값을 추측해 채우지 않는다"
+    )
+    return digest
 
 
 def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
@@ -1733,10 +1866,14 @@ def build_context(
         sources.append(benchmark_source)
     fundamentals = None
     filings = None
+    earnings_calendar = None
     if asset["asset_type"] == "STOCK":
         fundamentals, source = _latest_fundamentals(asset)
         sources.append(source)
         filings, source = _filing_summary(asset)
+        if source:
+            sources.append(source)
+        earnings_calendar, source = _earnings_calendar_section(asset)
         if source:
             sources.append(source)
         reporting_lag = _reporting_lag(fundamentals, filings)
@@ -1902,7 +2039,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.3",
+        "prompt_version": "1.4",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -1932,6 +2069,7 @@ def build_context(
             "market": market,
             "fundamentals": fundamentals,
             "filings": filings,
+            "earnings_calendar": earnings_calendar,
             "applicable_calculation": calculation,
             "events": events,
             "etf": etf,

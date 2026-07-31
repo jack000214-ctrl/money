@@ -115,7 +115,10 @@ def packet_with_carried(thesis_chars, signals=3):
     return {
         "validation": {"optional_gaps": []},
         "context": {
-            "prior_assessments": [
+            "prior_assessments": {
+                "live_count": 1,
+                "state": "CARRIED_FORWARD",
+                "live": [
                 {
                     "assessment_id": "CIO-x",
                     "carried_forward": {
@@ -125,7 +128,8 @@ def packet_with_carried(thesis_chars, signals=3):
                         "invalidation_signals": ["다" * 100] * signals,
                     },
                 }
-            ],
+                ],
+            },
             "open_research_requests": [
                 {"request_id": f"REQ-{index}", "text": "라" * 150}
                 for index in range(4)
@@ -147,7 +151,7 @@ class TestBudgetFitter(unittest.TestCase):
         context_module.MAX_CONTEXT_JSON_BYTES = 100_000
         _fit_context_budget(packet)
         self.assertEqual(packet["validation"]["optional_gaps"], [])
-        carried = packet["context"]["prior_assessments"][0]["carried_forward"]
+        carried = packet["context"]["prior_assessments"]["live"][0]["carried_forward"]
         self.assertIsNotNone(carried["thesis"])
 
     def test_narrative_goes_before_price_plan(self):
@@ -156,7 +160,7 @@ class TestBudgetFitter(unittest.TestCase):
             _compact_size(packet) - 1000 + CONTEXT_ID_RESERVE_BYTES
         )
         _fit_context_budget(packet)
-        carried = packet["context"]["prior_assessments"][0]["carried_forward"]
+        carried = packet["context"]["prior_assessments"]["live"][0]["carried_forward"]
         self.assertIsNone(carried["thesis"])
         # 가격 계획은 결정에 직접 쓰이므로 끝까지 남는다.
         self.assertEqual(carried["price_plan"], PLAN)

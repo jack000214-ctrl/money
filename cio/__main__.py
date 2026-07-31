@@ -27,6 +27,7 @@ from cio.requests import (
     request_state,
     resolve_request,
 )
+from cio.retire import RetireError, format_survey, retire, survey
 
 MIN_PYTHON = (3, 13)
 
@@ -206,6 +207,38 @@ def cmd_requests(args) -> int:
     return 0
 
 
+def cmd_retire(args) -> int:
+    if not args.reason:
+        print(format_survey(survey(args.asset_id)))
+        return 0
+    try:
+        result = retire(
+            args.asset_id,
+            reason=args.reason,
+            include_live=args.all,
+            confirm=args.confirm,
+        )
+    except RetireError as exc:
+        print(f"오류: {exc.message}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if not result["confirmed"]:
+        print(format_survey(result))
+        print()
+        print(f"폐기 대상 {len(result['would_retire'])}건 — 사유: {args.reason}")
+        for row in result["would_retire"]:
+            print(f"  {row['created_at']}  {row['assessment_id']}")
+        print(result["_note"])
+        return 0
+    print(f"폐기 {len(result['moved'])}건 — {result['reason']}")
+    for row in result["moved"]:
+        print(f"  {row['created_at']}  {row['assessment_id']}  → {row['to']}")
+    print(f"남은 유효 판단 {len(result['live_remaining'])}건")
+    return 0
+
+
 def cmd_score(args) -> int:
     report = score_asset(args.asset_id)
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -316,6 +349,24 @@ def build_parser() -> argparse.ArgumentParser:
     requests_parser.add_argument("--note", help="무엇을 했는지 한 줄")
     requests_parser.add_argument("--json", action="store_true")
     requests_parser.set_defaults(func=cmd_requests)
+
+    retire_parser = sub.add_parser(
+        "retire", help="판단을 폐기 보관소로 옮긴다 (사유 없이 부르면 상태만 표시)"
+    )
+    retire_parser.add_argument("asset_id")
+    retire_parser.add_argument(
+        "--reason", help="왜 못 믿는지 한 줄. 없으면 상태만 보여준다"
+    )
+    retire_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="계약을 통과하는 판단까지 전부 폐기",
+    )
+    retire_parser.add_argument(
+        "--confirm", action="store_true", help="실제로 옮긴다 (기본은 조회만)"
+    )
+    retire_parser.add_argument("--json", action="store_true")
+    retire_parser.set_defaults(func=cmd_retire)
 
     score = sub.add_parser("score", help="저장된 decision을 가격으로 사후평가")
     score.add_argument("asset_id")

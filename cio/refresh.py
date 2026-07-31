@@ -255,6 +255,28 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     ],
                 )
             )
+            # 색인은 "결산실적공시예고"라는 제목만 갖는다. 판단을 바꾸는 값인
+            # 공시예정일은 원문 본문에만 있어서, 이벤트까지 며칠 남았는지 알려면
+            # 매번 원문을 열어야 했다. 이벤트 전에 살 것인가는 매수 판단의 1차
+            # 분기점이므로 렌즈가 아니라 기본 입력으로 둔다.
+            tasks.append(
+                RefreshTask(
+                    name=f"calendar:{asset['asset_id']}",
+                    capability="EARNINGS_CALENDAR",
+                    artifact=f"knowledge/calendar/{asset['asset_id']}.json",
+                    # 예고 공시가 새로 뜨거나 발표일이 바뀌면 바로 반영해야 한다.
+                    max_age_hours=24,
+                    dependencies=[
+                        f"knowledge/filings/{asset['asset_id']}.json"
+                    ],
+                    command=[
+                        sys.executable,
+                        "-m",
+                        "collectors.kr_calendar",
+                        asset["asset_id"],
+                    ],
+                )
+            )
         elif filing_source == "SEC_EDGAR":
             tasks.append(
                 RefreshTask(
@@ -903,6 +925,28 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         errors = event_contract_errors(data, asset)
         if errors:
             return errors[0]
+    if task.capability == "EARNINGS_CALENDAR":
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "실적 캘린더 JSON을 읽을 수 없다"
+        if data.get("schema_version") != "earnings-calendar/1.0.0":
+            return "earnings-calendar/1.0.0이 필요하다"
+        if data.get("asset_id") != task.name.split(":", 1)[-1]:
+            return "실적 캘린더의 asset_id가 요청 자산과 다르다"
+        upcoming = data.get("next_provisional_result")
+        if upcoming is not None:
+            if not isinstance(upcoming, dict):
+                return "실적 캘린더의 발표 예정 항목이 객체가 아니다"
+            # 날짜가 원문에서 온 것임을 근거로 되짚을 수 없으면 쓰지 않는다.
+            if not str(upcoming.get("evidence_ref") or "").startswith(
+                "DARTDOC:"
+            ):
+                return "발표 예정일에 공시 원문 근거가 없다"
+            try:
+                dt.date.fromisoformat(str(upcoming.get("disclosure_date")))
+            except (TypeError, ValueError):
+                return "발표 예정일이 날짜 형식이 아니다"
     if task.capability == "PORTFOLIO":
         try:
             with path.open(encoding="utf-8-sig") as handle:
