@@ -28,6 +28,11 @@ from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.requests import open_requests_for_context
 from cio.retire import retired_summary
+from calculators.position import (
+    PositionError,
+    build as build_position_math,
+    multiples as position_multiples,
+)
 from cio.refresh import (
     DART_PRIMARY_REPORT_FORMS,
     SEC_PRIMARY_REPORT_FORMS,
@@ -45,7 +50,16 @@ CONTEXT_SCHEMA = "cio-context/1.0.0"
 # 판단 하나에 드는 총 토큰이며, 사업보고서 100만 자를 넣지 않는다는 원칙은
 # 그대로다. 넘칠 때는 _fit_context_budget 이 서술부터 버리고 결정에 직접
 # 쓰이는 숫자를 남긴다.
-MAX_CONTEXT_JSON_BYTES = 40_000
+# packet 은 원문이 아니라 선별된 값만 담는다 — 사업보고서 본문 같은 것은
+# 애초에 들어오지 않고 `cio search` 로 필요한 자리만 꺼낸다. 그래서 한도의
+# 목적은 절약이 아니라 **선별을 강제하는 것**이다. 한도가 없으면 "일단 넣고
+# 보자"가 되고, 판단을 바꾸지 않는 값이 자리를 차지한다.
+#
+# 40,000 은 동종 비교·실적 캘린더·포지션 산술이 들어오기 전 값이었고 지금
+# 35,000 근처까지 찼다. 살아 있는 판단이 여러 건 쌓이거나 부문별 매출이
+# 붙으면 곧 넘는다. 여유를 두되 한도 자체는 남긴다 — 트리머가 계속 돌아야
+# 무엇을 먼저 버릴지 정하는 규율이 유지된다.
+MAX_CONTEXT_JSON_BYTES = 80_000
 
 
 class ContextError(ValueError):
@@ -1140,6 +1154,120 @@ def _portfolio_as_of(path: Path) -> str | None:
     return None
 
 
+def _attach_position_math(
+    portfolio: dict[str, Any] | None,
+    asset: dict[str, Any],
+    price: float,
+) -> dict[str, Any] | None:
+    """거래 원장 기반 산술을 보유 현황에 붙인다.
+
+    지금까지 패킷의 평단은 증권사 스냅샷의 (평가액 − 평가손익) ÷ 수량 역산
+    하나뿐이었다. 스냅샷이 낡으면 조용히 틀리는데 아무도 모른다 — 거래 원장이
+    로컬에 있는데도 읽는 코드가 없었다. 두 값을 각각 내고 차이를 함께 싣는다.
+
+    배수 환산·세 분모 비중·수량 사다리도 여기서 붙인다. 전부 결정론적 산술이며
+    모델이 추론 시점에 나눗셈을 반복할 이유가 없다. 판정은 붙이지 않는다.
+    """
+    if not portfolio or not portfolio.get("available"):
+        return None
+    existing = portfolio.get("existing_position") or {}
+    if not existing.get("held"):
+        return None
+    asset_id = asset["asset_id"]
+    trades = KNOWLEDGE_DIR / "portfolio" / "trades" / f"{asset_id}.csv"
+    if not trades.exists():
+        existing["ledger"] = {
+            "available": False,
+            "_reason": (
+                f"knowledge/portfolio/trades/{asset_id}.csv 가 없다. 평단은 "
+                "증권사 스냅샷 역산값 하나뿐이며 스냅샷이 낡으면 틀린다"
+            ),
+        }
+        return None
+    try:
+        math_result = build_position_math(
+            asset_id, price, currency=asset["currency"]
+        )
+    except (PositionError, OSError, ValueError) as exc:
+        existing["ledger"] = {"available": False, "_reason": str(exc)}
+        return None
+
+    ledger = math_result["ledger"]
+    existing["ledger"] = {
+        "available": True,
+        "source": ledger["source"],
+        "method": ledger["method"],
+        "currency": math_result["currency"],
+        "quantity": ledger["quantity"],
+        "average_cost": ledger["average_cost"],
+        "cost_basis": ledger["cost_basis"],
+        "realized_pnl": ledger["realized_pnl"],
+        "trade_count": ledger["trade_count"],
+        "first_settle_date": ledger["first_settle_date"],
+        "free_receipts": ledger.get("free_receipts"),
+        "_role": (
+            "거래 원장에서 이동평균법으로 접은 교차검증값이다. **평단의 "
+            "권위는 위의 average_cost(증권사 스냅샷)** 이며 결론은 그쪽을 "
+            "쓴다. 이 값이 벌어졌다면 원장이 재현하지 못하는 항목이 있다는 "
+            "신호이고, 실현손익은 스냅샷에 없으므로 여기서만 나온다"
+        ),
+    }
+    reconciliation = math_result["reconciliation"]
+    if reconciliation.get("available"):
+        existing["ledger_vs_snapshot"] = {
+            key: reconciliation.get(key)
+            for key in (
+                "snapshot_as_of", "quantity_diff", "average_cost_diff",
+                "average_cost_diff_pct", "comparable", "within_tolerance",
+                "tolerance_pct", "authority",
+            )
+        } | {
+            "_role": (
+                "평단의 권위는 authority 가 가리키는 쪽이다. 벌어졌다는 것은 "
+                "다른 쪽이 재현하지 못하는 항목이 있다는 뜻이며, 결론이 평단에 "
+                "걸리면 그 사실을 unknowns 에 남긴다"
+            )
+        }
+    if math_result.get("weights"):
+        weight = math_result["weights"]
+        portfolio["weights_by_denominator"] = {
+            key: weight.get(key)
+            for key in (
+                "total_assets_pct", "equity_sleeve_pct", "risk_assets_pct",
+                "denominators_krw", "_definitions", "_staleness",
+            )
+        } | {"_role": weight["_role"]}
+    if math_result.get("ladder"):
+        portfolio["add_ladder"] = {
+            "basis": math_result.get("ladder_basis"),
+            "rungs": [
+                {
+                    "add_quantity": rung["add_quantity"],
+                    "add_cost": rung["add_cost"],
+                    "new_average_cost": rung["new_average_cost"],
+                    "average_cost_change": rung["average_cost_change"],
+                    "total_assets_pct": (
+                        (rung["weights_after"] or {}).get("total_assets_pct")
+                    ),
+                    "equity_sleeve_pct": (
+                        (rung["weights_after"] or {}).get("equity_sleeve_pct")
+                    ),
+                }
+                for rung in math_result["ladder"]
+            ],
+            "_role": (
+                "추가 수량별로 평단과 비중이 어디로 가는지의 산술이다. 얼마를 "
+                "사라는 제안이 아니며 눈금은 현재 보유 수량 기준이다"
+            ),
+        }
+    return {
+        "source_id": f"POSITION_LEDGER:{asset_id}",
+        "kind": "USER_DATA",
+        "path": ledger["source"],
+        "data_as_of": ledger.get("last_settle_date"),
+    }
+
+
 def _portfolio_summary(
     asset: dict[str, Any],
     *,
@@ -1475,6 +1603,14 @@ def _fit_context_budget(packet: dict[str, Any]) -> None:
             ),
         }
     )
+    # 사다리부터 버린다. 추가 수량별 평단·비중은 CLI 로 언제든 다시 낼 수 있는
+    # 편의값이고, 무효화 신호와 가격 문턱은 이번 판단에서 바로 대조해야 한다.
+    portfolio = packet["context"].get("portfolio")
+    if isinstance(portfolio, dict) and portfolio.get("add_ladder") is not None:
+        portfolio["add_ladder"] = None
+        trimmed.append("portfolio.add_ladder")
+        if fits():
+            return
     digest = packet["context"].get("prior_assessments") or {}
     rows = (digest.get("live") or []) if isinstance(digest, dict) else digest
     carried = next(
@@ -1927,6 +2063,9 @@ def build_context(
     )
     if source:
         sources.append(source)
+    ledger_source = _attach_position_math(portfolio, asset, price)
+    if ledger_source:
+        sources.append(ledger_source)
     if asset["market"] == "US":
         _, fx_source = _price_summary("KRW=X")
         sources.append(fx_source)
@@ -2039,7 +2178,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.4",
+        "prompt_version": "1.5",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -2070,6 +2209,12 @@ def build_context(
             "fundamentals": fundamentals,
             "filings": filings,
             "earnings_calendar": earnings_calendar,
+            "multiples_at_review_price": (
+                position_multiples(
+                    asset["asset_id"], price, estimates_only=True
+                )
+                if asset["asset_type"] == "STOCK" else None
+            ),
             "applicable_calculation": calculation,
             "events": events,
             "etf": etf,

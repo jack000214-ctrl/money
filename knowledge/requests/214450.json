@@ -1,7 +1,7 @@
 {
   "schema_version": "research-ledger/1.0.0",
   "asset_id": "214450",
-  "updated_at": "2026-07-30T13:30:54+09:00",
+  "updated_at": "2026-07-31T10:32:35+09:00",
   "resolutions": [
     {
       "request_id": "REQ-1a8d49f66703",
@@ -34,6 +34,38 @@
       "note": "decision 계약에 action(direction/quantity/sell_reason) 추가",
       "resolved_by": "USER",
       "resolved_at": "2026-07-30T13:30:54+09:00"
+    },
+    {
+      "request_id": "REQ-620c9552e7eb",
+      "text": "비중의 분모를 총자산뿐 아니라 주식슬리브로도 내 달라. 집중도 논의가 슬리브 기준으로 이뤄지는데 패킷에는 총자산 기준만 있다",
+      "state": "DONE",
+      "note": "calculators/position.py weights() → packet portfolio.weights_by_denominator (총자산·슬리브·위험자산)",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-31T10:22:48+09:00"
+    },
+    {
+      "request_id": "REQ-cc42a80875f7",
+      "text": "보유 종목 평단과 실현손익을 knowledge/portfolio/trades/*.csv 원장에서 계산해 달라. 지금 패킷의 평단은 holdings.csv의 (평가액 - 평가손익) 역산이라 증권사 스냅샷이 낡으면 조용히 틀어진다. 원장은 있는데 읽는 코드가 없다",
+      "state": "DONE",
+      "note": "calculators/position.py — 거래 원장 이동평균법 평단·실현손익, 스냅샷과 대조해 차이 보고",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-31T10:22:48+09:00"
+    },
+    {
+      "request_id": "REQ-e7bff159fd76",
+      "text": "검토 가격을 컨센서스 EPS로 나눈 배수 환산을 패킷에 넣어 달라. 지금은 EPS와 가격이 따로 실려 있어 매번 모델이 나눗셈을 한다 — 결정론적 계산이라 재현되어야 한다",
+      "state": "DONE",
+      "note": "calculators/position.py multiples() → packet context.multiples_at_review_price (추정연도만)",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-31T10:22:48+09:00"
+    },
+    {
+      "request_id": "REQ-39bfc0efbbd4",
+      "text": "총자산 분모의 다른 보유 종목도 현재가로 다시 평가해 달라. 스냅샷 시점 고정이라 시장이 크게 움직인 구간에서 비중이 실제보다 낮게 나온다",
+      "state": "DECLINED",
+      "note": "총자산 분모는 판단을 바꾸지 않는다 (사용자 확정 2026-07-31). 비중은 노출 측정치이고 목표는 수익이지 분모 정밀도가 아니다. 슬리브 기준은 이미 나오며 _staleness 로 낡음을 명시한다",
+      "resolved_by": "USER",
+      "resolved_at": "2026-07-31T10:32:35+09:00"
     }
   ]
 }
