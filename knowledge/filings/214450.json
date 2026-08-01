@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "214450",
   "corp_code": "00970453",
-  "collected_at": "2026-07-30T04:19:35+00:00",
+  "collected_at": "2026-08-01T07:24:45+00:00",
   "source": "DART_LIST",
-  "since": "20250601",
-  "until": "20260730",
+  "since": "20250627",
+  "until": "20260801",
   "pblntf_types": [
     "A",
     "B",
@@ -22,14 +22,14 @@
     {
       "pblntf_ty": "B",
       "pblntf_ty_name": "주요사항보고",
-      "raw_payload_sha256": "2ac9fea408639ff4b8b664766512886386252188dac74a817faf6606ab6970a1",
-      "raw_locator": "data/raw/dart/objects/2ac9fea408639ff4b8b664766512886386252188dac74a817faf6606ab6970a1.json"
+      "raw_payload_sha256": "55fbfda516d004378f52769233b3739be8b438478c2e3af0fbae3212f9f37b57",
+      "raw_locator": "data/raw/dart/objects/55fbfda516d004378f52769233b3739be8b438478c2e3af0fbae3212f9f37b57.json"
     },
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "41cb1abccba9e0cd04b84541cb154e202e6f70fba9008fd85f169156ec454730",
-      "raw_locator": "data/raw/dart/objects/41cb1abccba9e0cd04b84541cb154e202e6f70fba9008fd85f169156ec454730.json"
+      "raw_payload_sha256": "271a24bc754fb240847ad63c54c51cd2247a2555501a6e7369a0f38a9a07f92d",
+      "raw_locator": "data/raw/dart/objects/271a24bc754fb240847ad63c54c51cd2247a2555501a6e7369a0f38a9a07f92d.json"
     },
     {
       "pblntf_ty": "F",
@@ -397,76 +397,6 @@
       "filer": "파마리서치",
       "remark": "코",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250627900320"
-    },
-    {
-      "filing_date": "2025-06-20",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250620900091",
-      "description": "기업설명회(IR)개최",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250620900091"
-    },
-    {
-      "filing_date": "2025-06-18",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250618900651",
-      "description": "기업설명회(IR)개최",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250618900651"
-    },
-    {
-      "filing_date": "2025-06-16",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250616900182",
-      "description": "기업설명회(IR)개최",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250616900182"
-    },
-    {
-      "filing_date": "2025-06-13",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250613900097",
-      "description": "주식소각결정",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900097"
-    },
-    {
-      "filing_date": "2025-06-13",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250613900052",
-      "description": "기업설명회(IR)개최",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900052"
-    },
-    {
-      "filing_date": "2025-06-13",
-      "report_date": null,
-      "form": "GOVERNANCE",
-      "accession_number": "20250613900043",
-      "description": "주권매매거래정지              (분할)",
-      "filer": "코스닥시장본부",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613900043"
-    },
-    {
-      "filing_date": "2025-06-13",
-      "report_date": null,
-      "form": "MATERIAL_EVENT",
-      "accession_number": "20250613000005",
-      "description": "주요사항보고서(회사분할결정)",
-      "filer": "파마리서치",
-      "remark": "정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250613000005"
     }
   ]
 }
