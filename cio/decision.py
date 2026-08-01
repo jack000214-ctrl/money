@@ -74,6 +74,11 @@ TOP_LEVEL_KEYS = {
     # 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다. 계약을 조일 때마다
     # 기억을 잃는 구조를 막기 위해 선택 필드로 둔다.
     "recurring_plan",
+    # 수급·포지셔닝. 같은 이유로 선택 필드지만, packet 이 수급을 실어 보냈으면
+    # 그때는 필수가 된다 (아래 _validate_positioning).
+    "positioning",
+    # 사용자 주장의 확인 결과. packet 에 user_assertions 가 있으면 필수가 된다.
+    "user_assertion_checks",
     "drivers",
     "method",
     "thesis",
@@ -159,6 +164,150 @@ def _validate_recurring_plan(plan: Any, errors: list[str]) -> None:
         errors.append(
             "recurring_plan: START·CONTINUE 는 amount_per_period 와 period 가 "
             "있어야 한다"
+        )
+
+
+POSITIONING_KEYS = {
+    "checked", "finding", "skipped_reason", "unobservable", "affects_conclusion",
+}
+
+ASSERTION_CHECK_KEYS = {"claim_id", "status", "finding", "evidence_refs"}
+# 사용자 주장을 닫는 세 가지 방법. `UNVERIFIABLE` 도 유효한 결말이다 — 확인할
+# 수 없다는 것을 아는 것과 확인하지 않은 것은 다르다.
+ASSERTION_STATUSES = {"CONFIRMED", "REFUTED", "UNVERIFIABLE"}
+
+
+def _validate_assertion_checks(
+    checks: Any,
+    errors: list[str],
+    *,
+    expected_ids: set[str],
+) -> None:
+    """사용자가 사실이라고 말한 것을 확인했는지 본다.
+
+    사용자는 이미 사고 싶은 상태에서 묻는다 — "실적 1,860% 나왔더만", "폴드8도
+    그렇고". 그 문장을 전제로 받아 분석하면 결론은 질문에 이미 들어 있다.
+    강한 모델일수록 그 프레이밍을 더 정교하게 보강한다.
+
+    그래서 각 주장은 **확인·반박·확인불가 중 하나로 닫혀야 한다.** 열어둔 채
+    결론을 내면 계약이 거부한다. 반박도 정당한 결말이며, 오히려 그것이 이
+    시스템이 존재하는 이유에 가깝다.
+    """
+    if checks is None:
+        if expected_ids:
+            errors.append(
+                "user_assertion_checks: packet에 사용자 주장이 실려 있다. "
+                "각 주장을 확인·반박·확인불가 중 하나로 닫아야 한다"
+            )
+        return
+    if not isinstance(checks, list):
+        errors.append("user_assertion_checks: 배열 또는 null이어야 한다")
+        return
+    seen: set[str] = set()
+    for index, row in enumerate(checks):
+        label = f"user_assertion_checks[{index}]"
+        if not isinstance(row, dict) or set(row) - ASSERTION_CHECK_KEYS:
+            errors.append(
+                f"{label}: claim_id·status·finding·evidence_refs만 허용한다"
+            )
+            continue
+        claim_id = _nonempty(row.get("claim_id"), f"{label}.claim_id", errors)
+        if claim_id:
+            if claim_id in seen:
+                errors.append(f"{label}.claim_id: 중복 {claim_id}")
+            seen.add(claim_id)
+            if expected_ids and claim_id not in expected_ids:
+                errors.append(
+                    f"{label}.claim_id: packet에 없는 주장이다 {claim_id}"
+                )
+        status = row.get("status")
+        if status not in ASSERTION_STATUSES:
+            errors.append(
+                f"{label}.status: {', '.join(sorted(ASSERTION_STATUSES))} "
+                "중 하나여야 한다"
+            )
+        _nonempty(row.get("finding"), f"{label}.finding", errors)
+        refs = _string_list(
+            row.get("evidence_refs") or [], f"{label}.evidence_refs", errors
+        )
+        # 확인했다·반박했다고 말하려면 무엇으로 그랬는지가 있어야 한다.
+        # 확인불가는 근거가 없는 것이 정상이다.
+        if status in {"CONFIRMED", "REFUTED"} and not refs:
+            errors.append(
+                f"{label}.evidence_refs: {status}에는 근거가 필요하다. "
+                "근거 없이 확인했다고 말할 수 없다"
+            )
+    unanswered = sorted(expected_ids - seen)
+    if unanswered:
+        errors.append(
+            "user_assertion_checks: 닫지 않은 사용자 주장이 있다 — "
+            + ", ".join(unanswered)
+        )
+
+
+def _validate_positioning(positioning: Any, errors: list[str]) -> None:
+    """누가 지금 사고 팔아야 하는가 — 이익 동인이 아닌 가격 결정 요인.
+
+    `drivers` 는 **이익** 동인만 100% 로 배분한다. 그래서 수급·포지셔닝은
+    배분표에 들어갈 칸이 없고, packet 에 실려도 판단의 무게에서 조용히 빠진다.
+
+    실제로 그 실패가 있었다. 2026-07-29 삼성전자에서 기관이 597만주를
+    순매수하고 거래량이 평소의 2.5배였는데(`structured_optional.kr_flow` 로
+    packet 에 실려 나갔다), 다음 판단의 논지는 판가 얘기만 하고 수급을 한 줄도
+    쓰지 않았다. 이틀 뒤 +20% 였다.
+
+    사이클주에서 "누가 강제로 사야 하는가"는 6개월짜리 이익 추정만큼 가격을
+    움직인다. 맞히라는 것이 아니라 **보고도 안 본 척하지 말라**는 것이다.
+
+    선택 필드이되, **packet 이 수급을 실어 보냈으면 필수가 된다.** 받은 데이터를
+    다루지 않고 넘어가는 것은 계약이 허용하지 않는다 (그 검사는 context 를
+    해석한 뒤에 하므로 아래 validate_decision 의 context 블록에 있다).
+
+    여기서는 형식만 본다.
+    """
+    if positioning is None:
+        return
+    if not isinstance(positioning, dict):
+        errors.append("positioning: 객체 또는 null이어야 한다")
+        return
+    unknown = sorted(set(positioning) - POSITIONING_KEYS)
+    if unknown:
+        errors.append(f"positioning: 알 수 없는 필드 {', '.join(unknown)}")
+    checked = positioning.get("checked")
+    if not isinstance(checked, bool):
+        errors.append("positioning.checked: true 또는 false여야 한다")
+        return
+    finding = positioning.get("finding")
+    skipped = positioning.get("skipped_reason")
+    if checked:
+        if not isinstance(finding, str) or not finding.strip():
+            errors.append(
+                "positioning.finding: 확인했다면 무엇을 봤는지 남겨야 한다"
+            )
+        if skipped is not None:
+            errors.append(
+                "positioning.skipped_reason: 확인했으면 건너뛴 이유가 없다"
+            )
+    else:
+        if not isinstance(skipped, str) or not skipped.strip():
+            errors.append(
+                "positioning.skipped_reason: 건너뛰었다면 왜 결론을 바꾸지 "
+                "못하는지 밝혀야 한다"
+            )
+        if finding is not None:
+            errors.append(
+                "positioning.finding: 확인하지 않았으면 결과가 없다"
+            )
+    # 관측할 수 없는 것을 적어 두면 그 공백이 다음 판단으로 넘어간다. 공매도
+    # 잔고·대차잔고처럼 로컬에 수집기가 없는 항목이 여기 쌓인다.
+    _string_list(
+        positioning.get("unobservable") or [],
+        "positioning.unobservable",
+        errors,
+    )
+    if not isinstance(positioning.get("affects_conclusion"), bool):
+        errors.append(
+            "positioning.affects_conclusion: true 또는 false여야 한다"
         )
 
 
@@ -740,6 +889,13 @@ def validate_decision(
 
     _validate_drivers(data.get("drivers"), errors)
     _validate_recurring_plan(data.get("recurring_plan"), errors)
+    _validate_positioning(data.get("positioning"), errors)
+    if context is None and data.get("user_assertion_checks") is not None:
+        # context 없는 읽기전용 검증에서는 형식만 본다. 무엇을 닫아야 하는지는
+        # packet 이 알려주므로 아래 context 블록에서 다시 검사한다.
+        _validate_assertion_checks(
+            data.get("user_assertion_checks"), errors, expected_ids=set()
+        )
 
     method = data.get("method")
     if not isinstance(method, dict) or set(method) != {
@@ -860,6 +1016,25 @@ def validate_decision(
         for field, _published_at, retrieved_at in source_times:
             if created_at and retrieved_at and retrieved_at > created_at:
                 errors.append(f"{field}.retrieved_at: decision created_at보다 늦을 수 없다")
+        # 받은 데이터를 다루지 않고 넘어가는 것을 허용하지 않는다. 이익 동인이
+        # 아니라는 이유로 수급이 조용히 빠지는 실패가 실제로 있었다.
+        packet_body = context.get("context") or {}
+        flow = (packet_body.get("structured_optional") or {}).get("kr_flow")
+        if flow and data.get("positioning") is None:
+            errors.append(
+                "positioning: packet에 수급 데이터(structured_optional.kr_flow)가 "
+                "실려 있다. 이익 동인이 아니라는 이유로 건너뛰지 말고 확인했는지 "
+                "밝혀야 한다"
+            )
+        _validate_assertion_checks(
+            data.get("user_assertion_checks"),
+            errors,
+            expected_ids={
+                str(row.get("claim_id"))
+                for row in (request.get("user_assertions") or [])
+                if isinstance(row, dict) and row.get("claim_id")
+            },
+        )
         validation_status = (context.get("validation") or {}).get("status")
         if validation_status not in {"PASS", "BLOCKED"}:
             errors.append("context.validation.status: PASS 또는 BLOCKED여야 한다")

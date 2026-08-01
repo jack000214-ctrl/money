@@ -1654,6 +1654,26 @@ def _fit_context_budget(packet: dict[str, Any]) -> None:
     if carried.get("invalidation_signals") is not None:
         carried["invalidation_signals"] = None
         trimmed.append("prior_assessments.carried_forward.invalidation_signals")
+        # 여기까지 왔다는 것은 **직전 판단이 무엇을 보면 틀린 것인지**를 버렸다는
+        # 뜻이다. 사용자의 stop_style 이 THESIS 면 무효화 신호가 유일한 매도
+        # 규율이므로, 그것을 버린 packet 은 '조금 덜 실린 packet' 이 아니라
+        # 매도 판단의 축이 빠진 packet 이다.
+        #
+        # 경고를 optional_gaps 에만 남기면 다른 잘라낸 항목들 사이에 묻힌다.
+        # 구멍이 난 자리에 직접 표시한다 — 모델은 carried_forward 를 읽을 때
+        # 그 자리에서 없어진 이유를 본다.
+        #
+        # validation.problems 로 올려 BLOCKED 를 만들지는 않는다. BLOCKED 는
+        # 모든 판단을 INSUFFICIENT 로 막는데, 새 자금에 대한 verdict 는 직전
+        # 무효화 신호 없이도 낼 수 있다. 무엇을 못 하게 되는지는 아래 문장이
+        # 지정하고, 그 판단은 모델이 한다.
+        carried["invalidation_signals_dropped"] = (
+            "packet 예산 때문에 직전 판단의 무효화 신호를 버렸다. 그것 없이는 "
+            "'무엇이 깨졌는지'를 대조할 수 없으므로, 보유분에 대해 TRIM·EXIT·"
+            "HOLD 를 그대로 내지 말고 (1) 이번에 무효화 신호를 새로 세우거나 "
+            "(2) action.direction=UNDETERMINED / undetermined_reason="
+            "NO_POSITION_DATA 로 답한다. 원문은 knowledge/assessments/ 에 있다"
+        )
 
 
 def _memory_digest(
@@ -1980,17 +2000,66 @@ def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
     return common + additions.get(lens, [])
 
 
+# 사용자가 무엇을 묻고 있는가. 신규매수와 분할매도 검토는 같은 질문이 아니고,
+# 하나의 "이 가격에 살까"로 정규화하면 그 차이가 사라진다.
+INTENTS = {
+    "NEW_BUY",
+    "ADD",
+    "HOLD_REVIEW",
+    "TRIM_REVIEW",
+    "EXIT_REVIEW",
+    "REBALANCE",
+}
+
+
+def _user_assertions(claims: list[str] | None) -> list[dict[str, Any]]:
+    """사용자가 사실이라고 말한 것을 **미확인 주장**으로 분해한다.
+
+    원문을 그냥 packet 에 넣으면 위험하다. "실적 1,860% 나왔더만" 같은 문장은
+    사용자가 이미 매수하고 싶은 상태에서 나오고, 강한 모델일수록 그 프레이밍을
+    정교하게 보강한다. 그래서 원문은 싣되 **주장으로 라벨을 붙여** 싣는다.
+
+    `drivers` 가 `researched: true/false` 로 조사 배분을 강제하듯, 각 주장은
+    확인·반박·확인불가 중 하나로 닫혀야 한다. 닫지 않고 결론을 내면 계약이
+    거부한다.
+    """
+    rows = []
+    for claim in claims or []:
+        text = (claim or "").strip()
+        if not text:
+            continue
+        rows.append(
+            {
+                "claim_id": f"UA-{stable_hash({'claim': text}, '')[:10]}",
+                "claim": text,
+                "status": "USER_ASSERTED",
+                "verified": False,
+                "_note": "사용자 주장이며 로컬에서 확인하지 않았다",
+            }
+        )
+    return rows
+
+
 def build_context(
     asset_id: str,
     *,
     price: float,
     amount: float,
     amount_currency: str | None = None,
+    intent: str | None = None,
+    verbatim: str | None = None,
+    claims: list[str] | None = None,
     save: bool = True,
 ) -> tuple[dict[str, Any], Path | None]:
     asset = get_asset(asset_id)
     amount_currency = (amount_currency or "KRW").upper()
     problems = []
+    if intent is not None and intent not in INTENTS:
+        problems.append(
+            f"intent는 {' | '.join(sorted(INTENTS))} 중 하나여야 한다"
+        )
+    verbatim = (verbatim or "").strip() or None
+    assertions = _user_assertions(claims)
     if not math.isfinite(price) or price <= 0:
         problems.append("price는 0보다 큰 유한한 숫자여야 한다")
     if not math.isfinite(amount) or amount <= 0:
@@ -2195,11 +2264,25 @@ def build_context(
         "amount": amount,
         "amount_currency": amount_currency,
         "as_of": created_at,
+        "intent": intent or "NEW_BUY",
         "question": (
             "이 가격과 금액으로 매수하면 정해진 기간 안에 승리할 가능성이 있는가. "
             "기대수익, 선호 진입가, 손절가, 분할매도 시작가, 다시 물어볼 가격을 결정하라"
         ),
     }
+    if verbatim:
+        request["verbatim"] = verbatim
+    if assertions:
+        request["user_assertions"] = assertions
+    if verbatim or assertions:
+        request["_role"] = (
+            "사용자가 실제로 한 말이다. **분석의 전제가 아니라 검증 대상이다.** "
+            "사용자가 사실이라고 말한 것은 사실이 아니라 주장이며, 각 주장은 "
+            "decision.user_assertion_checks에서 확인·반박·확인불가 중 하나로 "
+            "닫혀야 한다. 사용자의 낙관적 프레이밍을 그대로 논지에 옮기면 "
+            "이 시스템은 독립 CIO가 아니라 확신을 정교하게 보강해 주는 도구가 "
+            "된다"
+        )
     if price_summary and price_summary.get("close"):
         request["latest_local_close"] = price_summary["close"]
         request["asked_vs_latest_close_pct"] = round(
@@ -2240,7 +2323,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.8",
+        "prompt_version": "2.0",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,

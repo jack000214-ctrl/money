@@ -8,7 +8,7 @@ from dataclasses import asdict
 from calculators.contracts import ContractError, load_json
 from collectors.web import snapshot
 from cio.assets import all_assets, get_asset, register_asset
-from cio.context import build_context
+from cio.context import INTENTS, build_context
 from cio.decision import find_context, require_valid_decision
 from cio.documents import (
     DEFAULT_CONTEXT_CHARS,
@@ -117,6 +117,9 @@ def cmd_prepare(args) -> int:
         price=args.price,
         amount=args.amount,
         amount_currency=args.amount_currency,
+        intent=args.intent,
+        verbatim=args.verbatim,
+        claims=args.claim,
         save=not args.no_save,
     )
     if args.json:
@@ -370,6 +373,23 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--price", type=float, required=True)
     prepare.add_argument("--amount", type=float, required=True)
     prepare.add_argument("--amount-currency", choices=["KRW", "USD"])
+    prepare.add_argument(
+        "--intent",
+        choices=sorted(INTENTS),
+        help="무엇을 묻는가. 신규매수와 분할매도 검토는 같은 질문이 아니다",
+    )
+    prepare.add_argument(
+        "--verbatim",
+        help="사용자가 실제로 한 말. 분석 전제가 아니라 검증 대상으로 실린다",
+    )
+    prepare.add_argument(
+        "--claim",
+        action="append",
+        help=(
+            "사용자가 사실이라고 말한 것 (반복 가능). 각 주장은 판단에서 "
+            "확인·반박·확인불가 중 하나로 닫혀야 한다"
+        ),
+    )
     prepare.add_argument("--no-save", action="store_true")
     prepare.add_argument("--json", action="store_true")
     prepare.set_defaults(func=cmd_prepare)

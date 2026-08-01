@@ -317,7 +317,7 @@
       "additionalProperties": false
     },
     "action": {
-      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict가 '이 가격에 새 자금을 넣을 것인가'라면 action은 '가진 것을 어떻게 할 것인가'다. 두 질문은 서로 다르며 동시에 참일 수 있다. 답할 수 없으면 UNDETERMINED이며, 그것을 HOLD로 대신하지 않는다.",
+      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict(새 자금)와 다른 질문이며 동시에 참일 수 있다.",
       "type": "object",
       "required": [
         "direction",
@@ -327,7 +327,7 @@
       ],
       "properties": {
         "direction": {
-          "description": "UNDETERMINED는 '행동을 지시할 수 없다'이며 '가만히 있으라'가 아니다. 보유 중인 종목에서 HOLD는 아무것도 아닌 값이 아니라 계속 보유하라는 지시다.",
+          "description": "UNDETERMINED는 '지시할 수 없다'이지 '가만히 있으라'가 아니다. HOLD는 계속 보유하라는 지시다.",
           "enum": [
             "ADD",
             "HOLD",
@@ -337,7 +337,7 @@
           ]
         },
         "undetermined_reason": {
-          "description": "direction이 UNDETERMINED일 때 무엇이 없어서 정할 수 없는지. INSUFFICIENT_EVIDENCE는 종목 판단 자체가 서지 않는 경우이며 verdict INSUFFICIENT와 짝이다. NO_INVESTOR_POLICY는 종목 관점은 섰지만 사용자 한도가 없어 수량을 정할 수 없는 경우다.",
+          "description": "UNDETERMINED일 때 무엇이 없어서 정할 수 없는지. INSUFFICIENT_EVIDENCE는 verdict INSUFFICIENT와 짝이다.",
           "type": [
             "string",
             "null"
@@ -358,7 +358,7 @@
           "exclusiveMinimum": 0
         },
         "sell_reason": {
-          "description": "판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 자산 자체에 대한 판정이라 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 자산이 좋아도 낼 수 있으나 제약임을 밝혀야 한다.",
+          "description": "판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 제약임을 밝혀야 한다.",
           "type": [
             "string",
             "null"
@@ -549,8 +549,93 @@
         "minLength": 1
       }
     },
+    "user_assertion_checks": {
+      "description": "사용자 주장의 확인 결과. packet에 request.user_assertions가 있으면 필수이며 전부 닫혀야 한다.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "status",
+          "finding"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "CONFIRMED",
+              "REFUTED",
+              "UNVERIFIABLE"
+            ]
+          },
+          "finding": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_refs": {
+            "description": "CONFIRMED·REFUTED에는 필수.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "positioning": {
+      "description": "이익 동인이 아닌 가격 결정 요인(수급·포지셔닝). packet에 kr_flow가 있으면 필수.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "checked",
+        "affects_conclusion"
+      ],
+      "properties": {
+        "checked": {
+          "type": "boolean"
+        },
+        "finding": {
+          "description": "checked가 true면 필수. 무엇을 봤고 무엇을 읽었는가.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "skipped_reason": {
+          "description": "checked가 false면 필수. 왜 결론을 바꾸지 못하는가.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "unobservable": {
+          "description": "보고 싶었으나 없던 것. 공매도·대차잔고처럼 수집기 없는 항목이 여기 쌓인다.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "affects_conclusion": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "recurring_plan": {
-      "description": "정기 자동매수(적립) 프로그램을 어떻게 할 것인가. action 이 '지금 가진 것'을 다룬다면 이쪽은 '앞으로 자동으로 사질 것'을 다룬다. 적립이 돌아가는 동안에는 판단하지 않아도 매수가 계속되므로, 침묵은 CONTINUE 와 같다.",
+      "description": "정기 자동매수 프로그램의 처분. 적립 중에는 침묵이 CONTINUE 와 같으므로 따로 답한다.",
       "type": [
         "object",
         "null"

@@ -14,12 +14,23 @@
 python3.13 -m cio prepare <asset_id> \
   --price <검토가격> \
   --amount <최대사용금액> \
-  --amount-currency <KRW|USD>
+  --amount-currency <KRW|USD> \
+  --intent <NEW_BUY|ADD|HOLD_REVIEW|TRIM_REVIEW|EXIT_REVIEW|REBALANCE> \
+  --verbatim "사용자가 실제로 한 말" \
+  --claim "사용자가 사실이라고 말한 것"   # 반복 가능
 ```
+
+`--intent`는 무엇을 묻고 있는지다. 신규매수와 분할매도 검토를 하나의 "이 가격에
+살까"로 정규화하면 그 차이가 사라진다.
+
+`--verbatim`과 `--claim`은 **분석의 전제가 아니라 검증 대상으로** 실린다. 사용자는
+이미 사고 싶은 상태에서 묻고("실적 1,860% 나왔더만"), 강한 모델일수록 그 프레이밍을
+정교하게 보강한다. 그래서 원문은 넣되 `USER_ASSERTED` 라벨을 붙여 넣고, 각 주장은
+판단에서 닫혀야 한다(아래 `user_assertion_checks`).
 
 컨텍스트에는 다음만 포함한다.
 
-- `request`: 자산, 가격·통화, 금액·통화, 기준시각과 질문
+- `request`: 자산, 가격·통화, 금액·통화, 기준시각, 질문, 의도, 사용자 원문과 주장
 - `asset`: 시장, 상품 유형, 산업, 분석 렌즈, 방법론 후보, 벤치마크
 - `validation`: PC가 확인한 준비 상태와 문제 목록
 - `context`: 가격 요약, 벤치마크, 시장, 재무, 공시 색인(DART·SEC), 적용 가능 계산,
@@ -129,6 +140,41 @@ packet이 예산(`MAX_CONTEXT_JSON_BYTES`)을 넘으면 서술부터 버리고 �
 건너뛰는 것은 정당하다. 모든 동인을 매번 조사할 수는 없다. 다만 건너뛴 사실과
 이유가 다음 컨텍스트의 `carried_forward.drivers`로 넘어가므로, 같은 동인을 계속
 미루고 있으면 그것이 드러난다.
+
+### `positioning` — 이익 동인이 아닌 가격 결정 요인
+
+`drivers`는 **이익** 동인만 100%로 배분한다. 그래서 수급·포지셔닝은 그 표에 칸이
+없고, packet에 실려 있어도 판단의 무게에서 조용히 빠진다.
+
+실제로 그 실패가 있었다. 2026-07-29 삼성전자에서 기관이 597만주를 순매수하고
+거래량이 평소의 2.5배였는데(`structured_optional.kr_flow`로 packet에 실려 나갔다)
+다음 판단의 논지는 판가 얘기만 했다. 이틀 뒤 +20%였다.
+
+**`structured_optional.kr_flow`가 packet에 있으면 `positioning`은 필수다.**
+`drivers`와 같은 규율을 쓴다 — `checked: true` + `finding` 이거나 `checked: false`
+\+ `skipped_reason`이며, 둘 다이거나 둘 다 아닐 수 없다.
+
+`unobservable`에는 보고 싶었으나 없던 것을 적는다. **공매도 잔고·대차잔고·신용융자
+잔고는 이 저장소에 수집기가 없다.** 여기 쌓이는 항목이 다음 수집기의 우선순위가 된다.
+
+맞히라는 것이 아니라 보고도 안 본 척하지 말라는 것이다. 동시에 수급은 이익 동인이
+아니므로 `drivers`의 100%에 억지로 끼워 넣지 않는다.
+
+### `user_assertion_checks` — 사용자 주장을 닫는다
+
+packet의 `request.user_assertions`에 있는 각 주장은 판단에서 **확인·반박·확인불가**
+중 하나로 닫혀야 한다. 하나라도 열려 있으면 판단을 저장할 수 없다.
+
+| status | 필요한 것 |
+|---|---|
+| `CONFIRMED` | `finding` + `evidence_refs` |
+| `REFUTED` | `finding` + `evidence_refs` |
+| `UNVERIFIABLE` | `finding` (근거 불필요) |
+
+근거 없이 "확인했다"고 말하는 것은 확인이 아니므로 `CONFIRMED`·`REFUTED`에
+`evidence_refs`를 요구한다. packet에 없는 `claim_id`를 지어내는 것도 거부한다.
+
+`REFUTED`는 실패가 아니라 이 시스템이 존재하는 이유에 가깝다.
 
 ### `research_requests` — 편지함이 아니라 대기열
 
