@@ -317,7 +317,7 @@
       "additionalProperties": false
     },
     "action": {
-      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict가 '이 가격에 새 자금을 넣을 것인가'라면 action은 '가진 것을 어떻게 할 것인가'다. 두 질문은 서로 다르며 동시에 참일 수 있다.",
+      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict가 '이 가격에 새 자금을 넣을 것인가'라면 action은 '가진 것을 어떻게 할 것인가'다. 두 질문은 서로 다르며 동시에 참일 수 있다. 답할 수 없으면 UNDETERMINED이며, 그것을 HOLD로 대신하지 않는다.",
       "type": "object",
       "required": [
         "direction",
@@ -327,11 +327,27 @@
       ],
       "properties": {
         "direction": {
+          "description": "UNDETERMINED는 '행동을 지시할 수 없다'이며 '가만히 있으라'가 아니다. 보유 중인 종목에서 HOLD는 아무것도 아닌 값이 아니라 계속 보유하라는 지시다.",
           "enum": [
             "ADD",
             "HOLD",
             "TRIM",
-            "EXIT"
+            "EXIT",
+            "UNDETERMINED"
+          ]
+        },
+        "undetermined_reason": {
+          "description": "direction이 UNDETERMINED일 때 무엇이 없어서 정할 수 없는지. INSUFFICIENT_EVIDENCE는 종목 판단 자체가 서지 않는 경우이며 verdict INSUFFICIENT와 짝이다. NO_INVESTOR_POLICY는 종목 관점은 섰지만 사용자 한도가 없어 수량을 정할 수 없는 경우다.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "INSUFFICIENT_EVIDENCE",
+            "NO_INVESTOR_POLICY",
+            "NO_POSITION_DATA",
+            "USER_INPUT_REQUIRED",
+            null
           ]
         },
         "quantity": {
@@ -667,7 +683,10 @@
           "action": {
             "properties": {
               "direction": {
-                "const": "HOLD"
+                "const": "UNDETERMINED"
+              },
+              "undetermined_reason": {
+                "const": "INSUFFICIENT_EVIDENCE"
               },
               "quantity": {
                 "type": "null"
@@ -675,7 +694,10 @@
               "sell_reason": {
                 "type": "null"
               }
-            }
+            },
+            "required": [
+              "undetermined_reason"
+            ]
           }
         }
       },

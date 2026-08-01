@@ -26,6 +26,7 @@ from cio.assets import get_asset
 from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.paths import KNOWLEDGE_DIR, ROOT
+from cio.policy import POLICY_PATH, load_policy, policy_for_context
 from cio.requests import open_requests_for_context
 from cio.pipeline import pipeline_for_context
 from cio.retire import retired_summary
@@ -2083,6 +2084,54 @@ def build_context(
         _, fx_source = _price_summary("KRW=X")
         sources.append(fx_source)
 
+    # 투자정책은 사용자가 정한 자본 제약이다. 없어도 BLOCKED 로 만들지 않는다 —
+    # 정책이 없다는 것은 데이터 결손이 아니라 '아직 정하지 않았다'는 상태이고,
+    # 그 상태에서 무엇을 할 수 있는지는 모델이 정한다. 다만 계약 자체가 깨진
+    # 파일은 조용히 무시하지 않고 optional_gaps 로 드러낸다.
+    policy_data, policy_errors = load_policy()
+    investor_policy = policy_for_context(
+        policy_data, portfolio, errors=policy_errors
+    )
+    if policy_data is not None and not policy_errors:
+        sources.append(
+            {
+                "source_id": "POLICY:INVESTOR",
+                "kind": "USER_DATA",
+                "path": str(POLICY_PATH.relative_to(ROOT)),
+                "data_as_of": policy_data.get("policy_version"),
+            }
+        )
+    if policy_errors:
+        optional_gaps.append(
+            {
+                "task": "policy:investor",
+                "state": "CONTRACT_FAILED",
+                "reason": "; ".join(policy_errors),
+            }
+        )
+    elif policy_data is None:
+        optional_gaps.append(
+            {
+                "task": "policy:investor",
+                "state": "MISSING",
+                "reason": (
+                    "config/investor-policy.json이 없다. 수량·분할매도 판단의 "
+                    "한도가 어디에도 없다"
+                ),
+            }
+        )
+    elif investor_policy.get("unset"):
+        optional_gaps.append(
+            {
+                "task": "policy:investor",
+                "state": "PARTIAL",
+                "reason": (
+                    "정하지 않은 한도: "
+                    + ", ".join(investor_policy["unset"])
+                ),
+            }
+        )
+
     plan = inspect_plan(asset["asset_id"], include_optional=True)
     for task in plan:
         if task.required and task.state != "FRESH":
@@ -2191,7 +2240,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "1.7",
+        "prompt_version": "1.8",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -2237,6 +2286,7 @@ def build_context(
             "etf": etf,
             "structured_optional": structured_optional,
             "portfolio": portfolio,
+            "investor_policy": investor_policy,
             "prior_assessments": _memory_digest(
                 asset["asset_id"],
                 latest_close=(price_summary or {}).get("close"),

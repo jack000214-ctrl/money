@@ -66,6 +66,15 @@ def insufficient_decision(context):
     ):
         data["price_plan"][key] = None
     data["proposed_trade"]["amount"] = None
+    # 판단이 서지 않으면 보유분에 대해서도 지시하지 않는다. 여기가 HOLD 면
+    # 시스템이 "모른다"를 "계속 보유하라"로 번역한다.
+    data["action"] = {
+        "direction": "UNDETERMINED",
+        "quantity": None,
+        "sell_reason": None,
+        "undetermined_reason": "INSUFFICIENT_EVIDENCE",
+        "rationale": "결론을 지탱할 근거가 없어 보유분 행동도 정하지 않는다",
+    }
     return data
 
 

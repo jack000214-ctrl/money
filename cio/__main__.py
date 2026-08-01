@@ -20,6 +20,14 @@ from cio.documents import (
     search_asset,
 )
 from cio.memory import record_decision_file, score_asset
+from cio.paths import ROOT
+from cio.policy import (
+    FIELDS,
+    POLICY_PATH,
+    deliberate_gaps,
+    load_policy,
+    unset_fields,
+)
 from cio.refresh import inspect_plan, plan_json, run_refresh
 from cio.requests import (
     RESOLUTION_STATES,
@@ -263,6 +271,56 @@ def cmd_retire(args) -> int:
     return 0
 
 
+def cmd_policy(args) -> int:
+    """투자정책을 보여주고 무엇을 아직 정하지 않았는지 알린다.
+
+    값을 여기서 고치지 않는다. 사용자가 파일을 직접 편집한다 — 자본 제약을
+    프로그램이 대신 정하기 시작하면 그것은 더 이상 사용자의 정책이 아니다.
+    """
+    data, errors = load_policy()
+    if data is None and not errors:
+        print(f"투자정책이 없다: {POLICY_PATH.relative_to(ROOT)}")
+        print("파일을 만들면 수량·분할매도 판단에 한도가 실린다.")
+        return 4
+    if errors:
+        print("투자정책 계약 검증 실패:", file=sys.stderr)
+        for error in errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 2
+    missing = unset_fields(data)
+    chosen = deliberate_gaps(data)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "policy": data,
+                    "unset": missing,
+                    "intentionally_unset": sorted(chosen),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0 if not missing else 3
+    print(f"policy_version {data['policy_version']} / 기준통화 {data['base_currency']}")
+    # 세 상태를 절대 합치지 않는다. '정했다'와 '안 두기로 했다'와 '아직
+    # 모른다'는 모델이 서로 다르게 행동해야 하는 상태다.
+    decided = len(FIELDS) - len(missing) - len(chosen)
+    print(
+        f"정한 한도 {decided} / 일부러 두지 않음 {len(chosen)} / "
+        f"아직 정하지 않음 {len(missing)}  (전체 {len(FIELDS)})"
+    )
+    if chosen:
+        print("\n일부러 두지 않음 (결정이므로 UNDETERMINED 사유가 되지 않는다):")
+        for path in sorted(chosen):
+            print(f"  - {path}\n      {chosen[path]}")
+    if missing:
+        print("\n아직 정하지 않음 (모델은 이 공백에서 UNDETERMINED를 낼 수 있다):")
+        for path in missing:
+            print(f"  - {path}  [{FIELDS[path][1] or FIELDS[path][0]}]")
+    return 0 if not missing else 3
+
+
 def cmd_score(args) -> int:
     report = score_asset(args.asset_id)
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -315,6 +373,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--no-save", action="store_true")
     prepare.add_argument("--json", action="store_true")
     prepare.set_defaults(func=cmd_prepare)
+
+    policy_parser = sub.add_parser(
+        "policy", help="사용자 투자정책과 아직 정하지 않은 한도 보기"
+    )
+    policy_parser.add_argument("--json", action="store_true")
+    policy_parser.set_defaults(func=cmd_policy)
 
     validate = sub.add_parser("validate", help="모델 decision JSON 검증")
     validate.add_argument("decision")

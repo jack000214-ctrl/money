@@ -23,7 +23,8 @@ python3.13 -m cio prepare <asset_id> \
 - `asset`: 시장, 상품 유형, 산업, 분석 렌즈, 방법론 후보, 벤치마크
 - `validation`: PC가 확인한 준비 상태와 문제 목록
 - `context`: 가격 요약, 벤치마크, 시장, 재무, 공시 색인(DART·SEC), 적용 가능 계산,
-  이벤트, ETF 구조, 포트폴리오 영향, 최근 판단, 미해결 수집 요청, 보존한 웹 원문
+  이벤트, ETF 구조, 포트폴리오 영향, 사용자 투자정책, 최근 판단, 미해결 수집 요청,
+  보존한 웹 원문
 - `research_requirements`: 로컬 데이터 밖에서 모델이 확인할 질문
 - `evidence_index`: 로컬 산출물의 ID, 경로와 기준시점
 - `model_contract`: 공통 prompt와 decision schema 위치
@@ -48,6 +49,46 @@ python3.13 -m cio prepare <asset_id> \
 
 `carried_forward`는 그대로 따르라는 명령이 아니다. 같은 자리를 처음 보는 것처럼
 다시 계산하지 말고, 판단이 바뀌었으면 무엇이 바뀌었는지 말하라는 요구다.
+
+### `investor_policy` — 종목이 아니라 자본에 대한 제약
+
+`context.investor_policy`는 `config/investor-policy.json`을 실어 보낸다. 모델은
+"이 종목이 좋은가"를 판단할 수 있지만 "그래서 이 사람 돈 얼마를 쓰는가"는
+사용자만 아는 한도 위에서만 답할 수 있다. 이 값들이 CSV 주석에만 있으면 어떤
+모델도 읽지 못한다.
+
+PC가 여기서 하는 일은 둘뿐이다 — 한도를 **그대로** 싣고, 한도와 현재·매수후
+수치를 **산술로 대조**한다. `checks[].breach_now`는 부등호 비교의 결과이지
+매도 지시가 아니며, 넘었을 때 무엇을 해야 하는지는 PC가 정하지 않는다.
+
+| check | 방향 | 무엇과 대조하나 |
+|---|---|---|
+| `concentration.max_single_position_pct_of_total` | MAX | 검토 가격 기준 현재 비중 / 매수후 비중 |
+| `concentration.max_sector_pct_of_total` | MAX | **대조하지 않는다** — ETF look-through가 없다 |
+| `liquidity.min_cash_krw` | MIN | 현재 현금 / 매수후 현금 |
+| `risk.max_loss_per_position_krw` | 환산 | 노출로 나눠 `PCT_OF_POSITION_VALUE`로 |
+
+섹터 한도를 직접 보유만으로 계산하면 ETF 안의 같은 섹터 노출이 빠져 실제보다
+작게 나온다. 틀린 여유를 주느니 `INPUT_UNAVAILABLE`로 답한다.
+
+최대 손실 한도는 그 자체로 대조할 상대가 없어 노출로 나눈 환산값을 준다.
+**손절가를 거기 두라는 뜻이 아니라**, 논지에서 나온 손절이 한도 안인지 밖인지
+대조하라는 뜻이다.
+
+**`unset`은 "제한 없음"이 아니라 "사용자가 아직 정하지 않음"이다.** 둘을 섞으면
+한도 없는 상태를 무제한으로 읽고 수량을 마음대로 정하게 된다. 그래서 한도가
+비어 있으면 `breach`를 `false`로 접지 않고 `null` + `LIMIT_UNSET`으로 남긴다.
+PC는 비어 있는 한도를 그럴듯한 기본값으로 채우지 않는다 — 채우는 순간 그것은
+사용자의 정책이 아니라 프로그램의 가정이고, 그 사실이 출력에서 사라진다.
+
+```bash
+python3.13 -m cio policy          # 정한 한도와 아직 정하지 않은 한도
+```
+
+정책 파일에는 최대 손실액·목표수익·계좌 유형이 들어가므로 `holdings.csv`와 같이
+`.gitignore` 대상이다. 구조는 `config/templates/investor-policy.json`으로 버전
+관리하고, **판단 시점의 실제 정책은 매 `prepare`마다 `POLICY:INVESTOR` source로
+`knowledge/evidence/`에 내용 지문으로 봉인**되므로 재현성은 잃지 않는다.
 
 packet이 예산(`MAX_CONTEXT_JSON_BYTES`)을 넘으면 서술부터 버리고 가격 문턱과
 무효화 신호를 남긴다. 버린 항목은 `validation.optional_gaps`에
@@ -157,7 +198,8 @@ python3.13 -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fix
 - `INSUFFICIENT`: 조사 후에도 책임 있는 숫자 판단을 만들 정보가 부족하다.
 
 `INSUFFICIENT`는 쉬운 탈출구가 아니다. 로컬 구조화 데이터 갱신과 모델의 직접
-조사 후에도 결론을 지탱할 수 없을 때만 사용한다.
+조사 후에도 결론을 지탱할 수 없을 때만 사용한다. 이때 `action.direction`은
+`UNDETERMINED`여야 한다 — 자세한 이유는 아래 Action 절에 있다.
 
 ### Action — 가진 것을 어떻게 할 것인가
 
@@ -165,9 +207,43 @@ python3.13 -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fix
 판단이다. 두 질문은 다르며 동시에 참일 수 있다. 더 사지 않지만 팔 이유도 없으면
 `WAIT` + `HOLD`다.
 
-`direction`은 `ADD | HOLD | TRIM | EXIT`이며 매도(`TRIM`·`EXIT`)에는 수량과
-`sell_reason`이 필요하다. 사유는 두 갈래로 나뉘고, 이 구분이 사후 평가의 집계
-단위가 된다.
+`direction`은 `ADD | HOLD | TRIM | EXIT | UNDETERMINED`이며 매도(`TRIM`·`EXIT`)에는
+수량과 `sell_reason`이 필요하다.
+
+#### `HOLD`는 빈 값이 아니다
+
+보유 중인 종목에서 `HOLD`는 "이 수량을 이 가격에 계속 들고 있어라"는 적극적
+지시다. 그래서 판단이 서지 않을 때 `HOLD`를 쓸 수 없다 — 쓰는 순간 시스템이
+모델의 **"모른다"를 "보유하라"로 번역**한다.
+
+정할 수 없으면 `UNDETERMINED`이며 `undetermined_reason`으로 무엇이 없어서
+정할 수 없는지 밝힌다. 이 값은 선택 필드다(계약을 조일 때마다 과거 판단이
+끊기는 것을 막기 위해 `recurring_plan`과 같은 규칙을 따른다).
+
+| 사유 | 언제 | 푸는 사람 |
+|---|---|---|
+| `INSUFFICIENT_EVIDENCE` | 조사 후에도 종목 판단 자체가 서지 않는다 | 수집기·조사 |
+| `NO_INVESTOR_POLICY` | 종목 관점은 섰으나 한도가 없어 수량을 못 정한다 | 사용자 |
+| `NO_POSITION_DATA` | 보유 상태·평단을 신뢰할 수 없다 | 로컬 데이터 |
+| `USER_INPUT_REQUIRED` | 적립 가동 여부처럼 사용자만 아는 사실이 필요하다 | 사용자 |
+
+`verdict: INSUFFICIENT`와 `undetermined_reason: INSUFFICIENT_EVIDENCE`는 같은
+사실의 두 면이라 항상 함께 간다. 나머지 셋은 일반 verdict와 함께 쓴다. 이
+구분이 있어야 "데이터가 없어 막힌 비율"과 "정책이 없어 막힌 비율"이 따로
+집계된다 — 둘은 해결할 사람이 다르므로 한 통에 넣으면 무엇을 고쳐야 하는지
+알 수 없다.
+
+`UNDETERMINED`는 수량·매도사유를 가질 수 없고 새 집행액도 가질 수 없다.
+행동을 정할 수 없다면서 돈을 넣을 수는 없기 때문이다.
+
+**아직 이 계약이 표현하지 못하는 것.** "종목은 매력적인데 한도가 없어 얼마를
+살지 못 정하겠다"를 `BUY_NOW`로 낼 수 없다 — `BUY_NOW`는 0보다 큰 집행액을
+요구하기 때문이다. 현재는 `WAIT` + `UNDETERMINED`(`NO_INVESTOR_POLICY`)로 내고
+종목 관점은 `thesis`에 남긴다. 이 한계가 `verdict`가 아직 "매력적인가"와
+"얼마를 넣는가"를 한 필드에 묶고 있다는 뜻이며, 종목 관점과 포트폴리오 행동을
+분리하면 사라진다.
+
+`sell_reason`은 두 갈래로 나뉘고, 이 구분이 사후 평가의 집계 단위가 된다.
 
 | 갈래 | 사유 | 규칙 |
 |---|---|---|

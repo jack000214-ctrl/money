@@ -14,7 +14,19 @@ from cio.paths import KNOWLEDGE_DIR, ROOT
 
 SCHEMA_VERSION = "cio-decision/1.0.0"
 VERDICTS = {"BUY_NOW", "WAIT", "AVOID", "INSUFFICIENT"}
-ACTION_DIRECTIONS = {"ADD", "HOLD", "TRIM", "EXIT"}
+# UNDETERMINED 는 "행동을 지시할 수 없다"이지 "가만히 있으라"가 아니다. 보유
+# 중인 종목에서 HOLD 는 빈 값이 아니라 계속 보유하라는 지시이므로, 모른다는
+# 상태를 HOLD 로 접으면 시스템이 '모른다'를 '보유하라'로 번역하게 된다.
+ACTION_DIRECTIONS = {"ADD", "HOLD", "TRIM", "EXIT", "UNDETERMINED"}
+# 무엇이 없어서 정할 수 없는지. 이 구분이 있어야 "데이터가 없어서 막힌 비율"과
+# "사용자 정책이 없어서 막힌 비율"을 따로 집계할 수 있다. 둘은 해결 주체가
+# 다르다 — 앞은 수집기가, 뒤는 사용자가 푼다.
+UNDETERMINED_REASONS = {
+    "INSUFFICIENT_EVIDENCE",
+    "NO_INVESTOR_POLICY",
+    "NO_POSITION_DATA",
+    "USER_INPUT_REQUIRED",
+}
 # 판단 기반 — 자산 자체가 나쁘다는 주장이라 verdict와 같은 편에 서야 한다.
 JUDGMENT_SELL_REASONS = {"THESIS_BROKEN", "VALUATION", "BETTER_OPPORTUNITY"}
 # 제약 기반 — 자산이 좋아도 낼 수 있다. 대신 제약임을 밝혀야 하고, 사후 평가는
@@ -76,6 +88,13 @@ TOP_LEVEL_KEYS = {
 
 DRIVER_KEYS = {"name", "weight_pct", "basis", "researched", "finding", "skipped_reason"}
 DRIVER_REQUIRED = {"name", "weight_pct", "basis", "researched"}
+
+# undetermined_reason 을 required 에 넣지 않은 것은 recurring_plan 과 같은 이유다 —
+# 필수로 만들면 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다.
+ACTION_KEYS = {
+    "direction", "quantity", "sell_reason", "rationale", "undetermined_reason",
+}
+ACTION_REQUIRED = {"direction", "quantity", "sell_reason", "rationale"}
 
 RECURRING_KEYS = {
     "state", "amount_per_period", "currency", "period", "rationale",
@@ -624,12 +643,11 @@ def validate_decision(
         errors.append(f"proposed_trade.amount: {verdict}의 현재 집행액은 0이어야 한다")
 
     action = data.get("action")
-    if not isinstance(action, dict) or set(action) != {
-        "direction",
-        "quantity",
-        "sell_reason",
-        "rationale",
-    }:
+    if (
+        not isinstance(action, dict)
+        or (set(action) - ACTION_KEYS)
+        or not ACTION_REQUIRED.issubset(action)
+    ):
         errors.append("action: direction·quantity·sell_reason·rationale가 필요하다")
     else:
         direction = action.get("direction")
@@ -637,6 +655,38 @@ def validate_decision(
             errors.append(
                 f"action.direction: {', '.join(sorted(ACTION_DIRECTIONS))} "
                 "중 하나여야 한다"
+            )
+        undetermined = direction == "UNDETERMINED"
+        blocked_by = action.get("undetermined_reason")
+        if blocked_by is not None and blocked_by not in UNDETERMINED_REASONS:
+            errors.append(
+                f"action.undetermined_reason: {', '.join(sorted(UNDETERMINED_REASONS))} "
+                "중 하나이거나 null이어야 한다"
+            )
+        elif undetermined and blocked_by is None:
+            errors.append(
+                "action.undetermined_reason: 무엇이 없어서 행동을 정할 수 없는지 "
+                "밝혀야 한다"
+            )
+        elif not undetermined and blocked_by is not None:
+            errors.append(
+                "action.undetermined_reason: UNDETERMINED가 아니면 null이어야 한다"
+            )
+        # verdict INSUFFICIENT 와 undetermined_reason INSUFFICIENT_EVIDENCE 는
+        # 같은 사실의 두 면이다. 하나만 쓰면 "데이터가 없어서 막혔다"와
+        # "한도가 없어서 막혔다"가 한 통에 섞여 집계가 읽히지 않는다.
+        if blocked_by == "INSUFFICIENT_EVIDENCE" and not insufficient:
+            errors.append(
+                "action.undetermined_reason: INSUFFICIENT_EVIDENCE는 종목 판단 "
+                "자체가 서지 않는 경우이므로 verdict도 INSUFFICIENT여야 한다. "
+                "한도가 없어 수량을 못 정하는 것이면 NO_INVESTOR_POLICY다"
+            )
+        if insufficient and undetermined and blocked_by not in {
+            None, "INSUFFICIENT_EVIDENCE",
+        }:
+            errors.append(
+                "action.undetermined_reason: INSUFFICIENT에서는 "
+                "INSUFFICIENT_EVIDENCE여야 한다"
             )
         reason = action.get("sell_reason")
         selling = direction in {"TRIM", "EXIT"}
@@ -660,8 +710,14 @@ def validate_decision(
         if not selling and quantity is not None:
             errors.append("action.quantity: 매도가 아니면 null이어야 한다")
         _nonempty(action.get("rationale"), "action.rationale", errors)
-        if insufficient and direction not in {None, "HOLD"}:
-            errors.append("action.direction: INSUFFICIENT에서는 HOLD여야 한다")
+        # 예전 계약은 여기서 HOLD 를 강제했다. 그러면 시스템이 모델의 "모른다"를
+        # "계속 보유하라"로 번역한다 — 보유 중인 종목에서 그것은 빈 값이 아니라
+        # 행동 지시다. 판단이 서지 않으면 지시하지 않는 자리가 있어야 한다.
+        if insufficient and direction not in {None, "UNDETERMINED"}:
+            errors.append(
+                "action.direction: INSUFFICIENT에서는 UNDETERMINED여야 한다. "
+                "판단이 서지 않는 것을 HOLD로 적으면 보유 지시가 된다"
+            )
         # 판단 기반 매도는 자산 자체가 나쁘다는 주장이므로 verdict와 같은 편에
         # 서야 한다. "이 가격에 사겠다"와 "비싸서 판다"를 동시에 말할 수 없다.
         # 제약 기반 매도는 자산이 좋아도 낼 수 있으나, 제약이라고 밝혀야 한다.
@@ -674,7 +730,7 @@ def validate_decision(
         if direction == "ADD" and proposed_amount is not None and proposed_amount <= 0:
             errors.append("action.direction: ADD면 제안 금액이 0보다 커야 한다")
         if (
-            direction in {"HOLD", "TRIM", "EXIT"}
+            direction in {"HOLD", "TRIM", "EXIT", "UNDETERMINED"}
             and proposed_amount is not None
             and proposed_amount > 0
         ):

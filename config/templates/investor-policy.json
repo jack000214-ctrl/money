@@ -1,0 +1,59 @@
+{
+  "schema_version": "cio-investor-policy/1.0.0",
+  "policy_version": "YYYY-MM-DD",
+  "base_currency": "KRW",
+  "_role": "이 종목이 좋은가가 아니라 내 자본을 어떻게 쓰는가에 대한 사용자의 제약이다. PC는 이 값을 대조만 하고 정하지 않는다. null은 '제한 없음'이 아니라 '아직 정하지 않음'이며, 그 공백이 결론에 필요하면 모델은 action.direction=UNDETERMINED / undetermined_reason=NO_INVESTOR_POLICY로 답한다. 두지 않기로 결정한 항목은 null로 두되 intentionally_unset에 이유와 함께 적는다 — 그것은 공백이 아니라 결정이므로 UNDETERMINED 사유가 되지 않는다.",
+
+  "objective": {
+    "primary_goal": null,
+    "target_annual_return_pct": null
+  },
+
+  "horizon": {
+    "typical_holding_months": null,
+    "liquidity_need_within_months": null
+  },
+
+  "risk": {
+    "stop_style": null,
+    "max_loss_per_position_krw": null,
+    "max_portfolio_drawdown_pct": null
+  },
+
+  "concentration": {
+    "max_single_position_pct_of_total": null,
+    "max_sector_pct_of_total": null
+  },
+
+  "liquidity": {
+    "min_cash_krw": null,
+    "monthly_net_income_krw": null
+  },
+
+  "instruments": {
+    "leverage_allowed": null,
+    "derivative_etf_allowed": null,
+    "notes": null
+  },
+
+  "tax": {
+    "account_type": null,
+    "notes": null
+  },
+
+  "denominator": {
+    "included": [],
+    "excluded": [],
+    "note": "무엇을 총자산으로 셀지에 대한 결정과 그 이유. 건드릴 수 없는 돈을 분모에 넣으면 주식 위험이 실제보다 작아 보인다."
+  },
+
+  "intentionally_unset": [],
+
+  "default_alternatives": [
+    {
+      "id": "CASH_KRW",
+      "label": "원화 현금 보유",
+      "why": "아무것도 하지 않는 선택지. 모든 매수는 최소한 이것보다 나아야 한다"
+    }
+  ]
+}
