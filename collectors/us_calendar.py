@@ -21,13 +21,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
 from collectors.kr_calendar import (
-    OUT_DIR, SCHEMA_VERSION, _median, business_days_until, fail, load, save,
+    SCHEMA_VERSION, _median, business_days_until, fail, load, save,
 )
 
 FILING_DIR = ROOT / "knowledge" / "filings"

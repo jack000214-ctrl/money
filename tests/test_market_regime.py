@@ -1,33 +1,16 @@
 """시장 체제 판정 회귀 테스트.
 
-발생한 버그: 낙폭 라벨의 조건 순서가 뒤집혀 있었다.
+발생한 버그: 낙폭 임계의 조건 순서가 뒤집혀 있었다.
     flag = "조정" if dd <= -10 else ("약세장" if dd <= -20 else "")
 -39% 는 첫 조건에서 True 가 되어 '조정'으로 찍혔다. 약세장 분기는 도달 불가였다.
+같은 임계를 쓰는 유일한 경로가 이제 `classify` 뿐이므로 그 회귀는
+`test_large_drawdown_is_stress` 가 지킨다 — -39% 는 '약세장'이어야 한다.
 """
 
 import unittest
 
 from helpers import ROOT  # noqa: F401
-from calculators.market_regime import classify, drawdown_label, percentile
-
-
-class TestDrawdownLabel(unittest.TestCase):
-    def test_bear_market_not_mislabeled_as_correction(self):
-        """실제로 발생한 버그: -39% 가 '조정'으로 표시됐다."""
-        self.assertEqual(drawdown_label(-39.0).strip(), "← 약세장")
-        self.assertEqual(drawdown_label(-26.6).strip(), "← 약세장")
-
-    def test_correction_range(self):
-        self.assertEqual(drawdown_label(-12.0).strip(), "← 조정")
-        self.assertEqual(drawdown_label(-10.0).strip(), "← 조정")
-
-    def test_boundary_20_is_bear(self):
-        self.assertEqual(drawdown_label(-20.0).strip(), "← 약세장")
-        self.assertEqual(drawdown_label(-19.99).strip(), "← 조정")
-
-    def test_normal_has_no_label(self):
-        self.assertEqual(drawdown_label(-2.6), "")
-        self.assertEqual(drawdown_label(0.0), "")
+from calculators.market_regime import classify, percentile
 
 
 class TestClassify(unittest.TestCase):

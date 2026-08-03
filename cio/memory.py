@@ -4,12 +4,15 @@ import csv
 import datetime as dt
 import hashlib
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from calculators.contracts import ContractError, load_json, stable_hash
+from calculators.contracts import (
+    ContractError,
+    load_json,
+    stable_hash,
+    write_json,
+)
 from cio.assets import ASSET_ID_RE, get_asset
 from cio.decision import (
     CONSTRAINT_SELL_REASONS,
@@ -78,7 +81,7 @@ def record_decision_file(path: str | Path) -> Path:
         if existing != normalized:
             raise ContractError([f"{out}: 같은 assessment_id의 내용이 다르다"])
         return out
-    _atomic_json(out, normalized)
+    write_json(out, normalized)
     return out
 
 
@@ -118,7 +121,7 @@ def quarantine_decision(
     )
     path = _memory_asset_dir("quarantine", asset_id) / f"{identifier}.json"
     if not path.exists():
-        _atomic_json(path, payload)
+        write_json(path, payload)
     return path
 
 
@@ -764,7 +767,7 @@ def score_asset(asset_id: str) -> dict[str, Any]:
             "evaluations", asset["asset_id"]
         ) / f"{evaluation['evaluation_id']}.json"
         if not out.exists():
-            _atomic_json(out, evaluation)
+            write_json(out, evaluation)
         row = {
             "assessment_id": stored_id,
             "evaluation_id": evaluation["evaluation_id"],
@@ -787,21 +790,3 @@ def score_asset(asset_id: str) -> dict[str, Any]:
         "retired_evaluated": retired_evaluated,
         "skipped": skipped,
     }
-
-
-def _atomic_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
-    temporary_name: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as temporary:
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_name = temporary.name
-        os.replace(temporary_name, path)
-    finally:
-        if temporary_name and Path(temporary_name).exists():
-            Path(temporary_name).unlink()

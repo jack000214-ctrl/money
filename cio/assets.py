@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Any
 
+from calculators.contracts import write_json
 from cio.paths import CONFIG_DIR
 
 REGISTRY_PATH = CONFIG_DIR / "assets.json"
@@ -301,22 +300,5 @@ def register_asset(
 
     registry = _read(path)
     registry["assets"][key] = profile
-    _atomic_json(path, registry)
+    write_json(path, registry)
     return {"asset_id": key, **profile}
-
-
-def _atomic_json(path: Path, data: dict[str, Any]) -> None:
-    payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
-    temporary_name: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as temporary:
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_name = temporary.name
-        os.replace(temporary_name, path)
-    finally:
-        if temporary_name and Path(temporary_name).exists():
-            Path(temporary_name).unlink()

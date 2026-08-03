@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict
 
 from calculators.contracts import ContractError, load_json
 from collectors.web import snapshot
@@ -28,7 +27,7 @@ from cio.policy import (
     load_policy,
     unset_fields,
 )
-from cio.refresh import inspect_plan, plan_json, run_refresh
+from cio.refresh import plan_json, run_refresh
 from cio.requests import (
     RESOLUTION_STATES,
     format_requests,

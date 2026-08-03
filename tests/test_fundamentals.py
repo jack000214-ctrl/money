@@ -14,7 +14,6 @@
 import json
 import tempfile
 import unittest
-from pathlib import Path
 
 from helpers import ROOT  # noqa: F401
 from calculators.contracts import (

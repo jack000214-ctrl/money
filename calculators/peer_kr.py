@@ -9,10 +9,8 @@
 """
 
 import argparse
-import csv
 import json
 import sys
-import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -22,11 +20,6 @@ from collectors.dart import load_key, request as dart_request, resolve as dart_r
 
 CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{s}?range=5d&interval=1d"
 QUARTERS = [("1Q", "11013"), ("2Q", "11012"), ("3Q", "11014")]
-ACCOUNTS = {
-    "revenue": ["매출액", "수익(매출액)", "영업수익"],
-    "opinc": ["영업이익", "영업이익(손실)"],
-    "eps": ["기본주당이익", "기본주당순이익", "기본주당이익(손실)"],
-}
 EQUITY_NAMES = ["자본총계"]
 
 

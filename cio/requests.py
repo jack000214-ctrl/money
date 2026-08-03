@@ -18,16 +18,13 @@ from __future__ import annotations
 import datetime as dt
 import difflib
 import hashlib
-import json
-import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from calculators.contracts import ContractError, load_json
+from calculators.contracts import ContractError, load_json, write_json
 from cio.assets import get_asset
-from cio.paths import KNOWLEDGE_DIR, ROOT
+from cio.paths import KNOWLEDGE_DIR
 
 KST = dt.timezone(dt.timedelta(hours=9))
 LEDGER_SCHEMA = "research-ledger/1.0.0"
@@ -152,24 +149,6 @@ def load_ledger(asset_id: str) -> dict[str, Any]:
     if not isinstance(data.get("resolutions"), list):
         raise ContractError([f"{path}: resolutions 배열이 없다"])
     return data
-
-
-def _atomic_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
-    temporary_name = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as temporary:
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_name = temporary.name
-        os.replace(temporary_name, path)
-    finally:
-        if temporary_name and Path(temporary_name).exists():
-            Path(temporary_name).unlink()
 
 
 def collect_requests(asset_id: str) -> list[dict[str, Any]]:
@@ -342,7 +321,7 @@ def resolve_request(
     ledger["resolutions"] = resolutions
     ledger["updated_at"] = now
     path = ledger_path(asset_id)
-    _atomic_json(path, ledger)
+    write_json(path, ledger)
     return path
 
 

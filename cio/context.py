@@ -20,6 +20,7 @@ from calculators.contracts import (
     stable_hash,
     validate_calculation,
     validate_fundamentals,
+    write_json,
 )
 from cio.assets import get_asset
 from cio.documents import documents_for_context
@@ -2455,7 +2456,7 @@ def build_context(
             / asset["asset_id"]
             / f"{packet['context_id']}.json"
         )
-        _atomic_json(path, packet)
+        write_json(path, packet)
     return packet, path
 
 
@@ -2482,21 +2483,3 @@ def _snapshot_evidence(origin: Path, digest: str) -> Path:
         if temporary_name and Path(temporary_name).exists():
             Path(temporary_name).unlink()
     return path
-
-
-def _atomic_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
-    temporary_name: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as temporary:
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_name = temporary.name
-        os.replace(temporary_name, path)
-    finally:
-        if temporary_name and Path(temporary_name).exists():
-            Path(temporary_name).unlink()

@@ -39,8 +39,6 @@ ENDPOINTS = {
     "KONEX": "sto/knx_bydd_trd",
     "ETF": "etp/etf_bydd_trd",
 }
-INDEX_ENDPOINTS = {"KOSPI": "idx/kospi_dd_trd", "KOSDAQ": "idx/kosdaq_dd_trd",
-                   "KRX": "idx/krx_dd_trd"}
 # 지수 응답은 한 시장에 수십 개 지수를 담는다. 벤치마크로 쓰는 대표지수의
 # 정확한 이름과, 대조할 Yahoo 파일. 첫 행은 '코스피 (외국주포함)' 인데
 # 지수 레벨이 비어 있어서, 이름으로 정확히 집지 않으면 빈 값을 집는다.
@@ -52,7 +50,6 @@ BENCHMARKS = {
 }
 F_IDX_NM = "IDX_NM"
 F_IDX_CLOSE, F_IDX_HIGH, F_IDX_LOW = "CLSPRC_IDX", "HGPRC_IDX", "LWPRC_IDX"
-BASE_INFO = {"KOSPI": "sto/stk_isu_base_info", "KOSDAQ": "sto/ksq_isu_base_info"}
 
 # KRX 응답 필드명.
 # 추측했던 ISU_SRT_CD/ISU_ABBRV 는 없는 필드였고, 그 탓에 종목 검색이 조용히

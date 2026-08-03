@@ -17,15 +17,12 @@ readout 예정일이 지났는데 결과가 기록되지 않았으면 그것 자
 from __future__ import annotations
 
 import datetime as dt
-import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from calculators.contracts import ContractError, load_json
+from calculators.contracts import ContractError, load_json, write_json
 from cio.assets import get_asset
-from cio.paths import KNOWLEDGE_DIR, ROOT
+from cio.paths import KNOWLEDGE_DIR
 
 SCHEMA_VERSION = "pipeline-ledger/1.0.0"
 
@@ -59,24 +56,6 @@ def load_pipeline(asset_id: str) -> dict[str, Any]:
         return load_json(path)
     except (ContractError, OSError) as exc:
         raise PipelineError(f"{path}: 읽을 수 없다 — {exc}") from exc
-
-
-def _write(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-            tmp = handle.name
-        os.replace(tmp, path)
-    finally:
-        if tmp and Path(tmp).exists():
-            Path(tmp).unlink()
 
 
 def record_program(
@@ -142,7 +121,7 @@ def record_program(
         ),
     }
     path = _path(asset["asset_id"])
-    _write(path, payload)
+    write_json(path, payload)
     return path
 
 

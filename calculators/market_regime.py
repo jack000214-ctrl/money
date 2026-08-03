@@ -8,7 +8,6 @@ import csv
 import datetime as dt
 import json
 import statistics
-import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -129,14 +128,6 @@ def classify(
     if score >= 1:
         return "ELEVATED", "🟡", score, notes
     return "NORMAL", "🟢", score, notes
-
-
-def drawdown_label(drawdown: float) -> str:
-    if drawdown <= -20:
-        return "  ← 약세장"
-    if drawdown <= -10:
-        return "  ← 조정"
-    return ""
 
 
 def analyse(

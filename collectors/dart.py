@@ -461,9 +461,6 @@ def merge_filing_rows(row_groups, *, limit=FILING_INDEX_LIMIT):
     return ordered[:limit]
 
 
-DOCUMENT_DIR = ROOT / "data" / "raw" / "dart" / "documents"
-
-
 def fetch_document(rcept_no, key):
     """접수번호로 공시 원문을 받아 내용 주소로 보존하고 (문서, 경로) 를 준다.
 
@@ -675,8 +672,15 @@ BS_DEBT_IDS = [
     ("ifrs-full_CurrentPortionOfLongtermBorrowings", "유동성장기부채"),
     ("ifrs-full_Bonds", "사채"),
 ]
-BS_DEBT_NAMES = ["단기차입금", "사채", "장기차입금", "유동성장기부채",
-                 "유동성사채", "장기성미지급금"]
+# 미확정 — 여기 없어서 총차입에서 빠지는 계정들. 실측(214450, 2026 1Q): 인식
+# 4.3억인데 전환사채 57.7억·리스부채 30억이 통째로 빠져 순부채가 20배 틀린다.
+#   (1) 전환사채·신주인수권부사채  dart_(CurrentPortionOf)ConvertibleBonds,
+#       dart_(CurrentPortionOf)BondWithWarrant — 상환의무가 있으므로 차입이다.
+#   (2) 리스부채  ifrs-full_(Noncurrent)CurrentLeaseLiabilities — IFRS16 이후
+#       순부채에 넣는 것이 표준이지만 영업리스를 빼는 관행도 있어 판단이 갈린다.
+#   (3) '유동성장기차입금' 은 표준계정코드를 안 쓰면 이름으로도 안 잡힌다
+#       (아래 label 이 '유동성장기부채' 라서 다르다).
+# 넣으면 이미 만들어 둔 fundamentals 의 순부채가 바뀌므로 사용자가 정한다.
 
 
 # 전체계정 API가 빈 보고서는 필요한 계정을 XBRL 개념명으로 보충한다.

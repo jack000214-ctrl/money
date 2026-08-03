@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 from calculators.contracts import (
-    ContractError,
     load_json,
     load_raw_snapshot,
     validate_fundamentals,

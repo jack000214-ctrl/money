@@ -400,7 +400,7 @@ def save_validated_fundamentals(
     errors = validate_fundamentals(data)
     if errors:
         raise ContractError(errors)
-    return _atomic_write_json(
+    return write_json(
         Path(out_dir) / f"{data['instrument_id']}-{data['period_end']}.json",
         data,
     )
@@ -412,13 +412,18 @@ def save_validated_calculation(
     errors = validate_calculation(data)
     if errors:
         raise ContractError(errors)
-    return _atomic_write_json(
+    return write_json(
         Path(calculations_dir) / f"{data['calculation_id']}.json",
         data,
     )
 
 
-def _atomic_write_json(path: str | Path, data: dict[str, Any]) -> Path:
+def write_json(path: str | Path, data: dict[str, Any]) -> Path:
+    """JSON 을 원자적으로 쓴다. 쓰기가 끊겨도 반쪽 파일이 남지 않는다.
+
+    저장소 전체가 이 하나를 쓴다. 같은 로직이 모듈마다 복사돼 있으면 한쪽만
+    NaN 을 막거나 한쪽만 부모 디렉터리를 만드는 식으로 조용히 갈라진다.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     try:

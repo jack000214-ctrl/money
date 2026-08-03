@@ -18,7 +18,6 @@ import math
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
-from pathlib import Path
 
 SCHEMA_VERSION = "1.0.0"
 COMPONENT = "portfolio-xray/lookthrough"

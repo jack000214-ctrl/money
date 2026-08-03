@@ -243,7 +243,7 @@ def main():
     print("=" * 74)
     print(f"밸류에이션 밴드 — {a.ticker} ({a.market})")
     print("=" * 74)
-    print(f"기간          {hist[0][0]} ~ {hist[-1][0]}  ({len(hist)}거래일)")
+    print(f"기간          {hist[0][0]} ~ {cur_date}  ({len(hist)}거래일)")
     print(f"현재가        {cur_price:>14,.2f}")
     print(f"TTM EPS       {cur_eps:>14,.2f}   (기준 {cur_asof}, 공시 반영)")
     print(f"현재 PER      {cur_per:>14,.2f}")

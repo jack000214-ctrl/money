@@ -17,13 +17,10 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from calculators.contracts import ContractError, load_json
+from calculators.contracts import ContractError, load_json, write_json
 from cio.assets import get_asset
 from cio.decision import find_context, require_valid_decision
 from cio.paths import KNOWLEDGE_DIR, ROOT
@@ -149,24 +146,6 @@ def retired_summary(asset_id: str) -> dict[str, Any]:
     }
 
 
-def _write(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-            tmp = handle.name
-        os.replace(tmp, path)
-    finally:
-        if tmp and Path(tmp).exists():
-            Path(tmp).unlink()
-
-
 def retire(
     asset_id: str,
     *,
@@ -221,7 +200,7 @@ def retire(
         destination = (
             _retired_dir(state["asset_id"]) / f"{row['assessment_id']}.json"
         )
-        _write(destination, data)
+        write_json(destination, data)
         source.unlink()
         moved.append(
             {

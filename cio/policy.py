@@ -96,12 +96,6 @@ STRUCTURAL_KEYS = {
 GROUPS = sorted({path.split(".", 1)[0] for path in FIELDS})
 
 
-class PolicyError(ValueError):
-    def __init__(self, errors: list[str]):
-        self.errors = errors
-        super().__init__("; ".join(errors))
-
-
 def _get(data: dict[str, Any], path: str) -> Any:
     group, leaf = path.split(".", 1)
     section = data.get(group)
