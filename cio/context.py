@@ -286,6 +286,19 @@ def _latest_fundamentals(
     # 총차입만 실으면 리스·전환사채를 포함할지가 수집기에서 이미 정해져 버린다.
     # 그건 방법론 판단이므로 분류를 함께 실어 모델이 다시 셀 수 있게 한다.
     # 계정 한 줄씩(debt_detail)은 싣지 않는다 — 다시 세는 데 분류 합이면 족하다.
+    # 0 이 관측인지 결측인지 말해 주지 않으면 순부채가 과대계상된 사실이 사라진다.
+    # 정상일 때는 싣지 않는다 — 매 판단마다 보내는 자리라 한 줄이 비용이다.
+    basis = data.get("short_term_investments_basis")
+    if basis and basis != "OBSERVED":
+        summary["short_term_investments_basis"] = {
+            "basis": basis,
+            "_warning": (
+                data.get("short_term_investments_note")
+                or "단기투자자산을 쓸 수 없어 0 으로 두었다"
+            ) + ". values.short_term_investments 의 0 은 관측이 아니라 결측이고, "
+                "그만큼 net_debt 가 과대계상돼 있다",
+        }
+
     by_category = data.get("debt_by_category")
     if isinstance(by_category, dict) and by_category:
         summary["debt_by_category"] = {
@@ -714,7 +727,9 @@ def _market_summary(market: str) -> tuple[dict[str, Any] | None, dict[str, Any]]
 
 
 def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    if asset["market"] != "KR" or asset["asset_type"] != "STOCK":
+    # 시장을 가리지 않는다. 판정 로직이 한 곳이라 두 시장의 packet 이 같은 뜻을
+    # 갖고, 여기서 한쪽만 실으면 그 사실이 다시 사라진다.
+    if asset["asset_type"] != "STOCK":
         return None, None
     path = KNOWLEDGE_DIR / "events" / f"{asset['asset_id']}.json"
     source = {
@@ -741,11 +756,18 @@ def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[s
                 "change_pct": move.get("change_pct"),
                 "benchmark_pct": move.get("benchmark_pct"),
                 "excess_pct_beta_1": move.get("excess_pct"),
+                # 공시 식별자는 시장마다 다르다 (DART 접수번호 / SEC 접수번호).
+                # 없는 키는 싣지 않는다 — 매 판단마다 나가는 자리다.
                 "candidate_filings": [
                     {
-                        "filed": filing.get("filed"),
-                        "name": filing.get("name"),
-                        "rcept_no": filing.get("rcept_no"),
+                        key: value
+                        for key, value in (
+                            ("filed", filing.get("filed")),
+                            ("name", filing.get("name")),
+                            ("rcept_no", filing.get("rcept_no")),
+                            ("accession_number", filing.get("accession_number")),
+                        )
+                        if value is not None
                     }
                     for filing in (move.get("candidate_filings") or [])[:3]
                 ],
@@ -2053,7 +2075,55 @@ def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
             }
         ],
     }
-    return common + additions.get(lens, [])
+    return common + _market_requirements(asset) + additions.get(lens, [])
+
+
+# 렌즈만으로는 안 되는 이유 — 결측은 종목의 성격이 아니라 **시장**을 따라 갈린다.
+# 미국 자산에는 컨센서스·수급·대차가 통째로 없는데, 그 사실이 어디에도 안 적히면
+# packet 은 `multiples_at_review_price: null` 만 보여 준다. 그것은 "볼 것이 없다"
+# 와 구분되지 않고, 모델은 없는 줄도 모른 채 판단을 닫는다. 결함을 아는 모델만
+# 올바로 판단하는 상태가 바로 이 저장소가 없애려는 것이다.
+MARKET_GAPS = {
+    "US": [
+        {
+            "owner": "MODEL",
+            "topic": "forward_multiples",
+            "known_local_gap": (
+                "미국 자산에는 컨센서스 추정 EPS 가 로컬에 없다. 그래서 "
+                "`multiples_at_review_price` 가 null 이고, 검토 가격의 forward "
+                "PER 을 이 저장소가 내주지 못한다. 한국 자산은 FnGuide 가 "
+                "제공하는 1차 표를 받지만 미국은 같은 등급의 무료 출처가 없다 — "
+                "만들지 않기로 한 결정이며 게으름이 아니다. 2차 출처를 1차인 "
+                "척 실으면 배수의 근거가 조용히 약해진다"
+            ),
+            "instruction": (
+                "이 종목의 forward 배수를 쓰려면 추정 EPS 를 직접 조사하고 "
+                "출처와 기준일을 밝힌다. 로컬에 있는 것은 확정 실적(TTM)뿐이며, "
+                "그것으로 낸 배수를 forward 라고 부르지 않는다"
+            ),
+        },
+        {
+            "owner": "MODEL",
+            "topic": "ownership_and_short_interest",
+            "known_local_gap": (
+                "수급(외국인·기관 순매수)과 대차잔고가 로컬에 없다. 한국은 "
+                "KRX·금융투자협회가 1차로 주는데 미국은 13F 가 분기 45일 지연, "
+                "공매도 잔고는 격주 지연이라 같은 성격의 시계열이 아니다"
+            ),
+            "instruction": (
+                "수급을 논지에 쓰려면 직접 조사하고 그 지연을 함께 밝힌다. "
+                "`structured_optional` 이 비어 있는 것은 수급이 평온하다는 뜻이 "
+                "아니라 보지 않았다는 뜻이다"
+            ),
+        },
+    ],
+}
+
+
+def _market_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
+    if asset.get("asset_type") == "ETF":
+        return []
+    return MARKET_GAPS.get(asset.get("market"), [])
 
 
 # 사용자가 무엇을 묻고 있는가. 신규매수와 분할매도 검토는 같은 질문이 아니고,

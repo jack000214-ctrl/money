@@ -194,12 +194,9 @@ class TestDebtCoverage(unittest.TestCase):
         self.assertEqual(by_category["CONVERTIBLE"], 300_000_000)
         self.assertEqual(by_category["LEASE"], 400_000_000)
 
-    def test_samsung_eanda_stays_debt_free(self):
-        """회귀: 무차입 회사가 새 계정 때문에 차입이 생기면 안 된다."""
-        debt, detail, basis = resolve_debt(NO_DEBT_BALANCE_SHEET)
-        self.assertEqual(basis, "NO_DEBT_LINE_ITEMS")
-        self.assertEqual(debt, 0.0)
-        self.assertEqual(detail, [])
+    # 무차입 회귀(삼성E&A)는 TestDebtBasis 의
+    # test_readable_sheet_without_debt_lines_is_zero_not_failure 가 이미 지킨다.
+    # 같은 본문을 한 번 더 두면 한쪽만 고쳐지는 날이 온다.
 
 
 PARENT_NI = is_("ifrs-full_ProfitLossAttributableToOwnersOfParent",

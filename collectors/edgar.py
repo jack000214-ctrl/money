@@ -52,26 +52,168 @@ SHORT_INV_TAGS = ["ShortTermInvestments", "MarketableSecuritiesCurrent",
                   "AvailableForSaleSecuritiesDebtSecuritiesCurrent"]
 OCF_TAGS = ["NetCashProvidedByUsedInOperatingActivities",
             "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"]
-# 장기차입금 태그는 회사·시기별로 갈린다. LongTermDebtNoncurrent 만 보면
-# 테슬라처럼 2014년에서 멈춘 태그를 최신값으로 착각한다. LongTermDebt 를
-# 먼저 시도하고, 채택한 값의 기준일을 반드시 함께 기록한다.
+# 총차입은 태그 하나가 아니라 **겹치지 않는 자리(slot)의 합**이다.
 #
-# 알려진 결함 — 여기는 **장기차입금만** 센다. 유동성장기부채·단기차입금·
-# 리스부채·전환사채가 순부채에서 통째로 빠진다. 한국 쪽(collectors/dart.py 의
-# BS_DEBT_ACCOUNTS)은 2026-08-03 에 같은 결함을 고쳐 분류별로 합하고
-# debt_by_category 로 내보내는데, 미국 쪽은 아직 그대로다. 그래서 지금
-# US 자산의 net_debt 는 과소계상이고, KR 자산과 다른 기준이다.
-# 고치려면 us-gaap 태그를 실제 companyfacts 에서 확인해야 한다 — 저장된
-# 원본은 이 수집기가 받아온 개념만 담고 있어 오프라인으로 셀 수 없다.
-# 후보: LongTermDebtCurrent, ShortTermBorrowings, CommercialPaper,
-#       OperatingLeaseLiabilityCurrent/Noncurrent,
-#       FinanceLeaseLiabilityCurrent/Noncurrent, ConvertibleNotesPayable.
+# us-gaap 은 같은 돈을 총액 태그와 구성요소 태그로 동시에 낸다. 그래서 자리마다
+# 후보를 두고 하나만 고른다. 자리 안에서는 가장 최근 것을 쓰되, 날짜가 같으면
+# 앞에 적은 태그를 쓴다 — LongTermDebt 는 회사에 따라 유동성을 포함한 총액일
+# 수 있어 뜻이 분명한 LongTermDebtNoncurrent 를 앞에 둔다.
+#
+# 태그 하나만 쓰던 때의 실측 오차 (2026-08-03):
+#   TSLA 7,721M → 16,080M   IBM 56,212M → 65,272M   RXRX 723K → 72.4M
+# 분류는 KR(collectors/dart.py) 과 같은 이름을 쓴다. 두 시장을 나란히 놓고
+# 볼 때 같은 낱말이 다른 것을 뜻하면 안 된다.
+US_DEBT_SLOTS = (
+    ("BORROWING", ("LongTermDebtNoncurrent", "LongTermDebt",
+                   "LongTermDebtAndCapitalLeaseObligations")),
+    ("BORROWING", ("ShortTermBorrowings", "DebtCurrent",
+                   "LongTermDebtAndCapitalLeaseObligationsCurrent",
+                   "LongTermDebtCurrent", "CommercialPaper",
+                   "NotesPayableCurrent")),
+    ("CONVERTIBLE", ("ConvertibleDebtNoncurrent",
+                     "ConvertibleNotesPayableNoncurrent")),
+    ("CONVERTIBLE", ("ConvertibleDebtCurrent",
+                     "ConvertibleNotesPayableCurrent")),
+    ("LEASE", ("OperatingLeaseLiabilityNoncurrent",)),
+    ("LEASE", ("OperatingLeaseLiabilityCurrent",)),
+    # 금융리스는 차입 값이 이미 품고 있을 수 있다. 아래 겹침 판정을 거친다.
+    ("LEASE", ("FinanceLeaseLiabilityNoncurrent",
+               "CapitalLeaseObligationsNoncurrent")),
+    ("LEASE", ("FinanceLeaseLiabilityCurrent",
+               "CapitalLeaseObligationsCurrent")),
+)
+# '차입금+금융리스' 결합 태그. 이것이 채택한 차입 값과 같은 날짜·같은 금액이면
+# 그 차입에 금융리스가 이미 들어 있다는 뜻이다 (IBM 이 그렇다).
+US_COMBINED_LEASE_TAGS = {
+    "LongTermDebtAndCapitalLeaseObligations": 0,
+    "LongTermDebtAndCapitalLeaseObligationsCurrent": 1,
+}
+US_FINANCE_LEASE_SLOTS = (6, 7)
+# 결합 태그와 차입 값이 이 비율 안에서 같으면 같은 줄로 본다. IBM 은 유동 쪽이
+# 5,772M 과 5,775M 로 3M 어긋나는데, 이는 같은 줄의 표기 차이다.
+US_SAME_LINE_TOLERANCE = 0.01
+# 분기마다 내지 않는 항목이 있다 (IBM 의 금융리스는 연 1회다). 1년 안쪽이면
+# 최신 공시로 보고, 그보다 오래되면 현재 값으로 쓰지 않는다 — RXRX 는 2021년
+# 차입금이 2026년 순부채에 그대로 실려 있었다.
+US_MAX_STALE_DAYS = 400
+# 남겨 둔다: 옛 이름으로 저장된 스냅샷을 읽는 코드가 있다.
 DEBT_TAGS = ["LongTermDebt", "LongTermDebtNoncurrent"]
+
+
 CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment",
               "PaymentsToAcquireProductiveAssets"]
 INCOME_QUARTERS = 8   # 전년 동기 비교에 필요한 최소 분기 수
 SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding",
                "WeightedAverageNumberOfDilutedSharesOutstandingBasic"]
+
+
+def resolve_us_debt(points_by_tag, period_end):
+    """자리마다 태그를 하나씩 골라 총차입을 낸다.
+
+    → (debt, detail, by_category, notes)
+
+    `points_by_tag` 는 {태그: (기준일, 값)} 이다. 네트워크를 타지 않는 순수
+    함수라 실제 공시 조합으로 그대로 시험할 수 있다.
+    """
+    chosen = []          # (slot_index, category, tag, end, value)
+    notes = []
+    for index, (category, tags) in enumerate(US_DEBT_SLOTS):
+        best = None
+        for rank, tag in enumerate(tags):
+            point = points_by_tag.get(tag)
+            if not point:
+                continue
+            end, value = point
+            if value is None or end is None:
+                continue
+            # 최근 것 우선, 같은 날짜면 앞에 적은(뜻이 분명한) 태그 우선.
+            key = (end, -rank)
+            if best is None or key > best[0]:
+                best = (key, tag, end, float(value))
+        if best is None:
+            continue
+        _key, tag, end, value = best
+        if _stale_days(end, period_end) > US_MAX_STALE_DAYS:
+            notes.append(
+                f"{tag}: 기준일 {end} 이 {period_end} 보다 "
+                f"{US_MAX_STALE_DAYS}일 넘게 앞서 총차입에서 뺐다"
+            )
+            continue
+        chosen.append((index, category, tag, end, value))
+
+    chosen = _drop_double_counted_finance_lease(chosen, points_by_tag, notes)
+
+    debt = 0.0
+    detail = []
+    by_category = {}
+    for _index, category, tag, end, value in chosen:
+        debt += value
+        detail.append({"tag": tag, "category": category,
+                       "as_of": end, "value": value})
+        by_category[category] = by_category.get(category, 0.0) + value
+    return debt, detail, by_category, notes
+
+
+def resolve_optional_value(value, at, period_end, *, label):
+    """없어도 되는 값을 묵음 여부까지 판정한다. → (value, basis, note)
+
+    순부채의 현금 쪽에도 차입과 같은 결함이 있었다 — IBM 의 단기투자자산
+    600M 은 2021-03-31 자인데 2026년 순부채에 그대로 실렸다. 5년 묵은 값을
+    현재값이라 부르면 그 오차가 EV 전체에 곱해진다.
+
+    값은 0 으로 내리되 **정말 0 인 것과 묵어서 뺀 것을 섞지 않는다.** 계약이
+    values 를 숫자로 요구하므로 구분은 basis 에 남긴다 (KR 의 debt_basis 와
+    같은 방식이다).
+    """
+    if value is None:
+        return 0.0, "NOT_DISCLOSED", f"{label}: 태그를 찾지 못해 0 으로 두었다"
+    days = _stale_days(at, period_end)
+    if days > US_MAX_STALE_DAYS:
+        return 0.0, "STALE_EXCLUDED", (
+            f"{label}: 기준일 {at} 이 {period_end} 보다 {days}일 앞서 "
+            "총액에서 뺐다. 0 은 관측이 아니라 결측이다"
+        )
+    return float(value), "OBSERVED", None
+
+
+def _stale_days(end, period_end):
+    try:
+        a = datetime.strptime(end, "%Y-%m-%d")
+        b = datetime.strptime(period_end, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return 0
+    return (b - a).days
+
+
+def _drop_double_counted_finance_lease(chosen, points_by_tag, notes):
+    """차입 값이 금융리스를 이미 품고 있으면 금융리스 자리를 뺀다.
+
+    IBM 의 LongTermDebtNoncurrent 는 LongTermDebtAndCapitalLeaseObligations 와
+    같은 날 같은 금액이다 — 즉 그 값에 금융리스가 들어 있다. 거기에 금융리스를
+    또 더하면 순부채가 그만큼 부풀고, 그 오차는 EV 전체에 곱해진다.
+    """
+    borrowing = {index: (tag, end, value)
+                 for index, category, tag, end, value in chosen
+                 if category == "BORROWING"}
+    bundled = False
+    for combined_tag, slot in US_COMBINED_LEASE_TAGS.items():
+        point = points_by_tag.get(combined_tag)
+        if not point or slot not in borrowing:
+            continue
+        combined_end, combined_value = point
+        tag, end, value = borrowing[slot]
+        if combined_end != end or not value:
+            continue
+        if abs(float(combined_value) - value) / abs(value) <= US_SAME_LINE_TOLERANCE:
+            bundled = True
+            notes.append(
+                f"{tag}({end}) 는 금융리스를 포함한 값이다"
+                + ("" if tag == combined_tag else f" — {combined_tag} 과 같은 줄이다")
+                + ". 금융리스를 따로 더하지 않았다"
+            )
+    if not bundled:
+        return chosen
+    return [row for row in chosen if row[0] not in US_FINANCE_LEASE_SLOTS]
 
 
 def fail(msg) -> NoReturn:
@@ -616,7 +758,6 @@ def cmd_fundamentals(a, ua):
 
     cash_tag, cash, cash_at = point("현금성자산", CASH_TAGS)
     inv_tag, short_inv, inv_at = point("단기투자자산", SHORT_INV_TAGS)
-    debt_tag, debt, debt_at = point("장기차입금", DEBT_TAGS)
 
     shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares")
     shares_pts = as_of_filter(shares_pts, a.as_of)
@@ -626,18 +767,65 @@ def cmd_fundamentals(a, ua):
         fail("희석주식수를 찾지 못했다")
     shares, shares_at = shares_q[0]["val"], shares_q[0]["end"]
 
-    for label, value in (("현금성자산", cash), ("단기투자자산", short_inv),
-                         ("장기차입금", debt)):
-        if value is None:
-            fail(f"{label}: 값을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
+    if cash is None:
+        fail("현금성자산: 값을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
 
     period_end = ocf_q[-1]["end"]
-    # 차입금 기준일이 손익 기준일과 크게 어긋나면 순부채가 다른 시점 값이다.
-    for label, at in (("현금성자산", cash_at), ("단기투자자산", inv_at),
-                      ("장기차입금", debt_at)):
-        if at != period_end:
-            print(f"⚠ {label} 기준일 {at} 이 손익 기준일 {period_end} 과 다르다",
-                  file=sys.stderr)
+
+    # 현금은 없으면 안 되는 값이라 묵었으면 멈춘다. 단기투자자산은 없을 수도
+    # 있는 값이라 0 으로 내리되 그것이 관측인지 결측인지 basis 에 남긴다.
+    if _stale_days(cash_at, period_end) > US_MAX_STALE_DAYS:
+        fail(f"현금성자산 기준일 {cash_at} 이 {period_end} 보다 "
+             f"{US_MAX_STALE_DAYS}일 넘게 앞선다. 묵은 현금으로 순부채를 내지 "
+             "않는다")
+    short_inv, short_inv_basis, short_inv_note = resolve_optional_value(
+        short_inv, inv_at, period_end, label="단기투자자산"
+    )
+    if short_inv_note:
+        print(f"※ {short_inv_note}", file=sys.stderr)
+
+    # 총차입은 자리마다 태그를 하나씩 골라 더한다. 어느 자리가 언제 것인지
+    # 기준일이 필요하므로 period_end 가 정해진 뒤에 푼다.
+    debt_points = {}
+    for tag in sorted({t for _category, tags in US_DEBT_SLOTS for t in tags}
+                      | set(US_COMBINED_LEASE_TAGS)):
+        data = get(CONCEPT.format(cik=cik, tag=tag), ua, tolerate_404=True)
+        time.sleep(0.12)  # SEC 권장 10 req/s 이하
+        rows = instant(as_of_filter(
+            (data or {}).get("units", {}).get("USD") or [], a.as_of))
+        if rows:
+            debt_points[tag] = (rows[0]["end"], rows[0]["val"])
+    raw["차입_후보태그"] = {
+        tag: {"end": end, "val": val} for tag, (end, val) in debt_points.items()
+    }
+    debt, debt_detail, debt_by_cat, debt_notes = resolve_us_debt(
+        debt_points, period_end
+    )
+    if not debt_detail:
+        fail("차입 계정을 하나도 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
+    # 부채총계를 넘으면 같은 돈을 두 번 셌다는 뜻이다 (KR 쪽과 같은 불변식).
+    total_liabilities = point("부채총계", ["Liabilities"])[1]
+    if total_liabilities is not None and debt > float(total_liabilities) + 1.0:
+        fail(f"총차입 {debt:,.0f} 이 부채총계 {float(total_liabilities):,.0f} 을 "
+             "넘는다. 같은 금액을 두 자리에서 세었을 가능성이 크므로 "
+             "순부채를 내지 않는다")
+    for note in debt_notes:
+        print(f"※ {note}", file=sys.stderr)
+
+    debt_at = max((d["as_of"] for d in debt_detail), default=None)
+    debt_tag = "+".join(d["tag"] for d in debt_detail)
+    # 기준일이 손익 기준일과 어긋나면 순부채가 다른 시점 값이다.
+    # 단기투자자산이 묵어서 빠진 경우는 위에서 이미 알렸으므로 겹쳐 쓰지 않는다.
+    if cash_at != period_end:
+        print(f"⚠ 현금성자산 기준일 {cash_at} 이 손익 기준일 {period_end} 과 "
+              "다르다", file=sys.stderr)
+    if short_inv_basis == "OBSERVED" and inv_at != period_end:
+        print(f"⚠ 단기투자자산 기준일 {inv_at} 이 손익 기준일 {period_end} 과 "
+              "다르다", file=sys.stderr)
+    for item in debt_detail:
+        if item["as_of"] != period_end:
+            print(f"⚠ {item['tag']} 기준일 {item['as_of']} 이 손익 기준일 "
+                  f"{period_end} 과 다르다", file=sys.stderr)
 
     values = {
         "ocf_ttm": float(ocf_ttm),
@@ -672,6 +860,30 @@ def cmd_fundamentals(a, ua):
                                          "derived")} for q in capex_q],
         },
         "values": values,
+        "definitions": {
+            "long_term_debt": "총차입. 차입금·전환사채·리스부채를 겹치지 않는 "
+                              "자리마다 하나씩 골라 합했다 (분류별 합은 "
+                              "debt_by_category, 태그와 기준일은 debt_detail). "
+                              "리스를 뺀 기준을 쓰려면 LEASE 를 덜어내고 다시 센다",
+            "debt_by_category": "BORROWING=차입금 CONVERTIBLE=전환사채 "
+                                "LEASE=운용·금융리스부채. 리스 포함 여부는 "
+                                "방법론에 따라 갈리므로 합계만 주지 않고 분류를 "
+                                "함께 낸다. KR 스냅샷과 같은 분류명이다",
+            "debt_detail": "자리마다 채택한 us-gaap 태그와 그 기준일. 분기마다 "
+                           "공시하지 않는 항목이 있어 as_of 가 period_end 보다 "
+                           "앞설 수 있다",
+            "short_term_investments_basis": "OBSERVED=공시된 값이다(0 이면 정말 "
+                                            "0 이다). STALE_EXCLUDED=너무 묵어서 "
+                                            "뺐다. NOT_DISCLOSED=태그가 없다. "
+                                            "뒤의 둘에서 0 은 관측이 아니라 "
+                                            "결측이므로 순부채가 그만큼 과대계상"
+                                            "돼 있다",
+        },
+        "debt_detail": debt_detail,
+        "debt_by_category": debt_by_cat,
+        "debt_notes": debt_notes,
+        "short_term_investments_basis": short_inv_basis,
+        "short_term_investments_note": short_inv_note,
         "income_statement": {
             key: {
                 "tag": series["tag"],

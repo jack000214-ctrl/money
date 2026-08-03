@@ -364,6 +364,73 @@ class TestRoutingContracts(unittest.TestCase):
                 }
                 self.assertIn(topic, topics)
 
+    def test_unusable_short_term_investments_is_flagged_not_silently_zero(self):
+        """0 이 관측인지 결측인지 말하지 않으면 과대계상이 조용해진다."""
+        data = valid_fundamentals()
+        data["short_term_investments_basis"] = "STALE_EXCLUDED"
+        data["short_term_investments_note"] = "단기투자자산: 기준일 2021-03-31"
+        data["fundamentals_id"] = fundamentals_id_for(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            knowledge = Path(tmp)
+            (knowledge / "fundamentals").mkdir()
+            path = knowledge / "fundamentals" / f"TSLA-{data['period_end']}.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with (
+                patch("cio.context.KNOWLEDGE_DIR", knowledge),
+                patch("cio.context.ROOT", knowledge),
+            ):
+                summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        flag = summary["short_term_investments_basis"]
+        self.assertEqual(flag["basis"], "STALE_EXCLUDED")
+        self.assertIn("과대계상", flag["_warning"])
+
+    def test_observed_short_term_investments_costs_no_packet_space(self):
+        """정상일 때까지 실으면 매 판단마다 쓸데없는 줄을 보낸다."""
+        data = valid_fundamentals()
+        data["short_term_investments_basis"] = "OBSERVED"
+        data["fundamentals_id"] = fundamentals_id_for(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            knowledge = Path(tmp)
+            (knowledge / "fundamentals").mkdir()
+            path = knowledge / "fundamentals" / f"TSLA-{data['period_end']}.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with (
+                patch("cio.context.KNOWLEDGE_DIR", knowledge),
+                patch("cio.context.ROOT", knowledge),
+            ):
+                summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        self.assertNotIn("short_term_investments_basis", summary)
+
+    def test_us_packet_declares_what_it_does_not_have(self):
+        """결측은 렌즈가 아니라 시장을 따라 갈린다.
+
+        미국 자산에는 컨센서스가 통째로 없어 `multiples_at_review_price` 가
+        null 이다. 그 사실이 어디에도 안 적히면 모델은 "볼 것이 없다"로 읽고,
+        없는 줄도 모른 채 판단을 닫는다. 실제로 그 상태였다 — TSLA packet 은
+        validation=PASS 에 problems=[] 였고 컨센서스 얘기가 한 줄도 없었다.
+        """
+        for asset_id in ("TSLA", "IBM", "RXRX"):
+            with self.subTest(asset_id=asset_id):
+                items = _research_requirements(get_asset(asset_id))
+                topics = {item["topic"] for item in items}
+                self.assertIn("forward_multiples", topics)
+                gap = next(
+                    item for item in items
+                    if item["topic"] == "forward_multiples"
+                )
+                self.assertIn("컨센서스", gap["known_local_gap"])
+
+    def test_korean_assets_do_not_inherit_the_us_gap(self):
+        """한국 자산은 컨센서스가 실제로 있다. 없다고 말하면 그게 거짓이다."""
+        for asset_id in ("005930", "214450"):
+            with self.subTest(asset_id=asset_id):
+                topics = {
+                    item["topic"]
+                    for item in _research_requirements(get_asset(asset_id))
+                }
+                self.assertNotIn("forward_multiples", topics)
+                self.assertNotIn("ownership_and_short_interest", topics)
+
     def test_etf_holdings_contract_rejects_bad_rows(self):
         task = RefreshTask(
             name="holdings:SCHD",

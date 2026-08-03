@@ -5,14 +5,14 @@
   "cik": "0001318605",
   "currency": "USD",
   "period_end": "2026-06-30",
-  "created_at": "2026-07-29T09:47:01+09:00",
+  "created_at": "2026-08-03T16:49:37+09:00",
   "tags": {
     "ocf": "NetCashProvidedByUsedInOperatingActivities",
     "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
     "shares": "WeightedAverageNumberOfDilutedSharesOutstanding",
     "cash": "CashAndCashEquivalentsAtCarryingValue",
     "short_term_investments": "ShortTermInvestments",
-    "long_term_debt": "LongTermDebt"
+    "long_term_debt": "LongTermDebt+DebtCurrent+OperatingLeaseLiabilityNoncurrent+OperatingLeaseLiabilityCurrent+FinanceLeaseLiabilityNoncurrent+FinanceLeaseLiabilityCurrent"
   },
   "as_of": {
     "cash": "2026-06-30",
@@ -97,9 +97,63 @@
     "shares_diluted": 3540000000.0,
     "cash_and_equivalents": 15219000000.0,
     "short_term_investments": 28305000000.0,
-    "long_term_debt": 7721000000.0,
-    "net_debt": -35803000000.0
+    "long_term_debt": 16080000000.0,
+    "net_debt": -27444000000.0
   },
+  "definitions": {
+    "long_term_debt": "총차입. 차입금·전환사채·리스부채를 겹치지 않는 자리마다 하나씩 골라 합했다 (분류별 합은 debt_by_category, 태그와 기준일은 debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 덜어내고 다시 센다",
+    "debt_by_category": "BORROWING=차입금 CONVERTIBLE=전환사채 LEASE=운용·금융리스부채. 리스 포함 여부는 방법론에 따라 갈리므로 합계만 주지 않고 분류를 함께 낸다. KR 스냅샷과 같은 분류명이다",
+    "debt_detail": "자리마다 채택한 us-gaap 태그와 그 기준일. 분기마다 공시하지 않는 항목이 있어 as_of 가 period_end 보다 앞설 수 있다",
+    "short_term_investments_basis": "OBSERVED=공시된 값이다(0 이면 정말 0 이다). STALE_EXCLUDED=너무 묵어서 뺐다. NOT_DISCLOSED=태그가 없다. 뒤의 둘에서 0 은 관측이 아니라 결측이므로 순부채가 그만큼 과대계상돼 있다"
+  },
+  "debt_detail": [
+    {
+      "tag": "LongTermDebt",
+      "category": "BORROWING",
+      "as_of": "2026-06-30",
+      "value": 7721000000.0
+    },
+    {
+      "tag": "DebtCurrent",
+      "category": "BORROWING",
+      "as_of": "2026-06-30",
+      "value": 1340000000.0
+    },
+    {
+      "tag": "OperatingLeaseLiabilityNoncurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 5716000000.0
+    },
+    {
+      "tag": "OperatingLeaseLiabilityCurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 1022000000.0
+    },
+    {
+      "tag": "FinanceLeaseLiabilityNoncurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 203000000.0
+    },
+    {
+      "tag": "FinanceLeaseLiabilityCurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 78000000.0
+    }
+  ],
+  "debt_by_category": {
+    "BORROWING": 9061000000.0,
+    "LEASE": 7019000000.0
+  },
+  "debt_notes": [
+    "ConvertibleDebtNoncurrent: 기준일 2014-09-30 이 2026-06-30 보다 400일 넘게 앞서 총차입에서 뺐다",
+    "ConvertibleNotesPayableCurrent: 기준일 2014-12-31 이 2026-06-30 보다 400일 넘게 앞서 총차입에서 뺐다"
+  ],
+  "short_term_investments_basis": "OBSERVED",
+  "short_term_investments_note": null,
   "income_statement": {
     "revenue": {
       "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
@@ -522,7 +576,7 @@
       ]
     }
   },
-  "raw_locator": "data/raw/edgar/objects/4f74cd9aaced2936b86337ef6f3cf8a874fbda8859aaa3e12d344a5ef4e5f49c.json",
-  "raw_payload_sha256": "4f74cd9aaced2936b86337ef6f3cf8a874fbda8859aaa3e12d344a5ef4e5f49c",
-  "fundamentals_id": "FUND-c27ab9b32ac7f5359598"
+  "raw_locator": "data/raw/edgar/objects/4662870accf21c7d9fcaa09716943b9c33911ed1d9e6d6d7cd91e8b14f99fe40.json",
+  "raw_payload_sha256": "4662870accf21c7d9fcaa09716943b9c33911ed1d9e6d6d7cd91e8b14f99fe40",
+  "fundamentals_id": "FUND-04b79ec589d1a694c0fb"
 }

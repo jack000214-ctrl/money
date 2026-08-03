@@ -2,7 +2,7 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "028050",
   "symbol": "028050.KS",
-  "collected_at": "2026-08-03T14:37:46+09:00",
+  "collected_at": "2026-08-03T16:57:14+09:00",
   "window": {
     "since": "2026-05-02",
     "until": "2026-07-31",

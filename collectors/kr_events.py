@@ -24,6 +24,9 @@ from collectors.dart import load_key, request, resolve
 
 OUT_DIR = ROOT / "knowledge" / "events"
 SCHEMA = "event-packet/2.1.0"
+KST = dt.timezone(dt.timedelta(hours=9))
+# 미국 장 마감 기준 시각. 수집 시각을 UTC 로 적으면 같은 거래일이 날짜가 갈린다.
+ET = dt.timezone(dt.timedelta(hours=-4))
 
 # 신호를 덮는 공시. 임원 소유상황은 하루 수십 건, 정기보고서는 예정된 일정이다.
 NOISE_PREFIX = ("임원ㆍ주요주주특정증권등소유상황보고서",)
@@ -163,43 +166,47 @@ def last_bar_settled(symbol: str) -> bool:
     return True
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description="급변일 ↔ 공시 대조 (인과는 붙이지 않음)")
-    p.add_argument("stock_code")
-    p.add_argument("--symbol", required=True)
-    p.add_argument("--days", type=int, default=90, help="돌아볼 기간")
-    p.add_argument("--threshold", default="auto",
-                   help="급변 기준. 'auto' 면 최근 변동성의 --sigma 배, "
-                        "숫자면 고정 변동률 %%")
-    p.add_argument("--sigma", type=float, default=2.0,
-                   help="적응형 임계값의 표준편차 배수")
-    p.add_argument("--vol-window", type=int, default=60,
-                   help="표준편차를 재는 거래일 수")
-    p.add_argument("--benchmark", help="지수 심볼. 생략하면 시장에서 추정 "
-                                      "(KS→^KS11, KQ→^KQ11, US→^IXIC)")
-    p.add_argument("--lag-days", type=int, default=2,
-                   help="공시가 반영될 수 있는 거래일 범위. 장 마감 후 공시는 "
-                        "다음 거래일에 반영된다")
-    p.add_argument("--out")
-    a = p.parse_args()
+def build_event_packet(
+    asset_id: str,
+    symbol: str,
+    filings: list[dict],
+    *,
+    days: int = 90,
+    threshold: str = "auto",
+    sigma: float = 2.0,
+    vol_window: int = 60,
+    benchmark: str | None = None,
+    lag_days: int = 2,
+    timezone: dt.timezone = KST,
+    backfill_hint: str | None = None,
+) -> dict:
+    """급변일을 찾아 시간상 가까운 공시를 나란히 놓는다.
 
-    series = closes(a.symbol)
+    가격·벤치마크·급변 판정은 시장과 무관하므로 여기 한 곳에 둔다. 시장마다
+    다른 것은 **공시를 어디서 가져오는가** 뿐이고, 그래서 `filings` 는 인자로
+    받는다 (한국은 DART list.json, 미국은 이미 모아 둔 EDGAR 공시 색인).
+
+    같은 로직을 시장별로 복사하면 한쪽만 고쳐지는 날이 온다. 벤치마크 캘린더
+    확인이나 미확정 봉 제외처럼 조용히 부호를 뒤집는 검사가 여기 있어서, 갈리면
+    두 시장의 상대수익률이 서로 다른 뜻을 갖게 된다.
+    """
+    series = closes(symbol)
     # 장중 수집분의 마지막 행은 진행 중인 봉이다. 거래량이 하루치가 아니라
     # 급변 판정과 거래량 배수를 왜곡하므로 판정 대상에서 뺀다.
-    unsettled_bar = None if last_bar_settled(a.symbol) else series[-1][0]
+    unsettled_bar = None if last_bar_settled(symbol) else series[-1][0]
     if unsettled_bar:
         series = series[:-1]
         if len(series) < 2:
-            print(f"오류: {a.symbol} 에 확정된 거래일이 부족하다", file=sys.stderr)
-            return 1
+            print(f"오류: {symbol} 에 확정된 거래일이 부족하다", file=sys.stderr)
+            raise SystemExit(1)
     last_date = dt.date.fromisoformat(series[-1][0])
-    since = last_date - dt.timedelta(days=a.days)
+    since = last_date - dt.timedelta(days=days)
     window = [c for c in series if c[0] >= since.isoformat()]
 
     avg_volume = sum(c[2] for c in window) / len(window) if window else 0
 
     # 벤치마크 — 없으면 초과변동 없이 계속한다 (있는 게 훨씬 낫지만 필수는 아니다)
-    bench_symbol = a.benchmark or benchmark_for(a.symbol)
+    bench_symbol = benchmark or benchmark_for(symbol)
     bench_path = ROOT / "knowledge" / "prices" / f"{safe_name(bench_symbol)}.csv"
     bench_returns: dict[str, tuple[float, str]] = {}
     if bench_path.exists():
@@ -240,8 +247,8 @@ def main() -> int:
 
     # 적응형 임계값. 관측 변동성이 국면마다 달라 고정값은 의미가 달라진다.
     fixed = None
-    if str(a.threshold).lower() != "auto":
-        fixed = float(a.threshold)
+    if str(threshold).lower() != "auto":
+        fixed = float(threshold)
 
     moves = []
     for i in range(1, len(window)):
@@ -252,10 +259,10 @@ def main() -> int:
 
         # 이 날짜 직전 vol_window 거래일의 표준편차 — 미래를 쓰지 않는다
         pos = index_of[cur[0]]
-        prior = [judged_series[d] for d in dates[max(1, pos - a.vol_window):pos]
+        prior = [judged_series[d] for d in dates[max(1, pos - vol_window):pos]
                  if d in judged_series]
-        sigma = stdev(prior)
-        limit = fixed if fixed is not None else max(a.sigma * sigma, 1.0)
+        deviation = stdev(prior)
+        limit = fixed if fixed is not None else max(sigma * deviation, 1.0)
 
         # 벤치마크가 있으면 beta=1 상대변동으로 조사 우선순위를 정한다.
         judged = abs(excess) if excess is not None else abs(change)
@@ -268,56 +275,37 @@ def main() -> int:
             "benchmark_pct": round(bench, 2) if bench is not None else None,
             "excess_pct": round(excess, 2) if excess is not None else None,
             "threshold_pct": round(limit, 2),
-            "sigma_used": round(sigma, 2),
+            "sigma_used": round(deviation, 2),
             "direction": "down" if change < 0 else "up",
             "volume": cur[2],
             "volume_vs_avg": round(cur[2] / avg_volume, 2) if avg_volume else None,
         })
 
-    key = load_key()
-    corp = resolve(a.stock_code, key)["corp_code"]
-    data = request("list.json", {
-        "corp_code": corp,
-        "bgn_de": since.strftime("%Y%m%d"),
-        "end_de": last_date.strftime("%Y%m%d"),
-        "page_count": "100",
-    }, key, allow_empty=True)
-
-    filings = []
-    for row in (data or {}).get("list", []):
-        name = row["report_nm"]
-        if name.startswith(NOISE_PREFIX):
-            continue
-        filings.append({
-            "filed": f"{row['rcept_dt'][:4]}-{row['rcept_dt'][4:6]}-{row['rcept_dt'][6:]}",
-            "name": name,
-            "rcept_no": row["rcept_no"],
-            "scheduled": name.startswith(SCHEDULED_PREFIX),
-        })
+    filings = [f for f in filings if since.isoformat() <= f["filed"]
+               <= last_date.isoformat()]
 
     # 급변일마다 lag 범위 안의 공시를 붙인다. 여러 건이면 여러 건 다 붙인다 —
     # 하나를 골라주면 그게 인과 판단이 된다.
     trading_days = [c[0] for c in window]
     for move in moves:
         idx = trading_days.index(move["date"])
-        earliest = trading_days[max(0, idx - a.lag_days)]
+        earliest = trading_days[max(0, idx - lag_days)]
         move["candidate_filings"] = [
             f for f in filings if earliest <= f["filed"] <= move["date"]
         ]
 
     without_filings = [m for m in moves if not m["candidate_filings"]]
-    packet = {
+    return {
         "schema_version": SCHEMA,
-        "asset_id": a.stock_code,
-        "symbol": a.symbol,
-        "collected_at": dt.datetime.now(
-            dt.timezone(dt.timedelta(hours=9))).isoformat(timespec="seconds"),
+        "asset_id": asset_id,
+        "symbol": symbol,
+        "collected_at": dt.datetime.now(timezone).isoformat(timespec="seconds"),
         "window": {"since": since.isoformat(), "until": last_date.isoformat(),
                    "trading_days": len(window)},
         "threshold": ("적응형 — 직전 "
-                      f"{a.vol_window}거래일 "
+                      f"{vol_window}거래일 "
                       f"{'초과변동' if bench_returns else '변동률'} "
-                      f"표준편차 × {a.sigma}"
+                      f"표준편차 × {sigma}"
                       if fixed is None else f"고정 {fixed}%"),
         "benchmark": {
             "symbol": bench_symbol,
@@ -363,31 +351,36 @@ def main() -> int:
                 f"벤치마크 캘린더가 어긋난 거래일 {len(window_gaps)}건 "
                 f"({', '.join(g['date'] for g in window_gaps[:6])}"
                 f"{' 외' if len(window_gaps) > 6 else ''}) — 그 날의 상대변동은 "
-                "계산하지 않고 null 로 뒀다. 상대수익률로 인용하지 말 것. "
-                "복구: python3.13 -m collectors.krx backfill "
-                f"{'KOSDAQ' if bench_symbol == '^KQ11' else 'KOSPI'}"]),
+                "계산하지 않고 null 로 뒀다. 상대수익률로 인용하지 말 것."
+                + (f" 복구: {backfill_hint}" if backfill_hint else "")]),
             *([] if not unsettled_bar else [
                 f"{unsettled_bar} 은 장중 미확정 봉이라 판정에서 제외했다 — "
                 "이 패킷의 마지막 거래일은 그 전날이다"]),
         ],
     }
 
-    out = Path(a.out) if a.out else OUT_DIR / f"{a.stock_code}.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n",
-                   encoding="utf-8")
 
-    print(f"{a.stock_code} — {since} ~ {last_date} · 급변 {len(moves)}건 · "
-          f"공시 {len(filings)}건 · 근접 공시 없음 {len(without_filings)}건")
+def render_packet(packet: dict, out: Path) -> None:
+    """사람이 읽는 요약. 저장은 호출한 쪽이 이미 끝냈다고 본다."""
+    moves = packet["moves"]
+    window = packet["window"]
+    bench_symbol = packet["benchmark"]["symbol"]
+    available = packet["benchmark"]["available"]
+    window_gaps = packet["benchmark"]["calendar_gaps"]
+    unsettled = packet["last_bar"]["excluded_unsettled_bar"]
+    without_filings = [m for m in moves if not m["candidate_filings"]]
+    print(f"{packet['asset_id']} — {window['since']} ~ {window['until']} · "
+          f"급변 {len(moves)}건 · 공시 {len(packet['filings_in_window'])}건 · "
+          f"근접 공시 없음 {len(without_filings)}건")
     print(f"  판정 기준: {packet['threshold']} / {packet['judged_on']} "
-          f"(벤치마크 {bench_symbol}{'' if bench_returns else ' 없음'})")
-    if unsettled_bar:
-        print(f"  ※ {unsettled_bar} 미확정 봉 제외 — 마지막 확정 거래일은 {last_date}")
+          f"(벤치마크 {bench_symbol}{'' if available else ' 없음'})")
+    if unsettled:
+        print(f"  ※ {unsettled} 미확정 봉 제외 — 마지막 확정 거래일은 "
+              f"{window['until']}")
     if window_gaps:
-        market = "KOSDAQ" if bench_symbol == "^KQ11" else "KOSPI"
         print(f"  ※ 벤치마크 캘린더 불일치 {len(window_gaps)}건 "
-              f"({', '.join(g['date'] for g in window_gaps[:6])}) — 그 날 상대변동은 "
-              f"내지 않았다.\n     복구: python3.13 -m collectors.krx backfill {market}")
+              f"({', '.join(g['date'] for g in window_gaps[:6])}) — 그 날 "
+              "상대변동은 내지 않았다.")
     print(f"\n  {'날짜':11s}{'종목':>8s}{'지수':>8s}{'상대':>8s}{'기준':>7s}"
           f"{'거래량':>7s}  후보 공시")
     for m in moves:
@@ -396,8 +389,10 @@ def main() -> int:
                  else f"{'—':>7s}")
         excess = (f"{m['excess_pct']:+7.2f}" if m["excess_pct"] is not None
                   else f"{'—':>7s}")
+        volume = (f"{m['volume_vs_avg']:>6.1f}x" if m["volume_vs_avg"] is not None
+                  else f"{'—':>7s}")
         print(f"  {m['date']:11s}{m['change_pct']:+7.2f}%{bench}%{excess}% "
-              f"{m['threshold_pct']:>6.1f}%{m['volume_vs_avg']:>6.1f}x  {names}")
+              f"{m['threshold_pct']:>6.1f}%{volume}  {names}")
 
     comparison = packet["benchmark_comparison"]
     if comparison.get("available"):
@@ -409,6 +404,75 @@ def main() -> int:
                   f"{leg['benchmark_relative_pct']:>8.1f}%")
         print(f"  ※ {comparison['_note']}")
     print(f"작성: {out.relative_to(ROOT)}")
+
+
+def save_packet(packet: dict, out_path: Path) -> Path:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps(packet, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return out_path
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description="급변일 ↔ 공시 대조 (인과는 붙이지 않음)")
+    p.add_argument("stock_code")
+    p.add_argument("--symbol", required=True)
+    p.add_argument("--days", type=int, default=90, help="돌아볼 기간")
+    p.add_argument("--threshold", default="auto",
+                   help="급변 기준. 'auto' 면 최근 변동성의 --sigma 배, "
+                        "숫자면 고정 변동률 %%")
+    p.add_argument("--sigma", type=float, default=2.0,
+                   help="적응형 임계값의 표준편차 배수")
+    p.add_argument("--vol-window", type=int, default=60,
+                   help="표준편차를 재는 거래일 수")
+    p.add_argument("--benchmark", help="지수 심볼. 생략하면 시장에서 추정 "
+                                      "(KS→^KS11, KQ→^KQ11, US→^IXIC)")
+    p.add_argument("--lag-days", type=int, default=2,
+                   help="공시가 반영될 수 있는 거래일 범위. 장 마감 후 공시는 "
+                        "다음 거래일에 반영된다")
+    p.add_argument("--out")
+    a = p.parse_args()
+
+    # 한국은 공시 목록을 DART 에서 그때그때 받는다.
+    key = load_key()
+    corp = resolve(a.stock_code, key)["corp_code"]
+    last_close = closes(a.symbol)[-1][0]
+    since = dt.date.fromisoformat(last_close) - dt.timedelta(days=a.days)
+    data = request("list.json", {
+        "corp_code": corp,
+        "bgn_de": since.strftime("%Y%m%d"),
+        "end_de": last_close.replace("-", ""),
+        "page_count": "100",
+    }, key, allow_empty=True)
+
+    filings = []
+    for row in (data or {}).get("list", []):
+        name = row["report_nm"]
+        if name.startswith(NOISE_PREFIX):
+            continue
+        filings.append({
+            "filed": f"{row['rcept_dt'][:4]}-{row['rcept_dt'][4:6]}-{row['rcept_dt'][6:]}",
+            "name": name,
+            "rcept_no": row["rcept_no"],
+            "scheduled": name.startswith(SCHEDULED_PREFIX),
+        })
+
+    packet = build_event_packet(
+        a.stock_code, a.symbol, filings,
+        days=a.days, threshold=a.threshold, sigma=a.sigma,
+        vol_window=a.vol_window, benchmark=a.benchmark, lag_days=a.lag_days,
+        timezone=KST,
+        backfill_hint=(
+            "python3.13 -m collectors.krx backfill "
+            + ("KOSDAQ" if (a.benchmark or benchmark_for(a.symbol)) == "^KQ11"
+               else "KOSPI")
+        ),
+    )
+    out = save_packet(packet, Path(a.out) if a.out else
+                      OUT_DIR / f"{a.stock_code}.json")
+    render_packet(packet, out)
     return 0
 
 

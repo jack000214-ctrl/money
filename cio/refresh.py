@@ -375,36 +375,47 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                         required=False,
                     )
                 )
-            primary_benchmark = asset["benchmarks"][0]
-            tasks.append(
-                RefreshTask(
-                    name=f"events:{asset['asset_id']}",
-                    capability="EVENTS",
-                    artifact=f"knowledge/events/{asset['asset_id']}.json",
-                    max_age_hours=24,
-                    command=[
-                        sys.executable,
-                        "-m",
-                        "collectors.kr_events",
-                        asset["asset_id"],
-                        "--symbol",
-                        asset["price_symbol"],
-                        "--benchmark",
-                        primary_benchmark,
-                    ],
-                    dependencies=[
-                        f"knowledge/prices/{safe_symbol(asset['price_symbol'])}.csv",
-                        f"knowledge/prices/{safe_symbol(primary_benchmark)}.csv",
-                        # 백필은 원래 retrieved_at 을 보존하므로 가격 파일의
-                        # 회수시각만 보면 구멍이 메워진 것을 알 수 없다. 표식이
-                        # 갱신되면 상대변동을 다시 계산해야 한다.
-                        *([
-                            "knowledge/prices/_backfill/"
-                            f"{safe_symbol(primary_benchmark)}.json"
-                        ] if primary_benchmark in KR_INDEX_MARKETS else []),
-                    ],
-                )
+        # 급변일 ↔ 공시 대조는 두 시장 모두에 있다. 판정 로직은 한 곳
+        # (kr_events.build_event_packet)이고 공시를 어디서 읽는지만 갈린다 —
+        # 한국은 DART 를 그때 부르고, 미국은 이미 모아 둔 EDGAR 색인을 읽는다.
+        primary_benchmark = asset["benchmarks"][0]
+        events_module = (
+            "collectors.kr_events" if asset["market"] == "KR"
+            else "collectors.us_events"
+        )
+        tasks.append(
+            RefreshTask(
+                name=f"events:{asset['asset_id']}",
+                capability="EVENTS",
+                artifact=f"knowledge/events/{asset['asset_id']}.json",
+                max_age_hours=24,
+                command=[
+                    sys.executable,
+                    "-m",
+                    events_module,
+                    asset["asset_id"],
+                    "--symbol",
+                    asset["price_symbol"],
+                    "--benchmark",
+                    primary_benchmark,
+                ],
+                dependencies=[
+                    f"knowledge/prices/{safe_symbol(asset['price_symbol'])}.csv",
+                    f"knowledge/prices/{safe_symbol(primary_benchmark)}.csv",
+                    # 미국판은 SEC 를 다시 부르지 않고 공시 색인을 읽는다.
+                    # 색인이 갱신되면 대조를 다시 해야 한다.
+                    *([f"knowledge/filings/{asset['asset_id']}.json"]
+                      if asset["market"] != "KR" else []),
+                    # 백필은 원래 retrieved_at 을 보존하므로 가격 파일의
+                    # 회수시각만 보면 구멍이 메워진 것을 알 수 없다. 표식이
+                    # 갱신되면 상대변동을 다시 계산해야 한다.
+                    *([
+                        "knowledge/prices/_backfill/"
+                        f"{safe_symbol(primary_benchmark)}.json"
+                    ] if primary_benchmark in KR_INDEX_MARKETS else []),
+                ],
             )
+        )
     else:
         holdings_source = asset["etf"]["holdings_source"]
         tasks.append(

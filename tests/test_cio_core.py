@@ -166,6 +166,34 @@ class TestRegistryAndRouting(unittest.TestCase):
         self.assertNotIn("collectors.dart", modules)
         self.assertNotIn("collectors.kr_events", modules)
 
+    def test_both_markets_get_an_event_packet(self):
+        """급변일 ↔ 공시 대조는 시장을 가리지 않는다.
+
+        미국에 없던 시절 packet 의 `events` 는 통째로 null 이었고, 그것은
+        "급변이 없었다" 와 구분되지 않았다.
+        """
+        for asset_id, module in (
+            ("005930", "collectors.kr_events"),
+            ("TSLA", "collectors.us_events"),
+            ("IBM", "collectors.us_events"),
+        ):
+            with self.subTest(asset_id=asset_id):
+                tasks = tasks_for(asset_id)
+                events = [t for t in tasks if t.capability == "EVENTS"]
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0].command[2], module)
+
+    def test_us_event_packet_depends_on_the_filing_index(self):
+        """미국판은 SEC 를 다시 부르지 않고 색인을 읽는다.
+
+        색인이 갱신됐는데 대조를 다시 하지 않으면, 새 공시가 난 급변일이
+        '근접 공시 없음' 으로 남는다.
+        """
+        events = next(
+            t for t in tasks_for("TSLA") if t.capability == "EVENTS"
+        )
+        self.assertIn("knowledge/filings/TSLA.json", events.dependencies)
+
     def test_etf_routes_to_holdings_not_company_fundamentals(self):
         tasks = tasks_for("SCHD")
         capabilities = {task.capability for task in tasks}
