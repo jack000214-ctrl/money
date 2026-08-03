@@ -54,8 +54,7 @@ python3.13 -m cio prepare <asset_id> \
 | `prior_assessments[].price_vs_prior_plan` | 그 문턱과 현재 종가의 산술 대조 | 문턱 도달 여부는 PC가 계산한다 |
 | `prior_assessments[].usable: false` | 현재 계약으로 재검증되지 않는 판단 | 계약이 바뀌었을 때 기억이 조용히 사라지지 않게 한다 |
 | `open_research_requests` | 아직 처리되지 않은 모델의 수집 요청 | 요청이 편지함에서 썩지 않게 한다 |
-| `web_snapshots` | 모델이 이전에 보존한 웹 원문 목록 | 같은 조사를 반복하지 않게 한다 |
-| `local_documents` | 검색 가능한 원문 목록과 미수집 공시 수 | 100만 자 문서를 넣지 않고 존재만 알린다 |
+| `local_documents` | 공시 원문과 보존한 웹 원문의 단일 목록(+미수집 공시 수) | 100만 자 문서를 넣지 않고 존재만 알린다. `url`이 있으면 모델이 이전에 보존한 웹 원문이며, 같은 조사를 반복하지 않게 한다 |
 | `fundamentals.reporting_lag` | 로컬 재무 기준일 이후의 공시 | 신선도를 시계가 아니라 결산 캘린더로 잰다 |
 
 `carried_forward`는 그대로 따르라는 명령이 아니다. 같은 자리를 처음 보는 것처럼

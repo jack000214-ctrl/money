@@ -19,6 +19,7 @@ from cio.documents import (
     _strip_markup,
     compile_pattern,
     documents_for_context,
+    fetch_hint,
     search_asset,
 )
 
@@ -375,3 +376,29 @@ class TestContextBlock(DocumentSearchTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFetchHintAcrossAssetTypes(unittest.TestCase):
+    """공시 원문 받는 법 안내가 자산 유형마다 성립해야 한다.
+
+    ETF 등록부에는 `filing_source` 가 없다 — 발행사 문서를 스냅샷으로 받으므로
+    `etf` 구조만 있다. 예전에는 여기서 KeyError 가 나 `documents_for` 가 죽고,
+    그것을 부르는 `cio prepare` 가 통째로 실패했다. 보유 중인 ETF(SCHD·MSTY)를
+    **판단 자체를 할 수 없던** 버그이며, 안내 문구 하나 때문에 판단 경로가
+    끊기지 않도록 여기서 고정한다.
+    """
+
+    def test_etf_without_filing_source_still_gets_a_hint(self):
+        asset = {"asset_id": "SCHD", "market": "US", "asset_type": "ETF"}
+        hint = fetch_hint(asset)
+        self.assertIn("cio snapshot", hint)
+        self.assertIn("SCHD", hint)
+
+    def test_dart_asset_is_told_to_use_opendart(self):
+        asset = {"asset_id": "005930", "market": "KR", "filing_source": "DART"}
+        self.assertIn("collectors.dart document", fetch_hint(asset))
+
+    def test_sec_asset_is_told_to_snapshot_the_url(self):
+        asset = {"asset_id": "IBM", "market": "US", "filing_source": "EDGAR"}
+        hint = fetch_hint(asset, {"document_url": "https://sec.gov/x"})
+        self.assertIn("cio snapshot https://sec.gov/x", hint)

@@ -37,6 +37,21 @@ def safe_name(symbol: str) -> str:
     return symbol.replace(".", "_").replace("^", "").replace("=", "")
 
 
+# Yahoo 의 조정종가는 float32 로 오고, 같은 날짜라도 호출할 때마다 1 ulp 씩
+# 흔들린다(86994.5234375 ↔ 86994.5078125). 그대로 저장하면 수집할 때마다
+# 400 행이 바뀐 것처럼 보여 진짜 변경이 diff 에 묻힌다. float32 유효자릿수가
+# 7.2 이므로 6 자리에서 끊으면 지터만 사라지고 값은 그대로다 — 반올림 단위
+# 1e-6 은 지터 1.2e-7 보다 크고, 가격 판단이 요구하는 정밀도보다 훨씬 작다.
+ADJUSTED_CLOSE_SIGNIFICANT_DIGITS = 6
+
+
+def _stable(value):
+    """조정종가에서 float32 지터를 걷어낸다. 원시 호가(close/high/low)는 건드리지 않는다."""
+    if not isinstance(value, (int, float)):
+        return value
+    return float(f"%.{ADJUSTED_CLOSE_SIGNIFICANT_DIGITS}g" % value)
+
+
 def session_state(meta: dict, last_date: str) -> str:
     """마지막 봉이 확정 종가인지 판별한다.
 
@@ -119,7 +134,7 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         close = quote_value("close", index)
         if close is None:
             continue
-        adjusted_close = (
+        adjusted_close = _stable(
             adjusted[index]
             if adjusted and index < len(adjusted) and adjusted[index] is not None
             else close

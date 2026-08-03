@@ -43,8 +43,10 @@ BASE = "https://apis.data.go.kr/1160100/service/GetCMStckLnbInfoService"
 DETAIL = "getStckLnbDetail"
 SIGNUP_URL = "https://www.data.go.kr/data/15124865/openapi.do"
 
-FIELDS = ("date", "code", "name", "market", "contracted_shares",
-          "redeemed_shares", "balance_shares", "balance_amount")
+# 종목코드·종목명·시장은 파일 전체에서 같은 값이라 헤더에만 적는다. 열로 두면
+# 90행 내내 같은 문자열을 반복해 파일의 19%를 먹는다 (collectors.kr_flow 와 같은 관례).
+FIELDS = ("date", "contracted_shares", "redeemed_shares",
+          "balance_shares", "balance_amount")
 
 # 응답 필드명은 swagger 로 확정했다. 추측하지 않는다.
 RESP = {
@@ -169,13 +171,15 @@ def save_raw(name: str, payload) -> Path:
     return path
 
 
-def num(value) -> float | None:
+def num(value) -> float | int | None:
+    """주식수·금액은 원래 정수다. 파이썬 float 로 두면 `.0` 이 파일에 그대로 쓰인다."""
     if value in (None, "", "-"):
         return None
     try:
-        return float(str(value).replace(",", ""))
+        f = float(str(value).replace(",", ""))
     except ValueError:
         return None
+    return int(f) if f.is_integer() else f
 
 
 def to_row(item: dict) -> dict:
@@ -263,14 +267,25 @@ def fetch_more(code: str, param: str, window: dict, key: str,
 def save(code: str, rows: list[dict]) -> Path:
     LENDING_DIR.mkdir(parents=True, exist_ok=True)
     path = LENDING_DIR / f"{code}.csv"
+    name = next((r["name"] for r in rows if r.get("name")), "")
+    market = next((r["market"] for r in rows if r.get("market")), "")
     with path.open("w", newline="", encoding="utf-8") as f:
-        f.write(f"# {code} 대차거래 / 단위 주·원\n")
+        f.write(f"# {code} {name} ({market}) 대차거래 / 단위 주·원\n")
         f.write(f"# 수집일 {dt.date.today().isoformat()} / 출처 {SOURCE_NOTE}\n")
         f.write("# 공매도 잔고 아님 — 대차는 결제·차익거래·의결권 목적으로도 일어난다\n")
-        w = csv.DictWriter(f, fieldnames=list(FIELDS))
+        # extrasaction='ignore' — 행에는 검증용 code/name/market 이 남아 있지만
+        # 파일에는 쓰지 않는다. 셋 다 파일 전체에서 같은 값이라 헤더에 있다.
+        w = csv.DictWriter(f, fieldnames=list(FIELDS), extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
     return path
+
+
+def header_name(path: Path) -> str:
+    """첫 헤더 줄에서 종목명을 되읽는다. 열로 저장하지 않으므로 여기서 온다."""
+    first = path.read_text(encoding="utf-8").splitlines()[0]
+    body = first.lstrip("# ").split(" 대차거래")[0]
+    return body.strip() or path.stem
 
 
 def load(code: str) -> list[dict]:
@@ -329,10 +344,10 @@ def cmd_show(a):
     rows = load(a.code)[-a.days:]
     if not rows:
         fail(f"{a.code}: 표시할 행이 없다")
-    name = rows[-1].get("name") or a.code
+    identity = header_name(LENDING_DIR / f"{a.code}.csv")
 
     print("=" * 74)
-    print(f"대차거래 — {name}({a.code})   {rows[0]['date']} ~ {rows[-1]['date']} "
+    print(f"대차거래 — {identity}   {rows[0]['date']} ~ {rows[-1]['date']} "
           f"({len(rows)}거래일)")
     print("=" * 74)
     print(f"{'날짜':<12}{'체결':>14}{'상환':>14}{'잔고':>16}{'잔고금액(억)':>14}")

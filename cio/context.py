@@ -21,7 +21,6 @@ from calculators.contracts import (
     validate_calculation,
     validate_fundamentals,
 )
-from collectors.web import recent_snapshots
 from cio.assets import get_asset
 from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
@@ -1062,26 +1061,23 @@ def _optional_collection_summaries(
             if recent:
                 first = _as_float(recent[0].get("balance_shares"))
                 last = _as_float(recent[-1].get("balance_shares"))
+                # balance_amount 는 싣지 않는다 — balance_shares × 종가이고
+                # 종가는 이미 packet 에 있다. 같은 사실을 두 번 보내지 않는다.
                 summaries["kr_lending"] = {
                     "as_of": recent[-1].get("date"),
                     "lookback_sessions": len(recent),
-                    "balance_shares": last,
+                    "balance_shares": round(last) if last is not None else None,
                     "balance_change_shares": (
                         round(last - first)
                         if first is not None and last is not None
                         else None
                     ),
-                    "balance_amount_krw": _as_float(
-                        recent[-1].get("balance_amount")
-                    ),
                     "_role": (
-                        "빌려간 뒤 아직 갚지 않은 주식 수다. 공매도 잔고가 아니며 "
-                        "결제·차익거래·의결권 목적의 대차도 포함한다"
+                        "빌려가 아직 갚지 않은 주식 수. 공매도 잔고가 아니다 — "
+                        "결제·차익거래·의결권 목적도 같은 숫자에 섞인다"
                     ),
                     "_unobservable": (
-                        "공매도 잔고·신용융자 잔고는 종목 단위로 받을 수 없다. "
-                        "KRX 공매도 통계가 로그인 전용으로 바뀌었고 공개 API 가 없다 "
-                        "— 다시 찾지 말고 없는 채로 판단한다"
+                        "공매도·신용융자 잔고는 종목 단위 공개 경로가 없다. 찾지 않는다"
                     ),
                 }
                 sources.append(
@@ -2362,9 +2358,10 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        # 2.1 — positioning 강제 조건에 kr_lending 추가, 대차≠공매도 규정.
-        # 판단 규율이 바뀌면 올린다. 과거 판단은 자기 버전 그대로 채점된다.
-        "prompt_version": "2.1",
+        # 2.1 positioning 강제 조건에 kr_lending 추가 / 2.2 필드 의미를 packet
+        # `_role` 로 옮기고 prompt 에는 규율만 남김. 프롬프트 본문이 바뀌면
+        # 반드시 올린다 — 같은 버전이 다른 규칙을 가리키면 모델 비교가 깨진다.
+        "prompt_version": "2.2",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -2425,7 +2422,8 @@ def build_context(
             "open_research_requests": open_requests_for_context(
                 asset["asset_id"]
             ),
-            "web_snapshots": recent_snapshots(asset["asset_id"]),
+            # 보존한 웹 원문은 local_documents 에 url 과 함께 들어간다.
+            # 따로 web_snapshots 를 싣던 시절에는 같은 문서가 두 목록에 나왔다.
             "local_documents": documents_for_context(asset["asset_id"]),
         },
         "evidence_index": evidence_index,

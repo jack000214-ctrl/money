@@ -271,8 +271,12 @@ def fetch_hint(asset: dict[str, Any], row: dict[str, Any] | None = None) -> str:
 
     DART 접수번호는 OpenDART 로 받고, SEC 문서는 그냥 URL 이라 스냅샷으로 받는다.
     한쪽 방법을 양쪽에 안내하면 모델이 반드시 실패하는 명령을 시도하게 된다.
+
+    **ETF 에는 `filing_source` 가 없다** (발행사 문서를 스냅샷으로 받으므로
+    등록부에 `etf` 만 있다). 예전에는 여기서 KeyError 가 나 `cio prepare` 가
+    통째로 죽었고, 보유 중인 ETF 를 판단할 수 없었다. 없으면 스냅샷 안내가 맞다.
     """
-    if asset["filing_source"] == "DART":
+    if asset.get("filing_source") == "DART":
         return (
             "`python3.13 -m collectors.dart document <접수번호>` 로 받는다"
         )
@@ -487,26 +491,40 @@ def documents_for_context(asset_id: str) -> dict[str, Any] | None:
         return None
     return {
         "searchable": [
-            {
-                "doc_id": entry["doc_id"],
-                "filing_date": entry.get("filing_date"),
-                "description": entry.get("description") or entry.get("title"),
-                "chars": entry["text_chars"],
-            }
-            for entry in available[:MAX_CONTEXT_DOCUMENTS]
+            _context_entry(entry) for entry in available[:MAX_CONTEXT_DOCUMENTS]
         ],
         "searchable_total": len(available),
         "not_fetched_total": len(catalog["missing"]),
         "_role": (
-            "로컬에 보존된 원문이다. 본문은 packet 에 없다 — 사업보고서 하나가 "
-            "100만 자라 넣을 수 없다. 대신 필요한 자리만 찾아 쓴다: "
-            "`python3.13 -m cio search <asset_id> <검색어>`. "
+            "로컬에 보존된 원문이다. 웹 스냅샷과 공시 원문이 한 목록에 있으며 "
+            "url 이 있으면 네가 이전에 보존한 웹 원문이다 — 같은 것을 다시 "
+            "검색하지 말고 유효한지만 확인하며, 인용할 때 그 url 을 locator 로 "
+            "쓴다. 본문은 packet 에 없다(사업보고서 하나가 100만 자다). 필요한 "
+            "자리만 `python3.13 -m cio search <asset_id> <검색어>` 로 찾는다. "
             "부문별 매출, 주요 매출처, 수주잔고, 생산능력, 원재료 공급처처럼 "
             "회사 구조에 관한 사실은 웹을 검색하기 전에 여기서 먼저 찾는다. "
             "not_fetched_total 은 공시 색인에는 있으나 아직 원문을 받지 않은 "
             "문서 수이며 `python3.13 -m cio docs <asset_id>` 로 목록을 본다"
         ),
     }
+
+
+def _context_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    """packet 한 줄. 웹 스냅샷이면 원본 url 까지 싣는다.
+
+    예전에는 웹 스냅샷이 `web_snapshots` 블록에 한 번 더 실렸다. 같은 문서가
+    두 목록에 나오면서 `source_id`/`doc_id` 와 `label`/`description` 이 매 판단마다
+    두 번씩 전송됐다. url 만 여기로 흡수하면 그 블록이 통째로 필요 없어진다.
+    """
+    row = {
+        "doc_id": entry["doc_id"],
+        "filing_date": entry.get("filing_date"),
+        "description": entry.get("description") or entry.get("title"),
+        "chars": entry["text_chars"],
+    }
+    if entry.get("url"):
+        row["url"] = entry["url"]
+    return row
 
 
 def format_search(result: dict[str, Any]) -> str:

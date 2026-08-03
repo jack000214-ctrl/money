@@ -275,37 +275,8 @@ def snapshot(
     }
 
 
-def recent_snapshots(asset_id: str, limit: int = 6) -> list[dict[str, Any]]:
-    """context 에 실을 만큼만 줄인 목록. 본문은 넣지 않는다."""
-    try:
-        data = load_index(asset_id)
-    except (ContractError, OSError):
-        return []
-    snapshots = data.get("snapshots") or []
-    result = [
-        {
-            "source_id": item.get("source_id"),
-            "label": item.get("label"),
-            "title": item.get("title"),
-            "url": item.get("url"),
-            "fetched_at": item.get("fetched_at"),
-            "path": item.get("path"),
-        }
-        for item in snapshots[-limit:]
-        if isinstance(item, dict)
-    ]
-    if result:
-        result.append(
-            {
-                "_role": (
-                    "이전 판단에서 네가 보존한 원문이다. 본문은 packet 에 넣지 "
-                    "않았으니 필요한 것만 path 를 열어 읽는다. 같은 근거를 다시 "
-                    "검색하지 말고, 여전히 유효한지만 확인한다"
-                ),
-                "total": len(snapshots),
-            }
-        )
-    return result
+# `recent_snapshots` 는 없앴다. 보존한 웹 원문은 `cio.documents` 가 공시 원문과
+# 한 목록으로 싣는다 — 따로 실으면 같은 문서가 packet 에 두 번 나갔다.
 
 
 def main() -> int:
