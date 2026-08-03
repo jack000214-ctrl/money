@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "RXRX",
   "cik": "0001601830",
-  "collected_at": "2026-07-31T01:57:26+00:00",
+  "collected_at": "2026-08-03T05:47:19+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",
@@ -19,8 +19,8 @@
     "S-3/A",
     "S-3ASR"
   ],
-  "raw_payload_sha256": "a0045ef2046641ce797a8a0a9ef32aa4a653813f5ce56a7186c2ecef5f18e583",
-  "raw_locator": "data/raw/edgar/objects/a0045ef2046641ce797a8a0a9ef32aa4a653813f5ce56a7186c2ecef5f18e583.json",
+  "raw_payload_sha256": "fac1df7e2f4637a42a41dbb330f0678cb49c0fbca540a0ddc8da99ad07575907",
+  "raw_locator": "data/raw/edgar/objects/fac1df7e2f4637a42a41dbb330f0678cb49c0fbca540a0ddc8da99ad07575907.json",
   "filings": [
     {
       "filing_date": "2026-06-18",

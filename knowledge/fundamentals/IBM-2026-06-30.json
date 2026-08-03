@@ -5,7 +5,7 @@
   "cik": "0000051143",
   "currency": "USD",
   "period_end": "2026-06-30",
-  "created_at": "2026-07-28T16:36:56+09:00",
+  "created_at": "2026-08-03T14:47:17+09:00",
   "tags": {
     "ocf": "NetCashProvidedByUsedInOperatingActivities",
     "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
@@ -457,6 +457,7 @@
       ]
     }
   },
-  "raw_locator": "data/raw/edgar/2026-07-28/fundamentals_IBM_073655.json",
-  "fundamentals_id": "FUND-1aacc280037168b23118"
+  "raw_locator": "data/raw/edgar/objects/042a683d6135e71bac1527e50b88e831dc2529203d1e033501116590029e16f7.json",
+  "raw_payload_sha256": "042a683d6135e71bac1527e50b88e831dc2529203d1e033501116590029e16f7",
+  "fundamentals_id": "FUND-65fc57c8a740843944d7"
 }
