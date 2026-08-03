@@ -3,7 +3,7 @@
   "instrument_id": "214450",
   "name": "파마리서치",
   "fs": "CFS",
-  "created_at": "2026-07-28T17:12:18+09:00",
+  "created_at": "2026-08-01T16:38:56+09:00",
   "source": "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)",
   "grade": "DERIVED",
   "_not_a_valuation_input": "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. DCF 에 쓰려면 사용자가 명시적으로 고르고 그 선택이 분석에 남아야 한다",
@@ -143,23 +143,15 @@
       "fcf_ttm": 153435120598.0,
       "revenue_ttm": 536289118812.0,
       "fcf_margin_pct": 28.61
-    },
-    {
-      "period_end": "2026-03-31",
-      "ocf_ttm": 178904304944.0,
-      "capex_ttm": 28996991137.0,
-      "fcf_ttm": 149907313807.0,
-      "revenue_ttm": 565479409013.0,
-      "fcf_margin_pct": 26.51
     }
   ],
   "normalization": {
     "window": {
       "from": "2021-12-31",
-      "to": "2026-03-31",
-      "ttm_points": 18
+      "to": "2025-12-31",
+      "ttm_points": 17
     },
-    "current_fcf_ttm": 149907313807.0,
+    "current_fcf_ttm": 153435120598.0,
     "peak": {
       "period_end": "2025-12-31",
       "fcf_ttm": 153435120598.0
@@ -171,12 +163,12 @@
     "amplitude_ratio": 3.83,
     "amplitude_note": "최고 TTM ÷ 최저 TTM",
     "bases": {
-      "mean_ttm": 77252923036.44444,
-      "median_ttm": 62420808701.0,
-      "mean_margin_on_current_revenue": 140405395705.6556
+      "mean_ttm": 72979135344.05882,
+      "median_ttm": 52882567137.0,
+      "mean_margin_on_current_revenue": 132627453724.08296
     },
-    "mean_fcf_margin_pct": 24.83,
-    "current_vs_mean_x": 1.94
+    "mean_fcf_margin_pct": 24.73,
+    "current_vs_mean_x": 2.1
   },
-  "normalized_id": "NORM-ff67e3c316d3e65e1177"
+  "normalized_id": "NORM-c46a0b3780bffc33e697"
 }

@@ -30,8 +30,18 @@ from collectors.dart import (
 from collectors.edgar import CONCEPT, user_agent
 
 PRICE_DIR = ROOT / "knowledge" / "prices"
-EPS_NAMES = ["기본주당이익", "기본주당순이익", "기본주당이익(손실)"]
+# 같은 회사가 분기마다 계정명을 바꾼다 — 삼성E&A 는 1·2분기에 "기본주당순이익",
+# 3분기에 "기본주당순손익"으로 냈다. 적자가 날 수 있는 분기에 '손익'으로 쓰는
+# 관행이다. 한 분기를 놓치면 그 분기만 비는 게 아니라 4분기 역산이 막혀 반년이
+# 통째로 사라지고, 밴드는 조용히 1년 묵은 EPS 로 현재 PER 을 계산한다.
+EPS_NAMES = ["기본주당이익", "기본주당순이익", "기본주당손익", "기본주당순손익",
+             "기본주당이익(손실)", "기본주당순이익(손실)"]
 QUARTERS = [("1Q", "11013"), ("2Q", "11012"), ("3Q", "11014")]
+
+
+def is_eps_account(account_nm):
+    """DART 계정명이 기본주당이익인가. 희석은 일부러 제외한다."""
+    return (account_nm or "").replace(" ", "") in EPS_NAMES
 
 
 def fail(msg):
@@ -110,7 +120,7 @@ def kr_fetch_eps(corp_code, year, reprt, key):
         "reprt_code": reprt, "fs_div": "CFS"}, key, allow_empty=True)
     if data:
         for r in data["list"]:
-            if (r.get("account_nm") or "").replace(" ", "") in EPS_NAMES:
+            if is_eps_account(r.get("account_nm")):
                 return num(r.get("thstrm_amount"))
 
     # 전체계정 API가 비어 있으면 사업보고서 XBRL 원본으로 폴백한다.

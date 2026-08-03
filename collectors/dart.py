@@ -648,6 +648,7 @@ IS_OPINC_IDS = ["dart_OperatingIncomeLoss", "ifrs-full_ProfitLossFromOperatingAc
 IS_NET_IDS = ["ifrs-full_ProfitLoss"]
 IS_NET_PARENT_IDS = ["ifrs-full_ProfitLossAttributableToOwnersOfParent"]
 IS_DILUTED_EPS_IDS = ["ifrs-full_DilutedEarningsLossPerShare"]
+IS_BASIC_EPS_IDS = ["ifrs-full_BasicEarningsLossPerShare"]
 # 매출총이익에서 영업이익까지 빼는 비용 라인. 회사마다 개수가 다르다.
 IS_EXPENSE_IDS = [
     ("dart_TotalSellingGeneralAdministrativeExpenses", "판매비와관리비"),
@@ -862,6 +863,73 @@ def series_rows(per_year, want, end_key):
 QUARTER_END = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}
 
 
+def resolve_debt(bs_report):
+    """총차입과 그 근거를 낸다. → (debt, debt_detail, debt_basis)
+
+    차입 계정이 하나도 안 잡히는 경우는 두 가지이고, 둘을 섞으면 안 된다 —
+    재무상태표를 제대로 못 읽은 것과 회사가 실제로 무차입인 것이다. 앞을 뒤로
+    착각하면 순부채가 조용히 틀리고, 뒤를 앞으로 착각하면 순현금 회사가 영원히
+    스냅샷을 못 만든다 (삼성E&A 2026 1Q: 부채 5.7조가 전부 매입채무·
+    초과청구공사이고 차입은 0원이다).
+
+    부채총계와 유동·비유동 구분이 모두 잡혔다면 표는 읽힌 것이고, 그 안에 차입
+    계정이 없다는 사실 자체가 관측이다. 그때만 0 으로 내려간다.
+    """
+    debt, debt_detail, seen = 0.0, [], set()
+    for aid, label in BS_DEBT_IDS:
+        row = acct(bs_report, "BS", [aid]) if not aid.startswith("-") else None
+        if row is None:
+            row = acct(bs_report, "BS", (), [label])
+        if row is None:
+            continue
+        marker = (row.get("account_nm"), row.get("thstrm_amount"))
+        if marker in seen or amount(row) is None:
+            continue
+        seen.add(marker)
+        debt += float(amount(row))
+        debt_detail.append({"label": row.get("account_nm"),
+                            "account_id": row.get("account_id"),
+                            "value": float(amount(row))})
+    if debt_detail:
+        return debt, debt_detail, "MATCHED_LINE_ITEMS"
+
+    anchors = [
+        acct(bs_report, "BS", ["ifrs-full_Liabilities"], ["부채총계"]),
+        acct(bs_report, "BS", ["ifrs-full_CurrentLiabilities"], ["유동부채"]),
+        acct(bs_report, "BS", ["ifrs-full_NoncurrentLiabilities"], ["비유동부채"]),
+    ]
+    if any(row is None or amount(row) is None for row in anchors):
+        fail("차입금 계정을 하나도 찾지 못했고 부채총계·유동·비유동 구분도 "
+             "잡히지 않았다. 재무상태표를 못 읽은 것이므로 무차입이라고 "
+             "단정하지 않는다")
+    return 0.0, [], "NO_DEBT_LINE_ITEMS"
+
+
+def resolve_shares(bs_report):
+    """지배주주 순이익 ÷ 주당이익으로 주식수를 낸다. → (shares, eps_basis)
+
+    희석증권이 없는 회사는 희석주당이익을 아예 공시하지 않는다 (삼성E&A는
+    기본주당순이익만 낸다). 그때 기본으로 내려오되 **어느 쪽을 썼는지 남긴다** —
+    기본을 희석이라고 부르면 전환사채가 있는 회사에서 주식수가 조용히 적게
+    잡히고, 그 오차는 주당가치 전체에 곱해진다.
+    """
+    parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS,
+                      ["지배기업 소유주지분"])
+    eps_row = acct(bs_report, ("IS", "CIS"), IS_DILUTED_EPS_IDS,
+                   ["희석주당이익(손실)"])
+    eps_basis = "DILUTED"
+    if eps_row is None or amount(eps_row) is None:
+        eps_row = acct(bs_report, ("IS", "CIS"), IS_BASIC_EPS_IDS,
+                       ["기본주당순이익", "기본주당이익(손실)"])
+        eps_basis = "BASIC_NO_DILUTED_DISCLOSED"
+    parent_ni, eps = amount(parent_row), amount(eps_row)
+    if not parent_ni or not eps:
+        fail("주당이익(희석·기본 모두) 또는 지배기업 소유주지분 순이익을 찾지 "
+             "못했다. 주식수를 기억으로 채우지 않는다")
+    # 분기 EPS 이므로 분기 지배주주 순이익으로 나눈다. 같은 기간이라 상쇄된다.
+    return float(parent_ni) / float(eps), eps_basis
+
+
 def cmd_fundamentals(a, key):
     info = resolve(a.stock_code, key)
     corp, name = info["corp_code"], info["corp_name"]
@@ -1005,33 +1073,10 @@ def cmd_fundamentals(a, key):
             short_inv_detail.append({"label": "단기금융상품", "account_id": None,
                                      "value": short_inv})
 
-    debt, debt_detail, seen = 0.0, [], set()
-    for aid, label in BS_DEBT_IDS:
-        row = acct(bs_report, "BS", [aid]) if not aid.startswith("-") else None
-        if row is None:
-            row = acct(bs_report, "BS", (), [label])
-        if row is None:
-            continue
-        marker = (row.get("account_nm"), row.get("thstrm_amount"))
-        if marker in seen or amount(row) is None:
-            continue
-        seen.add(marker)
-        debt += float(amount(row))
-        debt_detail.append({"label": row.get("account_nm"),
-                            "account_id": row.get("account_id"),
-                            "value": float(amount(row))})
-    if not debt_detail:
-        fail("차입금 계정을 하나도 찾지 못했다. 무차입이라고 단정하지 않는다")
+    debt, debt_detail, debt_basis = resolve_debt(bs_report)
 
-    # --- 희석주식수: 지배주주 순이익 ÷ 희석주당이익 ---
-    parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS, ["지배기업 소유주지분"])
-    eps_row = acct(bs_report, ("IS", "CIS"), IS_DILUTED_EPS_IDS, ["희석주당이익(손실)"])
-    parent_ni, diluted_eps = amount(parent_row), amount(eps_row)
-    if not parent_ni or not diluted_eps:
-        fail("희석주당이익 또는 지배기업 소유주지분 순이익을 찾지 못했다. "
-             "주식수를 기억으로 채우지 않는다")
-    # 분기 EPS 이므로 분기 지배주주 순이익으로 나눈다. 같은 기간이라 상쇄된다.
-    shares = float(parent_ni) / float(diluted_eps)
+    # --- 주식수: 지배주주 순이익 ÷ 주당이익 ---
+    shares, eps_basis = resolve_shares(bs_report)
 
     total = request("stockTotqySttus.json",
                     {"corp_code": corp, "bsns_year": str(a.year - 1),
@@ -1089,7 +1134,15 @@ def cmd_fundamentals(a, key):
                      " (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
             "long_term_debt": "총차입 (단기차입금·사채·장기차입금 합). 계정명은 "
                               "debt_detail 참조. 장기만 세면 순부채가 틀린다",
-            "shares_diluted": "지배기업 소유주지분 순이익 ÷ 희석주당이익",
+            "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했다. "
+                          "NO_DEBT_LINE_ITEMS=재무상태표는 읽혔는데 차입 계정이 "
+                          "없어 0으로 뒀다(무차입). 후자에서 0은 결측이 아니라 "
+                          "관측이지만, 리스부채는 기타유동·기타비유동부채에 "
+                          "섞여 있을 수 있어 총차입에 잡히지 않는다",
+            "shares_diluted": "지배기업 소유주지분 순이익 ÷ 주당이익. 어느 "
+                              "주당이익을 썼는지는 eps_basis 참조 — "
+                              "BASIC_NO_DILUTED_DISCLOSED 면 희석 공시가 없어 "
+                              "기본으로 계산한 값이라 희석증권이 생기면 틀린다",
             "cash_flow_period": "현금흐름표는 연초 누계로 들어오므로 차감 복원했다 "
                                 "(derived=true 인 분기)",
             "income_period": "손익계산서 thstrm_amount 는 이미 3개월이다. "
@@ -1108,6 +1161,8 @@ def cmd_fundamentals(a, key):
             if all((r["fy"], r["quarter"]) in intangible for r in ocf_rows) else None),
         "short_term_investments_detail": short_inv_detail,
         "debt_detail": debt_detail,
+        "debt_basis": debt_basis,
+        "eps_basis": eps_basis,
         "expense_lines": expense_lines,
         "income_statement": income,
         "share_count_cross_check": share_cross,
@@ -1133,7 +1188,8 @@ def cmd_fundamentals(a, key):
     if snapshot["intangible_capex_ttm"]:
         print(f"{'  (무형자산 취득 TTM)':<22}"
               f"{snapshot['intangible_capex_ttm']/unit:>14,.0f}   ※ capex 에 미포함")
-    print(f"{'희석주식수':<22}{shares/1e6:>14,.1f}M")
+    print(f"{'희석주식수':<22}{shares/1e6:>14,.1f}M"
+          f"{'   ※ 희석 공시 없어 기본주당이익 기준' if eps_basis != 'DILUTED' else ''}")
     print(f"{'순부채':<22}{values['net_debt']/unit:>14,.0f}   "
           f"(차입 {debt/unit:,.0f} − 현금 {cash/unit:,.0f} − 단기투자 {short_inv/unit:,.0f})")
     print(f"\n[ 현금흐름 분기 복원 — 누계 차감 ]")
@@ -1151,6 +1207,9 @@ def cmd_fundamentals(a, key):
     print(f"\n[ 차입 내역 ]")
     for d in debt_detail:
         print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억")
+    if debt_basis == "NO_DEBT_LINE_ITEMS":
+        print("  차입 계정 없음 — 재무상태표는 읽혔고 그 안에 차입이 없다(무차입).")
+        print("  ※ 리스부채는 기타부채에 섞여 있을 수 있어 총차입에 잡히지 않는다.")
     def show(target):
         # --out-dir 이 저장소 밖일 수 있다 (재현 테스트는 임시 디렉터리를 쓴다).
         try:

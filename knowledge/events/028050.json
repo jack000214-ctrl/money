@@ -1,0 +1,279 @@
+{
+  "schema_version": "event-packet/2.1.0",
+  "asset_id": "028050",
+  "symbol": "028050.KS",
+  "collected_at": "2026-08-01T22:09:27+09:00",
+  "window": {
+    "since": "2026-05-02",
+    "until": "2026-07-31",
+    "trading_days": 61
+  },
+  "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
+  "benchmark": {
+    "symbol": "^KS11",
+    "available": true,
+    "daily_relative_method": "asset_return_pct - benchmark_return_pct (beta=1 조사 우선순위용)",
+    "calendar_gaps": []
+  },
+  "last_bar": {
+    "date": "2026-07-31",
+    "settled": true,
+    "excluded_unsettled_bar": null,
+    "_note": "수집 시점에 마지막 봉이 확정 종가였다"
+  },
+  "benchmark_comparison": {
+    "available": true,
+    "benchmark_symbol": "^KS11",
+    "method": "(1 + asset_return) / (1 + benchmark_return) - 1 (beta=1 단순 비교)",
+    "legs": [
+      {
+        "label": "구간 고점 → 현재",
+        "from": "2026-05-07",
+        "to": "2026-07-31",
+        "asset_return_pct": -32.0,
+        "benchmark_return_pct": -11.9,
+        "benchmark_relative_pct": -22.8
+      },
+      {
+        "label": "구간 저점 → 현재",
+        "from": "2026-07-20",
+        "to": "2026-07-31",
+        "asset_return_pct": 11.7,
+        "benchmark_return_pct": 1.2,
+        "benchmark_relative_pct": 10.4
+      },
+      {
+        "label": "구간 전체",
+        "from": "2026-05-04",
+        "to": "2026-07-31",
+        "asset_return_pct": -20.4,
+        "benchmark_return_pct": -4.9,
+        "benchmark_relative_pct": -16.2
+      }
+    ],
+    "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
+  },
+  "judged_on": "벤치마크 대비 beta=1 상대변동",
+  "latest": {
+    "date": "2026-07-31",
+    "close": 43800.0
+  },
+  "moves": [
+    {
+      "date": "2026-05-06",
+      "close": 53000.0,
+      "change_pct": -3.64,
+      "benchmark_pct": 6.45,
+      "excess_pct": -10.09,
+      "threshold_pct": 8.49,
+      "sigma_used": 4.24,
+      "direction": "down",
+      "volume": 2161824,
+      "volume_vs_avg": 0.83,
+      "candidate_filings": [
+        {
+          "filed": "2026-05-06",
+          "name": "최대주주등소유주식변동신고서              ",
+          "rcept_no": "20260506800612",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-05-07",
+      "close": 64400.0,
+      "change_pct": 21.51,
+      "benchmark_pct": 1.43,
+      "excess_pct": 20.08,
+      "threshold_pct": 8.84,
+      "sigma_used": 4.42,
+      "direction": "up",
+      "volume": 13927246,
+      "volume_vs_avg": 5.36,
+      "candidate_filings": [
+        {
+          "filed": "2026-05-06",
+          "name": "최대주주등소유주식변동신고서              ",
+          "rcept_no": "20260506800612",
+          "scheduled": false
+        }
+      ]
+    },
+    {
+      "date": "2026-05-11",
+      "close": 58600.0,
+      "change_pct": -6.09,
+      "benchmark_pct": 4.32,
+      "excess_pct": -10.41,
+      "threshold_pct": 10.24,
+      "sigma_used": 5.12,
+      "direction": "down",
+      "volume": 3866210,
+      "volume_vs_avg": 1.49,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-06-29",
+      "close": 47650.0,
+      "change_pct": 14.96,
+      "benchmark_pct": -0.2,
+      "excess_pct": 15.15,
+      "threshold_pct": 11.1,
+      "sigma_used": 5.55,
+      "direction": "up",
+      "volume": 3001472,
+      "volume_vs_avg": 1.16,
+      "candidate_filings": []
+    }
+  ],
+  "filings_in_window": [
+    {
+      "filed": "2026-07-28",
+      "name": "[기재정정]단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260728800747",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-28",
+      "name": "[기재정정]투자판단관련주요경영사항              ",
+      "rcept_no": "20260728800610",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-28",
+      "name": "기업설명회(IR)개최(안내공시)              ",
+      "rcept_no": "20260728800571",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-24",
+      "name": "[기재정정]단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260724800710",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-23",
+      "name": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+      "rcept_no": "20260723800275",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-16",
+      "name": "기업설명회(IR)개최(안내공시)              ",
+      "rcept_no": "20260716800833",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-16",
+      "name": "결산실적공시예고(안내공시)              ",
+      "rcept_no": "20260716800813",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-01",
+      "name": "최대주주등소유주식변동신고서              ",
+      "rcept_no": "20260701800943",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-01",
+      "name": "주식등의대량보유상황보고서(약식)",
+      "rcept_no": "20260701000238",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-01",
+      "name": "단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260701800136",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-07-01",
+      "name": "단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260701800112",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-30",
+      "name": "지속가능경영보고서등관련사항(자율공시)              ",
+      "rcept_no": "20260630800894",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-04",
+      "name": "[기재정정]단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260604800515",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-01",
+      "name": "최대주주등소유주식변동신고서              ",
+      "rcept_no": "20260601801235",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-01",
+      "name": "단일판매ㆍ공급계약체결(자율공시)              ",
+      "rcept_no": "20260601801154",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-01",
+      "name": "기업지배구조보고서공시              ",
+      "rcept_no": "20260601800997",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-06-01",
+      "name": "대규모기업집단현황공시[연1회공시및1/4분기용(개별회사)]",
+      "rcept_no": "20260601000405",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-26",
+      "name": "[기재정정]투자판단관련주요경영사항              ",
+      "rcept_no": "20260526800461",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-26",
+      "name": "기업설명회(IR)개최(안내공시)              ",
+      "rcept_no": "20260526800453",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-22",
+      "name": "[기재정정]단일판매ㆍ공급계약체결              ",
+      "rcept_no": "20260522800689",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-15",
+      "name": "기업설명회(IR)개최(안내공시)              ",
+      "rcept_no": "20260515802468",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-15",
+      "name": "분기보고서 (2026.03)",
+      "rcept_no": "20260515001907",
+      "scheduled": true
+    },
+    {
+      "filed": "2026-05-12",
+      "name": "기업설명회(IR)개최(안내공시)              ",
+      "rcept_no": "20260512800840",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-05-06",
+      "name": "최대주주등소유주식변동신고서              ",
+      "rcept_no": "20260506800612",
+      "scheduled": false
+    }
+  ],
+  "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
+  "_gaps": [
+    "근접 공시가 없는 급변 2건 (2026-05-11, 2026-06-29) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다."
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "sector-strength/1.0.0",
   "as_of": "2026-07-27",
-  "built_at": "2026-07-28T16:47:59+09:00",
+  "built_at": "2026-08-01T16:28:40+09:00",
   "benchmark": {
     "symbol": "SPY",
     "name": "S&P 500",
@@ -220,20 +220,20 @@
       "sector": "경기소비재",
       "windows": {
         "1개월": {
-          "return_pct": -2.21,
-          "excess_pct": -2.87
+          "return_pct": -1.65,
+          "excess_pct": -2.3
         },
         "3개월": {
-          "return_pct": -6.61,
-          "excess_pct": -10.14
+          "return_pct": -4.55,
+          "excess_pct": -8.07
         },
         "6개월": {
-          "return_pct": -9.98,
-          "excess_pct": -17.22
+          "return_pct": -8.04,
+          "excess_pct": -15.28
         },
         "12개월": {
-          "return_pct": -0.5,
-          "excess_pct": -17.0
+          "return_pct": 0.04,
+          "excess_pct": -16.46
         }
       }
     },

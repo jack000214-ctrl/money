@@ -190,6 +190,31 @@
         "distribution_policy": "OPTION_INCOME"
       },
       "optional_collectors": []
+    },
+    "028050": {
+      "name": "삼성E&A",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "028050.KS",
+      "sector_code": "INDUSTRIALS_ENGINEERING_CONSTRUCTION",
+      "industry": "해외 플랜트 EPC(화공·비화공)",
+      "analysis_lens": "EPC_BACKLOG",
+      "valuation_family": [
+        "PEER_MULTIPLE",
+        "DCF"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [
+        "KR_FLOW",
+        "KR_SEGMENTS",
+        "NORMALIZED_EARNINGS"
+      ],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
     }
   }
 }

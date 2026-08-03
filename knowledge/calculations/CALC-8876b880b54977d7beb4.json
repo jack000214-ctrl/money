@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-8876b880b54977d7beb4",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "028050",
+  "created_at": "2026-08-01T22:34:07+09:00",
+  "source_ids": [
+    "FUND-864bb1916ca3e181468f",
+    "DARTDOC:20260723800275",
+    "DARTDOC:20260515001907"
+  ],
+  "inputs": {
+    "price": 43700.0,
+    "shares": 195967468.5465995,
+    "fcf": 715600000000.0,
+    "net_debt": -2378254112064.0,
+    "discount_rate_pct": 11.0,
+    "terminal_growth_pct": 2.0,
+    "years": 10,
+    "input_provenance": {
+      "verified": false,
+      "source": "manual",
+      "reason": "FCF는 원문 FCF가 아니라 TTM(2026-06) 영업이익 9,152억 × (1-유효세율 21.8%)로 정상화했다. EPC는 초과청구공사 변동으로 실제 FCF가 -0.49조~+3.11조로 요동쳐 DCF 입력이 될 수 없고, capex가 매출의 0.7%라 NOPAT이 중기 FCF의 대리값이다. 순부채는 순현금 3.561조에서 순계약부채(고객선수금 float) 1.183조를 뺀 보수 기준이다"
+    },
+    "revenue": 9629504656280.0,
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -3.0,
+      "base": 5.0,
+      "bull": 11.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -3.0,
+        "value_per_share": 41613.82533371169,
+        "total_return_pct": -4.773855071597966,
+        "return_pct": -2.4161156089787417
+      },
+      "base": {
+        "growth_pct": 5.0,
+        "value_per_share": 63121.28631641834,
+        "total_return_pct": 44.442302783566,
+        "return_pct": 20.18415152738151
+      },
+      "bull": {
+        "growth_pct": 11.0,
+        "value_per_share": 90037.329033526,
+        "total_return_pct": 106.03507787992217,
+        "return_pct": 43.53922038241749
+      }
+    },
+    "implied_growth_pct": -1.9769651564016721,
+    "implied_growth_status": "SOLVED"
+  }
+}

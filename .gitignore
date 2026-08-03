@@ -1,26 +1,33 @@
+# ── 시스템 / 툴링 ────────────────────────────────────────────────────
+.DS_Store
 .env
 .env.*
-data/raw/
-data/logs/
 __pycache__/
 *.pyc
-.DS_Store
+.python-version
 
-# 로컬 CIO 메모리와 개인 데이터
-# 투자정책에는 최대 손실액·목표수익·계좌 유형이 들어간다. 구조는
-# config/templates/investor-policy.json 로 버전 관리하고 값은 로컬에만 둔다.
-# 판단 시점의 실제 정책은 매 prepare 마다 knowledge/evidence/ 에 내용 지문으로
-# 봉인되므로, 원격에 올리지 않아도 재현성은 잃지 않는다.
+# ── 로컬 빌드·캐시 ──────────────────────────────────────────────────
+data/raw/
+data/logs/
+data/cache/
+
+# ── 개인 투자 정책 ───────────────────────────────────────────────────
+# 월소득·목표수익·최대손실 등 민감 재무정보 포함
 config/investor-policy.json
-knowledge/contexts/
-knowledge/assessments/
-knowledge/evaluations/
-knowledge/quarantine/
-knowledge/evidence/
+
+# ── 개인 포트폴리오 (수량·평가금액·손익 상세) ───────────────────────
 knowledge/portfolio/holdings.csv
 knowledge/portfolio/trades/
 knowledge/portfolio/decisions/
 
-# 증권사 원본 명세 (계좌번호·성명·전체 체결내역 포함)
+# ── CIO 세션 컨텍스트 및 평가 기록 ──────────────────────────────────
+# 판단 시점의 정책 지문·포트폴리오 스냅샷 포함
+knowledge/contexts/
+knowledge/assessments/
+knowledge/evaluations/
+knowledge/evidence/
+knowledge/quarantine/
+
+# ── 증권사 원본 명세 (계좌번호·성명·체결내역) ───────────────────────
 거래내역서*.pdf
 *거래내역서*.pdf

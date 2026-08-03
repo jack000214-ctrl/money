@@ -10,7 +10,9 @@
 import unittest
 
 from helpers import ROOT  # noqa: F401  (sys.path 설정)
-from calculators.valuation_band import per_history, q_index, ttm_series
+from calculators.valuation_band import (
+    is_eps_account, per_history, q_index, ttm_series,
+)
 
 
 def q(eps, filed):
@@ -108,6 +110,28 @@ class TestPerHistoryPointInTime(unittest.TestCase):
         prices = [("2026-01-02", 300000.0)]
         ttm = [{"as_of": "2025-09", "eps_ttm": -500, "known_from": "2025-11-14"}]
         self.assertEqual(per_history(prices, ttm), [])
+
+
+class TestEpsAccountName(unittest.TestCase):
+    """계정명 한 글자에 반년이 걸려 있다.
+
+    삼성E&A 는 1·2분기를 '기본주당순이익', 3분기를 '기본주당순손익'으로 냈다.
+    '손익' 표기를 놓치면 3분기가 비고, 3분기가 비면 (연간 − 1~3분기) 로 만드는
+    4분기 역산까지 막혀 반년이 사라진다. 그러면 밴드는 실패하지 않고 **1년 묵은
+    EPS 로 현재 PER 을 계산해** 조용히 비싸 보이게 만든다.
+    """
+
+    def test_accepts_label_variants_of_basic_eps(self):
+        for name in ("기본주당이익", "기본주당순이익", "기본주당순손익",
+                     "기본주당손익", "기본주당이익(손실)", "기본주당순이익(손실)"):
+            self.assertTrue(is_eps_account(name), name)
+
+    def test_ignores_spacing(self):
+        self.assertTrue(is_eps_account(" 기본 주당 순손익 "))
+
+    def test_rejects_diluted_and_missing(self):
+        for name in ("희석주당이익", "희석주당순손익", "", None):
+            self.assertFalse(is_eps_account(name), name)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,222 @@
+{
+  "schema_version": "normalized-earnings/1.0.0",
+  "instrument_id": "028050",
+  "name": "삼성E&A",
+  "fs": "CFS",
+  "created_at": "2026-08-01T22:10:14+09:00",
+  "source": "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)",
+  "grade": "DERIVED",
+  "_not_a_valuation_input": "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. DCF 에 쓰려면 사용자가 명시적으로 고르고 그 선택이 분석에 남아야 한다",
+  "ttm_series": [
+    {
+      "period_end": "2020-09-30",
+      "ocf_ttm": -56552331428.0,
+      "capex_ttm": 23011246082.0,
+      "fcf_ttm": -79563577510.0,
+      "revenue_ttm": 6649351892744.0,
+      "fcf_margin_pct": -1.2
+    },
+    {
+      "period_end": "2020-12-31",
+      "ocf_ttm": 44368719200.0,
+      "capex_ttm": 23440156016.0,
+      "fcf_ttm": 20928563184.0,
+      "revenue_ttm": 6749174145123.0,
+      "fcf_margin_pct": 0.31
+    },
+    {
+      "period_end": "2021-03-31",
+      "ocf_ttm": 615408491382.0,
+      "capex_ttm": 21582942753.0,
+      "fcf_ttm": 593825548629.0,
+      "revenue_ttm": 6687429427888.0,
+      "fcf_margin_pct": 8.88
+    },
+    {
+      "period_end": "2021-06-30",
+      "ocf_ttm": 94813052192.0,
+      "capex_ttm": 21629103874.0,
+      "fcf_ttm": 73183948318.0,
+      "revenue_ttm": 6708984688466.0,
+      "fcf_margin_pct": 1.09
+    },
+    {
+      "period_end": "2021-09-30",
+      "ocf_ttm": 760350333715.0,
+      "capex_ttm": 28024581427.0,
+      "fcf_ttm": 732325752288.0,
+      "revenue_ttm": 6852433184258.0,
+      "fcf_margin_pct": 10.69
+    },
+    {
+      "period_end": "2021-12-31",
+      "ocf_ttm": 739825439031.0,
+      "capex_ttm": 29754045970.0,
+      "fcf_ttm": 710071393061.0,
+      "revenue_ttm": 7486696121177.0,
+      "fcf_margin_pct": 9.48
+    },
+    {
+      "period_end": "2022-03-31",
+      "ocf_ttm": -51222448575.0,
+      "capex_ttm": 29714284649.0,
+      "fcf_ttm": -80936733224.0,
+      "revenue_ttm": 8119291241455.0,
+      "fcf_margin_pct": -1.0
+    },
+    {
+      "period_end": "2022-06-30",
+      "ocf_ttm": 580682402921.0,
+      "capex_ttm": 37743750592.0,
+      "fcf_ttm": 542938652329.0,
+      "revenue_ttm": 8916882733189.0,
+      "fcf_margin_pct": 6.09
+    },
+    {
+      "period_end": "2022-09-30",
+      "ocf_ttm": -11584469782.0,
+      "capex_ttm": 23623582038.0,
+      "fcf_ttm": -35208051820.0,
+      "revenue_ttm": 9628211449946.0,
+      "fcf_margin_pct": -0.37
+    },
+    {
+      "period_end": "2022-12-31",
+      "ocf_ttm": 576706460947.0,
+      "capex_ttm": 20705728905.0,
+      "fcf_ttm": 556000732042.0,
+      "revenue_ttm": 10054344625186.0,
+      "fcf_margin_pct": 5.53
+    },
+    {
+      "period_end": "2023-03-31",
+      "ocf_ttm": 137600189969.0,
+      "capex_ttm": 26285390245.0,
+      "fcf_ttm": 111314799724.0,
+      "revenue_ttm": 10424420530196.0,
+      "fcf_margin_pct": 1.07
+    },
+    {
+      "period_end": "2023-06-30",
+      "ocf_ttm": -159444231693.0,
+      "capex_ttm": 16465030744.0,
+      "fcf_ttm": -175909262437.0,
+      "revenue_ttm": 10716909623531.0,
+      "fcf_margin_pct": -1.64
+    },
+    {
+      "period_end": "2023-09-30",
+      "ocf_ttm": 563504303573.0,
+      "capex_ttm": 27245773458.0,
+      "fcf_ttm": 536258530115.0,
+      "revenue_ttm": 10737082000421.0,
+      "fcf_margin_pct": 4.99
+    },
+    {
+      "period_end": "2023-12-31",
+      "ocf_ttm": -459792198902.0,
+      "capex_ttm": 27984854107.0,
+      "fcf_ttm": -487777053009.0,
+      "revenue_ttm": 10624917993595.0,
+      "fcf_margin_pct": -4.59
+    },
+    {
+      "period_end": "2024-03-31",
+      "ocf_ttm": 7798967191.0,
+      "capex_ttm": 24633897491.0,
+      "fcf_ttm": -16834930300.0,
+      "revenue_ttm": 10476202501825.0,
+      "fcf_margin_pct": -0.16
+    },
+    {
+      "period_end": "2024-06-30",
+      "ocf_ttm": 76539485222.0,
+      "capex_ttm": 27822970472.0,
+      "fcf_ttm": 48716514750.0,
+      "revenue_ttm": 10376590224188.0,
+      "fcf_margin_pct": 0.47
+    },
+    {
+      "period_end": "2024-09-30",
+      "ocf_ttm": 244234537949.0,
+      "capex_ttm": 34574424881.0,
+      "fcf_ttm": 209660113068.0,
+      "revenue_ttm": 10215510575610.0,
+      "fcf_margin_pct": 2.05
+    },
+    {
+      "period_end": "2024-12-31",
+      "ocf_ttm": 1635836692152.0,
+      "capex_ttm": 42954114369.0,
+      "fcf_ttm": 1592882577783.0,
+      "revenue_ttm": 9966551344477.0,
+      "fcf_margin_pct": 15.98
+    },
+    {
+      "period_end": "2025-03-31",
+      "ocf_ttm": 1901405176797.0,
+      "capex_ttm": 43266855895.0,
+      "fcf_ttm": 1858138320902.0,
+      "revenue_ttm": 9679771032390.0,
+      "fcf_margin_pct": 19.2
+    },
+    {
+      "period_end": "2025-06-30",
+      "ocf_ttm": 3175931164341.0,
+      "capex_ttm": 63992256349.0,
+      "fcf_ttm": 3111938907992.0,
+      "revenue_ttm": 9171517816118.0,
+      "fcf_margin_pct": 33.93
+    },
+    {
+      "period_end": "2025-09-30",
+      "ocf_ttm": 1723267646329.0,
+      "capex_ttm": 43496390149.0,
+      "fcf_ttm": 1679771256180.0,
+      "revenue_ttm": 8850094003074.0,
+      "fcf_margin_pct": 18.98
+    },
+    {
+      "period_end": "2025-12-31",
+      "ocf_ttm": 254433358974.0,
+      "capex_ttm": 53492598716.0,
+      "fcf_ttm": 200940760258.0,
+      "revenue_ttm": 9028769083650.0,
+      "fcf_margin_pct": 2.23
+    },
+    {
+      "period_end": "2026-03-31",
+      "ocf_ttm": 773369986118.0,
+      "capex_ttm": 65340924154.0,
+      "fcf_ttm": 708029061964.0,
+      "revenue_ttm": 9198196656280.0,
+      "fcf_margin_pct": 7.7
+    }
+  ],
+  "normalization": {
+    "window": {
+      "from": "2020-09-30",
+      "to": "2026-03-31",
+      "ttm_points": 23
+    },
+    "current_fcf_ttm": 708029061964.0,
+    "peak": {
+      "period_end": "2025-06-30",
+      "fcf_ttm": 3111938907992.0
+    },
+    "trough": {
+      "period_end": "2023-12-31",
+      "fcf_ttm": -487777053009.0
+    },
+    "amplitude_ratio": null,
+    "amplitude_note": "최저 TTM 이 0 이하라 배수가 성립하지 않는다. 사이클의 저점에서 FCF 가 음수인 회사다 — 정상화 없이는 DCF 가 음수 가치를 낸다",
+    "bases": {
+      "mean_ttm": 539595470621.1739,
+      "median_ttm": 209660113068.0,
+      "mean_margin_on_current_revenue": 558730458629.9474
+    },
+    "mean_fcf_margin_pct": 6.07,
+    "current_vs_mean_x": 1.31
+  },
+  "normalized_id": "NORM-ec416b79b7c1f4b591e5"
+}
