@@ -5,13 +5,15 @@
   "corp_code": "00970453",
   "currency": "KRW",
   "period_end": "2026-03-31",
-  "created_at": "2026-07-29T10:36:53+09:00",
+  "created_at": "2026-08-03T16:01:12+09:00",
   "source": "opendart_fnlttSinglAcntAll",
   "fs_div": "CFS",
   "definitions": {
     "capex": "유형자산의 취득만. 무형자산 취득은 intangible_capex_ttm 에 따로 둔다 (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
-    "long_term_debt": "총차입 (단기차입금·사채·장기차입금 합). 계정명은 debt_detail 참조. 장기만 세면 순부채가 틀린다",
-    "shares_diluted": "지배기업 소유주지분 순이익 ÷ 희석주당이익",
+    "long_term_debt": "총차입. 차입금·사채·전환사채·리스부채를 모두 합했다 (분류별 합은 debt_by_category, 계정명은 debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 덜어내고 다시 센다",
+    "debt_by_category": "BORROWING=차입금 BOND=사채 CONVERTIBLE=전환사채·신주인수권부사채 LEASE=리스부채. 리스 포함 여부는 방법론에 따라 갈리므로 합계만 주지 않고 분류를 함께 낸다",
+    "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했다. NO_DEBT_LINE_ITEMS=재무상태표는 읽혔는데 차입 계정이 없어 0으로 뒀다(무차입). 후자에서 0은 결측이 아니라 관측이다",
+    "shares_diluted": "지배기업 소유주지분 순이익 ÷ 주당이익. 어느 주당이익을 썼는지는 eps_basis 참조 — BASIC_NO_DILUTED_DISCLOSED 면 희석 공시가 없어 기본으로 계산한 값이라 희석증권이 생기면 틀린다",
     "cash_flow_period": "현금흐름표는 연초 누계로 들어오므로 차감 복원했다 (derived=true 인 분기)",
     "income_period": "손익계산서 thstrm_amount 는 이미 3개월이다. 4분기만 연간 − 3분기누계로 만들었다"
   },
@@ -92,18 +94,50 @@
     "shares_diluted": 10389659.798209216,
     "cash_and_equivalents": 204368097890.0,
     "short_term_investments": 0.0,
-    "long_term_debt": 432775352.0,
-    "net_debt": -203935322538.0
+    "long_term_debt": 9245338225.0,
+    "net_debt": -195122759665.0
   },
   "intangible_capex_ttm": 1751473382.0,
   "short_term_investments_detail": [],
   "debt_detail": [
     {
+      "label": "유동성전환사채",
+      "account_id": "dart_CurrentPortionOfConvertibleBonds",
+      "category": "CONVERTIBLE",
+      "value": 5770240067.0
+    },
+    {
+      "label": "유동성장기차입금",
+      "account_id": "-표준계정코드 미사용-",
+      "category": "BORROWING",
+      "value": 50749992.0
+    },
+    {
+      "label": "유동리스부채",
+      "account_id": "ifrs-full_CurrentLeaseLiabilities",
+      "category": "LEASE",
+      "value": 1339435239.0
+    },
+    {
+      "label": "비유동리스부채",
+      "account_id": "ifrs-full_NoncurrentLeaseLiabilities",
+      "category": "LEASE",
+      "value": 1652137575.0
+    },
+    {
       "label": "장기차입금",
       "account_id": "ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived",
+      "category": "BORROWING",
       "value": 432775352.0
     }
   ],
+  "debt_by_category": {
+    "CONVERTIBLE": 5770240067.0,
+    "BORROWING": 483525344.0,
+    "LEASE": 2991572814.0
+  },
+  "debt_basis": "MATCHED_LINE_ITEMS",
+  "eps_basis": "DILUTED",
   "expense_lines": [
     {
       "key": "expense_0",
@@ -465,5 +499,5 @@
   "share_count_cross_check": 11565295.0,
   "raw_locator": "data/raw/dart/objects/2b12a753edd919581aa30b81bd0a484c7616899d9ebdcdc44ac8df19dd0a659b.json",
   "raw_payload_sha256": "2b12a753edd919581aa30b81bd0a484c7616899d9ebdcdc44ac8df19dd0a659b",
-  "fundamentals_id": "FUND-6cef192cf77cb981ce5f"
+  "fundamentals_id": "FUND-e20f3672f79723cdea3a"
 }

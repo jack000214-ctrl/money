@@ -663,24 +663,62 @@ BS_SHORT_INV_IDS = [
     "ifrs-full_CurrentFinancialAssetsAtFairValueThroughProfitOrLoss",
     "dart_ShortTermTradingFinancialAssets",
 ]
-# 순부채가 누락되지 않도록 단기·장기 차입을 모두 포함한다.
-BS_DEBT_IDS = [
-    ("-단기차입금-", "단기차입금"),
-    ("ifrs-full_ShorttermBorrowings", "단기차입금"),
-    ("ifrs-full_NoncurrentPortionOfNoncurrentBonds", "사채"),
-    ("ifrs-full_NoncurrentPortionOfNoncurrentLoans", "장기차입금"),
-    ("ifrs-full_CurrentPortionOfLongtermBorrowings", "유동성장기부채"),
-    ("ifrs-full_Bonds", "사채"),
-]
-# 미확정 — 여기 없어서 총차입에서 빠지는 계정들. 실측(214450, 2026 1Q): 인식
-# 4.3억인데 전환사채 57.7억·리스부채 30억이 통째로 빠져 순부채가 20배 틀린다.
-#   (1) 전환사채·신주인수권부사채  dart_(CurrentPortionOf)ConvertibleBonds,
-#       dart_(CurrentPortionOf)BondWithWarrant — 상환의무가 있으므로 차입이다.
-#   (2) 리스부채  ifrs-full_(Noncurrent)CurrentLeaseLiabilities — IFRS16 이후
-#       순부채에 넣는 것이 표준이지만 영업리스를 빼는 관행도 있어 판단이 갈린다.
-#   (3) '유동성장기차입금' 은 표준계정코드를 안 쓰면 이름으로도 안 잡힌다
-#       (아래 label 이 '유동성장기부채' 라서 다르다).
-# 넣으면 이미 만들어 둔 fundamentals 의 순부채가 바뀌므로 사용자가 정한다.
+# 총차입으로 세는 계정. 분류마다 (표준계정코드, 계정명) 을 둘 다 둔다.
+#
+# 코드만 보면 안 되는 이유: 같은 계정이 회사마다 ifrs-full_ / ifrs_ / dart_ 로
+# 들어오고, 아예 '-표준계정코드 미사용-' 인 회사도 있다. 이름만 보면 안 되는
+# 이유: 같은 뜻을 유동리스부채·유동 리스부채·유동금융리스부채로 달리 쓴다.
+# 한쪽만 보면 차입이 통째로 빠지는데, 그러면 순부채가 조용히 틀린다 —
+# 파마리서치 2026 1Q 는 이 누락으로 4.3억으로 잡혔고 실제는 92억이었다.
+#
+# 코드는 접두사를 걷어내고 대조한다(_account_code). 그래야 ifrs-full_ 과
+# ifrs_ 가 같은 계정으로 잡힌다.
+BS_DEBT_ACCOUNTS = (
+    ("BORROWING",
+     ("ShorttermBorrowings", "LoansReceived", "LongTermBorrowingsGross",
+      "NoncurrentPortionOfNoncurrentLoans",
+      "NoncurrentPortionOfNoncurrentLoansReceived",
+      "CurrentPortionOfLongtermBorrowings",
+      "CurrentLoansReceivedAndCurrentPortionOfNoncurrentLoansReceived"),
+     ("단기차입금", "장기차입금", "유동성장기차입금", "유동성장기부채",
+      "유동 차입금(사채 포함)")),
+    ("BOND",
+     ("Bonds", "BondsIssued", "NoncurrentPortionOfNoncurrentBonds",
+      "NoncurrentPortionOfNoncurrentBondsIssued", "CurrentPortionOfBonds"),
+     ("사채", "유동성사채")),
+    # 전환사채·신주인수권부사채는 상환의무가 있으므로 차입이다. 전환되면 주식수가
+    # 늘어 주당가치가 희석되므로, 부채로도 주식수로도 잡히지 않는 구간이 있으면
+    # 그 회사는 양쪽에서 싸 보인다.
+    ("CONVERTIBLE",
+     ("ConvertibleBonds", "CurrentPortionOfConvertibleBonds",
+      "BondWithWarrant", "CurrentPortionOfBondWithWarrant"),
+     ("전환사채", "전환사채(유동)", "유동성전환사채",
+      "신주인수권부사채", "신주인수권부사채(유동)", "유동성신주인수권부사채")),
+    # IFRS16 이후 리스부채는 차입이다. 이 저장소가 쓰는 영업현금흐름이 이미
+    # IFRS16 기준(리스료 원금이 재무활동으로 빠진 뒤)이라, 현금흐름은 그 기준을
+    # 쓰면서 부채에서만 리스를 빼면 리스가 많은 회사가 조용히 싸 보인다.
+    # 빼고 보고 싶으면 debt_by_category 에서 LEASE 를 덜어내면 된다.
+    ("LEASE",
+     ("CurrentLeaseLiabilities", "NoncurrentLeaseLiabilities",
+      "LeaseLiabilities", "FinanceLeaseLiabilities",
+      "CurrentPortionOfFinanceLeaseLiabilities",
+      # DART 원문의 오타다. 고쳐 쓰면 안 잡힌다.
+      "CurentPortionOfFinanceLeaseLiabilities",
+      "NonCurrentFinanceLeaseLiabilities"),
+     ("리스부채", "유동리스부채", "비유동리스부채",
+      "금융리스부채", "유동금융리스부채", "비유동금융리스부채")),
+)
+# 계정명은 공백을 지우고 대조한다 ('유동 리스부채' 와 '유동리스부채'는 같다).
+BS_DEBT_NAME_TO_CATEGORY = {
+    name.replace(" ", ""): category
+    for category, _, names in BS_DEBT_ACCOUNTS
+    for name in names
+}
+BS_DEBT_CODE_TO_CATEGORY = {
+    code: category
+    for category, codes, _ in BS_DEBT_ACCOUNTS
+    for code in codes
+}
 
 
 # 전체계정 API가 빈 보고서는 필요한 계정을 XBRL 개념명으로 보충한다.
@@ -867,6 +905,44 @@ def series_rows(per_year, want, end_key):
 QUARTER_END = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}
 
 
+def _account_code(account_id):
+    """표준계정코드에서 접두사를 걷어낸다.
+
+    같은 계정이 회사마다 ifrs-full_ / ifrs_ / dart_ 로 들어온다. 접두사를 둔 채
+    대조하면 한 글자 차이로 차입이 통째로 빠진다.
+    """
+    code = (account_id or "").strip()
+    for prefix in ("ifrs-full_", "ifrs_", "dart_"):
+        if code.startswith(prefix):
+            return code[len(prefix):]
+    return code
+
+
+def classify_debt_row(row):
+    """재무상태표 한 행이 어떤 차입인지 낸다. 차입이 아니면 None.
+
+    코드를 먼저 본다 — 계정명은 회사가 자유롭게 쓰지만 표준코드는 뜻이 고정돼
+    있다. '금융리스채권'처럼 이름에 리스가 들어가도 코드가 다르면 자산이다.
+    """
+    category = BS_DEBT_CODE_TO_CATEGORY.get(_account_code(row.get("account_id")))
+    if category:
+        return category
+    name = (row.get("account_nm") or "").replace(" ", "")
+    return BS_DEBT_NAME_TO_CATEGORY.get(name)
+
+
+def debt_by_category(debt_detail):
+    """분류별 차입 합.
+
+    모델이 리스를 빼고 순부채를 다시 셀 수 있어야 하므로 합계만 주지 않는다.
+    """
+    totals = {}
+    for item in debt_detail:
+        category = item.get("category") or "UNCLASSIFIED"
+        totals[category] = totals.get(category, 0.0) + float(item["value"])
+    return totals
+
+
 def resolve_debt(bs_report):
     """총차입과 그 근거를 낸다. → (debt, debt_detail, debt_basis)
 
@@ -878,23 +954,39 @@ def resolve_debt(bs_report):
 
     부채총계와 유동·비유동 구분이 모두 잡혔다면 표는 읽힌 것이고, 그 안에 차입
     계정이 없다는 사실 자체가 관측이다. 그때만 0 으로 내려간다.
+
+    값이 0 인 차입 계정은 남긴다. '계정은 있고 잔액이 0' 과 '계정 자체가 없다'
+    는 다른 관측이다.
     """
     debt, debt_detail, seen = 0.0, [], set()
-    for aid, label in BS_DEBT_IDS:
-        row = acct(bs_report, "BS", [aid]) if not aid.startswith("-") else None
-        if row is None:
-            row = acct(bs_report, "BS", (), [label])
-        if row is None:
+    for row in bs_report:
+        if row.get("sj_div") != "BS":
             continue
-        marker = (row.get("account_nm"), row.get("thstrm_amount"))
-        if marker in seen or amount(row) is None:
+        category = classify_debt_row(row)
+        if category is None or amount(row) is None:
+            continue
+        # 같은 행이 코드와 이름 양쪽에 걸려도 한 번만 센다. 계정명만으로 묶으면
+        # 유동·비유동이 같은 이름·같은 금액일 때 한쪽이 사라지므로 코드도 넣는다.
+        marker = (row.get("account_id"), row.get("account_nm"),
+                  row.get("thstrm_amount"))
+        if marker in seen:
             continue
         seen.add(marker)
         debt += float(amount(row))
         debt_detail.append({"label": row.get("account_nm"),
                             "account_id": row.get("account_id"),
+                            "category": category,
                             "value": float(amount(row))})
     if debt_detail:
+        # 차입 합이 부채총계를 넘으면 같은 돈을 두 번 셌다는 뜻이다 (합산행과 그
+        # 구성항목을 같이 잡는 경우). 틀린 순부채를 쓰느니 멈춘다.
+        total_liabilities = amount(
+            acct(bs_report, "BS", ["ifrs-full_Liabilities"], ["부채총계"])
+        )
+        if total_liabilities is not None and debt > float(total_liabilities) + 1.0:
+            fail(f"총차입 {debt:,.0f} 이 부채총계 {float(total_liabilities):,.0f} 을 "
+                 "넘는다. 합산행과 구성항목을 같이 세었을 가능성이 크므로 "
+                 "순부채를 내지 않는다")
         return debt, debt_detail, "MATCHED_LINE_ITEMS"
 
     anchors = [
@@ -1136,13 +1228,18 @@ def cmd_fundamentals(a, key):
             # 이 두 줄이 없으면 다른 시장 스냅샷과 말없이 다른 것을 비교하게 된다.
             "capex": "유형자산의 취득만. 무형자산 취득은 intangible_capex_ttm 에 따로 둔다"
                      " (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
-            "long_term_debt": "총차입 (단기차입금·사채·장기차입금 합). 계정명은 "
-                              "debt_detail 참조. 장기만 세면 순부채가 틀린다",
+            "long_term_debt": "총차입. 차입금·사채·전환사채·리스부채를 모두 "
+                              "합했다 (분류별 합은 debt_by_category, 계정명은 "
+                              "debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 "
+                              "덜어내고 다시 센다",
+            "debt_by_category": "BORROWING=차입금 BOND=사채 "
+                                "CONVERTIBLE=전환사채·신주인수권부사채 "
+                                "LEASE=리스부채. 리스 포함 여부는 방법론에 따라 "
+                                "갈리므로 합계만 주지 않고 분류를 함께 낸다",
             "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했다. "
                           "NO_DEBT_LINE_ITEMS=재무상태표는 읽혔는데 차입 계정이 "
                           "없어 0으로 뒀다(무차입). 후자에서 0은 결측이 아니라 "
-                          "관측이지만, 리스부채는 기타유동·기타비유동부채에 "
-                          "섞여 있을 수 있어 총차입에 잡히지 않는다",
+                          "관측이다",
             "shares_diluted": "지배기업 소유주지분 순이익 ÷ 주당이익. 어느 "
                               "주당이익을 썼는지는 eps_basis 참조 — "
                               "BASIC_NO_DILUTED_DISCLOSED 면 희석 공시가 없어 "
@@ -1165,6 +1262,7 @@ def cmd_fundamentals(a, key):
             if all((r["fy"], r["quarter"]) in intangible for r in ocf_rows) else None),
         "short_term_investments_detail": short_inv_detail,
         "debt_detail": debt_detail,
+        "debt_by_category": debt_by_category(debt_detail),
         "debt_basis": debt_basis,
         "eps_basis": eps_basis,
         "expense_lines": expense_lines,
@@ -1210,10 +1308,14 @@ def cmd_fundamentals(a, key):
     print(f" = 영업이익 {income['operating_income']['quarters'][-1]['val']/unit:,.0f}")
     print(f"\n[ 차입 내역 ]")
     for d in debt_detail:
-        print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억")
+        print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억  {d['category']}")
+    if debt_detail:
+        totals = debt_by_category(debt_detail)
+        print("  " + "  ".join(f"{k} {v/unit:,.0f}억" for k, v in sorted(totals.items())))
     if debt_basis == "NO_DEBT_LINE_ITEMS":
         print("  차입 계정 없음 — 재무상태표는 읽혔고 그 안에 차입이 없다(무차입).")
-        print("  ※ 리스부채는 기타부채에 섞여 있을 수 있어 총차입에 잡히지 않는다.")
+        print("  ※ 리스부채가 독립 계정이 아니라 기타부채에 묶여 있으면 여기 "
+              "잡히지 않는다.")
     def show(target):
         # --out-dir 이 저장소 밖일 수 있다 (재현 테스트는 임시 디렉터리를 쓴다).
         try:

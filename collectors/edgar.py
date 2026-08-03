@@ -55,6 +55,17 @@ OCF_TAGS = ["NetCashProvidedByUsedInOperatingActivities",
 # 장기차입금 태그는 회사·시기별로 갈린다. LongTermDebtNoncurrent 만 보면
 # 테슬라처럼 2014년에서 멈춘 태그를 최신값으로 착각한다. LongTermDebt 를
 # 먼저 시도하고, 채택한 값의 기준일을 반드시 함께 기록한다.
+#
+# 알려진 결함 — 여기는 **장기차입금만** 센다. 유동성장기부채·단기차입금·
+# 리스부채·전환사채가 순부채에서 통째로 빠진다. 한국 쪽(collectors/dart.py 의
+# BS_DEBT_ACCOUNTS)은 2026-08-03 에 같은 결함을 고쳐 분류별로 합하고
+# debt_by_category 로 내보내는데, 미국 쪽은 아직 그대로다. 그래서 지금
+# US 자산의 net_debt 는 과소계상이고, KR 자산과 다른 기준이다.
+# 고치려면 us-gaap 태그를 실제 companyfacts 에서 확인해야 한다 — 저장된
+# 원본은 이 수집기가 받아온 개념만 담고 있어 오프라인으로 셀 수 없다.
+# 후보: LongTermDebtCurrent, ShortTermBorrowings, CommercialPaper,
+#       OperatingLeaseLiabilityCurrent/Noncurrent,
+#       FinanceLeaseLiabilityCurrent/Noncurrent, ConvertibleNotesPayable.
 DEBT_TAGS = ["LongTermDebt", "LongTermDebtNoncurrent"]
 CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment",
               "PaymentsToAcquireProductiveAssets"]

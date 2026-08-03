@@ -11,6 +11,7 @@ from calculators.contracts import (
     ContractError,
     calculation_id_for,
     content_hash,
+    fundamentals_id_for,
     stable_hash,
 )
 from cio.assets import AssetRegistryError, get_asset, validate_asset
@@ -304,6 +305,30 @@ class TestRoutingContracts(unittest.TestCase):
             ):
                 summary, _source = _latest_fundamentals(get_asset("TSLA"))
         self.assertTrue(summary.get("contract_errors"))
+
+    def test_debt_composition_reaches_the_model(self):
+        """총차입만 실으면 리스 포함 여부를 수집기가 대신 정해 버린다.
+
+        리스·전환사채를 총차입에 넣을지는 방법론 판단이라 모델의 몫이다.
+        합계만 주면 모델은 다시 셀 수 없고, 그 순간 판단 주체가 조용히 바뀐다.
+        """
+        data = valid_fundamentals()
+        data["debt_by_category"] = {"BORROWING": 5000.0, "LEASE": 2721.0}
+        # 내용 지문이라 필드를 더하면 다시 계산해야 한다.
+        data["fundamentals_id"] = fundamentals_id_for(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            knowledge = Path(tmp)
+            directory = knowledge / "fundamentals"
+            directory.mkdir()
+            path = directory / f"TSLA-{data['period_end']}.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with (
+                patch("cio.context.KNOWLEDGE_DIR", knowledge),
+                patch("cio.context.ROOT", knowledge),
+            ):
+                summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        self.assertEqual(summary["debt_by_category"]["LEASE"], 2721.0)
+        self.assertIn("LEASE", summary["debt_by_category"]["_role"])
 
     def test_legacy_fundamentals_without_raw_hash_is_stale(self):
         data = valid_fundamentals()

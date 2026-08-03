@@ -283,6 +283,19 @@ def _latest_fundamentals(
         "income_statement_ttm": income_summary,
         "source": data.get("source") or observed_filing_source,
     }
+    # 총차입만 실으면 리스·전환사채를 포함할지가 수집기에서 이미 정해져 버린다.
+    # 그건 방법론 판단이므로 분류를 함께 실어 모델이 다시 셀 수 있게 한다.
+    # 계정 한 줄씩(debt_detail)은 싣지 않는다 — 다시 세는 데 분류 합이면 족하다.
+    by_category = data.get("debt_by_category")
+    if isinstance(by_category, dict) and by_category:
+        summary["debt_by_category"] = {
+            **by_category,
+            "_role": (
+                "총차입(values.long_term_debt)의 구성이다. LEASE 는 IFRS16 "
+                "리스부채이고 영업현금흐름도 같은 기준이라 기본은 포함이다. "
+                "리스를 뺀 순부채를 쓰려면 LEASE 를 덜어내고 다시 센다"
+            ),
+        }
     fcf = _as_float(values.get("fcf_ttm"))
     cash = _as_float(values.get("cash_and_equivalents"))
     short_investments = _as_float(values.get("short_term_investments"))
