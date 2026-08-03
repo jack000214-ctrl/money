@@ -347,8 +347,12 @@ def _filing_summary(
     for filing in filings:
         if not isinstance(filing, dict):
             continue
+        # 값이 없는 키는 싣지 않는다. DART 는 report_date 를 주지 않아 KR 공시
+        # 8건이 매번 `"report_date": null` 을 들고 나갔다(152 B). SEC 는 실제
+        # 값을 주므로 그쪽에서는 그대로 남는다 — 키를 지우는 게 아니라 빈 값을
+        # 안 보내는 것이다.
         compact = {
-            key: filing.get(key)
+            key: filing[key]
             for key in (
                 "filing_date",
                 "report_date",
@@ -357,6 +361,7 @@ def _filing_summary(
                 "description",
                 "document_url",
             )
+            if filing.get(key) is not None
         }
         if is_dart and filing.get("remark"):
             compact["remark"] = filing["remark"]
@@ -475,8 +480,10 @@ def _earnings_calendar_section(
                 "period_end",
                 "is_confirmed",
                 "notice_filing_date",
+                # document_url 은 싣지 않는다 — 같은 공시가 filings 에도 있고
+                # 거기 url 이 있다. 여기서는 evidence_ref(DARTDOC:접수번호)가
+                # 정본 핸들이며, 그것으로 filings·local_documents 양쪽을 짚는다.
                 "evidence_ref",
-                "document_url",
                 "source_caveat",
                 "_content",
             )

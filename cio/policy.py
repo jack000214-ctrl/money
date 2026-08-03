@@ -265,6 +265,27 @@ def deliberate_gaps(data: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _unset_not_in_checks(
+    data: dict[str, Any], checks: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """packet 에는 `checks` 가 못 담는 '일부러 비운 항목'만 싣는다.
+
+    한도 대부분은 `checks` 에 `state: NO_LIMIT_BY_CHOICE` + `reason` 으로
+    이미 들어간다. 같은 `why` 를 `intentionally_unset` 에도 실으면 매 판단마다
+    같은 문장을 두 번 보낸다(실측 244 B). 다만 `horizon.typical_holding_months`
+    처럼 산술 대조가 없는 항목은 `checks` 에 자리가 없으므로 여기 남겨야 한다 —
+    빠지면 '아직 안 정함'과 '두지 않기로 함'의 구분이 사라진다.
+
+    원본 `config/investor-policy.json` 은 그대로다. 줄이는 것은 전송분뿐이다.
+    """
+    covered = {check.get("limit") for check in checks}
+    return [
+        item
+        for item in (data.get("intentionally_unset") or [])
+        if isinstance(item, dict) and item.get("field") not in covered
+    ]
+
+
 def unset_fields(data: dict[str, Any]) -> list[str]:
     """사용자가 **아직 정하지 않은** 한도의 경로.
 
@@ -513,7 +534,7 @@ def policy_for_context(
         "tax": policy.get("tax"),
         "denominator": policy.get("denominator"),
         "default_alternatives": policy.get("default_alternatives"),
-        "intentionally_unset": policy.get("intentionally_unset") or [],
+        "intentionally_unset": _unset_not_in_checks(policy, checks),
         "unset": missing,
         "checks": checks,
         "_role": (
