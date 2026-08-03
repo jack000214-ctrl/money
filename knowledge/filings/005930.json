@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "005930",
   "corp_code": "00126380",
-  "collected_at": "2026-07-30T04:18:55+00:00",
+  "collected_at": "2026-08-03T05:37:21+00:00",
   "source": "DART_LIST",
-  "since": "20250601",
-  "until": "20260730",
+  "since": "20250629",
+  "until": "20260803",
   "pblntf_types": [
     "A",
     "B",
@@ -28,8 +28,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "e4d4c7bb5280f6ae9454740e232ab0d6c7e4e78a4bc277791f174ed2458f7ed8",
-      "raw_locator": "data/raw/dart/objects/e4d4c7bb5280f6ae9454740e232ab0d6c7e4e78a4bc277791f174ed2458f7ed8.json"
+      "raw_payload_sha256": "5acbe68e266fb29ccadb370b28ece258c0d14df0bedc8466a0e20e6676861713",
+      "raw_locator": "data/raw/dart/objects/5acbe68e266fb29ccadb370b28ece258c0d14df0bedc8466a0e20e6676861713.json"
     },
     {
       "pblntf_ty": "F",
@@ -38,6 +38,36 @@
     }
   ],
   "filings": [
+    {
+      "filing_date": "2026-07-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260731801296",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731801296"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800825",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800825"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800822",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800822"
+    },
     {
       "filing_date": "2026-07-30",
       "report_date": null,
@@ -607,36 +637,6 @@
       "filer": "삼성전자",
       "remark": "유",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251224800811"
-    },
-    {
-      "filing_date": "2025-12-04",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251204800565",
-      "description": "최대주주등소유주식변동신고서",
-      "filer": "삼성전자",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251204800565"
-    },
-    {
-      "filing_date": "2025-11-28",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251128800910",
-      "description": "기타경영사항(자율공시)",
-      "filer": "삼성전자",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128800910"
-    },
-    {
-      "filing_date": "2025-11-28",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251128800899",
-      "description": "기타경영사항(자율공시)",
-      "filer": "삼성전자",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128800899"
     }
   ]
 }
