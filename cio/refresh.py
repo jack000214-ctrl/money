@@ -488,6 +488,25 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
                 required=False,
             )
         )
+    if "KR_LENDING" in enabled:
+        tasks.append(
+            RefreshTask(
+                name=f"lending:{asset_id}",
+                capability="KR_LENDING",
+                artifact=f"knowledge/lending/{asset_id}.csv",
+                max_age_hours=24,
+                command=[
+                    sys.executable,
+                    "-m",
+                    "collectors.kr_lending",
+                    "stock",
+                    asset_id,
+                    "--days",
+                    "90",
+                ],
+                required=False,
+            )
+        )
     if "KR_INVENTORY" in enabled:
         year = dt.date.today().year
         tasks.append(

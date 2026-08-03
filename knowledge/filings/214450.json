@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "214450",
   "corp_code": "00970453",
-  "collected_at": "2026-08-01T07:24:45+00:00",
+  "collected_at": "2026-08-03T04:35:46+00:00",
   "source": "DART_LIST",
-  "since": "20250627",
-  "until": "20260801",
+  "since": "20250629",
+  "until": "20260803",
   "pblntf_types": [
     "A",
     "B",
@@ -28,8 +28,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "271a24bc754fb240847ad63c54c51cd2247a2555501a6e7369a0f38a9a07f92d",
-      "raw_locator": "data/raw/dart/objects/271a24bc754fb240847ad63c54c51cd2247a2555501a6e7369a0f38a9a07f92d.json"
+      "raw_payload_sha256": "edac00bb8b735c3579465cf775de38d5bfaaa20e5a992fcb003259a658b3127d",
+      "raw_locator": "data/raw/dart/objects/edac00bb8b735c3579465cf775de38d5bfaaa20e5a992fcb003259a658b3127d.json"
     },
     {
       "pblntf_ty": "F",
@@ -377,26 +377,6 @@
       "filer": "파마리서치",
       "remark": null,
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250708000069"
-    },
-    {
-      "filing_date": "2025-06-27",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250627900334",
-      "description": "기업설명회(IR)개최",
-      "filer": "파마리서치",
-      "remark": "코정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250627900334"
-    },
-    {
-      "filing_date": "2025-06-27",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250627900320",
-      "description": "지속가능경영보고서등관련사항(자율공시)",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250627900320"
     }
   ]
 }

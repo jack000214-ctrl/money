@@ -30,6 +30,7 @@
       ],
       "optional_collectors": [
         "KR_FLOW",
+        "KR_LENDING",
         "KR_INVENTORY",
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS"
@@ -56,6 +57,7 @@
       ],
       "optional_collectors": [
         "KR_FLOW",
+        "KR_LENDING",
         "KR_INVENTORY"
       ],
       "peers": [
@@ -210,6 +212,7 @@
       ],
       "optional_collectors": [
         "KR_FLOW",
+        "KR_LENDING",
         "KR_SEGMENTS",
         "NORMALIZED_EARNINGS"
       ],

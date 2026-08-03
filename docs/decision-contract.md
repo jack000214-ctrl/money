@@ -150,12 +150,27 @@ packet이 예산(`MAX_CONTEXT_JSON_BYTES`)을 넘으면 서술부터 버리고 �
 거래량이 평소의 2.5배였는데(`structured_optional.kr_flow`로 packet에 실려 나갔다)
 다음 판단의 논지는 판가 얘기만 했다. 이틀 뒤 +20%였다.
 
-**`structured_optional.kr_flow`가 packet에 있으면 `positioning`은 필수다.**
-`drivers`와 같은 규율을 쓴다 — `checked: true` + `finding` 이거나 `checked: false`
-\+ `skipped_reason`이며, 둘 다이거나 둘 다 아닐 수 없다.
+**`structured_optional.kr_flow` 또는 `kr_lending`이 packet에 있으면 `positioning`은
+필수다.** `drivers`와 같은 규율을 쓴다 — `checked: true` + `finding` 이거나
+`checked: false` + `skipped_reason`이며, 둘 다이거나 둘 다 아닐 수 없다.
 
-`unobservable`에는 보고 싶었으나 없던 것을 적는다. **공매도 잔고·대차잔고·신용융자
-잔고는 이 저장소에 수집기가 없다.** 여기 쌓이는 항목이 다음 수집기의 우선순위가 된다.
+`unobservable`에는 보고 싶었으나 없던 것을 적는다. 여기 쌓이는 항목이 다음 수집기의
+우선순위가 된다. 실제로 그렇게 굴러갔다 — 두 판단이 여기에 적어 둔 세 항목을 2026-08-03에
+찾아 나섰고 하나만 받을 수 있었다.
+
+| 항목 | 상태 |
+|---|---|
+| 대차잔고 | `KR_LENDING` 수집기로 들어온다 (`structured_optional.kr_lending`) |
+| 공매도 잔고 | **구조적으로 없다.** 종목 단위 공개 경로가 존재하지 않는다 |
+| 신용융자 잔고 | **종목 단위로 없다.** 시장 전체 추이만 공개된다 |
+
+뒤의 둘은 "아직 안 만든 것"이 아니라 **받을 수 없는 것**이다. 그래서 packet의
+`kr_lending._unobservable`이 매번 그 사실을 실어 보낸다 — 모델이 매 판단마다 같은
+검색을 반복하지 않게 하기 위해서다. 근거는 [data-policy.md](data-policy.md#공매도-잔고를-받을-수-없는-이유)에 있다.
+
+**대차잔고를 공매도 잔고로 읽으면 안 된다.** 대차는 공매도의 재료이지 공매도가
+아니며, 결제·차익거래·의결권 목적의 대차도 같은 숫자에 섞여 있다. 잔고가 늘었다는
+사실은 누가 왜 빌렸는지를 말하지 않는다.
 
 맞히라는 것이 아니라 보고도 안 본 척하지 말라는 것이다. 동시에 수급은 이익 동인이
 아니므로 `drivers`의 100%에 억지로 끼워 넣지 않는다.

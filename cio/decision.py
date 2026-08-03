@@ -1019,12 +1019,13 @@ def validate_decision(
         # 받은 데이터를 다루지 않고 넘어가는 것을 허용하지 않는다. 이익 동인이
         # 아니라는 이유로 수급이 조용히 빠지는 실패가 실제로 있었다.
         packet_body = context.get("context") or {}
-        flow = (packet_body.get("structured_optional") or {}).get("kr_flow")
-        if flow and data.get("positioning") is None:
+        optional = packet_body.get("structured_optional") or {}
+        given = [name for name in ("kr_flow", "kr_lending") if optional.get(name)]
+        if given and data.get("positioning") is None:
             errors.append(
-                "positioning: packet에 수급 데이터(structured_optional.kr_flow)가 "
-                "실려 있다. 이익 동인이 아니라는 이유로 건너뛰지 말고 확인했는지 "
-                "밝혀야 한다"
+                "positioning: packet에 수급·대차 데이터"
+                f"(structured_optional.{', '.join(given)})가 실려 있다. 이익 "
+                "동인이 아니라는 이유로 건너뛰지 말고 확인했는지 밝혀야 한다"
             )
         _validate_assertion_checks(
             data.get("user_assertion_checks"),

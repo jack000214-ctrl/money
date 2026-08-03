@@ -21,6 +21,7 @@ FILING_PROFILE_BY_MARKET = {
 OPTIONAL_COLLECTORS_BY_ROUTE = {
     ("KR", "STOCK"): {
         "KR_FLOW",
+        "KR_LENDING",
         "KR_INVENTORY",
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS",

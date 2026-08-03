@@ -1054,6 +1054,45 @@ def _optional_collection_summaries(
                     }
                 )
 
+    if "KR_LENDING" in enabled:
+        path = KNOWLEDGE_DIR / "lending" / f"{asset_id}.csv"
+        if path.exists():
+            rows = _csv_rows(path)
+            recent = rows[-20:]
+            if recent:
+                first = _as_float(recent[0].get("balance_shares"))
+                last = _as_float(recent[-1].get("balance_shares"))
+                summaries["kr_lending"] = {
+                    "as_of": recent[-1].get("date"),
+                    "lookback_sessions": len(recent),
+                    "balance_shares": last,
+                    "balance_change_shares": (
+                        round(last - first)
+                        if first is not None and last is not None
+                        else None
+                    ),
+                    "balance_amount_krw": _as_float(
+                        recent[-1].get("balance_amount")
+                    ),
+                    "_role": (
+                        "빌려간 뒤 아직 갚지 않은 주식 수다. 공매도 잔고가 아니며 "
+                        "결제·차익거래·의결권 목적의 대차도 포함한다"
+                    ),
+                    "_unobservable": (
+                        "공매도 잔고·신용융자 잔고는 종목 단위로 받을 수 없다. "
+                        "KRX 공매도 통계가 로그인 전용으로 바뀌었고 공개 API 가 없다 "
+                        "— 다시 찾지 말고 없는 채로 판단한다"
+                    ),
+                }
+                sources.append(
+                    {
+                        "source_id": f"KR_LENDING:{asset_id}",
+                        "kind": "MARKET_DATA",
+                        "path": str(path.relative_to(ROOT)),
+                        "data_as_of": recent[-1].get("date"),
+                    }
+                )
+
     if "KR_INVENTORY" in enabled:
         path = KNOWLEDGE_DIR / "inventory" / f"{asset_id}.csv"
         if path.exists():
@@ -2323,7 +2362,9 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        "prompt_version": "2.0",
+        # 2.1 — positioning 강제 조건에 kr_lending 추가, 대차≠공매도 규정.
+        # 판단 규율이 바뀌면 올린다. 과거 판단은 자기 버전 그대로 채점된다.
+        "prompt_version": "2.1",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,

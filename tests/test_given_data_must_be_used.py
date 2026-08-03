@@ -30,6 +30,20 @@ def with_flow(context=None):
     return context
 
 
+def with_lending(context=None):
+    context = context or valid_context()
+    context["context"] = {
+        "structured_optional": {
+            "kr_lending": {"balance_shares": 12_400_000,
+                           "balance_change_shares": 3_100_000},
+        }
+    }
+    from cio.decision import context_id_for
+
+    context["context_id"] = context_id_for(context)
+    return context
+
+
 def with_claims(claims, context=None):
     context = context or valid_context()
     context["request"]["user_assertions"] = [
@@ -112,6 +126,34 @@ class TestFlowMustBeAddressed(unittest.TestCase):
         self.assertEqual(
             validate_decision(decision_for(context), context=context), []
         )
+
+    def test_lending_alone_also_makes_positioning_required(self):
+        """대차잔고는 수급과 같은 이유로 이익 동인 밖에서 빠져나간다.
+
+        `kr_flow` 없이 `kr_lending` 만 실린 종목에서도 막혀야 한다. 둘 중
+        하나만 검사하면 대차만 붙은 종목이 조용히 빠져나간다.
+        """
+        context = with_lending()
+        errors = validate_decision(decision_for(context), context=context)
+        self.assertTrue(
+            any("positioning" in error and "kr_lending" in error
+                for error in errors),
+            errors,
+        )
+
+    def test_lending_skip_is_allowed_with_a_reason(self):
+        context = with_lending()
+        data = decision_for(
+            context,
+            positioning={
+                "checked": True,
+                "finding": "대차잔고 20세션 +310만주. 다만 누가 왜 빌렸는지는 알 수 없다",
+                "skipped_reason": None,
+                "unobservable": ["공매도 잔고 — 공개 API 없음"],
+                "affects_conclusion": False,
+            },
+        )
+        self.assertEqual(validate_decision(data, context=context), [])
 
 
 class TestUserClaimsMustBeClosed(unittest.TestCase):

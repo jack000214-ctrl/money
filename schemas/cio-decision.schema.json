@@ -621,7 +621,7 @@
           "minLength": 1
         },
         "unobservable": {
-          "description": "보고 싶었으나 없던 것. 공매도·대차잔고처럼 수집기 없는 항목이 여기 쌓인다.",
+          "description": "보고 싶었으나 없던 것. 공매도 잔고처럼 공개 경로가 없는 항목이 여기 쌓인다.",
           "type": "array",
           "items": {
             "type": "string",

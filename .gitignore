@@ -27,6 +27,9 @@ knowledge/assessments/
 knowledge/evaluations/
 knowledge/evidence/
 knowledge/quarantine/
+# `cio record` 에 넣기 전의 판단 초안. 기록본과 같은 내용(보유 수량·평단·정책)을
+# 담는데 knowledge/ 밖이라 위 규칙에 걸리지 않는다. 실제로 커밋될 뻔했다.
+data/decision-*.json
 
 # ── 증권사 원본 명세 (계좌번호·성명·체결내역) ───────────────────────
 거래내역서*.pdf
