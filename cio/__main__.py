@@ -35,6 +35,7 @@ from cio.requests import (
     resolve_request,
 )
 from cio.pipeline import PipelineError, format_pipeline, record_program
+from cio.report import format_report
 from cio.retire import RetireError, format_survey, retire, survey
 
 MIN_PYTHON = (3, 13)
@@ -238,6 +239,11 @@ def cmd_pipeline(args) -> int:
         return 2
     print(f"saved: {path}")
     print(format_pipeline(args.asset_id))
+    return 0
+
+
+def cmd_show(args) -> int:
+    print(format_report(args.asset_id, assessment_id=args.assessment_id))
     return 0
 
 
@@ -491,6 +497,16 @@ def build_parser() -> argparse.ArgumentParser:
     score = sub.add_parser("score", help="저장된 decision을 가격으로 사후평가")
     score.add_argument("asset_id")
     score.set_defaults(func=cmd_score)
+
+    show = sub.add_parser("show", help="기록된 판단을 읽는다")
+    show.add_argument("asset_id")
+    show.add_argument(
+        "--id",
+        dest="assessment_id",
+        default=None,
+        help="특정 판단 (기본: 살아 있는 것 중 최신)",
+    )
+    show.set_defaults(func=cmd_show)
     return parser
 
 

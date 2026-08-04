@@ -1,0 +1,386 @@
+"""기록된 판단을 사람이 읽을 수 있게 렌더링한다.
+
+**이 파일은 아무것도 판정하지 않는다.** 모델이 쓴 값을 자리에 놓을 뿐이고,
+임계값·등급·"싸다/비싸다" 같은 값을 여기서 만들지 않는다. 화면이 판정을 내기
+시작하면 다음 판단의 모델이 그것을 근거로 받아들이고, 그 순간 판단의 주체가
+조용히 바뀐다 — `calculators/position.py` 가 지키는 경계와 같은 경계다.
+
+이 명령이 있는 이유는 하나다. `cio record` 뒤에 판단을 읽을 방법이 raw JSON
+밖에 없었다. 그런데 사용자의 `stop_style` 이 `THESIS` 면 **무효화 신호가 유일한
+매도 규율**이다 — 가격 손절이 없으므로 그 신호를 아무도 안 보면 안전장치가
+통째로 없는 것과 같다. 그래서 무효화 신호와 반대 논지를 결론과 같은 크기로
+놓는다.
+
+같은 이유로 승률·확신도를 verdict 옆에 붙이고 `unknowns` 를 접지 않는다.
+잘 정리된 화면은 45% 승률을 확신처럼 보이게 하는데, 그것이 이 저장소가
+경계하는 "사용자의 확신을 정교하게 합리화하는" 실패의 표시 계층 판본이다.
+"""
+
+from __future__ import annotations
+
+import unicodedata
+from typing import Any
+
+from calculators.contracts import ContractError, load_json
+from cio.assets import get_asset
+from cio.memory import READABLE_EVALUATION_SCHEMAS
+from cio.paths import KNOWLEDGE_DIR
+from cio.retire import survey
+
+WIDTH = 78
+
+
+def cell_width(text: str) -> int:
+    """터미널이 실제로 쓰는 칸 수.
+
+    `textwrap` 은 글자 수를 세는데 한글·한자·전각기호는 두 칸을 차지한다.
+    이 저장소의 출력은 대부분 한글이라 글자 수로 접으면 실제 줄은 두 배로
+    뻗어 나가고, 접는 의미가 사라진다.
+    """
+    return sum(
+        2 if unicodedata.east_asian_width(char) in ("W", "F") else 1
+        for char in text
+    )
+
+
+def _wrap(text: str, indent: str = "  ") -> list[str]:
+    """문단 구분을 살려 접는다. 모델의 논지는 빈 줄로 문단을 나눈다."""
+    lines: list[str] = []
+    for index, block in enumerate(str(text).split("\n")):
+        if not block.strip():
+            if index and lines and lines[-1] != "":
+                lines.append("")
+            continue
+        current = indent
+        for word in block.strip().split():
+            candidate = word if current.strip() == "" else f"{current} {word}"
+            if current.strip() and cell_width(candidate) > WIDTH:
+                lines.append(current.rstrip())
+                current = f"{indent}{word}"
+            else:
+                current = candidate if current.strip() else f"{indent}{word}"
+        if current.strip():
+            lines.append(current.rstrip())
+    return lines
+
+
+def _pad(text: str, width: int) -> str:
+    """한글 라벨을 칸 기준으로 맞춘다. f-string 의 `<` 는 글자 수로 세어 어긋난다."""
+    return text + " " * max(0, width - cell_width(text))
+
+
+def _num(value: Any, *, unit: str = "", digits: int = 1) -> str:
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, (int, float)):
+        return f"{value:,.{digits}f}{unit}"
+    return str(value)
+
+
+def _signed(value: Any) -> str:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return "—"
+    return f"{value:+,.1f}%"
+
+
+def _section(title: str, note: str | None = None) -> list[str]:
+    lines = ["", f"■ {title}"]
+    if note:
+        lines.extend(_wrap(note))
+    return lines
+
+
+def _find_evaluation(asset_id: str, assessment_id: str) -> dict[str, Any] | None:
+    """이 판단의 최신 평가. 없으면 None — 없는 것도 정보다(아직 안 재봤다)."""
+    directory = KNOWLEDGE_DIR / "evaluations" / asset_id
+    if not directory.exists():
+        return None
+    best: dict[str, Any] | None = None
+    for path in sorted(directory.glob("EVAL-*.json")):
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        if data.get("assessment_id") != assessment_id:
+            continue
+        if data.get("schema_version") not in READABLE_EVALUATION_SCHEMAS:
+            continue
+        if best is None or str(data.get("evaluated_at") or "") > str(
+            best.get("evaluated_at") or ""
+        ):
+            best = data
+    return best
+
+
+def load_assessment(
+    asset_id: str, *, assessment_id: str | None = None
+) -> tuple[dict[str, Any], str, list[str]]:
+    """판단 하나와 그 계약 상태를 읽는다.
+
+    상태를 같이 내는 이유는 `cio retire` 가 이미 경고하는 함정 때문이다 —
+    계약 미달 판단도 파일로는 남아 있어서, 그냥 열면 살아 있는 판단처럼
+    보인다. 패킷에 실리지 않는 판단을 근거처럼 읽으면 안 된다.
+    """
+    asset = get_asset(asset_id)
+    state = survey(asset["asset_id"])
+    rows = [(row, "LIVE") for row in state["live"]]
+    rows += [(row, "CONTRACT_FAILURE") for row in state["contract_failing"]]
+    if not rows:
+        raise ContractError(
+            [
+                f"{asset['asset_id']}: 읽을 판단이 없다. "
+                "`cio retire` 로 폐기된 것이 있는지 확인한다"
+            ]
+        )
+    if assessment_id:
+        picked = [item for item in rows if item[0]["assessment_id"] == assessment_id]
+        if not picked:
+            raise ContractError([f"{assessment_id}: 이 자산의 판단이 아니다"])
+    else:
+        live = [item for item in rows if item[1] == "LIVE"]
+        pool = live or rows
+        picked = [max(pool, key=lambda item: str(item[0].get("created_at") or ""))]
+    row, status = picked[0]
+    warnings: list[str] = []
+    if status == "CONTRACT_FAILURE":
+        warnings.append(
+            "이 판단은 현재 계약을 통과하지 못한다 — 패킷에 실리지 않으므로 "
+            f"다음 판단이 이어받지 않는다. 사유: {row.get('reason')}"
+        )
+    if len(state["live"]) > 1 and not assessment_id:
+        warnings.append(
+            f"살아 있는 판단이 {len(state['live'])}건이다. 가장 최근 것을 보여준다 "
+            "(--id 로 지정할 수 있다)"
+        )
+    retired = state.get("retired") or {}
+    if retired.get("count"):
+        warnings.append(
+            f"폐기된 판단이 {retired['count']}건 있다. 폐기의 뜻은 "
+            "'인용하지 않는다'이며 그 값은 여기 표시되지 않는다"
+        )
+    return load_json(row["path"]), status, warnings
+
+
+def format_assessment(
+    data: dict[str, Any],
+    *,
+    status: str,
+    warnings: list[str],
+) -> str:
+    asset = get_asset(data["asset_id"])
+    model = data.get("model") or {}
+    plan = data.get("price_plan") or {}
+    expected = data.get("expected_return_pct") or {}
+    scenario = data.get("scenario_probability_pct") or {}
+    action = data.get("action") or {}
+    currency = plan.get("currency") or ""
+
+    lines = [
+        "=" * WIDTH,
+        f"판단 — {data['asset_id']} {asset['name']}",
+        f"  {data.get('assessment_id')}",
+        f"  {data.get('created_at')} · {model.get('name')} · "
+        f"prompt {model.get('prompt_version')} · "
+        f"{'살아 있음' if status == 'LIVE' else '계약 미달'}",
+        "=" * WIDTH,
+    ]
+    for warning in warnings:
+        lines.extend(_wrap(f"※ {warning}", indent="  "))
+
+    # 결론. 승률·확신도를 verdict 와 같은 자리에 둔다 — 따로 떼면 확신처럼 읽힌다.
+    lines.extend(_section("결론"))
+    lines.append(f"  verdict   {data.get('verdict'):<14}새 자금을 넣을 것인가")
+    lines.append(
+        f"  action    {action.get('direction'):<14}가진 것을 어떻게 할 것인가"
+    )
+    if action.get("undetermined_reason"):
+        lines.append(f"            └ 막힌 이유: {action['undetermined_reason']}")
+    if action.get("sell_reason"):
+        lines.append(f"            └ 매도 사유: {action['sell_reason']}")
+    lines.append(
+        f"  승률 {_num(data.get('win_probability_pct'), unit='%')}   "
+        f"확신도 {_num(data.get('confidence_pct'), unit='%')}   "
+        f"평가 기간 {data.get('horizon_months')}개월"
+    )
+    trade = data.get("proposed_trade") or {}
+    lines.append(
+        f"  제안 집행액 {_num(trade.get('amount'), digits=0)} "
+        f"{trade.get('currency') or ''}"
+    )
+
+    lines.extend(_section("논지"))
+    lines.extend(_wrap(data.get("thesis") or "—"))
+
+    # 반대 논지를 결론과 같은 크기로 둔다. 접으면 확증 편향의 편을 드는 화면이 된다.
+    counter = data.get("strongest_counter_thesis") or {}
+    lines.extend(_section("가장 강한 반대 논지"))
+    lines.extend(_wrap(counter.get("text") or "—"))
+
+    signals = data.get("invalidation_signals") or []
+    lines.extend(
+        _section(
+            f"무효화 신호 ({len(signals)})",
+            "stop_style 이 THESIS 면 이것이 유일한 매도 규율이다. "
+            "가격 손절은 자동 매도선이 아니라 다시 물어볼 자리다",
+        )
+    )
+    for index, signal in enumerate(signals, 1):
+        body = _wrap(signal, indent="     ")
+        body[0] = f"  {index}. " + body[0].lstrip()
+        lines.extend(body)
+
+    lines.extend(_section("가격 계획", f"통화 {currency}"))
+    for label, key in (
+        ("선호 진입", "preferred_entry"),
+        ("진입 범위 하단", "entry_range_low"),
+        ("진입 범위 상단", "entry_range_high"),
+        ("손절", "stop_price"),
+        ("분할매도 시작", "scale_out_start"),
+        ("재질문 하단", "reask_below"),
+        ("재질문 상단", "reask_above"),
+    ):
+        lines.append(f"  {_pad(label, 22)}{_num(plan.get(key), digits=0):>12}")
+    for event in plan.get("reask_events") or []:
+        lines.extend(_wrap(f"· {event}", indent="  "))
+
+    lines.extend(_section("기대수익", "확률가중은 모델이 낸 값이며 재계산하지 않는다"))
+    lines.append(
+        f"  약세 {_signed(expected.get('bear'))}   "
+        f"기준 {_signed(expected.get('base'))}   "
+        f"강세 {_signed(expected.get('bull'))}"
+    )
+    lines.append(
+        f"  확률 {_num(scenario.get('bear'), unit='%')} / "
+        f"{_num(scenario.get('base'), unit='%')} / "
+        f"{_num(scenario.get('bull'), unit='%')}"
+    )
+    lines.append(
+        f"  확률가중 {_signed(expected.get('probability_weighted'))}"
+    )
+    lines.append(
+        f"  승리 문턱 {_signed(data.get('win_return_threshold_pct'))}   "
+        f"실패 문턱 {_signed(data.get('failure_return_threshold_pct'))}"
+    )
+
+    drivers = data.get("drivers") or []
+    lines.extend(
+        _section("이익 동인", "비중 합 100. 수급·포지셔닝은 이익 동인이 아니라 아래 따로 있다")
+    )
+    for driver in drivers:
+        mark = "조사함" if driver.get("researched") else "건너뜀"
+        lines.append(f"  {_num(driver.get('weight_pct'), unit='%', digits=0):>5}  "
+                     f"{driver.get('name')}  [{mark}]")
+        detail = driver.get("finding") or driver.get("skipped_reason")
+        if detail:
+            lines.extend(_wrap(detail, indent="         "))
+
+    checks = data.get("user_assertion_checks")
+    if checks:
+        lines.extend(
+            _section("사용자 주장 검증", "REFUTED 는 실패가 아니라 이 시스템이 존재하는 이유다")
+        )
+        for check in checks:
+            lines.append(f"  [{check.get('status')}] {check.get('claim_id')}")
+            lines.extend(_wrap(check.get("finding") or "—", indent="     "))
+
+    positioning = data.get("positioning")
+    if positioning:
+        affects = positioning.get("affects_conclusion")
+        lines.extend(
+            _section(
+                "수급·포지셔닝",
+                f"결론에 영향 {'있음' if affects else '없음'}",
+            )
+        )
+        body = positioning.get("finding") or positioning.get("skipped_reason")
+        lines.extend(_wrap(body or "—"))
+        for item in positioning.get("unobservable") or []:
+            lines.extend(_wrap(f"· 관측 불가: {item}", indent="  "))
+
+    unknowns = data.get("unknowns") or []
+    lines.extend(_section(f"모르는 것 ({len(unknowns)})", "접지 않는다"))
+    for item in unknowns:
+        body = _wrap(item, indent="     ")
+        body[0] = "  · " + body[0].lstrip()
+        lines.extend(body)
+
+    requests = data.get("research_requests") or []
+    if requests:
+        lines.extend(_section(f"수집 요청 ({len(requests)})", "`cio requests` 로 닫는다"))
+        for item in requests:
+            body = _wrap(item, indent="     ")
+            body[0] = "  · " + body[0].lstrip()
+            lines.extend(body)
+
+    sources = data.get("sources") or []
+    if sources:
+        lines.extend(_section(f"모델이 인용한 출처 ({len(sources)})"))
+        for source in sources:
+            lines.append(f"  {source.get('source_id')}  [{source.get('type')}]")
+            lines.append(f"     {source.get('locator')}")
+
+    evaluation = _find_evaluation(data["asset_id"], data.get("assessment_id") or "")
+    lines.extend(_section("사후 평가"))
+    if evaluation is None:
+        lines.append("  아직 없다. `cio score` 로 채점한다")
+    else:
+        lines.extend(_format_evaluation(evaluation, verdict=data.get("verdict")))
+
+    lines.append("")
+    lines.append("─" * WIDTH)
+    lines.extend(
+        _wrap(
+            "이 화면은 모델이 쓴 값을 그대로 옮긴 것이며 어떤 판정도 여기서 "
+            "만들지 않는다. 승률과 확신도는 모델의 자기 추정이고, 실제 성과는 "
+            "위 사후 평가가 가격으로 잰다.",
+            indent="  ",
+        )
+    )
+    return "\n".join(lines)
+
+
+def _format_evaluation(
+    evaluation: dict[str, Any], *, verdict: str | None
+) -> list[str]:
+    window = evaluation.get("window") or {}
+    price = evaluation.get("price") or {}
+    counterfactual = evaluation.get("counterfactual") or {}
+    lines = [
+        f"  기준일 {window.get('start_date')} → "
+        f"{window.get('latest_available_date')}  "
+        f"({'완료' if window.get('complete') else '진행 중'})",
+        f"  질문가 기준 수익률 {_signed(price.get('return_to_end_pct'))}",
+    ]
+    waited = counterfactual.get("waited_for_entry") or {}
+    if waited:
+        filled = waited.get("filled")
+        entry = _num(waited.get("entry_price"), digits=0)
+        if filled:
+            lines.append(
+                f"  진입가 {entry} 체결됨 ({(waited.get('fill') or {}).get('date')}) "
+                f"→ {_signed(waited.get('return_to_end_pct'))}"
+            )
+        elif filled is False:
+            lines.append(f"  진입가 {entry} 미체결 — 포지션이 없었다")
+        if waited.get("advantage_pct") is not None:
+            lines.append(
+                f"  기다린 것의 차이 {_signed(waited.get('advantage_pct'))} "
+                "(즉시 매수 대비)"
+            )
+    if verdict in {"WAIT", "AVOID"}:
+        lines.append(
+            "  ※ WAIT·AVOID 는 질문가 수익률이 아니라 위 반사실이 본 채점이다"
+        )
+    return lines
+
+
+def format_report(asset_id: str, *, assessment_id: str | None = None) -> str:
+    data, status, warnings = load_assessment(
+        asset_id, assessment_id=assessment_id
+    )
+    return format_assessment(data, status=status, warnings=warnings)
+
+
+__all__ = ["format_report", "format_assessment", "load_assessment"]
