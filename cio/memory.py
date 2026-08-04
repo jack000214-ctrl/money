@@ -27,6 +27,15 @@ from cio.refresh import safe_symbol
 
 KST = dt.timezone(dt.timedelta(hours=9))
 
+# 새 평가가 쓰는 판. 1.1.0 에서 `counterfactual` 이 붙었다.
+EVALUATION_SCHEMA = "cio-evaluation/1.1.0"
+# 읽을 때는 옛 판도 받는다. 여기서 하나로 못 박으면 판을 올릴 때마다 이전
+# 평가가 packet 에서 조용히 사라진다 — 읽는 쪽은 `continue` 로 건너뛸 뿐이라
+# 무엇이 없어졌는지 아무도 모른다. 추가된 필드는 읽는 쪽이 안 보면 그만이다.
+READABLE_EVALUATION_SCHEMAS = frozenset(
+    {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0"}
+)
+
 
 def record_decision_file(path: str | Path) -> Path:
     input_path = Path(path)
@@ -292,6 +301,113 @@ def _action_legs(
     return legs
 
 
+# `WAIT` 는 "이 가격에는 안 산다"는 판단이다. 그런데 채점은 질문가에서 시작하는
+# 수익률 하나만 내므로, **안 샀는데 산 것처럼** 잰다. 그러면 WAIT 뒤 오른 건은
+# 전부 실패로, 내린 건은 전부 성공으로 기록된다 — 정작 모델이 건 것은 "질문가보다
+# 낮은 어딘가에서 산다"이지 "주가가 내린다"가 아닌데도 그렇다.
+#
+# 실제로 그 차이가 결과를 뒤집은 적이 있다. 005930 2026-07-29 판단은 WAIT 에
+# 진입범위 175,000~195,000 이었고 그날 저가가 189,200 이었다. 질문가(210,000)
+# 기준으로는 손실로 잡히지만 **계획은 체결됐고** 이틀 뒤 종가는 251,500 이었다.
+#
+# 그래서 세 갈래를 따로 낸다.
+#   1. 질문가에 즉시 샀다면             (기존 realized 와 같은 값)
+#   2. 제안 진입가에 걸어두고 기다렸다면 (체결 여부부터가 결과다)
+#   3. 현금으로 들고 있었다면            (명목 0%. 지수 대안은 fixed_horizons)
+#
+# **어느 쪽이 옳았는지는 여기서 정하지 않는다.** 차이만 내고 판정은 회고에서 한다.
+def _counterfactual(
+    *,
+    plan: dict[str, Any] | None,
+    path_until_horizon: list[dict[str, Any]],
+    end: dict[str, Any],
+    latest: dict[str, Any],
+    adjustment_factor: float,
+    realized: float,
+    latest_return: float,
+) -> dict[str, Any]:
+    plan = plan or {}
+
+    def _level(name: str) -> float | None:
+        value = plan.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return float(value) if value > 0 else None
+
+    # 모델이 스스로 고른 값을 쓴다. `preferred_entry` 가 그 약속이고, 없을 때만
+    # 범위 상단으로 내려간다 — 범위 상단이 먼저 체결되므로 더 관대한 기준이며,
+    # 어느 쪽을 썼는지 모르면 관대한 값을 엄격한 값과 같은 통에 넣게 된다.
+    entry, basis = _level("preferred_entry"), "PREFERRED_ENTRY"
+    if entry is None:
+        entry, basis = _level("entry_range_high"), "ENTRY_RANGE_HIGH"
+    if entry is None:
+        basis = None
+
+    waited: dict[str, Any] = {
+        "entry_price": entry,
+        "entry_price_basis": basis,
+        "filled": None,
+        "fill": None,
+        "return_to_end_pct": None,
+        "return_to_latest_pct": None,
+        "advantage_pct": None,
+    }
+    if entry is not None:
+        # 손절·분할매도와 같은 방식으로 관측한다(분할 보정 후 저가 대조).
+        fill = _first_trigger(
+            path_until_horizon, field="low", level=entry, direction="down"
+        )
+        waited["filled"] = fill is not None
+        waited["fill"] = fill
+        if fill is not None:
+            # 진입가는 질문가와 같은 시점의 호가다. 조정계수도 같은 것을 쓴다.
+            adjusted_entry = entry * adjustment_factor
+            to_end = (end["adjusted_close"] / adjusted_entry - 1) * 100
+            waited["return_to_end_pct"] = round(to_end, 4)
+            waited["return_to_latest_pct"] = round(
+                (latest["adjusted_close"] / adjusted_entry - 1) * 100, 4
+            )
+            waited["advantage_pct"] = round(to_end - realized, 4)
+        else:
+            # 체결되지 않았다 = 지평까지 현금이었다. 그래서 이득은 현금과 같다.
+            waited["advantage_pct"] = round(-realized, 4)
+
+    return {
+        "bought_at_ask": {
+            "return_to_end_pct": round(realized, 4),
+            "return_to_latest_pct": round(latest_return, 4),
+            "_note": "질문가에 즉시 샀다면. price.return_to_end_pct 와 같은 값이다",
+        },
+        "waited_for_entry": {
+            **waited,
+            "_note": (
+                "제안 진입가에 걸어두고 기다렸다면. filled=false 는 계획이 "
+                "실행되지 못했다는 뜻이며 그 자체가 결과다 — 수익률이 없는 것이 "
+                "아니라 포지션이 없었다. advantage_pct 는 bought_at_ask 대비 "
+                "차이이며 미체결이면 현금(0%) 대비로 계산된다"
+            ),
+        },
+        "held_cash": {
+            "return_pct": 0.0,
+            "advantage_pct": round(-realized, 4),
+            "_note": (
+                "자산 통화 명목 0%. 이자·인플레이션은 반영하지 않는다. "
+                "지수 대안은 fixed_horizons.vs_benchmark 에 있다"
+            ),
+        },
+        "_role": (
+            "같은 판단을 세 가지 대안 행동으로 나눠 잰다. **`WAIT`·`AVOID` 는 "
+            "이쪽이 본 채점이다** — price.return_to_end_pct 는 사지도 않은 "
+            "포지션의 수익률이므로 그것만으로 승패를 읽으면 안 된다"
+        ),
+        "_warning": (
+            "체결은 일봉 저가로만 관측한다. 그날 그 가격에 실제로 채워졌는지, "
+            "몇 주가 채워졌는지는 알 수 없다. 어느 대안이 옳았는지도 여기서 "
+            "정하지 않는다 — 차이만 낸다"
+        ),
+    }
+
+
 # 모델이 무엇을 예측하든 상관없이 항상 같은 자로 재는 기간.
 #
 # 지금 승패는 모델이 스스로 정한 `horizon_months` 와 승리 문턱으로 판정된다.
@@ -468,7 +584,7 @@ def evaluate_assessment(
         benchmarks=asset.get("benchmarks") or [],
     )
     evaluation = {
-        "schema_version": "cio-evaluation/1.0.0",
+        "schema_version": EVALUATION_SCHEMA,
         "evaluation_id": None,
         "assessment_id": assessment["assessment_id"],
         "context_id": assessment["context_id"],
@@ -558,6 +674,15 @@ def evaluate_assessment(
             ),
         },
         "action": _action_legs(assessment, realized, complete),
+        "counterfactual": _counterfactual(
+            plan=plan,
+            path_until_horizon=path_until_horizon,
+            end=end,
+            latest=latest,
+            adjustment_factor=adjustment_factor,
+            realized=realized,
+            latest_return=latest_return,
+        ),
         "calibration": {
             "predicted_win_probability_pct": assessment["win_probability_pct"],
             "brier_score": round((probability - float(win_observed)) ** 2, 6)

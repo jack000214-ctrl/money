@@ -2,12 +2,14 @@
   "schema_version": "price-backfill/1.0.0",
   "symbol": "^KS11",
   "target": "KS11.csv",
-  "collected_at": "2026-08-03T05:27:42+00:00",
-  "calendar_source": "KOSPI 종목 시계열 1219거래일",
+  "collected_at": "2026-08-04T01:17:23+00:00",
+  "calendar_source": "KOSPI 종목 시계열 1220거래일",
   "checked_range": {
-    "from": "2021-08-03",
-    "to": "2026-08-03"
+    "from": "2021-08-04",
+    "to": "2026-08-04"
   },
-  "filled": [],
+  "filled": [
+    "2026-08-03"
+  ],
   "unfilled": []
 }

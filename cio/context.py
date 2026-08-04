@@ -25,6 +25,7 @@ from calculators.contracts import (
 from cio.assets import get_asset
 from cio.documents import documents_for_context
 from cio.decision import require_valid_decision, validate_context_integrity
+from cio.memory import READABLE_EVALUATION_SCHEMAS
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.policy import POLICY_PATH, load_policy, policy_for_context
 from cio.requests import open_requests_for_context
@@ -1858,7 +1859,7 @@ def _memory_digest(
         if (
             evaluation_id != expected_id
             or path.stem != evaluation_id
-            or data.get("schema_version") != "cio-evaluation/1.0.0"
+            or data.get("schema_version") not in READABLE_EVALUATION_SCHEMAS
             or data.get("asset_id") != asset_id
             or data.get("context_id") != assessment.get("context_id")
             or data.get("model") != assessment.get("model")

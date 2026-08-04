@@ -237,20 +237,56 @@
 
 # 대응 현황
 
-| 항목 | 상태 |
+**이 표는 다음 리뷰의 출발점이다.** 그래서 "미착수"는 두 종류를 절대 섞지
+않는다 — *아직 못 만든 것*과 *지금 만들면 손해라서 안 만든 것*은 다르다. 뒤를
+그냥 미착수로 적어두면 다음 리뷰가 같은 제안을 다시 하고, 이미 내린 판단을
+매번 다시 내리게 된다. 마찬가지로 **완료 행은 코드에 대조한 뒤에만 적는다.**
+표가 코드보다 낙관적이면 이미 만든 것을 다시 만든다 (2026-08-04에 실제로
+그럴 뻔했다).
+
+최종 대조: 2026-08-04.
+
+## 완료
+
+| 항목 | 어디에 있나 |
 |---|---|
-| `INSUFFICIENT` → `UNDETERMINED` (막힌 이유 4종 분리) | 완료 |
-| `investor_policy` 계약 + 산술 대조 + evidence 봉인 | 완료 |
-| `stop_style` / `intentionally_unset` (null의 두 의미 분리) | 완료 |
-| retired 판단 채점 복원 (채점 계약 ≠ 인용 계약) | 완료 |
-| 압축이 무효화 신호를 버렸을 때 PASS 금지 | 완료 |
-| 평단 매몰비용 + "지금 0주라면" 강제 | 완료 |
-| `drivers`에 수급·포지셔닝 자리 | 완료 |
-| 사용자 원문·주장 보존 (`user_assertions`) | 완료 |
-| time-locked 고정 기간 평가 | 완료 |
-| `security_view` / `portfolio_action` 분리 | 미착수 |
-| champion/challenger 승격 절차 | 미착수 |
-| 대차잔고 수집기 (`KR_LENDING`) | 완료 |
-| 공매도·신용융자 잔고 수집기 | **불가 — 종목 단위 공개 경로 없음** ([data-policy.md](../data-policy.md#공매도-잔고를-받을-수-없는-이유)) |
-| ETF look-through | 미착수 |
-| claim 단위 근거 원장 | 미착수 |
+| `INSUFFICIENT` → `UNDETERMINED` (막힌 이유 4종 분리) | 스키마 `action.undetermined_reason` |
+| `investor_policy` 계약 + 산술 대조 + evidence 봉인 | `cio/policy.py`, `cio policy` |
+| `stop_style` / `intentionally_unset` (null의 두 의미 분리) | `cio/policy.py` — `LIMIT_UNSET` ≠ `NO_LIMIT_BY_CHOICE` |
+| retired 판단 채점 복원 (채점 계약 ≠ 인용 계약) | `cio/memory.py` `SCORING_REQUIRED` |
+| 압축이 무효화 신호를 버렸을 때 그 자리에 표시 | `cio/context.py` `invalidation_signals_dropped` |
+| 평단 매몰비용 + "지금 0주라면" 강제 | `prompts/cio-system.md` |
+| `drivers`에 수급·포지셔닝 자리 (`positioning`) | 스키마 + 프롬프트 |
+| 사용자 원문·주장 보존 (`user_assertions`) | 스키마 `user_assertion_checks` |
+| time-locked 고정 기간 평가 | `cio/memory.py` `fixed_horizons` |
+| **`WAIT` 반사실 채점** (샀다 / 기다려 체결됐다 / 안 샀다) | `cio/memory.py` `counterfactual` |
+| 대차잔고 수집기 (`KR_LENDING`) | `collectors/kr_lending.py` |
+| ETF look-through | `calculators/portfolio.py`, `tests/test_lookthrough.py` |
+
+**종목 관점과 내 행동은 리뷰가 제안한 이름 없이 이미 분리돼 있다.**
+`security_view`/`portfolio_action` 두 객체 대신 `verdict`(새 자금을 넣을 것인가)와
+`action`(가진 것을 어떻게 할 것인가)으로 갈랐고, 리뷰가 우려한
+"`INSUFFICIENT`가 `HOLD`로 번역되는 문제"는 `undetermined_reason` 4종이 막는다.
+**이름이 다르다고 미착수로 읽지 않는다** — 확인할 자리는
+`prompts/cio-system.md`의 "verdict와 action은 다른 질문이다"와 스키마의
+`action` 설명이다.
+
+## 불가 — 만들 수 없는 것
+
+| 항목 | 이유 |
+|---|---|
+| 공매도·신용융자 잔고 수집기 | 종목 단위 공개 경로 없음 ([data-policy.md](../data-policy.md#공매도-잔고를-받을-수-없는-이유)) |
+
+## 보류 — 만들 수 있으나 지금은 만들지 않기로 한 것
+
+**전부 같은 이유로 묶인다: 완료된 평가 표본이 아직 0에 가깝다.** 리뷰 본문의
+*"데이터 종류를 늘리기보다 실제 판단 20~30건을 완전한 형태로 끝까지 추적하는
+것이 더 중요하다"*가 이 결정의 근거다. 아래 셋은 **판단이 쌓인 뒤에 다시
+묻는다.** 그 전에 만들면 돌릴 데이터가 없는 절차만 남는다.
+
+| 항목 | 지금 아닌 이유 | 언제 다시 보나 |
+|---|---|---|
+| champion/challenger 승격 절차 | 비교할 표본이 없다 | 완료 평가가 모델·프롬프트별로 쌓였을 때 |
+| blank-slate 2-pass | 판단당 모델 호출이 2배인데, 살아 있는 판단이 적어 `CARRIED_FORWARD` 자체가 드물다 — 막을 앵커링이 아직 없다 | 논지가 실제로 이어지기 시작했을 때 |
+| claim 단위 근거 원장 | 절반 이상 이미 있다 (`sources`·`evidence_refs`·`user_assertion_checks`·`drivers.basis`·WEBSNAP 지문). 없는 건 표 셀 좌표와 상충 근거뿐인데 **매 판단마다 모델이 채우는 필드라 토큰 비용이 직접 오른다** | `evidence_refs`가 실제로 얼마나 채워지는지 관측한 뒤 |
+| 모델·제공자별 어댑터 | 실제로 쓰는 제공자가 아직 하나다 | 두 번째 제공자를 붙일 때 |
