@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-d6c3a15da6d300195aaa",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "005930",
+  "created_at": "2026-08-06T10:04:56+09:00",
+  "source_ids": [
+    "FUND-5c333abe24d7e3bb0f25"
+  ],
+  "inputs": {
+    "price": 240000.0,
+    "shares": 6675338718.820862,
+    "fcf": 100000000000000.0,
+    "net_debt": -119239280000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 2.0,
+    "years": 10,
+    "input_provenance": {
+      "verified": false,
+      "source": "manual",
+      "reason": "TTM(2026-06) 영업이익 179.0조×(1-22%)=139.6조에서 증설 순투자(capex-D&A) 약 40조를 뺀 값. 2Q26 잠정공시(20260730800077)로 TTM을 갱신했으며 packet fundamentals(2026-03-31)는 2Q26을 담고 있지 않다"
+    },
+    "revenue": 388338879000000.0,
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -8.0,
+      "base": 2.0,
+      "bull": 10.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -8.0,
+        "value_per_share": 113594.70096647798,
+        "total_return_pct": -52.66887459730084,
+        "return_pct": -31.202379835710047
+      },
+      "base": {
+        "growth_pct": 2.0,
+        "value_per_share": 208864.19981490905,
+        "total_return_pct": -12.973250077121234,
+        "return_pct": -6.711871107370381
+      },
+      "bull": {
+        "growth_pct": 10.0,
+        "value_per_share": 358669.3321268528,
+        "total_return_pct": 49.44555505285535,
+        "return_pct": 22.247926384399406
+      }
+    },
+    "implied_growth_pct": 4.104081485688004,
+    "implied_growth_status": "SOLVED"
+  }
+}

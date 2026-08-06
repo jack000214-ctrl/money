@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-8ceefeaf80b05bee17d1",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "028050",
+  "created_at": "2026-08-06T09:56:39+09:00",
+  "source_ids": [
+    "FUND-5a12b54eeda23a594f0c"
+  ],
+  "inputs": {
+    "price": 49800.0,
+    "shares": 195967468.5465995,
+    "fcf": 627647735310.0,
+    "net_debt": -2378254112064.0,
+    "discount_rate_pct": 11.0,
+    "terminal_growth_pct": 2.0,
+    "years": 10,
+    "input_provenance": {
+      "verified": false,
+      "source": "manual",
+      "reason": "NOPAT 7,157억(TTM 2026-06 영업이익 9,152억×0.782)과 normalized_earnings 사이클 평균 FCF 5,396억의 중간값. 성장 국면 EPC는 운전자본이 현금을 흡수하므로 NOPAT은 상단, 실현 FCF 평균은 하단이다"
+    },
+    "revenue": 9629504656280.0,
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -3.0,
+      "base": 5.0,
+      "bull": 11.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -3.0,
+        "value_per_share": 37990.78917299999,
+        "total_return_pct": -23.71327475301207,
+        "return_pct": -12.657727733366176
+      },
+      "base": {
+        "growth_pct": 5.0,
+        "value_per_share": 56854.832183150946,
+        "total_return_pct": 14.166329685042056,
+        "return_pct": 6.848645141172494
+      },
+      "bull": {
+        "growth_pct": 11.0,
+        "value_per_share": 80462.70425539777,
+        "total_return_pct": 61.57169529196338,
+        "return_pct": 27.110855276787184
+      }
+    },
+    "implied_growth_pct": 2.534335192697734,
+    "implied_growth_status": "SOLVED"
+  }
+}

@@ -1,8 +1,8 @@
 {
   "schema_version": "earnings-calendar/1.0.0",
   "asset_id": "005930",
-  "collected_at": "2026-08-03T14:37:21+09:00",
-  "as_of_date": "2026-08-03",
+  "collected_at": "2026-08-06T09:52:54+09:00",
+  "as_of_date": "2026-08-06",
   "source": "DART_DOCUMENT",
   "source_grade": "PRIMARY",
   "next_provisional_result": null,

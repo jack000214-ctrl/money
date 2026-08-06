@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "005930",
-  "collected_at": "2026-08-03T14:37:23+09:00",
+  "collected_at": "2026-08-06T09:52:56+09:00",
   "as_of": "2026-07-31",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
@@ -9,7 +9,7 @@
     "rating": 4.04,
     "target_price": 493542.0,
     "eps": 47929.0,
-    "per": 5.48,
+    "per": 5.13,
     "institution_count": 24
   },
   "estimates": {
@@ -68,11 +68,11 @@
         "operating_income_100m": 3911296.0,
         "net_income_100m": 3197005.0,
         "eps": 47929.0,
-        "per": 5.48,
-        "pbr": 2.4,
+        "per": 5.13,
+        "pbr": 2.25,
         "roe_pct": 55.9,
-        "ev_ebitda": 3.15,
-        "net_debt_ratio_pct": -40.1
+        "ev_ebitda": 2.92,
+        "net_debt_ratio_pct": -40.05
       },
       {
         "period": "2027-12",
@@ -83,11 +83,11 @@
         "operating_income_100m": 5490913.0,
         "net_income_100m": 4468028.0,
         "eps": 67202.0,
-        "per": 3.91,
-        "pbr": 1.54,
+        "per": 3.66,
+        "pbr": 1.45,
         "roe_pct": 48.63,
-        "ev_ebitda": 1.79,
-        "net_debt_ratio_pct": -53.11
+        "ev_ebitda": 1.61,
+        "net_debt_ratio_pct": -53.7
       }
     ],
     "per_band_actual": {
@@ -356,11 +356,11 @@
     },
     {
       "as_of": "2026-07-31",
-      "collected_at": "2026-08-03T14:37:23+09:00",
+      "collected_at": "2026-08-06T09:52:56+09:00",
       "rating": 4.04,
       "target_price": 493542.0,
       "eps": 47929.0,
-      "per": 5.48,
+      "per": 5.13,
       "institution_count": 24
     }
   ]

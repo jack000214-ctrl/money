@@ -2,11 +2,11 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "005930",
   "symbol": "005930.KS",
-  "collected_at": "2026-08-04T10:17:26+09:00",
+  "collected_at": "2026-08-06T09:52:59+09:00",
   "window": {
-    "since": "2026-05-05",
-    "until": "2026-08-03",
-    "trading_days": 61
+    "since": "2026-05-07",
+    "until": "2026-08-05",
+    "trading_days": 62
   },
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
   "benchmark": {
@@ -16,9 +16,9 @@
     "calendar_gaps": []
   },
   "last_bar": {
-    "date": "2026-08-03",
+    "date": "2026-08-05",
     "settled": true,
-    "excluded_unsettled_bar": "2026-08-04",
+    "excluded_unsettled_bar": "2026-08-06",
     "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
   },
   "benchmark_comparison": {
@@ -29,34 +29,34 @@
       {
         "label": "구간 고점 → 현재",
         "from": "2026-06-18",
-        "to": "2026-08-03",
-        "asset_return_pct": -33.9,
-        "benchmark_return_pct": -31.0,
-        "benchmark_relative_pct": -4.3
+        "to": "2026-08-05",
+        "asset_return_pct": -32.1,
+        "benchmark_return_pct": -27.2,
+        "benchmark_relative_pct": -6.8
       },
       {
         "label": "구간 저점 → 현재",
         "from": "2026-07-30",
-        "to": "2026-08-03",
-        "asset_return_pct": 15.7,
-        "benchmark_return_pct": 11.9,
-        "benchmark_relative_pct": 3.4
+        "to": "2026-08-05",
+        "asset_return_pct": 18.8,
+        "benchmark_return_pct": 18.0,
+        "benchmark_relative_pct": 0.7
       },
       {
         "label": "구간 전체",
-        "from": "2026-05-06",
-        "to": "2026-08-03",
-        "asset_return_pct": -10.0,
-        "benchmark_return_pct": -15.3,
-        "benchmark_relative_pct": 6.3
+        "from": "2026-05-07",
+        "to": "2026-08-05",
+        "asset_return_pct": -9.4,
+        "benchmark_return_pct": -11.9,
+        "benchmark_relative_pct": 2.9
       }
     ],
     "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
   "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
-    "date": "2026-08-03",
-    "close": 239500.0
+    "date": "2026-08-05",
+    "close": 246000.0
   },
   "moves": [
     {
@@ -69,7 +69,7 @@
       "sigma_used": 1.89,
       "direction": "up",
       "volume": 45052488,
-      "volume_vs_avg": 1.37,
+      "volume_vs_avg": 1.4,
       "candidate_filings": []
     },
     {
@@ -82,7 +82,7 @@
       "sigma_used": 2.11,
       "direction": "up",
       "volume": 47809959,
-      "volume_vs_avg": 1.46,
+      "volume_vs_avg": 1.48,
       "candidate_filings": []
     },
     {
@@ -95,7 +95,7 @@
       "sigma_used": 2.25,
       "direction": "down",
       "volume": 35436521,
-      "volume_vs_avg": 1.08,
+      "volume_vs_avg": 1.1,
       "candidate_filings": []
     },
     {
@@ -108,7 +108,7 @@
       "sigma_used": 2.41,
       "direction": "up",
       "volume": 58478873,
-      "volume_vs_avg": 1.78,
+      "volume_vs_avg": 1.81,
       "candidate_filings": [
         {
           "filed": "2026-07-31",
@@ -262,6 +262,6 @@
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
     "근접 공시가 없는 급변 3건 (2026-06-01, 2026-06-24, 2026-06-29) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
-    "2026-08-04 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
+    "2026-08-06 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
   ]
 }
