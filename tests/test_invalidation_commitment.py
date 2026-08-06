@@ -199,6 +199,7 @@ class TestPriorCommitmentsMustBeClosed(unittest.TestCase):
                 context,
                 prior_signal_checks=[
                     {
+                        "signal_index": 0,
                         "signal": signal()["signal"],
                         "state": "NOT_FIRED",
                         "committed_action": "EXIT",
@@ -220,6 +221,7 @@ class TestPriorCommitmentsMustBeClosed(unittest.TestCase):
                 context,
                 prior_signal_checks=[
                     {
+                        "signal_index": 0,
                         "signal": signal()["signal"],
                         "state": "FIRED",
                         "committed_action": "EXIT",
@@ -242,6 +244,7 @@ class TestPriorCommitmentsMustBeClosed(unittest.TestCase):
                 context,
                 prior_signal_checks=[
                     {
+                        "signal_index": 0,
                         "signal": signal()["signal"],
                         "state": "FIRED",
                         "committed_action": "EXIT",
@@ -262,6 +265,7 @@ class TestPriorCommitmentsMustBeClosed(unittest.TestCase):
                 context,
                 prior_signal_checks=[
                     {
+                        "signal_index": 0,
                         "signal": signal()["signal"],
                         "state": "NOT_FIRED",
                         "committed_action": "EXIT",
@@ -273,7 +277,10 @@ class TestPriorCommitmentsMustBeClosed(unittest.TestCase):
             ),
             context=context,
         )
-        self.assertTrue(any("2건인데" in error for error in errors), errors)
+        self.assertTrue(
+            any("닫지 않은" in error and "index 1" in error for error in errors),
+            errors,
+        )
 
     def test_dropped_signals_are_not_demanded(self):
         """packet 예산이 신호를 버렸으면 닫을 대상이 없다.

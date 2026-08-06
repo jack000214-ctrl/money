@@ -33,9 +33,10 @@ def calculation():
     inputs = {"price": 100.0, "source": "fixture"}
     outputs = {
         "scenarios": {
-            "bear": {"return_pct": -20.0},
-            "base": {"return_pct": 10.0},
-            "bull": {"return_pct": 45.0},
+            # 이름이 단위를 말한다. 계약으로 가는 값은 누적이고 연율은 참고치다.
+            "bear": {"total_return_pct": -20.0, "annualized_return_pct": -10.6},
+            "base": {"total_return_pct": 10.0, "annualized_return_pct": 4.9},
+            "bull": {"total_return_pct": 45.0, "annualized_return_pct": 20.4},
         }
     }
     return {

@@ -241,9 +241,22 @@ def validate_calculation(data: dict[str, Any]) -> list[str]:
         if not isinstance(scenario, dict):
             errors.append(f"outputs.scenarios.{name}: 객체가 필요하다")
             continue
+        # 계약으로 가는 값은 누적이다. 연율은 참고치이며 이름이 단위를 말해야
+        # 한다 — 예전 이름 `return_pct` 는 어느 단위인지 말해 주지 않아서
+        # 연율이 기대수익 자리에 들어가는 오배선을 만들었다. 이미 저장된
+        # 산출물은 옛 이름을 갖고 있으므로 읽을 때는 둘 다 받는다.
         _number(
-            scenario.get("return_pct"),
-            f"outputs.scenarios.{name}.return_pct",
+            scenario.get("total_return_pct"),
+            f"outputs.scenarios.{name}.total_return_pct",
+            errors,
+            minimum=-100,
+        )
+        annualized = scenario.get("annualized_return_pct")
+        if annualized is None:
+            annualized = scenario.get("return_pct")
+        _number(
+            annualized,
+            f"outputs.scenarios.{name}.annualized_return_pct",
             errors,
             minimum=-100,
         )

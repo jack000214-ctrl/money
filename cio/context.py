@@ -2057,20 +2057,25 @@ def _memory_digest(
                 # 되지만 action 은 **직전 판단이 미리 한 약속**이고, 그것이
                 # 빠지면 이번 판단은 약속이 있었다는 사실조차 모른 채 새 가격에서
                 # 다시 계산하게 된다. 그 순간 신호는 규율이 아니라 회고가 된다.
+                # index 는 이번 판단이 prior_signal_checks 로 되짚을 때 쓰는
+                # 결속자다. 배열 순서로 추론하게 두면 모델이 어느 신호를 닫는
+                # 중인지 PC 가 확인할 방법이 없고, 그러면 정산이 위조된다.
                 "invalidation_signals": (
                     [
                         {
+                            "index": position,
                             "signal": _clip(row.get("signal"), 200),
                             "action": row.get("action"),
                             "rationale": _clip(row.get("rationale"), 120),
                         }
                         if isinstance(row, dict)
                         else {
+                            "index": position,
                             "signal": _clip(row, 200),
                             "action": None,
                             "rationale": None,
                         }
-                        for row in signals[:6]
+                        for position, row in enumerate(signals[:6])
                     ]
                     if isinstance(signals, list)
                     else None

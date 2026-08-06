@@ -17,7 +17,17 @@ VERDICTS = {"BUY_NOW", "WAIT", "AVOID", "INSUFFICIENT"}
 # UNDETERMINED 는 "행동을 지시할 수 없다"이지 "가만히 있으라"가 아니다. 보유
 # 중인 종목에서 HOLD 는 빈 값이 아니라 계속 보유하라는 지시이므로, 모른다는
 # 상태를 HOLD 로 접으면 시스템이 '모른다'를 '보유하라'로 번역하게 된다.
-ACTION_DIRECTIONS = {"ADD", "HOLD", "TRIM", "EXIT", "UNDETERMINED"}
+ACTION_DIRECTIONS = {
+    "ADD",
+    "HOLD",
+    "TRIM",
+    "EXIT",
+    "UNDETERMINED",
+    # 보유량이 0이라 처분할 것이 없는 경우. 예전에는 이 자리에 HOLD 를 썼는데,
+    # HOLD 는 "계속 들고 있어라"는 지시라 없는 것에 낼 수 없다. 화면과 다음
+    # packet 이 그것을 보유 지시로 읽는다.
+    "NOT_APPLICABLE",
+}
 # 무엇이 없어서 정할 수 없는지. 이 구분이 있어야 "데이터가 없어서 막힌 비율"과
 # "사용자 정책이 없어서 막힌 비율"을 따로 집계할 수 있다. 둘은 해결 주체가
 # 다르다 — 앞은 수집기가, 뒤는 사용자가 푼다.
@@ -332,6 +342,7 @@ def _validate_thesis_stop_discipline(
 
 
 PRIOR_CHECK_KEYS = {
+    "signal_index",
     "signal",
     "state",
     "committed_action",
@@ -340,6 +351,173 @@ PRIOR_CHECK_KEYS = {
     "note",
 }
 PRIOR_CHECK_STATES = {"FIRED", "NOT_FIRED", "UNVERIFIABLE"}
+
+
+def _signal_key(text: Any) -> str:
+    """신호 문장을 대조 가능한 형태로 만든다.
+
+    packet 은 긴 신호를 잘라 싣고 잘렸다는 표시를 뒤에 붙인다. 그 표시가
+    붙었는지 여부로 대조가 실패하면 안 되므로 꼬리를 떼고 공백을 정규화한다.
+    """
+    if not isinstance(text, str):
+        return ""
+    return " ".join(text.split("…〔", 1)[0].split())
+
+
+def _same_signal(written: Any, carried: Any) -> bool:
+    """모델이 적은 신호가 packet 이 실어 보낸 그 신호인지 본다.
+
+    한쪽이 잘린 판본일 수 있으므로 접두 일치까지 허용한다. 바꿔 쓴 문장은
+    접두도 일치하지 않는다.
+    """
+    left, right = _signal_key(written), _signal_key(carried)
+    if not left or not right:
+        return False
+    return left.startswith(right) or right.startswith(left)
+
+
+def _held_quantity(packet_body: Any) -> tuple[bool | None, float | None]:
+    """원장이 말하는 보유 상태와 수량. 없으면 (None, None)이다."""
+    if not isinstance(packet_body, dict):
+        return None, None
+    position = (packet_body.get("portfolio") or {}).get("existing_position")
+    if not isinstance(position, dict):
+        return None, None
+    held = position.get("held")
+    if not isinstance(held, bool):
+        return None, None
+    quantity = position.get("quantity")
+    if isinstance(quantity, bool) or not isinstance(quantity, (int, float)):
+        return held, None
+    if not math.isfinite(quantity) or quantity <= 0:
+        return held, None
+    return held, float(quantity)
+
+
+def _validate_position_action(
+    action: Any,
+    errors: list[str],
+    *,
+    packet_body: Any,
+) -> None:
+    """지시한 수량을 실제로 팔 수 있는지 본다.
+
+    초판은 매도 수량이 양수인지만 봤다. 그래서 95주 보유 중 TRIM 999주, 95주 보유
+    중 EXIT 1주, 미보유 종목에 TRIM·EXIT·HOLD 가 전부 통과했다. 매도는 되돌릴 수
+    없는 행동이고 이것은 종목의 좋고 나쁨에 대한 판정이 아니라 **보유 수량과 지시
+    수량의 부등호 비교**다. 그래서 PC 의 일이다.
+
+    얼마나 팔지, 왜 팔지는 여전히 전부 모델이 정한다. 여기서 보는 것은 그 지시가
+    물리적으로 성립하는지뿐이다.
+
+    `EXIT` 은 전량이라는 뜻이다. 95주 중 1주를 팔면서 EXIT 이라고 적으면 수량이
+    아니라 **상태**가 틀린다 — 다음 판단의 packet 이 이 종목을 정리된 것으로 읽는다.
+
+    원장이 없거나 수량을 모르면 대조하지 않는다. 없는 값을 지어내 막으면 그것은
+    검사가 아니라 가정이다.
+    """
+    if not isinstance(action, dict):
+        return
+    direction = action.get("direction")
+    if direction not in ACTION_DIRECTIONS or direction == "UNDETERMINED":
+        return
+    held, quantity_held = _held_quantity(packet_body)
+    if held is None:
+        return
+
+    if not held:
+        # ADD 는 새로 사는 것이라 미보유에서 성립한다. 나머지 셋은 가진 것을
+        # 전제로 하는 지시다.
+        if direction in {"TRIM", "EXIT", "HOLD"}:
+            errors.append(
+                f"action.direction: 원장에 보유 수량이 없는데 {direction}이다. "
+                "처분할 것이 없으면 NOT_APPLICABLE이다"
+            )
+        return
+    if direction == "NOT_APPLICABLE":
+        errors.append(
+            "action.direction: 원장에 보유 중인데 NOT_APPLICABLE이다. "
+            "보유분을 어떻게 할지는 판단해야 한다"
+        )
+        return
+    if direction not in {"TRIM", "EXIT"} or quantity_held is None:
+        return
+
+    quantity = action.get("quantity")
+    if isinstance(quantity, bool) or not isinstance(quantity, (int, float)):
+        return
+    if not math.isfinite(quantity):
+        return
+    if direction == "TRIM":
+        if quantity >= quantity_held:
+            errors.append(
+                f"action.quantity: 축소 수량 {quantity:g}가 보유 수량 "
+                f"{quantity_held:g} 이상이다. 전량이면 TRIM이 아니라 EXIT이다"
+            )
+    elif abs(quantity - quantity_held) > 1e-9:
+        errors.append(
+            f"action.quantity: EXIT은 전량 매도다. 보유 {quantity_held:g}인데 "
+            f"{quantity:g}를 지시했다 — 일부만 판다면 TRIM이다"
+        )
+
+
+def _scenario_unit_mismatch(
+    calculation: Any,
+    expected_return_pct: dict[str, Any],
+) -> list[str]:
+    """연율을 누적 총수익률 자리에 옮겨 적었는지 본다.
+
+    `outcome_metric` 은 평가 기간 **말의 누적** 총수익률이다. reverse_dcf 는 같은
+    시나리오에 대해 누적과 연율을 함께 내는데, 예전 CLI 는 연율을 계약의 기대수익
+    자리에 넣으라고 안내했다. 그대로 따르면 24개월 누적 +44.4% 가 +20.2% 로 들어가
+    승패 문턱과의 비교가 통째로 어긋난다. 계산은 맞고 배선만 틀린 종류라 눈에
+    띄지 않는다.
+
+    **기대수익이 얼마여야 하는지는 정하지 않는다.** 모델이 앵커를 바꾸거나 확률을
+    다시 잡아 계산기와 다른 값을 쓰는 것은 판단이며 여기서 막지 않는다. 잡는 것은
+    하나뿐이다 — 세 시나리오가 **자기가 인용한 계산의 연율 칸과 정확히 일치**하고
+    동시에 누적 칸과는 다른 경우. 그것은 판단의 차이가 아니라 칸을 잘못 읽은 것이다.
+    """
+    if not isinstance(calculation, dict):
+        return []
+    if calculation.get("model") != "reverse_dcf":
+        return []
+    scenarios = ((calculation.get("outputs") or {}).get("scenarios")) or {}
+    if not isinstance(scenarios, dict):
+        return []
+    matched_annualized = 0
+    matched_total = 0
+    comparable = 0
+    for name in ("bear", "base", "bull"):
+        row = scenarios.get(name)
+        written = expected_return_pct.get(name)
+        if not isinstance(row, dict) or not isinstance(written, (int, float)):
+            continue
+        total = row.get("total_return_pct")
+        annualized = row.get("annualized_return_pct")
+        if annualized is None:
+            annualized = row.get("return_pct")
+        if not isinstance(total, (int, float)) or not isinstance(
+            annualized, (int, float)
+        ):
+            continue
+        # 두 단위가 같은 값이면(수렴기간 12개월) 구분할 수 없다. 구분되지 않으면
+        # 잡지 않는다 — 못 잡는 것보다 잘못 잡는 것이 나쁘다.
+        if abs(total - annualized) < 0.05:
+            continue
+        comparable += 1
+        if abs(written - annualized) < 0.05:
+            matched_annualized += 1
+        if abs(written - total) < 0.05:
+            matched_total += 1
+    if comparable and matched_annualized == comparable and matched_total == 0:
+        return [
+            "expected_return_pct: 인용한 계산 "
+            f"{calculation.get('calculation_id')}의 연율(annualized_return_pct)을 "
+            "그대로 옮겨 적었다. outcome_metric은 평가 기간 말의 누적 "
+            "총수익률이므로 total_return_pct를 쓴다"
+        ]
+    return []
 
 
 def _carried_prior_signals(packet_body: Any) -> list[Any]:
@@ -370,18 +548,33 @@ def _validate_prior_signal_checks(
     checks: Any,
     errors: list[str],
     *,
-    expected: int,
+    carried: list[Any],
 ) -> None:
     """직전 판단이 한 약속을 이번 판단이 마주보게 한다.
 
     신호가 실제로 켜졌는지는 정성 판단이라 PC 가 알 수 없다 — "분기 영업이익률이
-    8% 아래로 내려갔는가"는 모델이 본다. PC 가 보는 것은 두 가지 기계적 사실뿐이다.
-    **하나도 빠뜨리지 않고 닫았는가**, 그리고 **약속과 다르게 행동하면서 사유를
-    적었는가.**
+    8% 아래로 내려갔는가"는 모델이 본다. PC 가 보는 것은 기계적 사실뿐이다.
 
-    약속을 뒤집는 것 자체는 막지 않는다. 사실이 바뀌면 판단도 바뀌어야 한다.
-    막는 것은 조용히 뒤집는 것이다.
+    초판은 모델이 **쓴 값**만 보고 packet 이 **실어 보낸 값**과 대조하지 않았다.
+    그래서 전혀 다른 문장 두 줄로 정산하거나, 같은 신호를 두 번 적어 개수만
+    맞추거나, 직전 약속이 EXIT 이었는데 committed_action 을 REASK 로 낮춰 적는
+    것이 전부 통과했다. 마지막 것이 가장 나쁘다 — **미래의 내가 과거의 내 약속을
+    다시 쓸 수 있다**는 뜻이고, 그러면 사전 약속이라는 장치 전체가 무의미하다.
+    손절가 10,000원짜리 판단이 정작 10,000원에서 20,000원부터 분할매도하라는
+    답으로 바뀌는 것을 막으려고 만든 장치인데, 그 답을 내면서 "직전 약속은 원래
+    REASK 였다"고 적으면 됐다.
+
+    그래서 이제 네 가지를 packet 과 직접 대조한다.
+
+      * signal_index 가 실제로 실려 온 신호를 가리키는가
+      * 같은 신호를 두 번 닫지 않았는가, 빠뜨린 것은 없는가
+      * signal 문장이 실려 온 그 문장인가
+      * committed_action 이 실려 온 그 약속인가
+
+    약속을 **뒤집는 것**은 여전히 막지 않는다. 사실이 바뀌면 판단도 바뀌어야
+    한다. 막는 것은 조용히 뒤집는 것과, 약속 자체를 다시 쓰는 것이다.
     """
+    expected = len(carried)
     if checks is None:
         if expected:
             errors.append(
@@ -393,15 +586,23 @@ def _validate_prior_signal_checks(
     if not isinstance(checks, list):
         errors.append("prior_signal_checks: 배열 또는 null이어야 한다")
         return
+    if not expected:
+        if checks:
+            errors.append(
+                "prior_signal_checks: packet에 직전 무효화 신호가 실려 있지 "
+                "않다. 닫을 대상이 없는데 정산을 적을 수 없다"
+            )
+        return
+
+    seen: set[int] = set()
     for index, row in enumerate(checks):
         label = f"prior_signal_checks[{index}]"
         if not isinstance(row, dict) or set(row) - PRIOR_CHECK_KEYS:
             errors.append(
-                f"{label}: signal·state·committed_action·taken_action·"
-                "override_reason·note만 허용한다"
+                f"{label}: signal_index·signal·state·committed_action·"
+                "taken_action·override_reason·note만 허용한다"
             )
             continue
-        _nonempty(row.get("signal"), f"{label}.signal", errors)
         _nonempty(row.get("note"), f"{label}.note", errors)
         state = row.get("state")
         if state not in PRIOR_CHECK_STATES:
@@ -416,9 +617,46 @@ def _validate_prior_signal_checks(
                     f"{label}.{field}: "
                     f"{', '.join(sorted(INVALIDATION_ACTIONS))} 또는 null이어야 한다"
                 )
+
+        position = row.get("signal_index")
+        if (
+            isinstance(position, bool)
+            or not isinstance(position, int)
+            or not 0 <= position < expected
+        ):
+            errors.append(
+                f"{label}.signal_index: packet이 실어 보낸 직전 신호의 "
+                f"index(0~{expected - 1})여야 한다"
+            )
+            continue
+        if position in seen:
+            errors.append(
+                f"{label}.signal_index: 중복 {position} — 같은 신호를 두 번 "
+                "닫았다. 개수만 맞춘 정산은 정산이 아니다"
+            )
+        seen.add(position)
+
+        source = carried[position]
+        source_signal = source.get("signal") if isinstance(source, dict) else source
+        source_action = source.get("action") if isinstance(source, dict) else None
+        if not _same_signal(row.get("signal"), source_signal):
+            errors.append(
+                f"{label}.signal: packet이 index {position}에 실어 보낸 신호와 "
+                "다른 문장이다. 무엇을 닫았는지가 기록에 남아야 하므로 원문을 "
+                "그대로 옮긴다"
+            )
+        committed = row.get("committed_action")
+        # 약속은 직전 판단이 한 것이다. 이번 판단이 그것을 다시 쓸 수는 없다 —
+        # 낮춰 적으면 파기가 파기로 기록되지 않고 조용히 사라진다.
+        if source_action is not None and committed != source_action:
+            errors.append(
+                f"{label}.committed_action: 직전 판단의 약속은 "
+                f"{source_action}인데 {committed}로 적었다. 약속은 다시 쓸 수 "
+                "없다 — 다르게 행동하려면 taken_action과 override_reason을 쓴다"
+            )
+
         if state != "FIRED":
             continue
-        committed = row.get("committed_action")
         taken = row.get("taken_action")
         if committed is None:
             errors.append(
@@ -440,10 +678,12 @@ def _validate_prior_signal_checks(
                 f"다르게 행동한다({taken}). 뒤집는 것은 허용하지만 사유 없이는 "
                 "저장하지 않는다"
             )
-    if expected and len(checks) != expected:
+
+    unclosed = sorted(set(range(expected)) - seen)
+    if unclosed:
         errors.append(
-            f"prior_signal_checks: packet의 직전 무효화 신호는 {expected}건인데 "
-            f"{len(checks)}건만 닫았다"
+            "prior_signal_checks: 닫지 않은 직전 무효화 신호가 있다 — index "
+            + ", ".join(str(position) for position in unclosed)
         )
 
 
@@ -1182,6 +1422,20 @@ def validate_decision(
                 errors.append(f"{field}: published_at은 retrieved_at보다 늦을 수 없다")
             source_times.append((field, published_at, retrieved_at))
 
+    # 인용한 계산의 어느 칸을 읽었는지 본다. 값이 얼마여야 하는지는 정하지
+    # 않는다 — 연율을 누적 자리에 옮겨 적은 것만 잡는다.
+    for source_id in sorted(model_source_ids):
+        if not source_id.startswith("CALC-"):
+            continue
+        path = KNOWLEDGE_DIR / "calculations" / f"{source_id}.json"
+        if not path.exists():
+            continue
+        try:
+            calculation = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        errors.extend(_scenario_unit_mismatch(calculation, expected_values))
+
     evidence_refs = _string_list(
         data.get("evidence_refs"), "evidence_refs", errors, minimum=1
     )
@@ -1251,7 +1505,12 @@ def validate_decision(
         _validate_prior_signal_checks(
             data.get("prior_signal_checks"),
             errors,
-            expected=len(_carried_prior_signals(packet_body)),
+            carried=_carried_prior_signals(packet_body),
+        )
+        # 팔 수 없는 수량을 팔라고 지시하지 않는지 본다. 얼마나 팔지는 모델이
+        # 정하고, PC 는 그 지시가 원장과 성립하는지만 대조한다.
+        _validate_position_action(
+            data.get("action"), errors, packet_body=packet_body
         )
         validation_status = (context.get("validation") or {}).get("status")
         if validation_status not in {"PASS", "BLOCKED"}:

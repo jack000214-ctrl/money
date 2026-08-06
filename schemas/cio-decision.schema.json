@@ -327,12 +327,13 @@
       ],
       "properties": {
         "direction": {
-          "description": "UNDETERMINED는 '지시할 수 없다'이지 '가만히 있으라'가 아니다. HOLD는 계속 보유하라는 지시다.",
+          "description": "UNDETERMINED는 '지시할 수 없다'이지 '가만히 있으라'가 아니다. HOLD는 계속 보유하라는 지시이므로 보유량이 0이면 쓸 수 없고, 그 자리는 NOT_APPLICABLE이다. TRIM은 일부 축소, EXIT은 전량 매도이며 PC가 원장의 보유 수량과 대조한다.",
           "enum": [
             "ADD",
             "HOLD",
             "TRIM",
             "EXIT",
+            "NOT_APPLICABLE",
             "UNDETERMINED"
           ]
         },
@@ -519,12 +520,19 @@
       "items": {
         "type": "object",
         "required": [
+          "signal_index",
           "signal",
           "state",
           "note"
         ],
         "properties": {
+          "signal_index": {
+            "description": "packet 의 carried_forward.invalidation_signals[].index 다. 이 값으로 어느 약속을 닫는 중인지 결속하며, PC 는 이 자리의 signal 문장과 committed_action 이 packet 이 실어 보낸 것과 같은지 대조한다. 임의로 붙이는 번호가 아니다.",
+            "type": "integer",
+            "minimum": 0
+          },
           "signal": {
+            "description": "packet 이 실어 보낸 신호 문장을 그대로 옮긴다. 바꿔 쓰면 계약이 거부한다 — 무엇을 닫았는지가 사람이 읽는 기록에 남아야 하기 때문이다.",
             "type": "string",
             "minLength": 1
           },

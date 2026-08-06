@@ -122,6 +122,25 @@
 **`HOLD`는 빈 값이 아니라 "계속 들고 있어라"는 지시다.** 판단이 서지 않을 때 쓰면
 "모른다"가 "보유하라"로 번역된다. 정할 수 없으면 `UNDETERMINED` + `undetermined_reason`.
 
+### 수량은 원장과 대조된다
+
+`action`은 packet의 `portfolio.existing_position`과 기계적으로 대조된다. **판단이
+아니라 부등호 비교다** — 얼마나 팔지, 왜 팔지는 전부 모델이 정하고 PC는 그 지시가
+물리적으로 성립하는지만 본다.
+
+| direction | 원장 조건 | 수량 조건 |
+|---|---|---|
+| `TRIM` | 보유 중 | `0 < quantity < 보유수량` |
+| `EXIT` | 보유 중 | `quantity == 보유수량` (전량이라는 뜻이다) |
+| `HOLD` | 보유 중 | null |
+| `ADD` | 무관 | null |
+| `NOT_APPLICABLE` | **미보유** | null |
+
+보유량이 0이면 `HOLD`를 쓸 수 없다. 없는 것에 "계속 들고 있어라"를 낼 수 없고,
+화면과 다음 packet이 그것을 보유 지시로 읽는다. 그 자리는 `NOT_APPLICABLE`이다.
+`EXIT`으로 일부만 팔면 수량이 아니라 **상태**가 틀린다 — 다음 판단이 이 종목을
+정리된 것으로 읽는다. 원장이 없거나 수량을 모르면 PC는 대조하지 않는다.
+
 | 사유 | 언제 | 푸는 사람 |
 |---|---|---|
 | `INSUFFICIENT_EVIDENCE` | 조사 후에도 종목 판단이 안 선다 | 수집기·조사 |
@@ -210,6 +229,13 @@ packet이 `prior_assessments.carried_forward.invalidation_signals`를 실어 보
 `override_reason`을 쓴다. 약속을 뒤집는 것은 허용된다 — 사실이 바뀌면 판단도 바뀌어야
 한다. 허용되지 않는 것은 조용히 뒤집는 것이다. **그 사이 가격이 움직였다는 것은 사유가
 되지 않는다.** 약속은 가격이 움직일 것을 알고 한 것이다.
+
+각 항목은 packet의 `index`를 `signal_index`에 그대로 옮기고, `signal` 문장과
+`committed_action`도 실려 온 그대로 적는다. **PC가 이 셋을 packet과 직접 대조한다** —
+문장을 바꿔 쓰거나, 같은 신호를 두 번 닫아 개수만 맞추거나, 직전 약속이 `EXIT`인데
+`committed_action`을 `REASK`로 낮춰 적으면 판단이 저장되지 않는다. 약속은 직전 판단이
+한 것이고 이번 판단이 다시 쓸 수 있는 값이 아니다. 다르게 행동하는 경로는 하나뿐이다 —
+`taken_action`과 `override_reason`.
 
 ### 수익이 얼마나 빨리 왔는가
 

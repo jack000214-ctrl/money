@@ -315,6 +315,31 @@ python3.13 -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fix
 권하지 않으며, 노출은 숫자로 보여주고 판단은 사용자에게 맡긴다. 제약 때문에 파는
 것이 옳더라도 그것을 밸류에이션 판정처럼 포장하지 않는다.
 
+### 수량은 원장과 대조된다
+
+`action.direction`과 `action.quantity`는 packet의 `portfolio.existing_position`과
+기계적으로 비교된다.
+
+```text
+TRIM            보유 중 AND 0 < quantity < 보유수량
+EXIT            보유 중 AND quantity == 보유수량
+HOLD            보유 중 AND quantity == null
+ADD             quantity == null
+NOT_APPLICABLE  미보유 AND quantity == null
+```
+
+초판은 매도 수량이 양수인지만 봤고, 그래서 95주 보유 중 `TRIM` 999주, 95주 보유 중
+`EXIT` 1주, 미보유 종목에 `TRIM`·`EXIT`·`HOLD`가 전부 통과했다. 매도는 되돌릴 수
+없는 행동이며 이 검사는 종목의 좋고 나쁨에 대한 판정이 아니라 **보유 수량과 지시
+수량의 부등호 비교**다. 얼마나 팔지는 여전히 전부 모델이 정한다.
+
+`EXIT`은 전량이라는 뜻이다. 일부만 팔면서 `EXIT`을 쓰면 수량이 아니라 **상태**가
+틀린다 — 다음 판단의 packet이 이 종목을 정리된 것으로 읽는다. 정수주는 강제하지
+않는다. 이 사용자의 원장에는 소수 수량(TSLA 10.004156주)이 실재한다.
+
+원장이 없거나 수량을 모르면 대조하지 않는다. 없는 값을 지어내 막으면 그것은 검사가
+아니라 가정이다. `tests/test_sell_quantity_contract.py`가 이 경계를 고정한다.
+
 ## 승리와 실패
 
 확률에는 측정 가능한 사건이 필요하다. 모델은 매 판단마다 다음을 명시한다.
@@ -323,6 +348,15 @@ python3.13 -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fix
 - `win_definition`과 `win_return_threshold_pct`
 - `failure_definition`과 `failure_return_threshold_pct`
 - `win_probability_pct`: 위 승리 정의가 관측될 확률
+
+**모든 수익률은 평가 기간 말의 누적이다** — `outcome_metric`이
+`TERMINAL_TOTAL_RETURN_ASSET_CURRENCY`이므로 `expected_return_pct`도 문턱도 연율이
+아니다. `reverse_dcf`는 시나리오마다 `total_return_pct`(누적)와
+`annualized_return_pct`(연율)를 함께 내며 계약으로 가는 값은 앞엣것이다. 예전 출력의
+`return_pct`는 연율이었는데 이름이 단위를 말해 주지 않아 24개월 누적 +44.4%가
++20.2%로 들어가는 오배선을 만들 수 있었다. 계산은 맞고 배선만 틀린 종류라 눈에 띄지
+않는다. PC는 판단이 인용한 계산과 대조해 **연율 칸을 누적 칸에 옮겨 적은 경우**만
+잡는다 — 앵커나 확률을 다시 잡아 계산기와 다른 값을 쓰는 것은 판단이며 막지 않는다.
 
 `outcome_metric`은 v1에서
 `TERMINAL_TOTAL_RETURN_ASSET_CURRENCY`로 고정한다. 즉 승리·실패는 입력 가격
@@ -380,6 +414,16 @@ PC가 검사하는 것은 두 가지뿐이며 둘 다 부등호 비교다.
 |---|---|---|
 | 매도 규율 존재 | `risk.stop_style`이 `THESIS`일 때 | 최소 1개 신호의 `action`이 `EXIT` 또는 `TRIM_HALF`인가 |
 | 약속 정산 | packet이 직전 신호를 실어 보냈을 때 | 전부 닫았는가, 약속과 다르게 행동하면 `override_reason`이 있는가 |
+| 정산 결속 | 같음 | `signal_index`·`signal`·`committed_action`이 packet이 실어 보낸 값과 같은가 |
+
+마지막 줄이 없으면 앞의 두 줄은 장식이다. 초판 검증기는 모델이 **쓴 값**만 보고
+packet이 **실어 보낸 값**과 대조하지 않았고, 그래서 세 가지가 통과했다 — 전혀 다른
+문장 두 줄로 정산하기, 같은 신호를 두 번 적어 개수만 맞추기, 그리고 직전 약속이
+`EXIT`인데 `committed_action`을 `REASK`로 낮춰 적기. 마지막 것은 **미래의 판단이 과거의
+약속을 다시 쓸 수 있다**는 뜻이고, 그러면 사전 약속이라는 장치가 통째로 무의미해진다.
+막으려던 실패(손절가 10,000원짜리 판단이 정작 10,000원에서 20,000원부터 분할매도)를
+내면서 "직전 약속은 원래 REASK였다"고 적으면 그만이기 때문이다.
+`tests/test_prior_commitment_forgery.py`가 이 세 경로를 고정한다.
 
 **어느 신호에 어느 행동을 걸지, 문턱을 얼마로 할지는 전부 모델이 정한다.** 앞의
 검사는 사용자가 `THESIS`로 정해 가격 손절을 버렸는데 매도가 나올 자리마저 없는

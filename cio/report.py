@@ -273,12 +273,16 @@ def format_assessment(
                 f"켜진 신호 {fired}건. 약속과 다르게 행동했다면 사유가 함께 있다",
             )
         )
-        for index, row in enumerate(checks, 1):
+        for row in checks:
             if not isinstance(row, dict):
                 continue
             state = row.get("state") or "—"
+            # 직전 판단의 몇 번 신호인지를 보여준다. 정산의 번호가 아니라
+            # 약속의 번호라야 사람이 원본과 맞춰 볼 수 있다.
+            position = row.get("signal_index")
+            marker = "—" if position is None else f"#{position}"
             body = _wrap(row.get("signal") or "—", indent="     ")
-            body[0] = f"  {index}. [{state}] " + body[0].lstrip()
+            body[0] = f"  {marker} [{state}] " + body[0].lstrip()
             lines.extend(body)
             committed = row.get("committed_action")
             taken = row.get("taken_action")

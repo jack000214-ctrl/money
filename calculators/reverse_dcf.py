@@ -95,6 +95,39 @@ def annualized_pct(value, price, horizon_months):
     return max(-100.0, annual * 100.0)
 
 
+def scenario_outputs(*, fcf, price, growth, horizon_months, **common):
+    """시나리오별 주당가치와 **두 단위의** 수익률을 낸다.
+
+    이름이 단위를 말하게 한다. 예전 출력에는 `total_return_pct` 와 `return_pct`
+    가 있었는데 뒤엣것이 연율이었고, CLI 는 그것을 판단 계약의 기대수익 자리에
+    넣으라고 안내했다. 계약의 `outcome_metric` 은
+    `TERMINAL_TOTAL_RETURN_ASSET_CURRENCY` — 평가 기간 **말의 누적** 총수익률이다.
+    그대로 따르면 24개월 누적 +44.4% 가 +20.2% 로 들어가고 승패 문턱과의 비교가
+    통째로 어긋난다. 계산은 맞는데 배선이 틀린 종류의 오류라 눈에 띄지 않는다.
+
+    `return_pct` 라는 이름은 어느 단위인지 말해 주지 않아서 그 오배선을 만들었다.
+    그래서 이름을 없애고 `annualized_return_pct` 로 바꿨다.
+    """
+    scenarios = {}
+    for name in SCENARIO_NAMES:
+        value = equity_value_per_share(fcf, growth[name] / 100.0, **common)
+        scenarios[name] = {
+            "growth_pct": growth[name],
+            "value_per_share": value,
+            # 판단 계약의 expected_return_pct 로 가는 값은 이쪽이다.
+            "total_return_pct": (value / price - 1) * 100,
+            "annualized_return_pct": annualized_pct(value, price, horizon_months),
+        }
+    return {
+        "scenarios": scenarios,
+        "_units": (
+            "total_return_pct 는 수렴기간 말의 누적 총수익률이고 판단 계약의 "
+            "expected_return_pct 로 가는 값이다. annualized_return_pct 는 같은 "
+            "값을 연율로 바꾼 참고치이며 계약의 어느 자리에도 들어가지 않는다"
+        ),
+    }
+
+
 # ---------------------------------------------------------------- 입력
 
 def parse_pairs(items, field, cast=float):
@@ -302,15 +335,13 @@ def cmd_scenarios(a):
                   terminal_growth=a.terminal_growth / 100.0,
                   years=a.years, net_debt=a.net_debt, shares=a.shares)
 
-    outputs = {"scenarios": {}}
-    for name in SCENARIO_NAMES:
-        value = equity_value_per_share(fcf, growth[name] / 100.0, **common)
-        outputs["scenarios"][name] = {
-            "growth_pct": growth[name],
-            "value_per_share": value,
-            "total_return_pct": (value / a.price - 1) * 100,
-            "return_pct": annualized_pct(value, a.price, a.horizon_months),
-        }
+    outputs = scenario_outputs(
+        fcf=fcf,
+        price=a.price,
+        growth=growth,
+        horizon_months=a.horizon_months,
+        **common,
+    )
     implied, status = solve(
         a.price, *GROWTH_BOUNDS,
         lambda g: equity_value_per_share(fcf, g, **common))
@@ -364,15 +395,16 @@ def render_scenarios(a, fcf, calculation):
     print(f"  {outputs['implied_growth_pct']:>10,.2f}%")
 
     print(f"\n[ 시나리오 ]")
-    print(f"  {'':<8}{'성장률':>10}{'주당가치':>16}{'격차':>10}{'연율':>10}")
+    print(f"  {'':<8}{'성장률':>10}{'주당가치':>16}{'누적':>10}{'연율':>10}")
     print("  " + "-" * 54)
     for name in SCENARIO_NAMES:
         s = outputs["scenarios"][name]
         print(f"  {name:<8}{s['growth_pct']:>9,.1f}%{s['value_per_share']:>16,.2f}"
-              f"{s['total_return_pct']:>+9,.1f}%{s['return_pct']:>+9,.1f}%")
+              f"{s['total_return_pct']:>+9,.1f}%{s['annualized_return_pct']:>+9,.1f}%")
 
     print(f"\n  calculation_id  {calculation['calculation_id']}")
-    print(f"\n※ '연율' 이 분석 계약의 scenarios[].return_pct 로 들어간다.")
+    print(f"\n※ 판단 계약의 expected_return_pct 로 가는 값은 '누적' 이다. "
+          "'연율' 은 참고치이며 계약의 어느 자리에도 넣지 않는다.")
     print(f"※ 확률은 계산하지 않는다. 세 시나리오의 확률은 분석가가 정하고, "
           "그 근거를 claim 으로 남긴다.")
     print(f"※ 가격이 {a.horizon_months}개월 안에 가치로 수렴한다는 가정이 들어 있다.")
