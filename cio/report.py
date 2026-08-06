@@ -29,6 +29,14 @@ from cio.retire import survey
 
 WIDTH = 78
 
+# 약속을 한국어로 편다. 라벨을 붙일 뿐 등급을 매기지 않는다 — EXIT 이 TRIM_HALF
+# 보다 옳다는 표시는 어디에도 넣지 않는다.
+INVALIDATION_ACTION_LABELS = {
+    "EXIT": "전량 매도",
+    "TRIM_HALF": "절반 축소",
+    "REASK": "다시 묻는다 (행동 아님)",
+}
+
 
 def cell_width(text: str) -> int:
     """터미널이 실제로 쓰는 칸 수.
@@ -226,10 +234,64 @@ def format_assessment(
             "가격 손절은 자동 매도선이 아니라 다시 물어볼 자리다",
         )
     )
-    for index, signal in enumerate(signals, 1):
-        body = _wrap(signal, indent="     ")
+    # action 을 신호 문장과 같은 줄에 붙인다. 접어 두거나 아래에 몰아 두면
+    # 신호는 읽히고 약속은 읽히지 않는데, 정작 매도를 만드는 것은 약속이다.
+    for index, row in enumerate(signals, 1):
+        signal = row.get("signal") if isinstance(row, dict) else row
+        action = row.get("action") if isinstance(row, dict) else None
+        rationale = row.get("rationale") if isinstance(row, dict) else None
+        body = _wrap(signal or "—", indent="     ")
         body[0] = f"  {index}. " + body[0].lstrip()
         lines.extend(body)
+        if action:
+            lines.append(f"     → 발생 시 {INVALIDATION_ACTION_LABELS.get(action, action)}")
+        if rationale:
+            lines.extend(_wrap(rationale, indent="       "))
+    if signals and not any(
+        isinstance(row, dict) and row.get("action") in {"EXIT", "TRIM_HALF"}
+        for row in signals
+    ):
+        lines.extend(
+            _wrap(
+                "※ 이 판단에는 보유분을 줄이는 신호가 하나도 없다. 전부 "
+                "'다시 묻는다'이며, stop_style 이 THESIS 라면 매도 지시가 나올 "
+                "자리가 없다는 뜻이다",
+                indent="  ",
+            )
+        )
+
+    checks = data.get("prior_signal_checks")
+    if checks is not None:
+        fired = sum(
+            1
+            for row in checks
+            if isinstance(row, dict) and row.get("state") == "FIRED"
+        )
+        lines.extend(
+            _section(
+                f"직전 약속 정산 ({len(checks)})",
+                f"켜진 신호 {fired}건. 약속과 다르게 행동했다면 사유가 함께 있다",
+            )
+        )
+        for index, row in enumerate(checks, 1):
+            if not isinstance(row, dict):
+                continue
+            state = row.get("state") or "—"
+            body = _wrap(row.get("signal") or "—", indent="     ")
+            body[0] = f"  {index}. [{state}] " + body[0].lstrip()
+            lines.extend(body)
+            committed = row.get("committed_action")
+            taken = row.get("taken_action")
+            if committed or taken:
+                mark = " ※ 약속 파기" if committed and taken and committed != taken else ""
+                lines.append(
+                    f"     약속 {INVALIDATION_ACTION_LABELS.get(committed, committed or '—')}"
+                    f" → 이번 {INVALIDATION_ACTION_LABELS.get(taken, taken or '—')}{mark}"
+                )
+            if row.get("override_reason"):
+                lines.extend(_wrap(f"파기 사유: {row['override_reason']}", indent="     "))
+            if row.get("note"):
+                lines.extend(_wrap(row["note"], indent="       "))
 
     lines.extend(_section("가격 계획", f"통화 {currency}"))
     for label, key in (

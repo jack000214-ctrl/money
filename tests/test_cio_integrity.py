@@ -677,7 +677,10 @@ class TestMemoryDigest(unittest.TestCase):
             )
             with patch("cio.context.KNOWLEDGE_DIR", knowledge):
                 digest = _memory_digest(
-                    "TSLA", latest_close=75.0, close_date="2026-07-27"
+                    "TSLA",
+                    latest_close=75.0,
+                    close_date="2026-07-27",
+                    target_annual_return_pct=12,
                 )
             live = digest["live"]
             self.assertEqual(digest["state"], "CARRIED_FORWARD")
@@ -688,6 +691,10 @@ class TestMemoryDigest(unittest.TestCase):
             carried = live[-1]["carried_forward"]
             self.assertIsNotNone(carried["price_plan"])
             self.assertTrue(carried["invalidation_signals"])
+            # action 은 직전 판단이 미리 한 약속이다. 서술은 잘려도 이것은
+            # 잘리면 안 된다 — 빠지면 이번 판단은 약속이 있었다는 사실조차
+            # 모른 채 새 가격에서 다시 계산한다.
+            self.assertEqual(carried["invalidation_signals"][0]["action"], "EXIT")
             # 조사하지 않은 동인이 다음 판단으로 넘어가야 같은 것을 계속
             # 미루고 있다는 사실이 드러난다.
             skipped = [
@@ -703,6 +710,15 @@ class TestMemoryDigest(unittest.TestCase):
                 sorted(check["triggered"]), ["reask_below", "stop_price"]
             )
             self.assertFalse(check["in_entry_range"])
+            # 문턱 대조만으로는 수익이 **언제** 왔는지 알 수 없다. 사용자가
+            # 정한 연 목표수익률이 packet 까지 실제로 흘러오는지 고정한다.
+            pace = live[-1]["pace_since_decision"]
+            self.assertEqual(pace["decided_on"], "2026-04-01")
+            self.assertEqual(pace["elapsed_days"], 117)
+            self.assertEqual(pace["objective_annual_return_pct"], 12)
+            self.assertIsNotNone(pace["realized_over_objective_x"])
+            # 103 → 75 는 손실이므로 예정보다 뒤처져 있다.
+            self.assertLess(pace["pace_progress_over_elapsed_x"], 0)
 
 
 if __name__ == "__main__":

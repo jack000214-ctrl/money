@@ -120,7 +120,13 @@ def valid_decision():
             "text": "성장률이 예상보다 높으면 기다리는 비용이 크다",
             "evidence_refs": ["PRICE:TSLA"],
         },
-        "invalidation_signals": ["현금흐름 악화"],
+        "invalidation_signals": [
+            {
+                "signal": "현금흐름 악화",
+                "action": "EXIT",
+                "rationale": "논지 전체가 양의 현금흐름 위에 서 있다",
+            }
+        ],
         "unknowns": ["다음 분기 마진"],
         "research_requests": [],
         "sources": [],

@@ -1576,6 +1576,126 @@ def _clip(text: Any, limit: int) -> str | None:
     )
 
 
+def _pace_since_decision(
+    *,
+    decided_at: Any,
+    asked_price: Any,
+    horizon_months: Any,
+    win_threshold_pct: Any,
+    latest_close: float | None,
+    close_date: str | None,
+    close_is_settled: bool | None,
+    target_annual_return_pct: Any,
+) -> dict[str, Any] | None:
+    """수익이 **얼마나 빨리** 왔는지 잰다.
+
+    가격 계획은 문턱만 있고 시간이 없었다. 그래서 판단 이틀 뒤 +10%가 나도
+    packet 에는 그 사실을 담을 자리가 없었다 — 문턱은 아무것도 켜지지 않고,
+    모델은 아무 일도 없었다고 읽는다. 24개월치 승리의 40%를 이틀에 받은 것과
+    24개월에 걸쳐 받은 것은 완전히 다른 사건인데 구분되지 않았다.
+
+    연율 환산은 쓰지 않는다. 2거래일 +10%를 연율화하면 천문학적 숫자가 나와
+    아무 의미가 없다. 대신 두 개의 비율을 낸다 — **승리 문턱까지의 진도**를
+    **평가 기간의 경과**로 나눈 값, 그리고 실현 수익을 사용자가 정한 연
+    목표수익률이 같은 기간에 냈을 값으로 나눈 값이다.
+
+    문턱이 아니다. 몇 배부터 팔아야 하는지 여기서 정하지 않으며 그 판단은
+    전부 모델이 한다. 이 블록은 지금까지 packet 에 존재하지 않던 사실 하나를
+    측정해 놓을 뿐이다.
+    """
+    if latest_close is None or not isinstance(latest_close, (int, float)):
+        return None
+    if not math.isfinite(latest_close) or latest_close <= 0:
+        return None
+    if not isinstance(asked_price, (int, float)) or asked_price <= 0:
+        return None
+    decided = _date_of(decided_at)
+    observed = _date_of(close_date)
+    if decided is None or observed is None:
+        return None
+    elapsed_days = (observed - decided).days
+    if elapsed_days < 0:
+        return None
+    horizon_days = (
+        round(float(horizon_months) * 365 / 12)
+        if isinstance(horizon_months, (int, float)) and horizon_months > 0
+        else None
+    )
+    realized_pct = (latest_close / float(asked_price) - 1) * 100
+
+    elapsed_pct = (
+        round(elapsed_days / horizon_days * 100, 4) if horizon_days else None
+    )
+    progress_pct = (
+        round(realized_pct / float(win_threshold_pct) * 100, 4)
+        if isinstance(win_threshold_pct, (int, float)) and win_threshold_pct > 0
+        else None
+    )
+    # 경과가 0일이면 나눌 수 없다. 판단 당일에 묻는 경우이며, 그때는 속도라는
+    # 개념 자체가 성립하지 않는다.
+    pace_x = (
+        round(progress_pct / elapsed_pct, 2)
+        if progress_pct is not None and elapsed_pct not in (None, 0)
+        else None
+    )
+
+    objective_pct = None
+    objective_x = None
+    if (
+        isinstance(target_annual_return_pct, (int, float))
+        and target_annual_return_pct > -100
+        and elapsed_days > 0
+    ):
+        objective_pct = round(
+            ((1 + target_annual_return_pct / 100) ** (elapsed_days / 365) - 1)
+            * 100,
+            4,
+        )
+        if objective_pct > 0:
+            objective_x = round(realized_pct / objective_pct, 2)
+
+    return {
+        "decided_on": decided.isoformat(),
+        "observed_on": observed.isoformat(),
+        "close_is_settled": close_is_settled,
+        "asked_price": asked_price,
+        "latest_close": latest_close,
+        "elapsed_days": elapsed_days,
+        "horizon_days": horizon_days,
+        "elapsed_pct_of_horizon": elapsed_pct,
+        "return_since_decision_pct": round(realized_pct, 4),
+        "win_return_threshold_pct": win_threshold_pct,
+        "progress_to_win_threshold_pct": progress_pct,
+        "pace_progress_over_elapsed_x": pace_x,
+        "objective_annual_return_pct": target_annual_return_pct,
+        "objective_return_to_date_pct": objective_pct,
+        "realized_over_objective_x": objective_x,
+        "_note": (
+            "판단 시점의 검토 가격 대비 실현 수익과, 그것이 평가 기간의 어느 "
+            "지점에서 나왔는지다. pace_progress_over_elapsed_x 가 1보다 크면 "
+            "예정보다 빠르게 왔다는 뜻이고, realized_over_objective_x 는 같은 "
+            "기간에 사용자의 목표 연수익률이 냈을 값의 몇 배인지다. 배당·세금·"
+            "수수료는 들어 있지 않다"
+        ),
+        "_not_a_judgment": (
+            "빠르게 왔다는 것은 팔라는 뜻도 더 사라는 뜻도 아니다. 값이 크면 "
+            "가격이 논지보다 앞서 갔을 수 있고, 그것이 사실인지는 이번 판단이 "
+            "정한다. 몇 배부터 무엇을 하라는 문턱을 PC 는 갖고 있지 않다"
+        ),
+    }
+
+
+def _date_of(value: Any) -> dt.date | None:
+    """ISO 날짜 또는 일시에서 날짜만 꺼낸다."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    try:
+        return dt.date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
 def _prior_plan_check(
     plan: Any,
     *,
@@ -1761,6 +1881,7 @@ def _memory_digest(
     latest_close: float | None = None,
     close_date: str | None = None,
     close_is_settled: bool | None = None,
+    target_annual_return_pct: Any = None,
 ) -> dict[str, Any]:
     directory = KNOWLEDGE_DIR / "assessments" / asset_id
     assessments = []
@@ -1932,8 +2053,25 @@ def _memory_digest(
                 "thesis": _clip(data.get("thesis"), 550),
                 "strongest_counter_thesis": _clip(counter.get("text"), 400),
                 "price_plan": plan if isinstance(plan, dict) else None,
+                # action 은 절대 잘라내지 않는다. 서술은 필요하면 원문을 열면
+                # 되지만 action 은 **직전 판단이 미리 한 약속**이고, 그것이
+                # 빠지면 이번 판단은 약속이 있었다는 사실조차 모른 채 새 가격에서
+                # 다시 계산하게 된다. 그 순간 신호는 규율이 아니라 회고가 된다.
                 "invalidation_signals": (
-                    [_clip(signal, 220) for signal in signals[:6]]
+                    [
+                        {
+                            "signal": _clip(row.get("signal"), 200),
+                            "action": row.get("action"),
+                            "rationale": _clip(row.get("rationale"), 120),
+                        }
+                        if isinstance(row, dict)
+                        else {
+                            "signal": _clip(row, 200),
+                            "action": None,
+                            "rationale": None,
+                        }
+                        for row in signals[:6]
+                    ]
                     if isinstance(signals, list)
                     else None
                 ),
@@ -1945,12 +2083,29 @@ def _memory_digest(
                     "배분이며 researched:false 였던 것은 아직 한 번도 보지 않은 "
                     "동인이다 — 계속 미루고 있는지 확인한다"
                 ),
+                "_commitment": (
+                    "각 신호의 action 은 그 조건이 관측되면 보유분에 무엇을 "
+                    "할지 직전 판단이 미리 정해 둔 약속이다. prior_signal_checks "
+                    "로 하나씩 닫아야 하며, FIRED 인데 약속과 다르게 행동하려면 "
+                    "override_reason 이 필요하다. 그 사이 가격이 움직였다는 것은 "
+                    "사유가 되지 않는다 — 약속은 가격이 움직일 것을 알고 한 것이다"
+                ),
             }
             row["price_vs_prior_plan"] = _prior_plan_check(
                 plan,
                 latest_close=latest_close,
                 close_date=close_date,
                 close_is_settled=close_is_settled,
+            )
+            row["pace_since_decision"] = _pace_since_decision(
+                decided_at=data.get("created_at"),
+                asked_price=request.get("price"),
+                horizon_months=data.get("horizon_months"),
+                win_threshold_pct=data.get("win_return_threshold_pct"),
+                latest_close=latest_close,
+                close_date=close_date,
+                close_is_settled=close_is_settled,
+                target_annual_return_pct=target_annual_return_pct,
             )
         result.append(row)
     unusable.sort(key=lambda item: str(item.get("created_at") or ""))
@@ -2507,6 +2662,11 @@ def build_context(
                 close_is_settled=(
                     ((price_summary or {}).get("last_bar") or {}).get(
                         "is_settled_close"
+                    )
+                ),
+                target_annual_return_pct=(
+                    ((investor_policy or {}).get("objective") or {}).get(
+                        "target_annual_return_pct"
                     )
                 ),
             ),

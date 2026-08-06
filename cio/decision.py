@@ -79,6 +79,9 @@ TOP_LEVEL_KEYS = {
     "positioning",
     # 사용자 주장의 확인 결과. packet 에 user_assertions 가 있으면 필수가 된다.
     "user_assertion_checks",
+    # 직전 판단이 세운 무효화 신호를 닫은 결과. 같은 이유로 선택 필드지만,
+    # packet 이 직전 신호를 실어 보냈으면 그때는 필수가 된다.
+    "prior_signal_checks",
     "drivers",
     "method",
     "thesis",
@@ -242,6 +245,205 @@ def _validate_assertion_checks(
         errors.append(
             "user_assertion_checks: 닫지 않은 사용자 주장이 있다 — "
             + ", ".join(unanswered)
+        )
+
+
+# 무효화 신호가 켜졌을 때 보유분에 무엇을 하는가. REASK 는 행동이 아니라 다시
+# 묻는 자리다 — 유용하지만 그것만으로는 매도 규율이 되지 않는다.
+INVALIDATION_ACTIONS = {"EXIT", "TRIM_HALF", "REASK"}
+SELLING_ACTIONS = {"EXIT", "TRIM_HALF"}
+INVALIDATION_KEYS = {"signal", "action", "rationale"}
+
+
+def _validate_invalidation_signals(
+    value: Any,
+    errors: list[str],
+) -> list[dict[str, Any]]:
+    """무엇을 보면 틀린 것인지 **와 그때 무엇을 할 것인지**를 함께 본다.
+
+    예전 계약에서 이것은 문자열 배열이었다. 그래서 신호는 전부 "X가 일어난다"로
+    끝나고 "그러면 어떻게 한다"가 한 줄도 없었는데, 화면은 그것을 **유일한 매도
+    규율**이라고 불렀다. 계약과 화면이 어긋나 있었다.
+
+    행동을 나중에 정하면 늦는다. 신호가 실제로 켜지는 날은 가격이 이미 무너진
+    날이고, 그날 새로 계산한 밸류에이션은 낮아진 가격에서 역산되므로 **"더
+    싸졌다"가 기계적으로 도출된다.** 그래서 손절가 10,000원짜리 판단이 정작
+    10,000원에 도달했을 때 20,000원부터 분할매도하라는 답으로 바뀔 수 있다.
+
+    그것을 막는 방법은 사전 약속뿐이다. 나쁜 일이 일어나기 전에, 일어나면
+    무엇을 할지 지금 쓴다.
+    """
+    if not isinstance(value, list):
+        errors.append("invalidation_signals: 배열이 필요하다")
+        return []
+    rows: list[dict[str, Any]] = []
+    for index, row in enumerate(value):
+        label = f"invalidation_signals[{index}]"
+        if not isinstance(row, dict) or set(row) != INVALIDATION_KEYS:
+            errors.append(f"{label}: signal·action·rationale이 정확히 필요하다")
+            continue
+        _nonempty(row.get("signal"), f"{label}.signal", errors)
+        action = row.get("action")
+        if action not in INVALIDATION_ACTIONS:
+            errors.append(
+                f"{label}.action: {', '.join(sorted(INVALIDATION_ACTIONS))} "
+                "중 하나여야 한다"
+            )
+        _nonempty(row.get("rationale"), f"{label}.rationale", errors)
+        rows.append(row)
+    if len(rows) < 1 and not errors:
+        errors.append("invalidation_signals: 최소 1개가 필요하다")
+    return rows
+
+
+def _validate_thesis_stop_discipline(
+    signals: list[dict[str, Any]],
+    errors: list[str],
+    *,
+    stop_style: Any,
+    insufficient: bool,
+) -> None:
+    """THESIS 인데 매도 규율이 하나도 없는 상태를 막는다.
+
+    이것은 "어디서 팔아야 하는가"를 PC 가 정하는 것이 아니다. 그 판단은 전부
+    모델이 한다 — 어느 신호에 EXIT 을 걸지, 어느 것을 TRIM_HALF 로 둘지, 문턱을
+    얼마로 할지 PC 는 관여하지 않는다.
+
+    PC 가 보는 것은 하나다. 사용자가 `stop_style: THESIS` 로 정했다는 것은
+    **가격 손절을 쓰지 않겠다**는 선언이고, 그러면 매도 지시가 나올 수 있는
+    자리는 무효화 신호밖에 남지 않는다. 그 자리마저 전부 REASK 면 이 판단에는
+    보유분을 줄이는 경로가 존재하지 않는다. 사용자가 정한 한도와 산출물이
+    어긋났는지 보는 부등호 비교이며, 그래서 PC 의 일이다.
+    """
+    # INSUFFICIENT 는 판단이 서지 않았다는 결말이다. 논지를 못 세운 상태에서
+    # "무엇이 깨지면 판다"를 약속하라고 요구하면, 근거 없는 약속을 지어내게
+    # 만든다. 그 약속은 다음 판단이 지켜야 할 것으로 실려 나가므로 없는 것보다
+    # 나쁘다.
+    if insufficient or stop_style != "THESIS" or not signals:
+        return
+    if any(row.get("action") in SELLING_ACTIONS for row in signals):
+        return
+    errors.append(
+        "invalidation_signals: 사용자 정책이 stop_style=THESIS다. 가격 손절을 "
+        "쓰지 않으므로 매도 지시가 나올 수 있는 자리가 여기뿐인데 전부 "
+        "REASK다 — 보유분을 줄이는 경로가 없는 판단이 된다. 최소 하나는 "
+        "EXIT 또는 TRIM_HALF여야 한다"
+    )
+
+
+PRIOR_CHECK_KEYS = {
+    "signal",
+    "state",
+    "committed_action",
+    "taken_action",
+    "override_reason",
+    "note",
+}
+PRIOR_CHECK_STATES = {"FIRED", "NOT_FIRED", "UNVERIFIABLE"}
+
+
+def _carried_prior_signals(packet_body: Any) -> list[Any]:
+    """packet 이 실제로 실어 보낸 직전 무효화 신호를 센다.
+
+    예산 압축이 신호를 버렸으면 (`invalidation_signals_dropped`) 닫을 대상이
+    없다. 없는 것을 닫으라고 요구하면 계약이 packet 예산에 종속된다.
+    """
+    if not isinstance(packet_body, dict):
+        return []
+    digest = packet_body.get("prior_assessments")
+    rows = (digest.get("live") or []) if isinstance(digest, dict) else digest
+    if not isinstance(rows, list):
+        return []
+    for row in reversed(rows):
+        if not isinstance(row, dict):
+            continue
+        carried = row.get("carried_forward")
+        if not isinstance(carried, dict):
+            continue
+        signals = carried.get("invalidation_signals")
+        if isinstance(signals, list):
+            return signals
+    return []
+
+
+def _validate_prior_signal_checks(
+    checks: Any,
+    errors: list[str],
+    *,
+    expected: int,
+) -> None:
+    """직전 판단이 한 약속을 이번 판단이 마주보게 한다.
+
+    신호가 실제로 켜졌는지는 정성 판단이라 PC 가 알 수 없다 — "분기 영업이익률이
+    8% 아래로 내려갔는가"는 모델이 본다. PC 가 보는 것은 두 가지 기계적 사실뿐이다.
+    **하나도 빠뜨리지 않고 닫았는가**, 그리고 **약속과 다르게 행동하면서 사유를
+    적었는가.**
+
+    약속을 뒤집는 것 자체는 막지 않는다. 사실이 바뀌면 판단도 바뀌어야 한다.
+    막는 것은 조용히 뒤집는 것이다.
+    """
+    if checks is None:
+        if expected:
+            errors.append(
+                "prior_signal_checks: packet에 직전 판단의 무효화 신호가 "
+                f"{expected}건 실려 있다. 각각을 FIRED·NOT_FIRED·UNVERIFIABLE "
+                "중 하나로 닫아야 한다"
+            )
+        return
+    if not isinstance(checks, list):
+        errors.append("prior_signal_checks: 배열 또는 null이어야 한다")
+        return
+    for index, row in enumerate(checks):
+        label = f"prior_signal_checks[{index}]"
+        if not isinstance(row, dict) or set(row) - PRIOR_CHECK_KEYS:
+            errors.append(
+                f"{label}: signal·state·committed_action·taken_action·"
+                "override_reason·note만 허용한다"
+            )
+            continue
+        _nonempty(row.get("signal"), f"{label}.signal", errors)
+        _nonempty(row.get("note"), f"{label}.note", errors)
+        state = row.get("state")
+        if state not in PRIOR_CHECK_STATES:
+            errors.append(
+                f"{label}.state: {', '.join(sorted(PRIOR_CHECK_STATES))} "
+                "중 하나여야 한다"
+            )
+        for field in ("committed_action", "taken_action"):
+            action = row.get(field)
+            if action is not None and action not in INVALIDATION_ACTIONS:
+                errors.append(
+                    f"{label}.{field}: "
+                    f"{', '.join(sorted(INVALIDATION_ACTIONS))} 또는 null이어야 한다"
+                )
+        if state != "FIRED":
+            continue
+        committed = row.get("committed_action")
+        taken = row.get("taken_action")
+        if committed is None:
+            errors.append(
+                f"{label}.committed_action: FIRED면 직전 판단이 무엇을 하기로 "
+                "했는지 적어야 한다. 그것이 지금 지켜야 할 약속이다"
+            )
+        if taken is None:
+            errors.append(
+                f"{label}.taken_action: FIRED면 이번에 무엇을 하는지 적어야 한다"
+            )
+        if (
+            committed is not None
+            and taken is not None
+            and committed != taken
+            and not str(row.get("override_reason") or "").strip()
+        ):
+            errors.append(
+                f"{label}.override_reason: 신호가 켜졌는데 약속({committed})과 "
+                f"다르게 행동한다({taken}). 뒤집는 것은 허용하지만 사유 없이는 "
+                "저장하지 않는다"
+            )
+    if expected and len(checks) != expected:
+        errors.append(
+            f"prior_signal_checks: packet의 직전 무효화 신호는 {expected}건인데 "
+            f"{len(checks)}건만 닫았다"
         )
 
 
@@ -921,11 +1123,8 @@ def validate_decision(
             errors,
             minimum=1,
         )
-    _string_list(
-        data.get("invalidation_signals"),
-        "invalidation_signals",
-        errors,
-        minimum=1,
+    invalidation_signals = _validate_invalidation_signals(
+        data.get("invalidation_signals"), errors
     )
     _string_list(data.get("unknowns"), "unknowns", errors)
     _string_list(data.get("research_requests"), "research_requests", errors)
@@ -1035,6 +1234,24 @@ def validate_decision(
                 for row in (request.get("user_assertions") or [])
                 if isinstance(row, dict) and row.get("claim_id")
             },
+        )
+        # 사용자가 정한 stop_style 과 이번 산출물이 어긋나는지 본다. 어디서
+        # 팔지는 모델이 정하고, PC 는 팔 수 있는 자리가 있는지만 센다.
+        _validate_thesis_stop_discipline(
+            invalidation_signals,
+            errors,
+            stop_style=(
+                ((packet_body.get("investor_policy") or {}).get("risk") or {})
+                .get("stop_style")
+            ),
+            insufficient=insufficient,
+        )
+        # 직전 판단이 한 약속을 이번 판단이 하나씩 닫았는지 본다. packet 이
+        # 예산 때문에 신호를 버렸으면 닫을 대상이 없으므로 요구하지 않는다.
+        _validate_prior_signal_checks(
+            data.get("prior_signal_checks"),
+            errors,
+            expected=len(_carried_prior_signals(packet_body)),
         )
         validation_status = (context.get("validation") or {}).get("status")
         if validation_status not in {"PASS", "BLOCKED"}:

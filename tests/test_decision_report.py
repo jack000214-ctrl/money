@@ -33,14 +33,71 @@ class TestNothingTheModelWroteIsDropped(unittest.TestCase):
         """하나라도 빠지면 THESIS 매도 규율에 구멍이 난다."""
         decision = valid_decision()
         decision["invalidation_signals"] = [
-            "분기 영업이익률이 20% 아래로 내려간다",
-            "주요 고객사가 공급 계약을 해지한다",
-            "재고자산 회전일수가 4분기 연속 늘어난다",
+            {
+                "signal": "분기 영업이익률이 20% 아래로 내려간다",
+                "action": "EXIT",
+                "rationale": "정상화 이익의 근거가 그 범위였다",
+            },
+            {
+                "signal": "주요 고객사가 공급 계약을 해지한다",
+                "action": "TRIM_HALF",
+                "rationale": "매출의 절반이 그 고객에서 나온다",
+            },
+            {
+                "signal": "재고자산 회전일수가 4분기 연속 늘어난다",
+                "action": "REASK",
+                "rationale": "선행 신호이지 확정 사실이 아니다",
+            },
         ]
         output = _render(decision)
-        for signal in decision["invalidation_signals"]:
-            self.assertIn(signal, output)
+        for row in decision["invalidation_signals"]:
+            self.assertIn(row["signal"], output)
         self.assertIn("무효화 신호 (3)", output)
+
+    def test_the_committed_action_is_shown_with_the_signal(self):
+        """신호만 읽히고 약속이 안 읽히면 매도를 만드는 쪽이 빠진다."""
+        decision = valid_decision()
+        decision["invalidation_signals"] = [
+            {
+                "signal": "공사손실충당부채가 설정된다",
+                "action": "TRIM_HALF",
+                "rationale": "반대 논지가 현실이 되는 자리다",
+            }
+        ]
+        output = _render(decision)
+        self.assertIn("절반 축소", output)
+        self.assertIn("반대 논지가 현실이 되는 자리다", output)
+
+    def test_all_reask_signals_are_flagged_as_having_no_sell_rule(self):
+        """전부 REASK 면 THESIS 에서 매도 지시가 나올 자리가 없다."""
+        decision = valid_decision()
+        decision["invalidation_signals"] = [
+            {
+                "signal": "수주잔고가 두 분기 연속 감소한다",
+                "action": "REASK",
+                "rationale": "추세를 더 봐야 한다",
+            }
+        ]
+        output = _render(decision)
+        self.assertIn("보유분을 줄이는 신호가 하나도 없다", output)
+
+    def test_breaking_a_prior_commitment_is_shown_as_broken(self):
+        """약속을 뒤집는 것은 허용하되 조용히 뒤집는 것은 허용하지 않는다."""
+        decision = valid_decision()
+        decision["prior_signal_checks"] = [
+            {
+                "signal": "분기 영업이익률이 8% 아래로 내려간다",
+                "state": "FIRED",
+                "committed_action": "EXIT",
+                "taken_action": "TRIM_HALF",
+                "override_reason": "일회성 충당금이며 현금 유출이 아니다",
+                "note": "2Q 영업이익률 7.4%로 확인",
+            }
+        ]
+        output = _render(decision)
+        self.assertIn("직전 약속 정산 (1)", output)
+        self.assertIn("약속 파기", output)
+        self.assertIn("일회성 충당금이며 현금 유출이 아니다", output)
 
     def test_unknowns_are_never_collapsed(self):
         """모르는 것을 접으면 확신도가 근거 없이 올라간다."""

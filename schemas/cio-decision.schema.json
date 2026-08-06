@@ -480,11 +480,99 @@
       "additionalProperties": false
     },
     "invalidation_signals": {
+      "description": "무엇을 보면 이 논지가 틀린 것인지, 그리고 그때 무엇을 할 것인지. action 은 사후에 정하는 것이 아니라 지금 미리 하는 약속이다 — 나쁜 일이 실제로 일어난 뒤에 정하면 그때의 가격이 판단을 오염시킨다.",
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "string",
-        "minLength": 1
+        "type": "object",
+        "required": [
+          "signal",
+          "action",
+          "rationale"
+        ],
+        "properties": {
+          "signal": {
+            "description": "관측 가능한 조건. 무엇이 어느 값을 넘으면인지 숫자로 쓴다.",
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "description": "이 신호가 켜지면 보유분에 대해 무엇을 하는가. REASK 는 행동이 아니라 다시 묻는 자리이며, 전부 REASK 면 매도 규율이 없는 것이다.",
+            "enum": [
+              "EXIT",
+              "TRIM_HALF",
+              "REASK"
+            ]
+          },
+          "rationale": {
+            "description": "왜 그 신호에 그 행동인가. EXIT 와 TRIM_HALF 를 가르는 근거가 여기 있어야 나중의 판단이 이 약속을 읽고 이해한다.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "prior_signal_checks": {
+      "description": "직전 판단이 세운 무효화 신호를 하나씩 닫은 결과. packet 이 carried_forward.invalidation_signals 를 실어 보냈으면 필수가 되며 개수가 일치해야 한다. FIRED 인데 committed_action 과 다르게 행동하면 override_reason 없이는 판단이 저장되지 않는다 — 과거의 약속을 뒤집는 것은 허용하되 조용히 뒤집는 것은 허용하지 않는다.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "signal",
+          "state",
+          "note"
+        ],
+        "properties": {
+          "signal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "description": "FIRED 는 그 조건이 실제로 관측됐다는 뜻이다. 확인할 데이터가 없으면 NOT_FIRED 가 아니라 UNVERIFIABLE 이다.",
+            "enum": [
+              "FIRED",
+              "NOT_FIRED",
+              "UNVERIFIABLE"
+            ]
+          },
+          "committed_action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "EXIT",
+              "TRIM_HALF",
+              "REASK",
+              null
+            ]
+          },
+          "taken_action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "EXIT",
+              "TRIM_HALF",
+              "REASK",
+              null
+            ]
+          },
+          "override_reason": {
+            "description": "committed_action 과 taken_action 이 다를 때 왜 뒤집는지. 가격이 그 사이에 움직였다는 것은 사유가 되지 않는다 — 약속은 가격이 움직일 것을 알고 한 것이다.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
       }
     },
     "unknowns": {

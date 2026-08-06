@@ -125,7 +125,14 @@ def packet_with_carried(thesis_chars, signals=3):
                         "thesis": "가" * thesis_chars,
                         "strongest_counter_thesis": "나" * thesis_chars,
                         "price_plan": PLAN,
-                        "invalidation_signals": ["다" * 100] * signals,
+                        "invalidation_signals": [
+                            {
+                                "signal": "다" * 100,
+                                "action": "EXIT",
+                                "rationale": "라" * 40,
+                            }
+                        ]
+                        * signals,
                     },
                 }
                 ],
