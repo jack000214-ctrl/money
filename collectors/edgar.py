@@ -884,6 +884,9 @@ def cmd_fundamentals(a, ua):
         "debt_notes": debt_notes,
         "short_term_investments_basis": short_inv_basis,
         "short_term_investments_note": short_inv_note,
+        # 왜 없는지를 스냅샷 밖에 두면 packet 에서는 그냥 빈칸이 된다. IBM 은
+        # 영업이익이 통째로 비어 있는 채로 재무 계약을 통과했고, 모델은 이
+        # 회사가 그 줄을 공시하지 않는다는 사실 자체를 알 수 없었다.
         "income_statement": {
             key: {
                 "tag": series["tag"],
@@ -892,6 +895,11 @@ def cmd_fundamentals(a, ua):
                     {k: q[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
                     for q in series["quarters"]
                 ],
+                **(
+                    {"absent_reason": series["unknown_reason"]}
+                    if series.get("unknown_reason")
+                    else {}
+                ),
             }
             for key, series in income_series.items()
         },

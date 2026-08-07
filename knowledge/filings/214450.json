@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "214450",
   "corp_code": "00970453",
-  "collected_at": "2026-08-03T04:35:46+00:00",
+  "collected_at": "2026-08-07T02:06:11+00:00",
   "source": "DART_LIST",
-  "since": "20250629",
-  "until": "20260803",
+  "since": "20250703",
+  "until": "20260807",
   "pblntf_types": [
     "A",
     "B",
@@ -28,8 +28,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "edac00bb8b735c3579465cf775de38d5bfaaa20e5a992fcb003259a658b3127d",
-      "raw_locator": "data/raw/dart/objects/edac00bb8b735c3579465cf775de38d5bfaaa20e5a992fcb003259a658b3127d.json"
+      "raw_payload_sha256": "0195f57b850ef9871347b76f1413bc3569cd9a0d3575659962d03e8e1141a970",
+      "raw_locator": "data/raw/dart/objects/0195f57b850ef9871347b76f1413bc3569cd9a0d3575659962d03e8e1141a970.json"
     },
     {
       "pblntf_ty": "F",
@@ -38,6 +38,16 @@
     }
   ],
   "filings": [
+    {
+      "filing_date": "2026-08-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260806900128",
+      "description": "기업설명회(IR)개최",
+      "filer": "파마리서치",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260806900128"
+    },
     {
       "filing_date": "2026-07-14",
       "report_date": null,

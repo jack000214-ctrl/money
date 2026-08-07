@@ -1,0 +1,254 @@
+{
+  "schema_version": "normalized-earnings/1.0.0",
+  "instrument_id": "IBM",
+  "name": "INTERNATIONAL BUSINESS MACHINES CORP",
+  "fs": "US_GAAP_CONSOLIDATED",
+  "created_at": "2026-08-07T11:01:27+09:00",
+  "source": "SEC EDGAR companyfacts 현금흐름표·손익계산서 (분기 복원)",
+  "grade": "DERIVED",
+  "_not_a_valuation_input": "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. DCF 에 쓰려면 사용자가 명시적으로 고르고 그 선택이 분석에 남아야 한다",
+  "ttm_series": [
+    {
+      "period_end": "2019-12-31",
+      "ocf_ttm": 14770000000,
+      "capex_ttm": 2286000000,
+      "fcf_ttm": 12484000000,
+      "revenue_ttm": 77147000000,
+      "fcf_margin_pct": 16.18
+    },
+    {
+      "period_end": "2020-03-31",
+      "ocf_ttm": 14487000000,
+      "capex_ttm": 2377000000,
+      "fcf_ttm": 12110000000,
+      "revenue_ttm": 76536000000,
+      "fcf_margin_pct": 15.82
+    },
+    {
+      "period_end": "2020-06-30",
+      "ocf_ttm": 15122000000,
+      "capex_ttm": 2379000000,
+      "fcf_ttm": 12743000000,
+      "revenue_ttm": 75499000000,
+      "fcf_margin_pct": 16.88
+    },
+    {
+      "period_end": "2020-09-30",
+      "ocf_ttm": 15788000000,
+      "capex_ttm": 2516000000,
+      "fcf_ttm": 13272000000,
+      "revenue_ttm": 75030000000,
+      "fcf_margin_pct": 17.69
+    },
+    {
+      "period_end": "2020-12-31",
+      "ocf_ttm": 18197000000,
+      "capex_ttm": 2618000000,
+      "fcf_ttm": 15579000000,
+      "revenue_ttm": 73620000000,
+      "fcf_margin_pct": 21.16
+    },
+    {
+      "period_end": "2021-03-31",
+      "ocf_ttm": 18635000000,
+      "capex_ttm": 2482000000,
+      "fcf_ttm": 16153000000,
+      "revenue_ttm": 73779000000,
+      "fcf_margin_pct": 21.89
+    },
+    {
+      "period_end": "2021-06-30",
+      "ocf_ttm": 17684000000,
+      "capex_ttm": 2457000000,
+      "fcf_ttm": 15227000000,
+      "revenue_ttm": 74400000000,
+      "fcf_margin_pct": 20.47
+    },
+    {
+      "period_end": "2021-09-30",
+      "ocf_ttm": 16112000000,
+      "capex_ttm": 2290000000,
+      "fcf_ttm": 13822000000,
+      "revenue_ttm": 74460000000,
+      "fcf_margin_pct": 18.56
+    },
+    {
+      "period_end": "2021-12-31",
+      "ocf_ttm": 12796000000,
+      "capex_ttm": 2062000000,
+      "fcf_ttm": 10734000000,
+      "revenue_ttm": 57350000000,
+      "fcf_margin_pct": 18.72
+    },
+    {
+      "period_end": "2022-03-31",
+      "ocf_ttm": 11130000000,
+      "capex_ttm": 1849000000,
+      "fcf_ttm": 9281000000,
+      "revenue_ttm": 53817000000,
+      "fcf_margin_pct": 17.25
+    },
+    {
+      "period_end": "2022-06-30",
+      "ocf_ttm": 9826000000,
+      "capex_ttm": 1628000000,
+      "fcf_ttm": 8198000000,
+      "revenue_ttm": 50608000000,
+      "fcf_margin_pct": 16.2
+    },
+    {
+      "period_end": "2022-09-30",
+      "ocf_ttm": 9014000000,
+      "capex_ttm": 1387000000,
+      "fcf_ttm": 7627000000,
+      "revenue_ttm": 47097000000,
+      "fcf_margin_pct": 16.19
+    },
+    {
+      "period_end": "2022-12-31",
+      "ocf_ttm": 10435000000,
+      "capex_ttm": 1346000000,
+      "fcf_ttm": 9089000000,
+      "revenue_ttm": 60530000000,
+      "fcf_margin_pct": 15.02
+    },
+    {
+      "period_end": "2023-03-31",
+      "ocf_ttm": 10961000000,
+      "capex_ttm": 1365000000,
+      "fcf_ttm": 9596000000,
+      "revenue_ttm": 60585000000,
+      "fcf_margin_pct": 15.84
+    },
+    {
+      "period_end": "2023-06-30",
+      "ocf_ttm": 12278000000,
+      "capex_ttm": 1390000000,
+      "fcf_ttm": 10888000000,
+      "revenue_ttm": 60525000000,
+      "fcf_margin_pct": 17.99
+    },
+    {
+      "period_end": "2023-09-30",
+      "ocf_ttm": 13433000000,
+      "capex_ttm": 1354000000,
+      "fcf_ttm": 12079000000,
+      "revenue_ttm": 61169000000,
+      "fcf_margin_pct": 19.75
+    },
+    {
+      "period_end": "2023-12-31",
+      "ocf_ttm": 13931000000,
+      "capex_ttm": 1245000000,
+      "fcf_ttm": 12686000000,
+      "revenue_ttm": 61860000000,
+      "fcf_margin_pct": 20.51
+    },
+    {
+      "period_end": "2024-03-31",
+      "ocf_ttm": 14325000000,
+      "capex_ttm": 1184000000,
+      "fcf_ttm": 13141000000,
+      "revenue_ttm": 62070000000,
+      "fcf_margin_pct": 21.17
+    },
+    {
+      "period_end": "2024-06-30",
+      "ocf_ttm": 13753000000,
+      "capex_ttm": 1040000000,
+      "fcf_ttm": 12713000000,
+      "revenue_ttm": 62364000000,
+      "fcf_margin_pct": 20.39
+    },
+    {
+      "period_end": "2024-09-30",
+      "ocf_ttm": 13578000000,
+      "capex_ttm": 1045000000,
+      "fcf_ttm": 12533000000,
+      "revenue_ttm": 62580000000,
+      "fcf_margin_pct": 20.03
+    },
+    {
+      "period_end": "2024-12-31",
+      "ocf_ttm": 13445000000,
+      "capex_ttm": 1048000000,
+      "fcf_ttm": 12397000000,
+      "revenue_ttm": 62753000000,
+      "fcf_margin_pct": 19.76
+    },
+    {
+      "period_end": "2025-03-31",
+      "ocf_ttm": 13647000000,
+      "capex_ttm": 1053000000,
+      "fcf_ttm": 12594000000,
+      "revenue_ttm": 62832000000,
+      "fcf_margin_pct": 20.04
+    },
+    {
+      "period_end": "2025-06-30",
+      "ocf_ttm": 13282000000,
+      "capex_ttm": 1043000000,
+      "fcf_ttm": 12239000000,
+      "revenue_ttm": 64041000000,
+      "fcf_margin_pct": 19.11
+    },
+    {
+      "period_end": "2025-09-30",
+      "ocf_ttm": 13483000000,
+      "capex_ttm": 1012000000,
+      "fcf_ttm": 12471000000,
+      "revenue_ttm": 65403000000,
+      "fcf_margin_pct": 19.07
+    },
+    {
+      "period_end": "2025-12-31",
+      "ocf_ttm": 13193000000,
+      "capex_ttm": 1091000000,
+      "fcf_ttm": 12102000000,
+      "revenue_ttm": 67535000000,
+      "fcf_margin_pct": 17.92
+    },
+    {
+      "period_end": "2026-03-31",
+      "ocf_ttm": 13992000000,
+      "capex_ttm": 1079000000,
+      "fcf_ttm": 12913000000,
+      "revenue_ttm": 68911000000,
+      "fcf_margin_pct": 18.74
+    },
+    {
+      "period_end": "2026-06-30",
+      "ocf_ttm": 14888000000,
+      "capex_ttm": 1098000000,
+      "fcf_ttm": 13790000000,
+      "revenue_ttm": 69095000000,
+      "fcf_margin_pct": 19.96
+    }
+  ],
+  "normalization": {
+    "window": {
+      "from": "2019-12-31",
+      "to": "2026-06-30",
+      "ttm_points": 27
+    },
+    "current_fcf_ttm": 13790000000,
+    "peak": {
+      "period_end": "2021-03-31",
+      "fcf_ttm": 16153000000
+    },
+    "trough": {
+      "period_end": "2022-09-30",
+      "fcf_ttm": 7627000000
+    },
+    "amplitude_ratio": 2.12,
+    "amplitude_note": "최고 TTM ÷ 최저 TTM",
+    "bases": {
+      "mean_ttm": 12165222222.222221,
+      "median_ttm": 12484000000,
+      "mean_margin_on_current_revenue": 12854484981.481482
+    },
+    "mean_fcf_margin_pct": 18.6,
+    "current_vs_mean_x": 1.13
+  },
+  "normalized_id": "NORM-2c083659a2f7fcec49d0"
+}

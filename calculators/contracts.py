@@ -374,6 +374,33 @@ def validate_fundamentals(data: dict[str, Any]) -> list[str]:
     if numbers.get("shares_diluted", 0) <= 0:
         errors.append("values.shares_diluted: 0보다 커야 한다")
 
+    # 손익계산서를 실었으면 각 줄이 값을 갖거나 왜 없는지 말해야 한다.
+    # IBM 표본은 operating_income 이 통째로 비어 있는 채 통과했다 — 항등식이
+    # OCF·capex·FCF·순부채만 보기 때문이다. 0 이 아니라 결측인데 계약이 아무
+    # 말도 하지 않으면 그 공백은 packet 에서 없는 것이 되고, 모델은 이 회사가
+    # 영업이익을 공시하지 않는다는 사실 자체를 모른 채 판단한다.
+    income = data.get("income_statement")
+    if isinstance(income, dict):
+        for name, line in income.items():
+            if not isinstance(line, dict):
+                errors.append(f"income_statement.{name}: 객체가 필요하다")
+                continue
+            ttm = line.get("ttm")
+            has_ttm = (
+                not isinstance(ttm, bool)
+                and isinstance(ttm, (int, float))
+                and math.isfinite(ttm)
+            )
+            if has_ttm or line.get("quarters"):
+                continue
+            reason = line.get("absent_reason")
+            if not isinstance(reason, str) or not reason.strip():
+                errors.append(
+                    f"income_statement.{name}: 값도 분기도 없는데 이유가 없다. "
+                    "왜 없는지(absent_reason) 없이 비워 두면 결측이 아니라 "
+                    "관측된 0 으로 읽힌다"
+                )
+
     structural_errors = [
         error for error in errors if not error.startswith("fundamentals_id:")
     ]

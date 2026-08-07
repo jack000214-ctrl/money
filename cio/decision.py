@@ -184,10 +184,83 @@ POSITIONING_KEYS = {
     "checked", "finding", "skipped_reason", "unobservable", "affects_conclusion",
 }
 
-ASSERTION_CHECK_KEYS = {"claim_id", "status", "finding", "evidence_refs"}
+ASSERTION_CHECK_KEYS = {
+    "claim_id", "status", "claim_kind", "basis", "finding", "evidence_refs",
+}
 # 사용자 주장을 닫는 세 가지 방법. `UNVERIFIABLE` 도 유효한 결말이다 — 확인할
 # 수 없다는 것을 아는 것과 확인하지 않은 것은 다르다.
 ASSERTION_STATUSES = {"CONFIRMED", "REFUTED", "UNVERIFIABLE"}
+BASIS_KEYS = ("metric", "period", "comparison")
+
+# source_id 접두사가 자료의 갈래를 말한다. 갈래는 `kind` 로도 오지만 KR_LENDING
+# 이 PRICE 와 같은 `MARKET_DATA` 인 것처럼 겹치는 자리가 있어 접두사를 먼저 본다.
+EVIDENCE_FAMILY_BY_PREFIX = (
+    ("DARTDOC:", "PRIMARY_DOCUMENT"),
+    ("WEBSNAP:", "PRIMARY_DOCUMENT"),
+    ("PRICE:", "PRICE"),
+    ("FUNDAMENTALS:", "FINANCIALS"),
+    ("KR_INVENTORY:", "FINANCIALS"),
+    ("KR_SEGMENTS:", "FINANCIALS"),
+    ("KR_FLOW:", "FLOW"),
+    ("KR_LENDING:", "FLOW"),
+    ("FILINGS:", "FILING_INDEX"),
+    ("EVENTS:", "FILING_INDEX"),
+    ("EARNINGS_CALENDAR:", "FILING_INDEX"),
+    ("CONSENSUS:", "SECONDARY"),
+    ("CONSENSUS_PEER:", "SECONDARY"),
+    ("ETF_HOLDINGS:", "ETF_HOLDINGS"),
+    ("MARKET_STATE:", "MARKET_STATE"),
+    ("PORTFOLIO:", "USER_DATA"),
+    ("POLICY:", "USER_DATA"),
+    ("POSITION_LEDGER:", "USER_DATA"),
+    ("NORMALIZED_EARNINGS:", "CALCULATION"),
+    ("CALC-", "CALCULATION"),
+    ("NORM-", "CALCULATION"),
+)
+
+# 무엇에 관한 주장인가 → 그 주장을 확인할 수 있는 자료의 갈래.
+# **이것은 투자 판정이 아니라 자료가 무엇을 담고 있는가에 대한 사실이다.**
+# 가격 CSV 에는 영업이익이 없고 공시 색인에는 제목만 있다. 무엇이 확인이고
+# 무엇이 반박인지는 여전히 전부 모델이 정한다.
+CLAIM_EVIDENCE_FAMILIES = {
+    "PRICE": {"PRICE", "CALCULATION"},
+    "EARNINGS": {"FINANCIALS", "PRIMARY_DOCUMENT", "CALCULATION"},
+    "VALUATION": {
+        "FINANCIALS", "PRICE", "CALCULATION", "SECONDARY", "PRIMARY_DOCUMENT",
+    },
+    "OWNERSHIP": {"FLOW", "PRIMARY_DOCUMENT"},
+    "BUSINESS": {
+        "PRIMARY_DOCUMENT", "MODEL_RESEARCH", "SECONDARY", "ETF_HOLDINGS",
+        "FINANCIALS",
+    },
+    "MARKET": {"MARKET_STATE", "PRICE", "MODEL_RESEARCH", "SECONDARY"},
+    "EVENT_DATE": {"FILING_INDEX", "PRIMARY_DOCUMENT", "MODEL_RESEARCH"},
+    "PORTFOLIO": {"USER_DATA"},
+}
+
+
+def _evidence_family(source_id: str, kind: Any) -> str:
+    """이 근거가 어느 갈래의 자료인가."""
+    for prefix, family in EVIDENCE_FAMILY_BY_PREFIX:
+        if source_id.startswith(prefix):
+            return family
+    if kind == "MARKET_DATA":
+        return "PRICE"
+    if kind == "FILING_DERIVED":
+        return "FINANCIALS"
+    if kind in {"REGULATOR_FILING_INDEX", "FILING_EVENT_INDEX",
+                "REGULATOR_FILING_DOCUMENT"}:
+        return "FILING_INDEX"
+    if kind in {"CALCULATION", "DERIVED"}:
+        return "CALCULATION"
+    if kind in {"SECONDARY_ESTIMATE", "SECONDARY_MARKET_DATA"}:
+        return "SECONDARY"
+    if kind == "USER_DATA":
+        return "USER_DATA"
+    if isinstance(kind, str) and kind.endswith("_HOLDINGS"):
+        return "ETF_HOLDINGS"
+    # 모델이 직접 조사해 등록한 출처. 로컬 evidence 가 아니다.
+    return "MODEL_RESEARCH"
 
 
 def _validate_assertion_checks(
@@ -195,6 +268,7 @@ def _validate_assertion_checks(
     errors: list[str],
     *,
     expected_ids: set[str],
+    evidence_kinds: dict[str, Any] | None = None,
 ) -> None:
     """사용자가 사실이라고 말한 것을 확인했는지 본다.
 
@@ -205,6 +279,11 @@ def _validate_assertion_checks(
     그래서 각 주장은 **확인·반박·확인불가 중 하나로 닫혀야 한다.** 열어둔 채
     결론을 내면 계약이 거부한다. 반박도 정당한 결말이며, 오히려 그것이 이
     시스템이 존재하는 이유에 가깝다.
+
+    닫는 것만으로는 부족하다. 초판은 `evidence_refs` 가 비어 있지 않은지만 봤고,
+    그래서 "영업이익 1,860%" 를 가격 CSV 로 CONFIRMED 하거나 존재하지 않는 ID 로
+    CONFIRMED 하는 것이 통과했다. 근거는 **개수가 아니라 결속**이다 —
+    무엇을(claim_kind) 어느 기준으로(basis) 어떤 갈래의 자료로 확인했는지.
     """
     if checks is None:
         if expected_ids:
@@ -221,7 +300,8 @@ def _validate_assertion_checks(
         label = f"user_assertion_checks[{index}]"
         if not isinstance(row, dict) or set(row) - ASSERTION_CHECK_KEYS:
             errors.append(
-                f"{label}: claim_id·status·finding·evidence_refs만 허용한다"
+                f"{label}: claim_id·status·claim_kind·basis·finding·"
+                "evidence_refs만 허용한다"
             )
             continue
         claim_id = _nonempty(row.get("claim_id"), f"{label}.claim_id", errors)
@@ -240,16 +320,59 @@ def _validate_assertion_checks(
                 "중 하나여야 한다"
             )
         _nonempty(row.get("finding"), f"{label}.finding", errors)
+        # 무엇에 관한 주장인가. 확인하지 못했어도 이것은 말할 수 있고,
+        # 이 값이 있어야 근거의 갈래와 대조할 수 있다.
+        claim_kind = row.get("claim_kind")
+        if claim_kind not in CLAIM_EVIDENCE_FAMILIES:
+            errors.append(
+                f"{label}.claim_kind: "
+                f"{', '.join(sorted(CLAIM_EVIDENCE_FAMILIES))} 중 하나여야 한다"
+            )
+            claim_kind = None
+        settled = status in {"CONFIRMED", "REFUTED"}
+        # "1,860%" 가 무엇의 몇 퍼센트인지 적지 않으면 확인이 아니다. 기저가
+        # 거의 0 인 나눗셈과 성장은 같은 숫자로 나온다.
+        basis = row.get("basis")
+        if settled:
+            if not isinstance(basis, dict) or set(basis) - set(BASIS_KEYS):
+                errors.append(
+                    f"{label}.basis: {status}에는 metric·period·comparison이 "
+                    "필요하다 — 무엇을 어느 기간에 무엇과 비교했는지"
+                )
+            else:
+                for key in BASIS_KEYS:
+                    _nonempty(basis.get(key), f"{label}.basis.{key}", errors)
+        elif basis is not None:
+            errors.append(f"{label}.basis: UNVERIFIABLE에서는 null이어야 한다")
         refs = _string_list(
             row.get("evidence_refs") or [], f"{label}.evidence_refs", errors
         )
         # 확인했다·반박했다고 말하려면 무엇으로 그랬는지가 있어야 한다.
         # 확인불가는 근거가 없는 것이 정상이다.
-        if status in {"CONFIRMED", "REFUTED"} and not refs:
+        if settled and not refs:
             errors.append(
                 f"{label}.evidence_refs: {status}에는 근거가 필요하다. "
                 "근거 없이 확인했다고 말할 수 없다"
             )
+        if evidence_kinds is None:
+            continue
+        allowed = CLAIM_EVIDENCE_FAMILIES.get(claim_kind or "", set())
+        for ref in refs:
+            if ref not in evidence_kinds:
+                errors.append(
+                    f"{label}.evidence_refs: 어디에도 없는 근거 ID다 {ref} — "
+                    "packet의 evidence_index에 있거나 sources에 등록한 것이어야 한다"
+                )
+                continue
+            if not claim_kind:
+                continue
+            family = _evidence_family(ref, evidence_kinds[ref])
+            if family not in allowed:
+                errors.append(
+                    f"{label}.evidence_refs: {claim_kind} 주장을 {family} 자료"
+                    f"({ref})로 닫을 수 없다. 이 갈래에는 "
+                    f"{', '.join(sorted(allowed))} 가 필요하다"
+                )
     unanswered = sorted(expected_ids - seen)
     if unanswered:
         errors.append(
@@ -392,6 +515,22 @@ def _held_quantity(packet_body: Any) -> tuple[bool | None, float | None]:
     if not math.isfinite(quantity) or quantity <= 0:
         return held, None
     return held, float(quantity)
+
+
+def _position_action_blocked(context: Any) -> list[str]:
+    """수량 지시를 낼 준비가 되지 않은 이유들. 없으면 빈 목록이다."""
+    if not isinstance(context, dict):
+        return []
+    readiness = (context.get("validation") or {}).get("readiness")
+    if not isinstance(readiness, dict):
+        return []
+    block = readiness.get("position_action")
+    if not isinstance(block, dict) or block.get("status") != "BLOCKED":
+        return []
+    problems = block.get("problems")
+    return [item for item in problems if isinstance(item, str)] if isinstance(
+        problems, list
+    ) else ["원장이 수량 지시를 뒷받침하지 못한다"]
 
 
 def _validate_position_action(
@@ -1480,6 +1619,16 @@ def validate_decision(
                 f"(structured_optional.{', '.join(given)})가 실려 있다. 이익 "
                 "동인이 아니라는 이유로 건너뛰지 말고 확인했는지 밝혀야 한다"
             )
+        # 근거 ID 를 실제 자료에 결속한다. 로컬 evidence 는 kind 가 갈래를
+        # 말하고, 모델이 조사해 등록한 source 는 로컬 자료가 아니라는 사실
+        # 자체가 갈래다. 여기 없는 ID 는 아무것도 가리키지 않는 문자열이다.
+        evidence_kinds: dict[str, Any] = {
+            str(item.get("source_id")): item.get("kind")
+            for item in context.get("evidence_index") or []
+            if isinstance(item, dict) and item.get("source_id")
+        }
+        for source_id in model_source_ids:
+            evidence_kinds.setdefault(source_id, None)
         _validate_assertion_checks(
             data.get("user_assertion_checks"),
             errors,
@@ -1488,6 +1637,7 @@ def validate_decision(
                 for row in (request.get("user_assertions") or [])
                 if isinstance(row, dict) and row.get("claim_id")
             },
+            evidence_kinds=evidence_kinds,
         )
         # 사용자가 정한 stop_style 과 이번 산출물이 어긋나는지 본다. 어디서
         # 팔지는 모델이 정하고, PC 는 팔 수 있는 자리가 있는지만 센다.
@@ -1512,6 +1662,19 @@ def validate_decision(
         _validate_position_action(
             data.get("action"), errors, packet_body=packet_body
         )
+        # 준비상태가 packet 안에만 있으면 fail-open 이다. 원장이 낡았거나
+        # 없다는 사실을 packet 이 말하고도 수량 지시가 그대로 저장되면, 그
+        # 경고는 아무것도 막지 못한 것이다. 종목 관점은 그대로 낸다 —
+        # 막히는 것은 **보유분에 대한 지시**뿐이다.
+        blocked_reasons = _position_action_blocked(context)
+        if blocked_reasons and isinstance(action, dict):
+            if action.get("direction") not in {None, "UNDETERMINED"}:
+                errors.append(
+                    "action.direction: position_action이 BLOCKED다 — "
+                    + "; ".join(blocked_reasons[:2])
+                    + ". 수량 지시를 낼 수 없으므로 UNDETERMINED "
+                    "(NO_POSITION_DATA)로 답하고 종목 관점은 thesis에 남긴다"
+                )
         validation_status = (context.get("validation") or {}).get("status")
         if validation_status not in {"PASS", "BLOCKED"}:
             errors.append("context.validation.status: PASS 또는 BLOCKED여야 한다")
@@ -1548,6 +1711,19 @@ def validate_decision(
                 and proposed > requested_amount + 1e-9
             ):
                 errors.append("proposed_trade.amount: 사용자가 제시한 금액을 넘을 수 없다")
+            # 보유분을 어떻게 할지 묻는 packet 에는 매수 예산이 없다. 없는
+            # 한도를 0 으로도 무제한으로도 읽지 않는다 — 사용자가 이번에
+            # 허락한 돈이 없다는 뜻이므로 집행액을 만들 수 없다.
+            if (
+                requested_amount is None
+                and isinstance(proposed, (int, float))
+                and proposed > 0
+            ):
+                errors.append(
+                    "proposed_trade.amount: 이 packet에는 매수 예산이 실려 있지 "
+                    "않다. 새 자금 판단이 필요하면 NEW_BUY·ADD intent로 다시 "
+                    "묻고, 지금은 0으로 두고 관점을 thesis에 남긴다"
+                )
         local_source_ids = {
             item.get("source_id")
             for item in context.get("evidence_index") or []

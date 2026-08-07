@@ -5,7 +5,7 @@
   "cik": "0000051143",
   "currency": "USD",
   "period_end": "2026-06-30",
-  "created_at": "2026-08-03T16:48:25+09:00",
+  "created_at": "2026-08-07T10:57:52+09:00",
   "tags": {
     "ocf": "NetCashProvidedByUsedInOperatingActivities",
     "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
@@ -426,7 +426,8 @@
     "operating_income": {
       "tag": null,
       "ttm": null,
-      "quarters": []
+      "quarters": [],
+      "absent_reason": "태그를 찾지 못했다 (시도: OperatingIncomeLoss)"
     },
     "net_income": {
       "tag": "NetIncomeLoss",
@@ -501,5 +502,5 @@
   },
   "raw_locator": "data/raw/edgar/objects/6bc9eb57d616e22b4dcbf219c2573f51b8476007abd0fd399231e7d779479176.json",
   "raw_payload_sha256": "6bc9eb57d616e22b4dcbf219c2573f51b8476007abd0fd399231e7d779479176",
-  "fundamentals_id": "FUND-f493fd8f26f0d8d73f92"
+  "fundamentals_id": "FUND-2a73484ea18ece401186"
 }

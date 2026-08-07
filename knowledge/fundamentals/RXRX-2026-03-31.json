@@ -5,7 +5,7 @@
   "cik": "0001601830",
   "currency": "USD",
   "period_end": "2026-03-31",
-  "created_at": "2026-08-03T16:49:06+09:00",
+  "created_at": "2026-08-07T10:59:36+09:00",
   "tags": {
     "ocf": "NetCashProvidedByUsedInOperatingActivities",
     "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
@@ -216,7 +216,8 @@
     "gross_profit": {
       "tag": null,
       "ttm": null,
-      "quarters": []
+      "quarters": [],
+      "absent_reason": "태그를 찾지 못했다 (시도: GrossProfit)"
     },
     "rnd": {
       "tag": "ResearchAndDevelopmentExpense",
@@ -291,7 +292,8 @@
     "sgna": {
       "tag": null,
       "ttm": null,
-      "quarters": []
+      "quarters": [],
+      "absent_reason": "태그를 찾지 못했다 (시도: SellingGeneralAndAdministrativeExpense)"
     },
     "operating_income": {
       "tag": "OperatingIncomeLoss",
@@ -434,7 +436,7 @@
       ]
     }
   },
-  "raw_locator": "data/raw/edgar/objects/e666d80b0789980804a4abf329a9149d7bb184da58801f890a802d28f16cb460.json",
-  "raw_payload_sha256": "e666d80b0789980804a4abf329a9149d7bb184da58801f890a802d28f16cb460",
-  "fundamentals_id": "FUND-3fd492e0eb0662be2cf9"
+  "raw_locator": "data/raw/edgar/objects/52d6d600ce0a82a39ae6feb2b4184b1ceeb7dca61cc626b496c87a1d955183dd.json",
+  "raw_payload_sha256": "52d6d600ce0a82a39ae6feb2b4184b1ceeb7dca61cc626b496c87a1d955183dd",
+  "fundamentals_id": "FUND-ad3e7aeb3a132b9f88a8"
 }

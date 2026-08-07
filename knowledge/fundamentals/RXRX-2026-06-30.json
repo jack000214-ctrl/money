@@ -1,0 +1,442 @@
+{
+  "schema_version": "1.1.0",
+  "instrument_id": "RXRX",
+  "company_name": "RECURSION PHARMACEUTICALS, INC.",
+  "cik": "0001601830",
+  "currency": "USD",
+  "period_end": "2026-06-30",
+  "created_at": "2026-08-07T10:58:30+09:00",
+  "tags": {
+    "ocf": "NetCashProvidedByUsedInOperatingActivities",
+    "capex": "PaymentsToAcquirePropertyPlantAndEquipment",
+    "shares": "WeightedAverageNumberOfDilutedSharesOutstanding",
+    "cash": "CashAndCashEquivalentsAtCarryingValue",
+    "short_term_investments": "ShortTermInvestments",
+    "long_term_debt": "LongTermDebtAndCapitalLeaseObligations+LongTermDebtAndCapitalLeaseObligationsCurrent+OperatingLeaseLiabilityNoncurrent+OperatingLeaseLiabilityCurrent"
+  },
+  "as_of": {
+    "cash": "2026-06-30",
+    "short_term_investments": "2022-12-31",
+    "long_term_debt": "2026-06-30",
+    "shares": "2026-06-30"
+  },
+  "quarters": {
+    "ocf": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": "2025-11-05",
+        "val": -117360000,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": "2026-02-25",
+        "val": -46073000,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": "2026-05-06",
+        "val": -81101000,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": "2026-08-05",
+        "val": -105947000,
+        "derived": true
+      }
+    ],
+    "capex": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": "2025-11-05",
+        "val": 243000,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": "2026-02-25",
+        "val": 1244000,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": "2026-05-06",
+        "val": 258000,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": "2026-08-05",
+        "val": 44000,
+        "derived": true
+      }
+    ]
+  },
+  "values": {
+    "ocf_ttm": -350481000.0,
+    "capex_ttm": 1789000.0,
+    "fcf_ttm": -352270000.0,
+    "shares_diluted": 532460085.0,
+    "cash_and_equivalents": 545683000.0,
+    "short_term_investments": 0.0,
+    "long_term_debt": 66638000.0,
+    "net_debt": -479045000.0
+  },
+  "definitions": {
+    "long_term_debt": "총차입. 차입금·전환사채·리스부채를 겹치지 않는 자리마다 하나씩 골라 합했다 (분류별 합은 debt_by_category, 태그와 기준일은 debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 덜어내고 다시 센다",
+    "debt_by_category": "BORROWING=차입금 CONVERTIBLE=전환사채 LEASE=운용·금융리스부채. 리스 포함 여부는 방법론에 따라 갈리므로 합계만 주지 않고 분류를 함께 낸다. KR 스냅샷과 같은 분류명이다",
+    "debt_detail": "자리마다 채택한 us-gaap 태그와 그 기준일. 분기마다 공시하지 않는 항목이 있어 as_of 가 period_end 보다 앞설 수 있다",
+    "short_term_investments_basis": "OBSERVED=공시된 값이다(0 이면 정말 0 이다). STALE_EXCLUDED=너무 묵어서 뺐다. NOT_DISCLOSED=태그가 없다. 뒤의 둘에서 0 은 관측이 아니라 결측이므로 순부채가 그만큼 과대계상돼 있다"
+  },
+  "debt_detail": [
+    {
+      "tag": "LongTermDebtAndCapitalLeaseObligations",
+      "category": "BORROWING",
+      "as_of": "2026-06-30",
+      "value": 4753000.0
+    },
+    {
+      "tag": "LongTermDebtAndCapitalLeaseObligationsCurrent",
+      "category": "BORROWING",
+      "as_of": "2026-06-30",
+      "value": 9443000.0
+    },
+    {
+      "tag": "OperatingLeaseLiabilityNoncurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 39193000.0
+    },
+    {
+      "tag": "OperatingLeaseLiabilityCurrent",
+      "category": "LEASE",
+      "as_of": "2026-06-30",
+      "value": 13249000.0
+    }
+  ],
+  "debt_by_category": {
+    "BORROWING": 14196000.0,
+    "LEASE": 52442000.0
+  },
+  "debt_notes": [
+    "LongTermDebtAndCapitalLeaseObligations(2026-06-30) 는 금융리스를 포함한 값이다. 금융리스를 따로 더하지 않았다",
+    "LongTermDebtAndCapitalLeaseObligationsCurrent(2026-06-30) 는 금융리스를 포함한 값이다. 금융리스를 따로 더하지 않았다"
+  ],
+  "short_term_investments_basis": "STALE_EXCLUDED",
+  "short_term_investments_note": "단기투자자산: 기준일 2022-12-31 이 2026-06-30 보다 1277일 앞서 총액에서 뺐다. 0 은 관측이 아니라 결측이다",
+  "income_statement": {
+    "revenue": {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "ttm": 54856000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-11-06",
+          "val": 26082000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-28",
+          "val": 4546000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-05-05",
+          "val": 14745000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-08-05",
+          "val": 19223000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-11-05",
+          "val": 5175000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-25",
+          "val": 35538000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-05-06",
+          "val": 6472000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-08-05",
+          "val": 7671000,
+          "derived": true
+        }
+      ]
+    },
+    "gross_profit": {
+      "tag": null,
+      "ttm": null,
+      "quarters": [],
+      "absent_reason": "태그를 찾지 못했다 (시도: GrossProfit)"
+    },
+    "rnd": {
+      "tag": "ResearchAndDevelopmentExpense",
+      "ttm": 394512000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-11-06",
+          "val": 74599000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-28",
+          "val": 98334000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-05-05",
+          "val": 129634000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-08-05",
+          "val": 128635000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-11-05",
+          "val": 121062000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-25",
+          "val": 95940000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-05-06",
+          "val": 87896000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-08-05",
+          "val": 89614000,
+          "derived": true
+        }
+      ]
+    },
+    "sgna": {
+      "tag": null,
+      "ttm": null,
+      "quarters": [],
+      "absent_reason": "태그를 찾지 못했다 (시도: SellingGeneralAndAdministrativeExpense)"
+    },
+    "operating_income": {
+      "tag": "OperatingIncomeLoss",
+      "ttm": -544009000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-11-06",
+          "val": -98353000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-28",
+          "val": -183768000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-05-05",
+          "val": -191368000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-08-05",
+          "val": -176227000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-11-05",
+          "val": -172203000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-25",
+          "val": -108334000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-05-06",
+          "val": -128505000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-08-05",
+          "val": -134967000,
+          "derived": true
+        }
+      ]
+    },
+    "net_income": {
+      "tag": "NetIncomeLoss",
+      "ttm": -518884000.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "end": "2024-09-30",
+          "filed": "2024-11-06",
+          "val": -95842000,
+          "derived": true
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "end": "2024-12-31",
+          "filed": "2025-02-28",
+          "val": -178906000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "end": "2025-03-31",
+          "filed": "2025-05-05",
+          "val": -202487000,
+          "derived": false
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "end": "2025-06-30",
+          "filed": "2025-08-05",
+          "val": -171897000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "end": "2025-09-30",
+          "filed": "2025-11-05",
+          "val": -162253000,
+          "derived": true
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "end": "2025-12-31",
+          "filed": "2026-02-25",
+          "val": -108122000,
+          "derived": true
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "end": "2026-03-31",
+          "filed": "2026-05-06",
+          "val": -117504000,
+          "derived": false
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "end": "2026-06-30",
+          "filed": "2026-08-05",
+          "val": -131005000,
+          "derived": true
+        }
+      ]
+    }
+  },
+  "raw_locator": "data/raw/edgar/objects/7c65a2027ac75f3f917b598f5556233647cb9b72aa018bd0f09c569e8538452b.json",
+  "raw_payload_sha256": "7c65a2027ac75f3f917b598f5556233647cb9b72aa018bd0f09c569e8538452b",
+  "fundamentals_id": "FUND-65a579497dc124c0da0f"
+}

@@ -95,7 +95,9 @@
         "^IXIC",
         "XLY"
       ],
-      "optional_collectors": []
+      "optional_collectors": [
+        "NORMALIZED_EARNINGS"
+      ]
     },
     "IBM": {
       "name": "IBM",
@@ -117,7 +119,9 @@
         "^GSPC",
         "XLK"
       ],
-      "optional_collectors": []
+      "optional_collectors": [
+        "NORMALIZED_EARNINGS"
+      ]
     },
     "RXRX": {
       "name": "Recursion Pharmaceuticals",

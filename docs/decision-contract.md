@@ -11,17 +11,69 @@
 `python3.13 -m cio prepare`가 다음 입력을 받는다.
 
 ```bash
+# 새 자금 — NEW_BUY · ADD
 python3.13 -m cio prepare <asset_id> \
   --price <검토가격> \
   --amount <최대사용금액> \
   --amount-currency <KRW|USD> \
-  --intent <NEW_BUY|ADD|HOLD_REVIEW|TRIM_REVIEW|EXIT_REVIEW|REBALANCE> \
+  --intent NEW_BUY \
   --verbatim "사용자가 실제로 한 말" \
   --claim "사용자가 사실이라고 말한 것"   # 반복 가능
+
+# 보유분 — HOLD_REVIEW · TRIM_REVIEW · EXIT_REVIEW
+python3.13 -m cio prepare <asset_id> \
+  --price <검토가격> \
+  --intent TRIM_REVIEW \
+  --quantity <검토 매도수량>            # 또는 --target-quantity <목표 잔여수량>
 ```
 
 `--intent`는 무엇을 묻고 있는지다. 신규매수와 분할매도 검토를 하나의 "이 가격에
 살까"로 정규화하면 그 차이가 사라진다.
+
+**두 갈래는 받는 입력부터 다르다.** 새 자금은 가격과 최대 투입예산을, 보유분은
+최신 보유수량(원장)과 검토 수량을 받는다. 초판은 모든 intent에 `--amount`가
+필수였고 `proposed_trade`가 언제나 추가매수 수량·현금차감·매수 후 비중을
+계산했다. 그래서 이런 packet이 나왔다.
+
+```text
+intent:   TRIM_REVIEW
+question: "이 가격과 금액으로 매수하면 …"
+proposed_trade: 40,000,000원 → 803주, 매수 후 비중 27.76%
+```
+
+묻지 않은 질문에 답을 만들어 주면 모델은 그 답을 근거로 받아들인다. 지금은
+`request.intent_family`가 `NEW_CAPITAL`이면 `proposed_trade.side = BUY`,
+`EXISTING_POSITION`이면 `SELL`이고 매수 사다리(`add_ladder`)는 실리지 않는다.
+한쪽 입력을 다른 갈래에 주면 `prepare`가 거부한다 — 검사되지 않는 우회로를
+남기면 그 길로 간다. `REBALANCE`만 어느 입력을 줬는지로 갈래가 정해진다.
+
+매수 예산이 실리지 않은 packet에서는 `proposed_trade.amount`를 0보다 크게 낼 수
+없다. 사용자가 이번에 허락한 돈이 없다는 뜻이며, 종목 관점은 `thesis`에 남기고
+새 자금 판단은 `NEW_BUY`·`ADD`로 다시 묻는다.
+
+### 준비상태는 두 질문이다
+
+`validation.status`(=`readiness.security_view`)는 **종목 관점을 세울 수 있는가**이고
+`readiness.position_action`은 **실제 수량 지시를 낼 수 있는가**다. 원장이 낡았으면
+"이 종목은 비싸다"는 여전히 말할 수 있지만 "30주 중 10주를 팔아라"는 말할 수
+없다 — 30주가 아직 30주인지 모르기 때문이다.
+
+| position_action이 BLOCKED되는 조건 | 왜 |
+|---|---|
+| 원장이 없거나 읽을 수 없다 | 대조할 수량이 없다 |
+| `portfolio:holdings`가 FRESH가 아니다 | 사용자가 갱신해야 하는 파일이다 |
+| 보유는 있는데 수량이 없다 | 부등호 비교가 성립하지 않는다 |
+| 매도 intent인데 원장에 보유가 없다 | 질문과 원장이 다르다 |
+| 검토 수량이 보유수량을 넘는다 | 입력 자체가 성립하지 않는다 |
+
+`BLOCKED`면 `action.direction`은 `UNDETERMINED`(`NO_POSITION_DATA`)여야 하고
+verdict·가격계획은 그대로 낸다. 이 검사가 없을 때는 셋 다 `optional_gaps` 경고일
+뿐이어서 낡은 원장 위에서 매도 수량이 그대로 저장됐다 — fail-open이었다.
+
+로컬 재무보다 새 실적 공시가 있는데 **그 원문마저 로컬에 없으면** `security_view`가
+BLOCKED된다. 색인에 제목이 있다는 것은 근거가 있다는 뜻이 아니다. 삼성전자 TTM
+영업이익이 로컬 94.1조 vs 이미 공시된 179.0조로 1.9배 벌어진 채 경고 한 줄만 달고
+통과한 적이 있다. 받는 방법은 problems 문장이 직접 알려준다.
 
 `--verbatim`과 `--claim`은 **분석의 전제가 아니라 검증 대상으로** 실린다. 사용자는
 이미 사고 싶은 상태에서 묻고("실적 1,860% 나왔더만"), 강한 모델일수록 그 프레이밍을
@@ -56,6 +108,26 @@ python3.13 -m cio prepare <asset_id> \
 | `open_research_requests` | 아직 처리되지 않은 모델의 수집 요청 | 요청이 편지함에서 썩지 않게 한다 |
 | `local_documents` | 공시 원문과 보존한 웹 원문의 단일 목록(+미수집 공시 수) | 100만 자 문서를 넣지 않고 존재만 알린다. `url`이 있으면 모델이 이전에 보존한 웹 원문이며, 같은 조사를 반복하지 않게 한다 |
 | `fundamentals.reporting_lag` | 로컬 재무 기준일 이후의 공시 | 신선도를 시계가 아니라 결산 캘린더로 잰다 |
+| `fundamentals.earnings_bridge` | 최근 8분기 매출·매출총이익·영업이익·순이익·OCF·FCF와 YoY/QoQ·마진 | 수집기는 8분기를 저장하는데 packet은 TTM 네 숫자만 실었다. 압축은 삭제가 아니라 변환이다 |
+| `data_coverage` | 입력별 가용성 — 있다 / 등록했는데 없다 / 등록 안 했다 / 이 시장에 수집기가 없다 | 빈칸은 "해당 없음"으로 읽힌다. 못 받는 것을 못 받는다고 말한다 |
+
+### `earnings_bridge` — 이미 있는 것을 지우지 않는다
+
+TTM 네 숫자만 실으면 분기 흐름이 packet에서 사라진다. 삼성전자 영업이익
+4.68조 → 12.17조 → 20.07조 → 57.23조는 저장된 8분기만 봐도 보이는데, 그것을
+확인하려고 DART 원문을 다시 뒤진 적이 있다 — **근거의 절반이 이미 로컬에
+있었고 packet이 지웠다.**
+
+표에 나오는 값은 전부 합·차·비율이다. 기준이 0 이하면 변화율을 비운다(적자에서
+흑자로 가는 변화율은 해석 불가능한 수다). `derived`는 실측이 아니라 복원값이라는
+표시이며(4분기 = 연간 − 3분기 누계), `metrics_absent`는 그 항목의 분기 시계열이
+아예 없다는 뜻이다 — 0이 아니라 결측이다. **추세 판정은 이 표에 없다.**
+
+기준일 이후에 나온 실적 공시는 `unreflected_result_disclosures`로 **숫자를 읽는
+자리에** 붙는다. 경고를 `optional_gaps`에만 두면 다른 항목들 사이에 묻히고,
+주의력에 의존하는 안전장치는 안전장치가 아니다. 공시는 이미 끝난 기간만 보고할
+수 있으므로 로컬 기준일 다음 분기말 전에 나온 공시는 여기 세지 않는다 — 3월 말
+재무에 5월 초 1분기 잠정실적을 미반영으로 세면 없는 공백이 매번 켜진다.
 
 `carried_forward`는 그대로 따르라는 명령이 아니다. 같은 자리를 처음 보는 것처럼
 다시 계산하지 말고, 판단이 바뀌었으면 무엇이 바뀌었는지 말하라는 요구다.
@@ -181,12 +253,40 @@ packet의 `request.user_assertions`에 있는 각 주장은 판단에서 **확�
 
 | status | 필요한 것 |
 |---|---|
-| `CONFIRMED` | `finding` + `evidence_refs` |
-| `REFUTED` | `finding` + `evidence_refs` |
-| `UNVERIFIABLE` | `finding` (근거 불필요) |
+| `CONFIRMED` | `claim_kind` + `basis` + `finding` + `evidence_refs` |
+| `REFUTED` | 같음 |
+| `UNVERIFIABLE` | `claim_kind` + `finding` (`basis`·근거 불필요) |
 
 근거 없이 "확인했다"고 말하는 것은 확인이 아니므로 `CONFIRMED`·`REFUTED`에
 `evidence_refs`를 요구한다. packet에 없는 `claim_id`를 지어내는 것도 거부한다.
+
+#### 근거는 개수가 아니라 결속이다
+
+초판은 `evidence_refs`가 비어 있지 않은지만 봤다. 그래서 **"영업이익 1,860%"를
+가격 CSV(`PRICE:TSLA`)로 CONFIRMED** 하는 것과 **존재하지 않는 ID로 CONFIRMED**
+하는 것이 둘 다 통과했다. 형식은 통과하고 의미는 검증되지 않는 자리였다.
+
+- `claim_kind`가 무엇에 관한 주장인지 말하고, PC가 근거의 갈래와 대조한다
+- `basis`의 `metric`·`period`·`comparison`이 무엇을 어느 기간에 무엇과 비교했는지
+  말한다. 기저가 거의 0이면 1,860%는 성장이 아니라 나눗셈인데, 그 구분은 이
+  세 칸을 채우지 않으면 사라진다
+- `evidence_refs`의 ID는 `evidence_index`에 있거나 모델이 `sources`에 등록한
+  것이어야 한다
+
+| `claim_kind` | 닫을 수 있는 자료 |
+|---|---|
+| `PRICE` | 가격 시계열, 계산 |
+| `EARNINGS` | 재무 스냅샷, 보존한 공시 원문, 계산 |
+| `VALUATION` | 위 둘 + 컨센서스 |
+| `OWNERSHIP` | 수급·대차 |
+| `BUSINESS` | 보존한 원문, 모델이 조사한 출처 |
+| `MARKET` | 시장 국면, 가격, 조사한 출처 |
+| `EVENT_DATE` | 공시 색인·캘린더, 원문 |
+| `PORTFOLIO` | 보유·정책·거래원장 |
+
+**이 대조는 투자 판정이 아니다.** 가격 CSV에 영업이익이 없다는 것은 파일을 열어
+보면 아는 사실이고, 공시 색인에 제목만 있다는 것도 마찬가지다. 무엇이 확인이고
+무엇이 반박인지는 여전히 전부 모델이 정한다.
 
 `REFUTED`는 실패가 아니라 이 시스템이 존재하는 이유에 가깝다.
 

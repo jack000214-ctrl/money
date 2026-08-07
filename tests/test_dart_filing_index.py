@@ -205,6 +205,27 @@ class TestReportingLag(unittest.TestCase):
         self.assertFalse(lag["newer_periodic_report_filed"])
         self.assertEqual(lag["disclosures_after_local_period"], [])
 
+    def test_a_disclosure_about_the_local_quarter_is_not_a_gap(self):
+        """공시는 이미 끝난 기간만 보고한다.
+
+        3월 31일 기준 재무에 5월 8일 1분기 잠정실적을 "미반영 공시"로 세면,
+        로컬이 이미 담은 분기를 두고 매번 없는 공백이 켜진다. 경고가 늘 켜져
+        있으면 아무도 읽지 않는다.
+        """
+        lag = _reporting_lag(
+            {"period_end": "2026-03-31"},
+            self.filings(
+                events=[
+                    {
+                        "form": "PROVISIONAL_RESULT",
+                        "filing_date": "2026-05-08",
+                        "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+                    }
+                ]
+            ),
+        )
+        self.assertEqual(lag["disclosures_after_local_period"], [])
+
     def test_no_filings_means_no_claim(self):
         self.assertIsNone(_reporting_lag({"period_end": "2026-03-31"}, None))
         self.assertIsNone(_reporting_lag(None, self.filings()))

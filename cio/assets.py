@@ -25,7 +25,11 @@ OPTIONAL_COLLECTORS_BY_ROUTE = {
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS",
     },
-    ("US", "STOCK"): set(),
+    # 미국에는 수급·대차·재고 수집기가 없다(공개 경로가 다르다). 정상화
+    # 이익은 시장과 무관한 계산이며 EDGAR 분기 시계열로 같은 값을 낼 수
+    # 있으므로 여기서 빠져 있을 이유가 없었다 — 그 공백 때문에 미국 종목은
+    # 사이클 위치를 볼 수단 없이 단일 TTM 으로만 판단됐다.
+    ("US", "STOCK"): {"NORMALIZED_EARNINGS"},
     ("KR", "ETF"): set(),
     ("US", "ETF"): set(),
 }

@@ -118,6 +118,8 @@ def cmd_prepare(args) -> int:
         amount=args.amount,
         amount_currency=args.amount_currency,
         intent=args.intent,
+        review_quantity=args.quantity,
+        target_quantity=args.target_quantity,
         verbatim=args.verbatim,
         claims=args.claim,
         save=not args.no_save,
@@ -376,12 +378,32 @@ def build_parser() -> argparse.ArgumentParser:
     prepare = sub.add_parser("prepare", help="모델용 최소 context packet 생성")
     prepare.add_argument("asset_id")
     prepare.add_argument("--price", type=float, required=True)
-    prepare.add_argument("--amount", type=float, required=True)
+    prepare.add_argument(
+        "--amount",
+        type=float,
+        help=(
+            "최대 투입 예산. NEW_BUY·ADD 에만 준다 — 매도 검토에 주면 "
+            "묻지 않은 매수 계획이 packet 에 실린다"
+        ),
+    )
     prepare.add_argument("--amount-currency", choices=["KRW", "USD"])
     prepare.add_argument(
         "--intent",
         choices=sorted(INTENTS),
         help="무엇을 묻는가. 신규매수와 분할매도 검토는 같은 질문이 아니다",
+    )
+    prepare.add_argument(
+        "--quantity",
+        type=float,
+        help=(
+            "검토 중인 매도 수량. HOLD·TRIM·EXIT_REVIEW 에만 준다 "
+            "(정하지 않았으면 생략한다 — PC 가 대신 정하지 않는다)"
+        ),
+    )
+    prepare.add_argument(
+        "--target-quantity",
+        type=float,
+        help="목표 잔여 수량. --quantity 대신 쓴다",
     )
     prepare.add_argument(
         "--verbatim",

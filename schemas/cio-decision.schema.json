@@ -656,6 +656,7 @@
         "required": [
           "claim_id",
           "status",
+          "claim_kind",
           "finding"
         ],
         "properties": {
@@ -670,12 +671,52 @@
               "UNVERIFIABLE"
             ]
           },
+          "claim_kind": {
+            "description": "무엇에 관한 주장인가. 근거의 갈래와 대조된다 — 가격 CSV로 실적을 확인할 수 없다.",
+            "enum": [
+              "PRICE",
+              "EARNINGS",
+              "VALUATION",
+              "OWNERSHIP",
+              "BUSINESS",
+              "MARKET",
+              "EVENT_DATE",
+              "PORTFOLIO"
+            ]
+          },
+          "basis": {
+            "description": "CONFIRMED·REFUTED에는 필수, UNVERIFIABLE에는 null. 무엇을 어느 기간에 무엇과 비교했는가.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "metric",
+              "period",
+              "comparison"
+            ],
+            "properties": {
+              "metric": {
+                "type": "string",
+                "minLength": 1
+              },
+              "period": {
+                "type": "string",
+                "minLength": 1
+              },
+              "comparison": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
           "finding": {
             "type": "string",
             "minLength": 1
           },
           "evidence_refs": {
-            "description": "CONFIRMED·REFUTED에는 필수.",
+            "description": "CONFIRMED·REFUTED에는 필수. packet의 evidence_index 또는 sources에 있는 ID여야 하고, 그 자료의 갈래가 claim_kind와 맞아야 한다.",
             "type": "array",
             "items": {
               "type": "string",

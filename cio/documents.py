@@ -476,6 +476,25 @@ def search_asset(
 MAX_CONTEXT_DOCUMENTS = 6
 
 
+def stored_filing_keys(asset_id: str) -> set[str] | None:
+    """원문을 실제로 받아 둔 공시의 식별자. 알 수 없으면 None 이다.
+
+    "이 공시가 로컬에 있는가"는 색인에 제목이 있는가와 다른 질문이다. 제목만
+    있는 공시는 인용할 수 없고 숫자를 꺼낼 수도 없다. 한국은 접수번호로,
+    미국은 URL 로 맞춘다 (SEC 문서는 스냅샷으로 들어오므로 접수번호가 없다).
+    """
+    try:
+        catalog = documents_for(asset_id)
+    except (ContractError, ValueError, OSError, KeyError):
+        return None
+    keys: set[str] = set()
+    for entry in catalog["available"]:
+        for key in ("rcept_no", "url"):
+            if entry.get(key):
+                keys.add(str(entry[key]))
+    return keys
+
+
 def documents_for_context(asset_id: str) -> dict[str, Any] | None:
     """packet 에 실을 원문 목록. 본문은 넣지 않고 '무엇을 찾을 수 있는지'만 알린다.
 

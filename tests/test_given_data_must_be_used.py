@@ -159,15 +159,48 @@ class TestFlowMustBeAddressed(unittest.TestCase):
 class TestUserClaimsMustBeClosed(unittest.TestCase):
     CLAIMS = [("UA-aaa1", "실적이 1,860% 나왔다"), ("UA-bbb2", "2일 연속 하락했다")]
 
+    # 실적 주장은 재무·공시로, 가격 주장은 가격 자료로 닫는다. 예전 이 파일은
+    # 두 주장을 모두 PRICE:TSLA 로 닫는 것을 성공으로 고정했다 — 그 테스트가
+    # 틀렸다. 종류가 맞는지는 tests/test_evidence_binding.py 가 지킨다.
+    EARNINGS = {
+        "claim_kind": "EARNINGS",
+        "basis": {
+            "metric": "영업이익",
+            "period": "2026 회계연도 2분기",
+            "comparison": "전년동기 대비",
+        },
+        "evidence_refs": ["FUNDAMENTALS:TSLA"],
+    }
+    PRICE = {
+        "claim_kind": "PRICE",
+        "basis": {
+            "metric": "종가",
+            "period": "직전 2거래일",
+            "comparison": "전일 대비",
+        },
+        "evidence_refs": ["PRICE:TSLA"],
+    }
+
+    def context_with(self, claims):
+        context = with_claims(claims)
+        context["evidence_index"] = [
+            {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA"},
+            {"source_id": "FUNDAMENTALS:TSLA", "kind": "FILING_DERIVED"},
+        ]
+        from cio.decision import context_id_for
+
+        context["context_id"] = context_id_for(context)
+        return context
+
     def test_open_claim_blocks_the_decision(self):
-        context = with_claims(self.CLAIMS)
+        context = self.context_with(self.CLAIMS)
         errors = validate_decision(decision_for(context), context=context)
         self.assertTrue(
             any("user_assertion_checks" in error for error in errors), errors
         )
 
     def test_partially_closed_is_still_blocked(self):
-        context = with_claims(self.CLAIMS)
+        context = self.context_with(self.CLAIMS)
         data = decision_for(
             context,
             user_assertion_checks=[
@@ -175,7 +208,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
                     "claim_id": "UA-aaa1",
                     "status": "CONFIRMED",
                     "finding": "2Q 영업이익 전년동기 +1810%",
-                    "evidence_refs": ["PRICE:TSLA"],
+                    **self.EARNINGS,
                 }
             ],
         )
@@ -187,7 +220,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
 
     def test_refuting_the_user_is_a_valid_close(self):
         """사용자의 전제가 틀렸다고 말하는 것이 이 시스템의 값어치다."""
-        context = with_claims(self.CLAIMS)
+        context = self.context_with(self.CLAIMS)
         data = decision_for(
             context,
             user_assertion_checks=[
@@ -195,13 +228,13 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
                     "claim_id": "UA-aaa1",
                     "status": "CONFIRMED",
                     "finding": "2Q 영업이익 전년동기 +1810%. 다만 기저가 거의 0",
-                    "evidence_refs": ["PRICE:TSLA"],
+                    **self.EARNINGS,
                 },
                 {
                     "claim_id": "UA-bbb2",
                     "status": "REFUTED",
                     "finding": "직전 거래일은 +21.5% 상승이다",
-                    "evidence_refs": ["PRICE:TSLA"],
+                    **self.PRICE,
                 },
             ],
         )
@@ -209,7 +242,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
 
     def test_confirmed_without_evidence_is_rejected(self):
         """근거 없이 '확인했다'고 말하는 것은 확인이 아니다."""
-        context = with_claims([self.CLAIMS[0]])
+        context = self.context_with([self.CLAIMS[0]])
         data = decision_for(
             context,
             user_assertion_checks=[
@@ -217,7 +250,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
                     "claim_id": "UA-aaa1",
                     "status": "CONFIRMED",
                     "finding": "맞다",
-                    "evidence_refs": [],
+                    **{**self.EARNINGS, "evidence_refs": []},
                 }
             ],
         )
@@ -227,13 +260,15 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
         )
 
     def test_unverifiable_needs_no_evidence(self):
-        context = with_claims([self.CLAIMS[0]])
+        context = self.context_with([self.CLAIMS[0]])
         data = decision_for(
             context,
             user_assertion_checks=[
                 {
                     "claim_id": "UA-aaa1",
                     "status": "UNVERIFIABLE",
+                    "claim_kind": "EARNINGS",
+                    "basis": None,
                     "finding": "어떤 지표의 1,860%인지 사용자에게 확인이 필요하다",
                     "evidence_refs": [],
                 }
@@ -242,13 +277,15 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
         self.assertEqual(validate_decision(data, context=context), [])
 
     def test_answering_a_claim_the_packet_never_had(self):
-        context = with_claims([self.CLAIMS[0]])
+        context = self.context_with([self.CLAIMS[0]])
         data = decision_for(
             context,
             user_assertion_checks=[
                 {
                     "claim_id": "UA-aaa1",
                     "status": "UNVERIFIABLE",
+                    "claim_kind": "EARNINGS",
+                    "basis": None,
                     "finding": "확인 불가",
                     "evidence_refs": [],
                 },
@@ -256,7 +293,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
                     "claim_id": "UA-ghost",
                     "status": "CONFIRMED",
                     "finding": "지어낸 주장",
-                    "evidence_refs": ["PRICE:TSLA"],
+                    **self.EARNINGS,
                 },
             ],
         )

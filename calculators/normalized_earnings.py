@@ -87,9 +87,49 @@ def quarterly_series(stock_code: str, years: list[int], fs: str, key: str):
     return name, ocf, capex, revenue
 
 
-def ttm_series(ocf, capex, revenue) -> list[dict]:
+def quarterly_series_us(ticker: str, years: list[int]):
+    """미국 종목의 같은 시계열. EDGAR companyfacts 에서 복원한다.
+
+    사이클 위치는 시장의 성질이 아니라 회사의 성질이다. 그런데 이 계산기가
+    DART 전용이라 미국 종목은 사이클을 볼 수단 없이 단일 TTM 으로만 판단됐다 —
+    직전 세션에서 결론을 뒤집은 입력이 정확히 이것이었는데 미국 종목에는
+    아예 없었다.
+
+    분기 복원은 EDGAR 수집기의 `fiscal_quarters` 를 그대로 쓴다. 같은 값을
+    두 곳에서 만들면 어느 쪽이 맞는지 판단해야 하고 그건 이 계산기의 일이 아니다.
+    """
+    from collectors.edgar import (
+        CAPEX_TAGS, OCF_TAGS, REVENUE_TAGS, concept, fiscal_quarters, resolve,
+        save_raw as save_edgar_raw, user_agent,
+    )
+
+    ua = user_agent()
+    info = resolve(ticker.upper(), ua)
+    cik = info["cik"]
+    wanted = set(years)
+    series: dict[str, dict[tuple[int, int], float]] = {}
+    ends: dict[tuple[int, int], str] = {}
+    raw: dict[str, object] = {}
+    for label, tags in (
+        ("ocf", OCF_TAGS), ("capex", CAPEX_TAGS), ("revenue", REVENUE_TAGS)
+    ):
+        tag, points = concept(cik, tags, ua)
+        raw[f"{label}_{tag}"] = points
+        rows = {}
+        for row in fiscal_quarters(points):
+            if row["fy"] not in wanted:
+                continue
+            rows[(row["fy"], row["quarter"])] = row["val"]
+            ends[(row["fy"], row["quarter"])] = row["end"]
+        series[label] = rows
+    save_edgar_raw(f"normalized_{ticker.upper()}", raw)
+    return info["name"], series["ocf"], series["capex"], series["revenue"], ends
+
+
+def ttm_series(ocf, capex, revenue, ends=None) -> list[dict]:
     """연속 4분기가 확보된 구간만 TTM 을 만든다. 빈 분기는 건너뛰지 않고 버린다."""
     out = []
+    ends = ends or {}
     for key in sorted(set(ocf) & set(capex)):
         fy, q = key
         window = []
@@ -104,7 +144,9 @@ def ttm_series(ocf, capex, revenue) -> list[dict]:
         rev_ttm = (sum(revenue[k] for k in window)
                    if all(k in revenue for k in window) else None)
         out.append({
-            "period_end": f"{fy}-{QUARTER_END[q]}",
+            # 결산월이 12월이 아닌 회사가 있어 분기 번호를 달력으로 되돌리지
+            # 않는다. 수집기가 준 실제 종료일이 있으면 그것을 쓴다.
+            "period_end": ends.get(key) or f"{fy}-{QUARTER_END[q]}",
             "ocf_ttm": ocf_ttm,
             "capex_ttm": capex_ttm,
             "fcf_ttm": ocf_ttm - capex_ttm,
@@ -221,17 +263,42 @@ def render(name: str, code: str, rows: list[dict], norm: dict) -> None:
     print("  그 선택이 분석에 근거로 남아야 한다.")
 
 
+def filing_source_for(asset_id: str) -> str:
+    """이 종목의 원문이 어디서 오는가. registry 가 답을 갖고 있다."""
+    try:
+        from cio.assets import get_asset
+
+        return get_asset(asset_id)["filing_source"]
+    except Exception:  # noqa: BLE001 - 등록되지 않은 코드도 받는다
+        return "DART" if asset_id.isdigit() else "SEC_EDGAR"
+
+
 def main():
-    p = argparse.ArgumentParser(description="사이클 종목의 정상화 이익 (OpenDART)")
+    p = argparse.ArgumentParser(
+        description="사이클 종목의 정상화 이익 (KR=OpenDART / US=SEC EDGAR)"
+    )
     p.add_argument("stock_code")
     p.add_argument("--years", type=int, nargs="+", required=True,
                    help="사이클 한 바퀴 이상을 담는 연도 목록")
     p.add_argument("--fs", default="CFS", choices=["CFS", "OFS"])
     a = p.parse_args()
 
-    key = load_key()
-    name, ocf, capex, revenue = quarterly_series(a.stock_code, a.years, a.fs, key)
-    rows = ttm_series(ocf, capex, revenue)
+    filing_source = filing_source_for(a.stock_code)
+    ends: dict = {}
+    if filing_source == "SEC_EDGAR":
+        name, ocf, capex, revenue, ends = quarterly_series_us(
+            a.stock_code, a.years
+        )
+        source_note = (
+            "SEC EDGAR companyfacts 현금흐름표·손익계산서 (분기 복원)"
+        )
+    else:
+        key = load_key()
+        name, ocf, capex, revenue = quarterly_series(
+            a.stock_code, a.years, a.fs, key
+        )
+        source_note = "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)"
+    rows = ttm_series(ocf, capex, revenue, ends)
     if len(rows) < 2:
         fail(f"{name}: 연속 4분기 TTM 을 2개 이상 만들지 못했다 "
              f"(분기 확보 {len(ocf)}개). 연도를 넓히거나 --fs 를 바꾼다")
@@ -243,9 +310,9 @@ def main():
         "schema_version": SCHEMA,
         "instrument_id": a.stock_code,
         "name": name,
-        "fs": a.fs,
+        "fs": a.fs if filing_source == "DART" else "US_GAAP_CONSOLIDATED",
         "created_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-        "source": "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)",
+        "source": source_note,
         "grade": "DERIVED",
         "_not_a_valuation_input": (
             "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. "

@@ -23,7 +23,7 @@ from calculators.contracts import (
     write_json,
 )
 from cio.assets import get_asset
-from cio.documents import documents_for_context
+from cio.documents import documents_for_context, fetch_hint, stored_filing_keys
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.memory import READABLE_EVALUATION_SCHEMAS
 from cio.paths import KNOWLEDGE_DIR, ROOT
@@ -284,6 +284,11 @@ def _latest_fundamentals(
         "income_statement_ttm": income_summary,
         "source": data.get("source") or observed_filing_source,
     }
+    # TTM 네 숫자만 실으면 분기 흐름이 packet 에서 사라진다. 수집기가 이미
+    # 만들어 둔 시계열을 지우지 말고 한 줄씩 접어 함께 싣는다.
+    bridge = _earnings_bridge(data)
+    if bridge:
+        summary["earnings_bridge"] = bridge
     # 총차입만 실으면 리스·전환사채를 포함할지가 수집기에서 이미 정해져 버린다.
     # 그건 방법론 판단이므로 분류를 함께 실어 모델이 다시 셀 수 있게 한다.
     # 계정 한 줄씩(debt_detail)은 싣지 않는다 — 다시 세는 데 분류 합이면 족하다.
@@ -329,6 +334,221 @@ def _latest_fundamentals(
             ),
         }
     return summary, source
+
+
+BRIDGE_INCOME_METRICS = ("revenue", "gross_profit", "operating_income", "net_income")
+BRIDGE_CASH_METRICS = ("ocf", "capex")
+BRIDGE_MAX_QUARTERS = 8
+
+
+def _month_end(year: int, month: int, day: int) -> dt.date:
+    """말일 기준으로 자른 날짜. 3월 31일의 3개월 뒤는 6월 30일이다."""
+    following = dt.date(year + month // 12, month % 12 + 1, 1)
+    last = (following - dt.timedelta(days=1)).day
+    return dt.date(year, month, min(day, last))
+
+
+def _next_quarter_end(day: dt.date) -> dt.date:
+    month = day.month + 3
+    return _month_end(day.year + (month - 1) // 12, (month - 1) % 12 + 1, day.day)
+
+
+def _pct_change(current: float | None, previous: float | None) -> float | None:
+    """변화율. 기준이 0 이하면 비우고 원값을 읽게 한다.
+
+    적자에서 흑자로 가는 변화를 백분율로 적으면 숫자는 나오지만 뜻이 없다
+    (-100 → +50 을 "+150%"로 적는 것). 원값이 같은 줄에 있으므로 지어내지 않는다.
+    """
+    if current is None or previous is None or previous <= 0:
+        return None
+    return round((current / previous - 1) * 100, 1)
+
+
+def _margin_pct(value: float | None, revenue: float | None) -> float | None:
+    if value is None or revenue is None or revenue <= 0:
+        return None
+    return round(value / revenue * 100, 1)
+
+
+def _quarter_index(entries: Any) -> dict[tuple[int, int], dict[str, Any]]:
+    index: dict[tuple[int, int], dict[str, Any]] = {}
+    if not isinstance(entries, list):
+        return index
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        fy, quarter = entry.get("fy"), entry.get("quarter")
+        value = _as_float(entry.get("val"))
+        if not isinstance(fy, int) or quarter not in (1, 2, 3, 4) or value is None:
+            continue
+        index[(fy, quarter)] = entry
+    return index
+
+
+def _earnings_bridge(
+    data: dict[str, Any], *, today: dt.date | None = None
+) -> dict[str, Any] | None:
+    """최근 8분기를 한 표로 접는다.
+
+    수집기는 8분기를 만들어 저장하는데 packet 은 TTM 네 숫자만 실어 보냈다.
+    그래서 분기 흐름을 보려면 모델이 DART 원문을 다시 뒤져야 했고, 근거의
+    절반이 이미 로컬에 있는데도 그랬다. 예산 때문에 압축은 필요하지만
+    **압축은 삭제가 아니라 변환이다** — raw 시계열 대신 분기당 한 줄로 접는다.
+
+    여기서 나오는 값은 전부 합·차·비율이다. 추세 판정은 모델의 몫이라
+    "가속"·"둔화" 같은 값은 만들지 않는다.
+    """
+    today = today or dt.date.today()
+    income = data.get("income_statement")
+    income = income if isinstance(income, dict) else {}
+    cash = data.get("quarters")
+    cash = cash if isinstance(cash, dict) else {}
+
+    series: dict[str, dict[tuple[int, int], dict[str, Any]]] = {}
+    absent: list[str] = []
+    for metric in BRIDGE_INCOME_METRICS:
+        entry = income.get(metric)
+        index = _quarter_index((entry or {}).get("quarters") if isinstance(entry, dict) else None)
+        series[metric] = index
+        if not index:
+            absent.append(metric)
+    for metric in BRIDGE_CASH_METRICS:
+        index = _quarter_index(cash.get(metric))
+        series[metric] = index
+        if not index:
+            absent.append(metric)
+
+    periods = sorted({key for index in series.values() for key in index})
+    if not periods:
+        return None
+    window = periods[-BRIDGE_MAX_QUARTERS:]
+
+    def value_of(metric: str, key: tuple[int, int]) -> float | None:
+        entry = series[metric].get(key)
+        return _as_float(entry.get("val")) if entry else None
+
+    rows: list[dict[str, Any]] = []
+    for key in window:
+        fy, quarter = key
+        previous = (fy, quarter - 1) if quarter > 1 else (fy - 1, 4)
+        year_ago = (fy - 1, quarter)
+        row: dict[str, Any] = {"period": f"{fy}Q{quarter}"}
+        end = next(
+            (
+                series[metric][key].get("end")
+                for metric in series
+                if key in series[metric] and series[metric][key].get("end")
+            ),
+            None,
+        )
+        if end:
+            row["end"] = end
+        for metric in BRIDGE_INCOME_METRICS + BRIDGE_CASH_METRICS:
+            value = value_of(metric, key)
+            if value is not None:
+                row[metric] = round(value, 2)
+        ocf, capex = value_of("ocf", key), value_of("capex", key)
+        if ocf is not None and capex is not None:
+            row["fcf"] = round(ocf - capex, 2)
+        revenue = value_of("revenue", key)
+        for metric, name in (
+            ("gross_profit", "gross_margin_pct"),
+            ("operating_income", "operating_margin_pct"),
+            ("net_income", "net_margin_pct"),
+        ):
+            margin = _margin_pct(value_of(metric, key), revenue)
+            if margin is not None:
+                row[name] = margin
+        for metric in ("revenue", "operating_income", "net_income"):
+            yoy = _pct_change(value_of(metric, key), value_of(metric, year_ago))
+            if yoy is not None:
+                row[f"{metric}_yoy_pct"] = yoy
+            qoq = _pct_change(value_of(metric, key), value_of(metric, previous))
+            if qoq is not None:
+                row[f"{metric}_qoq_pct"] = qoq
+        derived = [
+            metric
+            for metric in BRIDGE_INCOME_METRICS + BRIDGE_CASH_METRICS
+            if series[metric].get(key, {}).get("derived")
+        ]
+        if derived:
+            row["derived"] = derived
+        rows.append(row)
+
+    covered = data.get("period_end")
+    if not isinstance(covered, str):
+        covered = rows[-1].get("end")
+    elapsed: list[str] = []
+    try:
+        cursor = dt.date.fromisoformat(covered)
+    except (TypeError, ValueError):
+        cursor = None
+    while cursor:
+        cursor = _next_quarter_end(cursor)
+        if cursor > today:
+            break
+        elapsed.append(cursor.isoformat())
+
+    bridge: dict[str, Any] = {
+        "currency": data.get("currency"),
+        "covered_through": covered,
+        "quarter_ends_after_covered": elapsed,
+        "rows": rows,
+        "_role": (
+            "로컬 재무제표의 분기 시계열을 한 줄씩 접은 표다. 값은 자산 통화의 "
+            "원단위이고 백분율은 전부 산술이다 — 전년동기(yoy)·전분기(qoq) 대비 "
+            "변화율과 매출 대비 마진. 기준이 0 이하면 변화율은 비운다. "
+            "derived 로 표시된 항목은 실측이 아니라 복원값이다(4분기 = 연간 − "
+            "3분기 누계, 현금흐름 = 누계 차감). quarter_ends_after_covered 는 "
+            "covered_through 이후에 이미 끝난 결산 분기이며 그 실적은 이 표에 "
+            "없다. 추세 판정은 이 표에 없다 — 모델이 한다"
+        ),
+    }
+    if absent:
+        bridge["metrics_absent"] = absent
+        bridge["_metrics_absent_role"] = (
+            "로컬 스냅샷에 분기 시계열이 아예 없는 항목이다. 0 이 아니라 "
+            "결측이며, 이 항목으로 논지를 세우려면 공시 원문을 직접 읽어야 한다"
+        )
+    return bridge
+
+
+def _mark_bridge_disclosures(
+    bridge: dict[str, Any] | None, reporting_lag: dict[str, Any] | None
+) -> None:
+    """기준일 이후의 실적 공시를 표 옆에 붙인다.
+
+    로컬 TTM 영업이익 94.1조 vs 이미 공시된 179.0조 — 1.9배 차이가
+    `validation.optional_gaps` 한 줄에만 있었고 모델이 주의 깊게 읽어서 겨우
+    잡았다. 주의력에 의존하는 안전장치는 안전장치가 아니므로, 그 사실을
+    숫자를 읽는 자리로 옮긴다.
+    """
+    if not isinstance(bridge, dict) or not isinstance(reporting_lag, dict):
+        return
+    disclosures = reporting_lag.get("disclosures_after_local_period") or []
+    bridge["unreflected_result_disclosures"] = [
+        {
+            key: item.get(key)
+            for key in (
+                "form", "filing_date", "description",
+                "document_url", "accession_number",
+            )
+            if item.get(key)
+        }
+        for item in disclosures
+        if isinstance(item, dict)
+    ]
+    if not bridge["unreflected_result_disclosures"]:
+        return
+    elapsed = bridge.get("quarter_ends_after_covered") or []
+    bridge["_warning"] = (
+        f"이 표와 income_statement_ttm 은 {bridge.get('covered_through')} 까지의 "
+        f"재무제표다. 그 뒤로 결산 분기 {len(elapsed)}개가 끝났고 실적 관련 공시가 "
+        f"{len(bridge['unreflected_result_disclosures'])}건 나왔는데 그 숫자는 여기 "
+        "없다. TTM 을 최신 실적으로 읽으면 이미 공시된 분기가 통째로 빠진 값을 "
+        "최신으로 읽는 것이다 — document_url 의 원문을 열어 직접 반영한다. "
+        "잠정치는 감사받은 재무제표와 항목 정의가 다를 수 있으니 구분해 쓴다"
+    )
 
 
 def _filing_summary(
@@ -572,18 +792,29 @@ def _reporting_lag(
         and isinstance(item.get("report_date"), str)
         and item["report_date"] > period_end
     ]
+    # 공시는 **이미 끝난** 기간만 보고할 수 있다. 그래서 로컬 기준일 다음
+    # 분기말 전에 나온 실적 공시는 로컬 스냅샷이 이미 담은 분기(또는 그 이전)를
+    # 말하는 것이라 새 숫자가 아니다 — 3월 31일 기준 재무에 5월 8일 1분기
+    # 잠정실적을 "미반영 공시"로 세면 매 판단마다 없는 공백이 켜진다.
+    # 다음 분기말을 넘겨 나온 것만 로컬에 없는 기간을 담는다.
+    cutoff = period_end
+    try:
+        cutoff = _next_quarter_end(dt.date.fromisoformat(period_end)).isoformat()
+    except ValueError:
+        pass
     newer_disclosures = [
         {
             "form": item.get("form"),
             "filing_date": item.get("filing_date"),
             "description": item.get("description"),
             "document_url": item.get("document_url"),
+            "accession_number": item.get("accession_number"),
         }
         for item in events
         if isinstance(item, dict)
         and item.get("form") in RESULT_DISCLOSURE_FORMS
         and isinstance(item.get("filing_date"), str)
-        and item["filing_date"] > period_end
+        and item["filing_date"] > cutoff
     ]
     days_since = None
     try:
@@ -974,6 +1205,159 @@ def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+# 이 자산에서 무엇을 받을 수 있고 무엇을 못 받는가. 각 행은 넷 중 하나다 —
+# 값이 있다 / 등록했는데 아직 없다 / 이 자산에 등록하지 않았다 / 이 시장에
+# 수집기가 없다. 마지막 둘이 이 블록이 존재하는 이유다. 한국 종목은 수급·
+# 부문·정상화이익을 받는데 미국은 하나도 못 받았고, **그 사실이 packet 어디에도
+# 없어서** 모델은 그 입력이 이 회사에 원래 없는 것인지 이번에만 빠진 것인지
+# 구분할 수 없었다. 빈칸은 "해당 없음"으로 읽힌다.
+COVERAGE_NO_COLLECTOR = {
+    "forward_estimates": (
+        "컨센서스 수집기는 네이버 금융 기반이라 KR 전용이다. forward EPS·"
+        "성장률·목표주가가 필요하면 직접 조사해 sources 에 등록한다"
+    ),
+    "peer_multiples": (
+        "동일기준 peer 배수는 같은 컨센서스 수집기 위에서만 만들어진다. "
+        "미국 종목의 비교배수는 기준연도·주가시점이 같은지 직접 확인해야 한다"
+    ),
+    "segment_revenue": (
+        "부문별 매출 수집기는 DART 사업보고서 표 전용이다. 미국은 10-K/10-Q "
+        "원문에 있으므로 local_documents 를 `cio search` 로 읽는다"
+    ),
+    "flow": (
+        "종목별 투자자 수급·대차잔고는 한국거래소 공개 자료다. 미국에는 "
+        "같은 단위의 공개 경로가 없다"
+    ),
+    "inventory": (
+        "재고자산 시계열 수집기는 DART 재무제표 주석 전용이다. 미국은 "
+        "10-Q 원문에서 읽는다"
+    ),
+}
+
+
+def _data_coverage(
+    asset: dict[str, Any],
+    *,
+    structured_optional: dict[str, Any] | None = None,
+    fundamentals: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """무엇이 있고 무엇이 왜 없는지. 판정하지 않고 가용성만 센다."""
+    optional = structured_optional or {}
+    fundamentals = fundamentals or {}
+    enabled = set(asset.get("optional_collectors") or [])
+    market = asset.get("market")
+    is_kr = market == "KR"
+
+    def row(
+        key: str,
+        *,
+        registered: bool,
+        available_when: Any,
+        market_supported: bool,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        if not market_supported:
+            return {
+                "state": "NO_COLLECTOR_FOR_MARKET",
+                "note": COVERAGE_NO_COLLECTOR[key],
+            }
+        if not registered:
+            return {
+                "state": "NOT_REGISTERED",
+                "note": (
+                    "이 자산의 optional_collectors 에 없다. 필요하면 "
+                    "config/assets.json 에 등록한 뒤 `cio refresh <asset_id> "
+                    "--run --optional` 로 받는다"
+                ),
+            }
+        if not available_when:
+            return {
+                "state": "REGISTERED_NOT_COLLECTED",
+                "note": (
+                    "등록은 됐는데 산출물이 없거나 낡았다. "
+                    "`cio refresh <asset_id> --run --optional` 로 받는다"
+                ),
+            }
+        entry: dict[str, Any] = {"state": "AVAILABLE"}
+        if isinstance(available_when, dict) and available_when.get("as_of"):
+            entry["as_of"] = available_when["as_of"]
+        if note:
+            entry["note"] = note
+        return entry
+
+    coverage: dict[str, Any] = {
+        "forward_estimates": row(
+            "forward_estimates",
+            registered=is_kr,
+            available_when=optional.get("consensus"),
+            market_supported=is_kr,
+        ),
+        "peer_multiples": row(
+            "peer_multiples",
+            registered=bool(asset.get("peers")),
+            available_when=optional.get("peer_multiples"),
+            market_supported=is_kr,
+        ),
+        "segment_revenue": row(
+            "segment_revenue",
+            registered="KR_SEGMENTS" in enabled,
+            available_when=optional.get("segments"),
+            market_supported=is_kr,
+        ),
+        "flow_and_lending": row(
+            "flow",
+            registered=bool({"KR_FLOW", "KR_LENDING"} & enabled),
+            available_when=optional.get("kr_flow") or optional.get("kr_lending"),
+            market_supported=is_kr,
+        ),
+        "inventory": row(
+            "inventory",
+            registered="KR_INVENTORY" in enabled,
+            available_when=optional.get("kr_inventory"),
+            market_supported=is_kr,
+        ),
+        "normalized_earnings": row(
+            "forward_estimates",  # 시장 제한이 없어 이 자리는 쓰이지 않는다
+            registered="NORMALIZED_EARNINGS" in enabled,
+            available_when=optional.get("normalized_earnings"),
+            market_supported=True,
+        ),
+        "_role": (
+            "이 자산에서 받을 수 있는 입력의 가용성이다. NOT_REGISTERED 는 "
+            "등록하면 받을 수 있다는 뜻이고 NO_COLLECTOR_FOR_MARKET 은 "
+            "만들기 전에는 못 받는다는 뜻이다. **빈칸을 '해당 없음'으로 읽지 "
+            "말라** — 없는 입력이 결론을 바꿀 수 있으면 unknowns 에 적고, "
+            "계속 필요하면 research_requests 로 남긴다"
+        ),
+    }
+    values = fundamentals.get("values") or {}
+    shares = _as_float(values.get("shares_diluted"))
+    coverage["dilution"] = (
+        {
+            "state": "AVAILABLE",
+            "shares_diluted": shares,
+            "basis": fundamentals.get("eps_basis"),
+            "note": (
+                "현재 시점의 희석주식수 하나뿐이고 **주식수 추이는 없다** — "
+                "SBC·전환사채·유상증자로 몇 %씩 늘고 있는지는 이 packet 이 "
+                "답하지 못한다. 희석이 결론에 걸리면 원문에서 직접 읽는다"
+                + (
+                    ". eps_basis 가 DILUTED 가 아니면 희석 공시가 없어 "
+                    "기본주당이익으로 계산한 값이라 희석증권이 생기면 틀린다"
+                    if fundamentals.get("eps_basis") not in (None, "DILUTED")
+                    else ""
+                )
+            ),
+        }
+        if shares
+        else {
+            "state": "REGISTERED_NOT_COLLECTED",
+            "note": "재무 스냅샷에 희석주식수가 없다",
+        }
+    )
+    return coverage
+
+
 def _optional_collection_summaries(
     asset: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -1249,6 +1633,8 @@ def _attach_position_math(
     portfolio: dict[str, Any] | None,
     asset: dict[str, Any],
     price: float,
+    *,
+    include_add_ladder: bool = True,
 ) -> dict[str, Any] | None:
     """거래 원장 기반 산술을 보유 현황에 붙인다.
 
@@ -1330,7 +1716,9 @@ def _attach_position_math(
                 "denominators_krw", "_definitions", "_staleness",
             )
         } | {"_role": weight["_role"]}
-    if math_result.get("ladder"):
+    # 추가 수량별 사다리는 매수 질문의 눈금이다. 보유분을 어떻게 할지 묻는
+    # packet 에 실으면 묻지 않은 매수 계획이 답 옆에 놓인다.
+    if math_result.get("ladder") and include_add_ladder:
         portfolio["add_ladder"] = {
             "basis": math_result.get("ladder_basis"),
             "rungs": [
@@ -1361,12 +1749,104 @@ def _attach_position_math(
     }
 
 
+def _sell_block(
+    *,
+    held_quantity: float | None,
+    review_quantity: float | None,
+    target_quantity: float | None,
+    price: float,
+    fx: float | None,
+    cash: float,
+    total_at_review: float,
+    market: str,
+) -> dict[str, Any]:
+    """보유분을 어떻게 할지 묻는 질문의 산술.
+
+    매수 사다리를 만들지 않는다. **묻지 않은 질문에 답을 만들어 주면 모델은
+    그 답을 근거로 받아들인다** — 분할매도를 묻는 packet 이 803주 매수 계획을
+    싣고 나간 적이 있다.
+
+    수량을 사용자가 정하지 않았으면 여기서 정하지 않는다. 얼마를 팔지는
+    모델의 판단이고 PC 는 사용자가 말한 수량의 산술만 낸다.
+    """
+    errors: list[str] = []
+    quantity = review_quantity
+    basis = "USER_INPUT"
+    if quantity is None and target_quantity is not None:
+        basis = "DERIVED_FROM_TARGET"
+        quantity = (
+            held_quantity - target_quantity if held_quantity is not None else None
+        )
+        if held_quantity is not None and target_quantity >= held_quantity:
+            errors.append(
+                f"목표 잔여수량 {target_quantity}이 보유수량 {held_quantity} "
+                "이상이라 매도 수량이 나오지 않는다"
+            )
+            quantity = None
+    if quantity is None and target_quantity is None:
+        basis = "NOT_SPECIFIED"
+    if (
+        quantity is not None
+        and held_quantity is not None
+        and quantity > held_quantity + 1e-9
+    ):
+        errors.append(
+            f"검토 수량 {quantity}이 원장의 보유수량 {held_quantity}을 넘는다"
+        )
+        quantity = None
+    block: dict[str, Any] = {
+        "side": "SELL",
+        "held_quantity": held_quantity,
+        "review_quantity": quantity,
+        "review_quantity_basis": basis,
+        "_role": (
+            "사용자가 검토 중인 매도 수량의 산술이다. 얼마를 팔지는 모델이 "
+            "정하며 여기 있는 수량은 제안이 아니라 사용자가 말한 값이다. "
+            "review_quantity 가 null 이면 사용자가 수량을 정하지 않은 것이고, "
+            "PC 는 대신 정하지 않는다. 이 packet 에는 매수 예산이 없다"
+        ),
+        "_warning": "수수료·세금·슬리피지는 대금과 잔여 비중에서 제외했다",
+    }
+    if errors:
+        block["contract_errors"] = errors
+    if quantity is None or held_quantity is None:
+        return block
+    remaining = held_quantity - quantity
+    proceeds_asset = quantity * price
+    proceeds_krw = (
+        proceeds_asset * fx if market == "US" else proceeds_asset
+    ) if (market != "US" or fx is not None) else None
+    remaining_value_asset = remaining * price
+    remaining_value_krw = (
+        remaining_value_asset * fx if market == "US" else remaining_value_asset
+    ) if (market != "US" or fx is not None) else None
+    block["remaining_quantity"] = round(remaining, 6)
+    block["estimated_proceeds_krw"] = (
+        round(proceeds_krw, 2) if proceeds_krw is not None else None
+    )
+    block["exposure_after_krw"] = (
+        round(remaining_value_krw, 2) if remaining_value_krw is not None else None
+    )
+    block["post_trade_weight_total_assets_pct"] = (
+        round(remaining_value_krw / total_at_review * 100, 2)
+        if remaining_value_krw is not None and total_at_review > 0
+        else None
+    )
+    block["cash_after_krw"] = (
+        round(cash + proceeds_krw, 2) if proceeds_krw is not None else None
+    )
+    return block
+
+
 def _portfolio_summary(
     asset: dict[str, Any],
     *,
-    amount: float,
+    amount: float | None,
     amount_currency: str,
     price: float,
+    intent: str | None = None,
+    review_quantity: float | None = None,
+    target_quantity: float | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     path = KNOWLEDGE_DIR / "portfolio" / "holdings.csv"
     if not path.exists():
@@ -1405,9 +1885,18 @@ def _portfolio_summary(
         (row for row in rows if row.get("asset_id") == asset["asset_id"]), None
     )
     fx, fx_as_of = _fx_rate() if asset["market"] == "US" else (1.0, None)
+    family = _intent_family(
+        intent,
+        amount=amount,
+        review_quantity=review_quantity,
+        target_quantity=target_quantity,
+    )
     budget_krw: float | None
     budget_asset_currency: float | None
-    if amount_currency == "KRW":
+    if amount is None:
+        budget_krw = None
+        budget_asset_currency = None
+    elif amount_currency == "KRW":
         budget_krw = amount
         budget_asset_currency = (
             amount / fx if asset["market"] == "US" and fx else amount
@@ -1481,6 +1970,58 @@ def _portfolio_summary(
         if post_total > 0 and deployed_krw is not None
         else None
     )
+    exposure_after_krw = (
+        (value_at_review_krw or 0.0) + deployed_krw
+        if deployed_krw is not None
+        and (value_at_review_krw is not None or not held)
+        else None
+    )
+    buy_block = {
+        "side": "BUY",
+        "amount_krw": round(budget_krw, 2) if budget_krw is not None else None,
+        "estimated_quantity": round(quantity, 6) if quantity is not None else None,
+        "quantity_basis": (
+            "INTEGER_SHARES"
+            if asset["market"] == "KR"
+            else "FRACTIONAL_SHARES_ALLOWED"
+        ),
+        "estimated_deployed_krw": round(deployed_krw, 2)
+        if deployed_krw is not None
+        else None,
+        "estimated_unspent_budget_krw": round(budget_krw - deployed_krw, 2)
+        if budget_krw is not None and deployed_krw is not None
+        else None,
+        "funding_assumption": "기존 포트폴리오 현금에서 집행",
+        "sufficient_cash": sufficient_cash,
+        "cash_after_krw": round(cash - deployed_krw, 2)
+        if deployed_krw is not None
+        else None,
+        "exposure_after_krw": round(exposure_after_krw, 2)
+        if exposure_after_krw is not None
+        else None,
+        "post_trade_weight_total_assets_pct": round(post_weight, 2)
+        if post_weight is not None
+        else None,
+        "fx_krw_per_usd": round(fx, 4)
+        if asset["market"] == "US" and fx is not None
+        else None,
+        "fx_as_of": fx_as_of,
+        "_warning": "수수료·세금·슬리피지는 수량과 집행액에서 제외했다",
+    }
+    trade_block = (
+        buy_block
+        if family == "NEW_CAPITAL"
+        else _sell_block(
+            held_quantity=held_quantity,
+            review_quantity=review_quantity,
+            target_quantity=target_quantity,
+            price=price,
+            fx=fx,
+            cash=cash,
+            total_at_review=total_at_review,
+            market=asset["market"],
+        )
+    )
     return (
         {
             "available": True,
@@ -1523,40 +2064,7 @@ def _portfolio_summary(
                     "제약으로 작동한다"
                 ),
             },
-            "proposed_trade": {
-                "amount_krw": round(budget_krw, 2)
-                if budget_krw is not None
-                else None,
-                "estimated_quantity": round(quantity, 6)
-                if quantity is not None
-                else None,
-                "quantity_basis": (
-                    "INTEGER_SHARES"
-                    if asset["market"] == "KR"
-                    else "FRACTIONAL_SHARES_ALLOWED"
-                ),
-                "estimated_deployed_krw": round(deployed_krw, 2)
-                if deployed_krw is not None
-                else None,
-                "estimated_unspent_budget_krw": round(
-                    budget_krw - deployed_krw, 2
-                )
-                if budget_krw is not None and deployed_krw is not None
-                else None,
-                "funding_assumption": "기존 포트폴리오 현금에서 집행",
-                "sufficient_cash": sufficient_cash,
-                "cash_after_krw": round(cash - deployed_krw, 2)
-                if deployed_krw is not None
-                else None,
-                "post_trade_weight_total_assets_pct": round(post_weight, 2)
-                if post_weight is not None
-                else None,
-                "fx_krw_per_usd": round(fx, 4)
-                if asset["market"] == "US" and fx is not None
-                else None,
-                "fx_as_of": fx_as_of,
-                "_warning": "수수료·세금·슬리피지는 수량과 집행액에서 제외했다",
-            },
+            "proposed_trade": trade_block,
             "_role": "제약과 노출 계산일 뿐 투자 매력도 판정이 아니다",
         },
         source,
@@ -2297,6 +2805,34 @@ INTENTS = {
     "EXIT_REVIEW",
     "REBALANCE",
 }
+# 무엇을 입력으로 받고 무엇을 계산할 것인가. 두 갈래는 받는 것부터 다르다 —
+# 앞은 가격과 최대 투입예산, 뒤는 최신 보유수량과 검토 수량이다. 섞으면
+# 매도를 묻는 packet 이 매수 사다리를 만든다(실제로 그랬다).
+NEW_CAPITAL_INTENTS = {"NEW_BUY", "ADD"}
+EXISTING_POSITION_INTENTS = {"HOLD_REVIEW", "TRIM_REVIEW", "EXIT_REVIEW"}
+
+
+def _intent_family(
+    intent: str | None,
+    *,
+    amount: Any = None,
+    review_quantity: Any = None,
+    target_quantity: Any = None,
+) -> str:
+    """어느 계약으로 이 질문을 받을 것인가.
+
+    `REBALANCE` 만 사용자의 입력에서 갈래를 읽는다 — 비중 조절은 양방향이라
+    intent 만으로는 어느 쪽인지 알 수 없다. 다만 **양쪽을 동시에 싣지는
+    않는다.** 한 packet 이 매수 사다리와 매도 계산을 모두 갖고 있으면 어느
+    질문이었는지가 사라지고, 그 자리가 곧 우회로가 된다.
+    """
+    if intent in EXISTING_POSITION_INTENTS:
+        return "EXISTING_POSITION"
+    if intent == "REBALANCE":
+        if review_quantity is not None or target_quantity is not None:
+            return "EXISTING_POSITION"
+        return "NEW_CAPITAL"
+    return "NEW_CAPITAL"
 
 
 def _user_assertions(claims: list[str] | None) -> list[dict[str, Any]]:
@@ -2331,9 +2867,11 @@ def build_context(
     asset_id: str,
     *,
     price: float,
-    amount: float,
+    amount: float | None = None,
     amount_currency: str | None = None,
     intent: str | None = None,
+    review_quantity: float | None = None,
+    target_quantity: float | None = None,
     verbatim: str | None = None,
     claims: list[str] | None = None,
     save: bool = True,
@@ -2341,16 +2879,53 @@ def build_context(
     asset = get_asset(asset_id)
     amount_currency = (amount_currency or "KRW").upper()
     problems = []
+    position_problems: list[str] = []
     if intent is not None and intent not in INTENTS:
         problems.append(
             f"intent는 {' | '.join(sorted(INTENTS))} 중 하나여야 한다"
         )
+    intent = intent or "NEW_BUY"
+    family = _intent_family(
+        intent,
+        amount=amount,
+        review_quantity=review_quantity,
+        target_quantity=target_quantity,
+    )
     verbatim = (verbatim or "").strip() or None
     assertions = _user_assertions(claims)
     if not math.isfinite(price) or price <= 0:
         problems.append("price는 0보다 큰 유한한 숫자여야 한다")
-    if not math.isfinite(amount) or amount <= 0:
-        problems.append("amount는 0보다 큰 유한한 숫자여야 한다")
+    # 받는 입력이 갈래마다 다르다. 한쪽 입력을 다른 갈래에 허용하면 그 자리가
+    # 우회로가 된다 — 매도 질문에 예산을 실으면 매수 계산이 다시 살아난다.
+    if family == "NEW_CAPITAL":
+        if amount is None:
+            problems.append(
+                f"{intent}은 매수 예산이 필요하다 — --amount 로 최대 투입금액을 "
+                "준다"
+            )
+        elif not math.isfinite(amount) or amount <= 0:
+            problems.append("amount는 0보다 큰 유한한 숫자여야 한다")
+        if review_quantity is not None or target_quantity is not None:
+            problems.append(
+                f"{intent}은 매수 질문이라 검토 수량·목표 잔여수량을 받지 않는다"
+            )
+    else:
+        if amount is not None:
+            problems.append(
+                f"{intent}은 보유분을 어떻게 할지 묻는 질문이라 매수 예산을 "
+                "받지 않는다. 새 자금 판단이 필요하면 NEW_BUY·ADD 로 따로 묻는다"
+            )
+        if review_quantity is not None and target_quantity is not None:
+            problems.append(
+                "검토 수량과 목표 잔여수량 중 하나만 준다 — 둘이 다르면 어느 "
+                "쪽이 질문인지 알 수 없다"
+            )
+        for name, value in (
+            ("검토 수량", review_quantity),
+            ("목표 잔여수량", target_quantity),
+        ):
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                problems.append(f"{name}은 0보다 큰 유한한 숫자여야 한다")
     if amount_currency not in {"KRW", "USD"}:
         problems.append("amount_currency는 KRW 또는 USD만 지원한다")
     if asset["market"] == "KR" and amount_currency != "KRW":
@@ -2385,24 +2960,57 @@ def build_context(
         reporting_lag = _reporting_lag(fundamentals, filings)
         if reporting_lag and fundamentals:
             fundamentals["reporting_lag"] = reporting_lag
+            _mark_bridge_disclosures(
+                fundamentals.get("earnings_bridge"), reporting_lag
+            )
             if reporting_lag["newer_periodic_report_filed"]:
                 problems.append(
                     "재무 스냅샷보다 새 정기보고서가 이미 공시됐다 — "
                     "fundamentals를 다시 수집해야 한다"
                 )
             elif reporting_lag["disclosures_after_local_period"]:
+                pending = reporting_lag["disclosures_after_local_period"]
                 optional_gaps.append(
                     {
                         "task": f"fundamentals:{asset['asset_id']}",
                         "state": "SUPERSEDED_BY_DISCLOSURE",
                         "reason": (
                             "로컬 재무 기준일 이후에 실적 관련 공시가 "
-                            f"{len(reporting_lag['disclosures_after_local_period'])}건 "
-                            "나왔다. 다음 정기보고서 전까지 이 숫자가 최신이 "
-                            "아닐 수 있으니 공시 원문을 확인한다"
+                            f"{len(pending)}건 나왔다. 다음 정기보고서 전까지 "
+                            "이 숫자가 최신이 아닐 수 있으니 공시 원문을 확인한다"
                         ),
                     }
                 )
+                # 경고만으로는 fail-open 이다. 로컬 재무가 낡았다는 것을
+                # 알면서 그 공시의 **원문마저 없으면** 모델에게는 최신 실적을
+                # 확인할 경로가 packet 안에 하나도 없다. 실제로 삼성전자
+                # TTM 영업이익이 로컬 94.1조 vs 공시 179.0조로 1.9배 벌어진
+                # 채로 통과했다. 색인에 제목만 있는 것은 근거가 아니다.
+                stored = stored_filing_keys(asset["asset_id"])
+                unfetched = (
+                    [
+                        item
+                        for item in pending
+                        if not (
+                            (item.get("accession_number") or "") in stored
+                            or (item.get("document_url") or "") in stored
+                        )
+                    ]
+                    if stored is not None
+                    else []
+                )
+                if unfetched:
+                    problems.append(
+                        "로컬 재무보다 새 실적 공시가 있는데 그 원문이 없다 "
+                        + ", ".join(
+                            f"{item.get('filing_date')} "
+                            f"{item.get('description') or item.get('form')}"
+                            f"({item.get('accession_number') or ''})"
+                            for item in unfetched[:3]
+                        )
+                        + " — 받은 뒤 다시 만든다: "
+                        + fetch_hint(asset, unfetched[0])
+                    )
     calculation, calculation_source = _latest_calculation(
         asset,
         candidate_price=price,
@@ -2429,11 +3037,19 @@ def build_context(
     structured_optional, optional_sources = _optional_collection_summaries(asset)
     sources.extend(optional_sources)
     portfolio, source = _portfolio_summary(
-        asset, amount=amount, amount_currency=amount_currency, price=price
+        asset,
+        amount=amount,
+        amount_currency=amount_currency,
+        price=price,
+        intent=intent,
+        review_quantity=review_quantity,
+        target_quantity=target_quantity,
     )
     if source:
         sources.append(source)
-    ledger_source = _attach_position_math(portfolio, asset, price)
+    ledger_source = _attach_position_math(
+        portfolio, asset, price, include_add_ladder=(family == "NEW_CAPITAL")
+    )
     if ledger_source:
         sources.append(ledger_source)
     if asset["market"] == "US":
@@ -2519,8 +3135,10 @@ def build_context(
     if etf and etf.get("contract_errors"):
         problems.append("ETF 구성 스냅샷 계약 검증에 실패했다")
     proposed_trade = portfolio.get("proposed_trade") or {}
+    buying = proposed_trade.get("side") != "SELL"
     if (
         asset["market"] == "US"
+        and buying
         and proposed_trade
         and proposed_trade.get("amount_krw") is None
     ):
@@ -2537,13 +3155,39 @@ def build_context(
             }
         )
     if (
-        proposed_trade
+        buying
+        and proposed_trade
         and proposed_trade.get("estimated_quantity") is not None
         and proposed_trade["estimated_quantity"] <= 0
     ):
         problems.append("요청 금액으로 최소 1주를 매수할 수 없다")
 
+    # 수량 지시를 낼 수 있는가는 종목 관점을 세울 수 있는가와 다른 질문이다.
+    # 원장이 낡았으면 "이 종목은 비싸다"는 여전히 말할 수 있지만 "30주 중
+    # 10주를 팔아라"는 말할 수 없다 — 30주가 아직 30주인지 모르기 때문이다.
+    existing_position = portfolio.get("existing_position") or {}
+    if not portfolio.get("available"):
+        position_problems.append(
+            "보유 원장(knowledge/portfolio/holdings.csv)이 없거나 읽을 수 없다"
+        )
+    else:
+        for gap in optional_gaps:
+            if gap.get("task") == "portfolio:holdings":
+                position_problems.append(
+                    f"보유 원장이 최신이 아니다({gap.get('state')}) — {gap.get('reason')}"
+                )
+        if existing_position.get("held") and not existing_position.get("quantity"):
+            position_problems.append(
+                "원장에 보유는 있는데 수량이 없다. 수량 대조를 할 수 없다"
+            )
+        if family == "EXISTING_POSITION" and not existing_position.get("held"):
+            position_problems.append(
+                f"{intent}인데 원장에 이 자산의 보유가 없다. 질문과 원장이 다르다"
+            )
+    position_problems.extend(proposed_trade.get("contract_errors") or [])
+
     created_at = dt.datetime.now(KST).isoformat(timespec="seconds")
+    held_quantity_for_question = existing_position.get("quantity")
     request = {
         "asset_id": asset["asset_id"],
         "price": price,
@@ -2551,12 +3195,24 @@ def build_context(
         "amount": amount,
         "amount_currency": amount_currency,
         "as_of": created_at,
-        "intent": intent or "NEW_BUY",
+        "intent": intent,
+        "intent_family": family,
         "question": (
             "이 가격과 금액으로 매수하면 정해진 기간 안에 승리할 가능성이 있는가. "
             "기대수익, 선호 진입가, 손절가, 분할매도 시작가, 다시 물어볼 가격을 결정하라"
+            if family == "NEW_CAPITAL"
+            else (
+                f"보유 중인 {held_quantity_for_question}주를 이 가격에서 계속 들고 갈 "
+                "것인가, 줄일 것인가, 전량 정리할 것인가. 수량과 사유, 남는 보유분의 "
+                "손절가·분할매도 시작가·다시 물어볼 가격을 결정하라. "
+                "**이 질문에는 매수 예산이 실려 있지 않다** — 더 살 이유가 있으면 "
+                "그 근거를 thesis 에 남기고 새 자금 판단은 NEW_BUY·ADD 로 다시 묻는다"
+            )
         ),
     }
+    if family == "EXISTING_POSITION":
+        request["review_quantity"] = review_quantity
+        request["target_remaining_quantity"] = target_quantity
     if verbatim:
         request["verbatim"] = verbatim
     if assertions:
@@ -2611,9 +3267,11 @@ def build_context(
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
         # 2.1 positioning 강제 조건에 kr_lending 추가 / 2.2 필드 의미를 packet
-        # `_role` 로 옮기고 prompt 에는 규율만 남김. 프롬프트 본문이 바뀌면
-        # 반드시 올린다 — 같은 버전이 다른 규칙을 가리키면 모델 비교가 깨진다.
-        "prompt_version": "2.2",
+        # `_role` 로 옮기고 prompt 에는 규율만 남김 / 2.3 intent 갈래 분리,
+        # 준비상태 이분화, 주장-근거 결속(claim_kind·basis), 분기 브리지.
+        # 프롬프트 본문이 바뀌면 반드시 올린다 — 같은 버전이 다른 규칙을
+        # 가리키면 모델 비교가 깨진다.
+        "prompt_version": "2.3",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -2635,6 +3293,29 @@ def build_context(
             "status": "BLOCKED" if problems else "PASS",
             "problems": sorted(set(problems)),
             "optional_gaps": optional_gaps,
+            # 하나의 PASS 는 두 질문을 한 칸에 접는다. 종목 관점을 세울 수
+            # 있는가와 수량 지시를 낼 수 있는가는 요구하는 입력이 다르고,
+            # 하나로 접으면 원장이 낡아도 "PASS" 가 되어 매도 수량이 그대로
+            # 나간다. status 는 앞의 것이고 뒤의 것은 따로 센다.
+            "readiness": {
+                "security_view": {
+                    "status": "BLOCKED" if problems else "PASS",
+                    "problems": sorted(set(problems)),
+                },
+                "position_action": {
+                    "status": "BLOCKED" if position_problems else "PASS",
+                    "problems": sorted(set(position_problems)),
+                },
+                "_role": (
+                    "security_view 는 이 종목에 대한 관점을 세울 수 있는가이고 "
+                    "validation.status 와 같다. position_action 은 실제 수량 "
+                    "지시를 낼 수 있는가이며, BLOCKED 면 보유분에 대해 "
+                    "ADD·HOLD·TRIM·EXIT·NOT_APPLICABLE 을 낼 수 없다 — "
+                    "action.direction=UNDETERMINED 와 undetermined_reason="
+                    "NO_POSITION_DATA 로 답한다. 종목 관점(verdict·thesis·"
+                    "가격계획)은 그대로 낸다"
+                ),
+            },
             "meaning": "데이터·산술 준비 상태이며 투자 판정이 아니다",
         },
         "context": {
@@ -2658,6 +3339,11 @@ def build_context(
             "events": events,
             "etf": etf,
             "structured_optional": structured_optional,
+            "data_coverage": _data_coverage(
+                asset,
+                structured_optional=structured_optional,
+                fundamentals=fundamentals,
+            ),
             "portfolio": portfolio,
             "investor_policy": investor_policy,
             "prior_assessments": _memory_digest(
