@@ -5,7 +5,7 @@
   "corp_code": "00970453",
   "currency": "KRW",
   "period_end": "2026-03-31",
-  "created_at": "2026-08-03T16:01:12+09:00",
+  "created_at": "2026-08-07T11:30:01+09:00",
   "source": "opendart_fnlttSinglAcntAll",
   "fs_div": "CFS",
   "definitions": {
@@ -357,7 +357,7 @@
     },
     "net_income": {
       "tag": "ifrs-full_ProfitLoss",
-      "ttm": 177842598252.0,
+      "ttm": 180977076667.0,
       "quarters": [
         {
           "fy": 2024,
@@ -410,7 +410,7 @@
         {
           "fy": 2025,
           "quarter": 4,
-          "val": 36196362776.0,
+          "val": 39330841191.0,
           "derived": true,
           "end": "2025-12-31",
           "filed": null
@@ -497,7 +497,7 @@
     }
   },
   "share_count_cross_check": 11565295.0,
-  "raw_locator": "data/raw/dart/objects/2b12a753edd919581aa30b81bd0a484c7616899d9ebdcdc44ac8df19dd0a659b.json",
-  "raw_payload_sha256": "2b12a753edd919581aa30b81bd0a484c7616899d9ebdcdc44ac8df19dd0a659b",
-  "fundamentals_id": "FUND-e20f3672f79723cdea3a"
+  "raw_locator": "data/raw/dart/objects/21b6e478710c6a7b79d4d19b99a9662b53e7b27a73d85b0b8049c9dab7db5525.json",
+  "raw_payload_sha256": "21b6e478710c6a7b79d4d19b99a9662b53e7b27a73d85b0b8049c9dab7db5525",
+  "fundamentals_id": "FUND-cd92f4d1f54c46231523"
 }

@@ -259,6 +259,7 @@ def cmd_retire(args) -> int:
             reason=args.reason,
             include_live=args.all,
             confirm=args.confirm,
+            assessment_id=args.id,
         )
     except RetireError as exc:
         print(f"오류: {exc.message}", file=sys.stderr)
@@ -509,6 +510,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--all",
         action="store_true",
         help="계약을 통과하는 판단까지 전부 폐기",
+    )
+    retire_parser.add_argument(
+        "--id",
+        help=(
+            "판단 하나만 지목해 폐기한다 (살아 있는 것 포함). 새 판단이 "
+            "이미 저장된 뒤 옛 판단만 치울 때 쓴다"
+        ),
     )
     retire_parser.add_argument(
         "--confirm", action="store_true", help="실제로 옮긴다 (기본은 조회만)"

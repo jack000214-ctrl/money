@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "214150",
-  "collected_at": "2026-08-07T11:06:19+09:00",
+  "collected_at": "2026-08-07T11:30:15+09:00",
   "as_of": "2026-07-31",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
@@ -285,7 +285,7 @@
     },
     {
       "as_of": "2026-07-31",
-      "collected_at": "2026-08-07T11:06:19+09:00",
+      "collected_at": "2026-08-07T11:30:15+09:00",
       "rating": 4.0,
       "target_price": 71000.0,
       "eps": 2645.0,

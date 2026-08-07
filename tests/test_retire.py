@@ -120,6 +120,67 @@ class TestRetireRequiresReason(TempKnowledge):
             retire_module.retire("214450", reason="   ")
 
 
+class TestRetireOneOfMany(TempKnowledge):
+    """살아 있는 판단이 여럿일 때 하나만 찍어 폐기할 수 있어야 한다.
+
+    없으면 선택지가 둘뿐이다 — 전부(`--all`) 폐기하거나 손으로 파일을 옮기거나.
+    앞은 방금 기록한 새 판단까지 같이 버리고, 뒤는 폐기 기록이 남지 않는다.
+    실제로 그 자리에 걸렸다: 실적 공시로 오전 판단이 대체됐는데 새 판단이
+    이미 저장돼 있어 `--all` 을 쓸 수 없었다.
+    """
+
+    def setUp(self):
+        super().setUp()
+        original_root = retire_module.ROOT
+        retire_module.ROOT = Path(self.tmp.name)
+        self.addCleanup(setattr, retire_module, "ROOT", original_root)
+        self.add_assessment("214450", "CIO-old0000000000000000")
+        self.add_assessment("214450", "CIO-new0000000000000000")
+
+    def remaining(self):
+        state = retire_module.survey("214450")
+        return sorted(
+            row["assessment_id"]
+            for row in state["live"] + state["contract_failing"]
+        )
+
+    def test_targeting_one_leaves_the_other_alone(self):
+        result = retire_module.retire(
+            "214450",
+            reason="새 판단으로 대체됨",
+            assessment_id="CIO-old0000000000000000",
+            confirm=True,
+        )
+        self.assertEqual(
+            [row["assessment_id"] for row in result["moved"]],
+            ["CIO-old0000000000000000"],
+        )
+        self.assertEqual(self.remaining(), ["CIO-new0000000000000000"])
+
+    def test_without_an_id_both_would_go(self):
+        """지목이 없으면 둘 다 대상이다 — 그래서 지목이 필요하다."""
+        result = retire_module.retire("214450", reason="확인만")
+        self.assertEqual(len(result["would_retire"]), 2)
+
+    def test_dry_run_still_shows_only_that_one(self):
+        result = retire_module.retire(
+            "214450", reason="확인만", assessment_id="CIO-old0000000000000000"
+        )
+        self.assertFalse(result["confirmed"])
+        self.assertEqual(
+            [row["assessment_id"] for row in result["would_retire"]],
+            ["CIO-old0000000000000000"],
+        )
+        self.assertEqual(len(self.remaining()), 2)
+
+    def test_unknown_id_is_refused_rather_than_retiring_everything(self):
+        with self.assertRaises(retire_module.RetireError):
+            retire_module.retire(
+                "214450", reason="오타", assessment_id="CIO-typo", confirm=True
+            )
+        self.assertEqual(len(self.remaining()), 2)
+
+
 class TestMemoryDigest(TempKnowledge):
     def test_no_assessments_says_zero_not_silence(self):
         digest = context_module._memory_digest("214450")

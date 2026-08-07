@@ -152,11 +152,16 @@ def retire(
     reason: str,
     include_live: bool = False,
     confirm: bool = False,
+    assessment_id: str | None = None,
 ) -> dict[str, Any]:
-    """계약 미달 판단(또는 전부)을 폐기 보관소로 옮긴다.
+    """계약 미달 판단(또는 전부, 또는 지목한 하나)을 폐기 보관소로 옮긴다.
 
     `confirm=False` 면 아무것도 옮기지 않고 대상만 돌려준다. 판단 이력을
     지우는 것은 되돌리기 어려우므로 기본값을 실행이 아니라 조회로 둔다.
+
+    `assessment_id` 는 살아 있는 판단이 여럿일 때 하나만 찍는다. 없으면
+    선택지가 전부 폐기하거나 손으로 파일을 옮기는 것 둘뿐이고, 앞은 방금
+    기록한 판단까지 같이 버리며 뒤는 폐기 기록을 남기지 않는다.
     """
     reason = (reason or "").strip()
     if not reason:
@@ -165,9 +170,22 @@ def retire(
             "'그때 왜 버렸지'에 답할 수 있다"
         )
     state = survey(asset_id)
-    targets = list(state["contract_failing"])
-    if include_live:
-        targets += state["live"]
+    if assessment_id:
+        targets = [
+            row
+            for row in state["live"] + state["contract_failing"]
+            if row["assessment_id"] == assessment_id
+        ]
+        if not targets:
+            # 못 찾았을 때 조용히 0건으로 넘어가면 사용자는 폐기됐다고 믿는다.
+            raise RetireError(
+                f"{asset_id}에 {assessment_id} 판단이 없다. "
+                "`python3.13 -m cio retire <asset_id>` 로 ID를 확인한다"
+            )
+    else:
+        targets = list(state["contract_failing"])
+        if include_live:
+            targets += state["live"]
     if not confirm:
         return {
             **state,
