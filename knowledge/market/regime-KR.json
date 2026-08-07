@@ -1,6 +1,6 @@
 {
   "schema_version": "market-regime/2.0.0",
-  "collected_at": "2026-08-07T11:30:19+09:00",
+  "collected_at": "2026-08-07T13:11:35+09:00",
   "lookback_days": 500,
   "by_market": {
     "KR": {
@@ -16,17 +16,17 @@
           "symbol": "^KS11",
           "name": "KOSPI",
           "as_of": "2026-08-07",
-          "close": 6226.3599,
+          "close": 6240.5498,
           "high": 9114.5498,
-          "drawdown_pct": -31.69
+          "drawdown_pct": -31.53
         },
         {
           "symbol": "^KQ11",
           "name": "KOSDAQ",
           "as_of": "2026-08-07",
-          "close": 781.22,
+          "close": 781.55,
           "high": 1226.1801,
-          "drawdown_pct": -36.29
+          "drawdown_pct": -36.26
         }
       ],
       "volatility": {
@@ -38,7 +38,7 @@
         "percentile": 12.4,
         "in_score": false
       },
-      "worst_drawdown_pct": -36.29
+      "worst_drawdown_pct": -36.26
     }
   },
   "macro": {

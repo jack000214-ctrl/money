@@ -2,7 +2,7 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "214450",
   "symbol": "214450.KQ",
-  "collected_at": "2026-08-07T11:30:19+09:00",
+  "collected_at": "2026-08-07T13:11:35+09:00",
   "window": {
     "since": "2026-05-08",
     "until": "2026-08-06",
