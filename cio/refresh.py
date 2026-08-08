@@ -687,6 +687,38 @@ def _non_daily_reason(dates: list[str]) -> str | None:
     return None
 
 
+def _latest_ttm_period(data: dict[str, Any]) -> str | None:
+    """정상화 packet 이 실제로 덮는 마지막 분기.
+
+    순서를 믿지 않고 최대값을 고른다 — 정렬은 생성기의 약속이고, 여기서
+    확인하려는 것이 바로 그 생성기의 산출물이다.
+    """
+    periods = [
+        row.get("period_end")
+        for row in (data.get("ttm_series") or [])
+        if isinstance(row, dict) and isinstance(row.get("period_end"), str)
+    ]
+    return max(periods) if periods else None
+
+
+def _latest_fundamentals_period(asset_id: str) -> str | None:
+    """이 자산에 대해 지금 손에 있는 가장 최근 재무 스냅샷의 기준일.
+
+    파일명에서 읽는다. 파일명과 period_end 가 같다는 것은 FUNDAMENTALS 계약이
+    이미 강제하므로(위 분기 참조), 스냅샷을 전부 열지 않아도 된다.
+    """
+    pattern = re.compile(re.escape(asset_id) + r"-(\d{4}-\d{2}-\d{2})\.json$")
+    periods = [
+        match.group(1)
+        for candidate in (ROOT / "knowledge" / "fundamentals").glob(
+            f"{asset_id}-*.json"
+        )
+        for match in [pattern.search(candidate.name)]
+        if match
+    ]
+    return max(periods) if periods else None
+
+
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
     if task.capability == "PRICE":
         try:
@@ -1005,6 +1037,31 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         errors = event_contract_errors(data, asset)
         if errors:
             return errors[0]
+    if task.capability == "NORMALIZED_EARNINGS":
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "정상화 packet JSON을 읽을 수 없다"
+        asset_id = task.name.split(":", 1)[-1]
+        if data.get("instrument_id") != asset_id:
+            return "정상화 packet의 instrument_id가 요청 자산과 다르다"
+        covered = _latest_ttm_period(data)
+        if covered is None:
+            return "정상화 packet에 TTM 시계열이 없다"
+        available = _latest_fundamentals_period(asset_id)
+        # 수집 시각으로는 이 상태를 볼 수 없다. 실제로 이 저장소의 정상화
+        # packet 은 재무 스냅샷보다 **2분 늦게** 만들어졌으면서 데이터는 한
+        # 분기 적었다 — 시각만 보는 의존성 비교에는 최신으로 보인다.
+        #
+        # 낡은 정상화값은 틀린 값이 아니라 **오래된 값**이라 경고 없이 그대로
+        # 읽힌다. 실측으로 5.02배와 6.19배의 차이였고, 이 배수는 "지금 이익이
+        # 정상 대비 얼마나 부풀었나"라서 판단을 바꾼다.
+        if available is not None and covered < available:
+            return (
+                f"정상화 packet 이 재료보다 낡았다 — TTM 은 {covered} 까지인데 "
+                f"재무 스냅샷은 {available} 까지 있다. 다시 계산하지 않으면 "
+                "사이클 배수가 한 분기 전 값으로 읽힌다"
+            )
     if task.capability == "EARNINGS_CALENDAR":
         try:
             data = load_json(path)

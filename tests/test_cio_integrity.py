@@ -614,6 +614,99 @@ class TestRoutingContracts(unittest.TestCase):
         }
 
 
+class TestDerivedPacketFreshness(unittest.TestCase):
+    """파생 패킷이 재료보다 낡았는가.
+
+    이 검사가 생긴 이유가 있다. 이 저장소의 정상화 packet 은 재무 스냅샷보다
+    **2분 늦게** 만들어졌으면서 데이터는 한 분기 적었다 — 수집 시각만 비교하는
+    의존성 검사에는 최신으로 보인다. 그래서 확인할 것은 시각이 아니라
+    **덮는 기간**이다.
+
+    낡은 정상화값은 틀린 값이 아니라 오래된 값이라 경고 없이 그대로 읽힌다.
+    실측으로 5.02배와 6.19배의 차이였고, 이 배수는 "지금 이익이 정상 대비
+    얼마나 부풀었나"라서 판단을 바꾼다.
+    """
+
+    def task(self, asset_id="000660"):
+        return RefreshTask(
+            name=f"normalized:{asset_id}",
+            capability="NORMALIZED_EARNINGS",
+            artifact="unused",
+            max_age_hours=720,
+            command=None,
+        )
+
+    def packet(self, asset_id, *periods):
+        return {
+            "instrument_id": asset_id,
+            "ttm_series": [{"period_end": p, "fcf_ttm": 1.0} for p in periods],
+        }
+
+    def check(self, packet, fundamentals_periods, asset_id="000660"):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "knowledge" / "fundamentals").mkdir(parents=True)
+            for period in fundamentals_periods:
+                (root / "knowledge" / "fundamentals"
+                 / f"{asset_id}-{period}.json").write_text("{}", encoding="utf-8")
+            path = root / "packet.json"
+            path.write_text(json.dumps(packet), encoding="utf-8")
+            with patch("cio.refresh.ROOT", root):
+                return _artifact_contract_error(self.task(asset_id), path)
+
+    def test_a_packet_that_lags_its_source_is_reported(self):
+        error = self.check(
+            self.packet("000660", "2025-09-30", "2025-12-31"), ["2026-03-31"]
+        )
+        self.assertIn("재료보다 낡았다", error)
+        self.assertIn("2025-12-31", error)
+        self.assertIn("2026-03-31", error)
+
+    def test_a_packet_level_with_its_source_passes(self):
+        self.assertIsNone(self.check(
+            self.packet("000660", "2025-12-31", "2026-03-31"), ["2026-03-31"]
+        ))
+
+    def test_a_packet_ahead_of_its_source_is_not_flagged(self):
+        """재무 스냅샷을 안 받고 정상화만 돌린 경우다. 낡음은 아니다."""
+        self.assertIsNone(self.check(
+            self.packet("000660", "2026-06-30"), ["2026-03-31"]
+        ))
+
+    def test_no_fundamentals_on_hand_means_nothing_to_compare(self):
+        self.assertIsNone(self.check(self.packet("000660", "2025-12-31"), []))
+
+    def test_another_assets_snapshots_do_not_count(self):
+        """005930 의 최신 분기가 000660 을 낡았다고 만들면 안 된다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "knowledge" / "fundamentals").mkdir(parents=True)
+            for name in ("005930-2026-03-31.json", "000660-2025-12-31.json"):
+                (root / "knowledge" / "fundamentals" / name).write_text(
+                    "{}", encoding="utf-8")
+            path = root / "packet.json"
+            path.write_text(json.dumps(
+                self.packet("000660", "2025-12-31")), encoding="utf-8")
+            with patch("cio.refresh.ROOT", root):
+                self.assertIsNone(_artifact_contract_error(self.task(), path))
+
+    def test_an_empty_series_is_a_defect_not_a_pass(self):
+        self.assertIn("TTM 시계열이 없다",
+                      self.check({"instrument_id": "000660",
+                                  "ttm_series": []}, ["2026-03-31"]))
+
+    def test_a_packet_for_the_wrong_asset_is_refused(self):
+        self.assertIn("instrument_id",
+                      self.check(self.packet("005930", "2026-03-31"),
+                                 ["2026-03-31"]))
+
+    def test_the_series_order_is_not_trusted(self):
+        """정렬은 생성기의 약속이고, 여기서 확인하려는 것이 그 생성기다."""
+        self.assertIsNone(self.check(
+            self.packet("000660", "2026-03-31", "2024-12-31"), ["2026-03-31"]
+        ))
+
+
 class TestMemoryDigest(unittest.TestCase):
     def test_digest_uses_created_time_context_price_and_latest_evaluation(self):
         with tempfile.TemporaryDirectory() as tmp:

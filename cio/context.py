@@ -15,8 +15,10 @@ from typing import Any
 
 from calculators.contracts import (
     ContractError,
+    change_pct,
     content_hash,
     load_json,
+    ratio_pct,
     stable_hash,
     validate_calculation,
     validate_fundamentals,
@@ -359,15 +361,20 @@ def _pct_change(current: float | None, previous: float | None) -> float | None:
     적자에서 흑자로 가는 변화를 백분율로 적으면 숫자는 나오지만 뜻이 없다
     (-100 → +50 을 "+150%"로 적는 것). 원값이 같은 줄에 있으므로 지어내지 않는다.
     """
-    if current is None or previous is None or previous <= 0:
-        return None
-    return round((current / previous - 1) * 100, 1)
+    result = change_pct(current, previous)
+    return None if result is None else round(result, 1)
 
 
 def _margin_pct(value: float | None, revenue: float | None) -> float | None:
-    if value is None or revenue is None or revenue <= 0:
-        return None
-    return round(value / revenue * 100, 1)
+    """분기 마진. 산술은 `ratio_pct` 에 맡기고 여기서는 자릿수만 정한다.
+
+    같은 규칙(분모가 0 이하면 값을 내지 않는다)을 두 번 구현하고 있었다. 지금은
+    두 구현이 일치하지만, 일치한다는 것은 확인해 봐야 아는 사실이지 유지되는
+    성질이 아니다 — 한쪽만 고치면 화면과 packet 이 다른 답을 내고 아무도
+    모른다.
+    """
+    result = ratio_pct(value, revenue)
+    return None if result is None else round(result, 1)
 
 
 def _quarter_index(entries: Any) -> dict[tuple[int, int], dict[str, Any]]:
@@ -1150,6 +1157,46 @@ def _estimate_rows(data: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _pct(value: float | None) -> float | None:
+    """packet 에 싣는 비율의 자릿수. 없으면 없는 채로 둔다.
+
+    `-8.132067439241252` 는 없는 정밀도를 주장하면서 자리만 먹는다. 원 데이터가
+    20 거래일 잔고 두 개인데 소수 15 자리가 나올 이유가 없다.
+    """
+    return None if value is None else round(value, 2)
+
+
+def _forward_multiple_row(asset_id: str, name: str | None) -> dict[str, Any]:
+    """컨센서스 파일 하나에서 선행 배수 한 줄. 없으면 available=False.
+
+    자신과 동종이 **같은 함수**를 지나야 한다. 기준연도·EPS 기준·PER 계산이
+    한 곳에서 나와야 "우리가 중앙값보다 싸다"가 성립한다.
+    """
+    path = KNOWLEDGE_DIR / "consensus" / f"{asset_id}.json"
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return {"asset_id": asset_id, "name": name, "available": False,
+                "forward_per": None}
+    annual = ((data.get("estimates") or {}).get("annual")) or []
+    forward = next((row for row in annual if not row["actual"]), None)
+    band = (data.get("estimates") or {}).get("per_band_actual") or {}
+    return {
+        "asset_id": asset_id,
+        "name": name,
+        "available": True,
+        "as_of": data.get("as_of"),
+        "forward_period": forward["period"] if forward else None,
+        "forward_per": forward["per"] if forward else None,
+        "forward_revenue_yoy_pct": (
+            forward["revenue_yoy_pct"] if forward else None
+        ),
+        "forward_roe_pct": forward["roe_pct"] if forward else None,
+        "per_band_actual_min": band.get("min"),
+        "per_band_actual_max": band.get("max"),
+    }
+
+
 def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
     """동종의 배수를 같은 소스·같은 방식으로 모아 비교한다.
 
@@ -1160,41 +1207,24 @@ def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
     peers = asset.get("peers") or []
     if not peers:
         return None
-    rows = []
-    for peer in peers:
-        path = KNOWLEDGE_DIR / "consensus" / f"{peer['asset_id']}.json"
-        if not path.exists():
-            rows.append({**peer, "available": False})
-            continue
-        try:
-            data = load_json(path)
-        except (ContractError, OSError):
-            rows.append({**peer, "available": False})
-            continue
-        annual = ((data.get("estimates") or {}).get("annual")) or []
-        forward = next((row for row in annual if not row["actual"]), None)
-        band = (data.get("estimates") or {}).get("per_band_actual") or {}
-        rows.append({
-            "asset_id": peer["asset_id"],
-            "name": peer["name"],
-            "available": True,
-            "as_of": data.get("as_of"),
-            "forward_period": forward["period"] if forward else None,
-            "forward_per": forward["per"] if forward else None,
-            "forward_revenue_yoy_pct": (
-                forward["revenue_yoy_pct"] if forward else None
-            ),
-            "forward_roe_pct": forward["roe_pct"] if forward else None,
-            "per_band_actual_min": band.get("min"),
-            "per_band_actual_max": band.get("max"),
-        })
+    rows = [_forward_multiple_row(peer["asset_id"], peer["name"])
+            for peer in peers]
     usable = [row["forward_per"] for row in rows if row.get("forward_per")]
+    median = round(statistics.median(usable), 2) if usable else None
+    # 자기 자신도 **같은 경로로** 읽는다. 동종만 이 함수를 지나고 자신은 다른
+    # 블록에서 오면 기준연도·주가시점이 달라져 비교가 성립하지 않는다.
+    subject = _forward_multiple_row(asset["asset_id"], asset.get("name"))
     return {
         "basis": "동일 수집기·동일 기준일의 컨센서스 추정",
+        "subject": subject,
         "peers": rows,
-        "forward_per_median": round(statistics.median(usable), 2)
-        if usable
-        else None,
+        "forward_per_median": median,
+        # 배수와 중앙값을 둘 다 실으면서 괴리를 빼면 모델이 직접 나눈다.
+        # 화면(`peer_kr`·`peer_us`)은 이미 이 값과 "중앙값보다 낮음/높음/근접"
+        # 라벨을 내고 있었다 — packet 에만 없었다.
+        "forward_per_vs_median_pct": _pct(
+            change_pct(subject["forward_per"], median)
+        ),
         "forward_per_min": min(usable) if usable else None,
         "forward_per_max": max(usable) if usable else None,
         "_warning": (
@@ -1407,6 +1437,17 @@ def _optional_collection_summaries(
                         and near.get("max")
                         and wide["max"] > near["max"]
                     ),
+                    # 건수만 실으면 8 건 하향이 8×-1% 인지 1×-40%+7×-2% 인지
+                    # 구분되지 않는다. 실제로 000660 은 건수로는 "약간 하향
+                    # 우위"(상향 6·하향 8)인데 실제 개정은 -35.7% 와 +171.4%
+                    # 였다 — 컨센서스의 완만한 이동이 아니라 **애널리스트들이
+                    # 갈라진 상태**이고, 그 사실이 통째로 사라졌다.
+                    #
+                    # 예전에는 "목표가 수준보다 방향이 정보를 담는다"를 근거로
+                    # 크기를 뺐다. 그러나 그것은 **어느 값이 판단에 중요한가**에
+                    # 대한 주장이고, 그 판단은 모델의 몫이다. 개정폭은 계산하면
+                    # 나오는 사실이므로 PC 는 실어 보내고, 무게를 정하는 일은
+                    # 모델에게 남긴다. 둘 합쳐 276 바이트다.
                     "revisions": {
                         key: revisions.get(key)
                         for key in (
@@ -1415,6 +1456,8 @@ def _optional_collection_summaries(
                             "raised",
                             "lowered",
                             "unchanged",
+                            "largest_raise",
+                            "largest_cut",
                         )
                     },
                     "estimates": _estimate_rows(data),
@@ -1500,6 +1543,12 @@ def _optional_collection_summaries(
                         if first is not None and last is not None
                         else None
                     ),
+                    # 주식수만 주고 변화율을 빼면 모델이 시작잔고를 역산해서
+                    # 직접 나눈다. **모델이 하는 산술은 검증되지 않은 산술**이고,
+                    # 화면은 이미 `change_pct` 로 같은 값을 내고 있다 — packet 에만
+                    # 없어서 판단이 화면을 읽어야 했다. 세 역할의 경계가 여기서
+                    # 샌다: 계산은 PC 가 하고 모델은 판단만 한다.
+                    "balance_change_pct": _pct(change_pct(last, first)),
                     "_role": (
                         "빌려가 아직 갚지 않은 주식 수. 공매도 잔고가 아니다 — "
                         "결제·차익거래·의결권 목적도 같은 숫자에 섞인다"
