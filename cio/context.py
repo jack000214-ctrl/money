@@ -2990,6 +2990,28 @@ def build_context(
         problems.append("amount_currency는 KRW 또는 USD만 지원한다")
     if asset["market"] == "KR" and amount_currency != "KRW":
         problems.append("한국 자산의 입력 금액은 KRW여야 한다")
+    # 유한하지 않은 값은 **packet 에 담길 수 없다.** JSON 에 nan·inf 가 없으므로
+    # 그대로 두면 수집을 다 마친 뒤 직렬화에서 죽고, 사용자가 보는 것은
+    # "Out of range float values are not JSON compliant" 뿐이다 — 위에서 만든
+    # "price는 0보다 큰 유한한 숫자여야 한다"는 그 packet 과 함께 사라진다.
+    #
+    # 0 이나 음수는 담기기는 하므로 BLOCKED packet 으로 돌려보낸다. 모델이
+    # 이유를 읽고 INSUFFICIENT 로 답할 수 있기 때문이다. 유한하지 않은 값은
+    # 돌려보낼 packet 자체가 없으므로 여기서 멈춘다.
+    unrepresentable = [
+        name
+        for name, value in (
+            ("price", price), ("amount", amount),
+            ("review_quantity", review_quantity),
+            ("target_quantity", target_quantity),
+        )
+        if isinstance(value, float) and not math.isfinite(value)
+    ]
+    if unrepresentable:
+        raise ContextError(
+            f"{', '.join(unrepresentable)}에 유한하지 않은 값이 들어왔다 — "
+            "packet 으로 만들 수 없다. " + (problems[0] if problems else "")
+        )
     sources: list[dict[str, Any]] = []
     optional_gaps: list[dict[str, Any]] = []
     price_summary, source = _price_summary(asset["price_symbol"])

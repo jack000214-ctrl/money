@@ -355,6 +355,8 @@ def _build_packet(
     portfolio=(),
     filings=None,
     stored_keys=None,
+    price_value=300_000.0,
+    amount_currency="KRW",
 ):
     """수집물은 고정하고 intent 경로만 본다."""
     price = {
@@ -430,9 +432,9 @@ def _build_packet(
     ):
         packet, _path = build_context(
             "214450",
-            price=300_000.0,
+            price=price_value,
             amount=amount,
-            amount_currency="KRW",
+            amount_currency=amount_currency,
             intent=intent,
             review_quantity=review_quantity,
             target_quantity=target_quantity,
