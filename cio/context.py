@@ -66,6 +66,17 @@ CONTEXT_SCHEMA = "cio-context/1.0.0"
 # 무엇을 먼저 버릴지 정하는 규율이 유지된다.
 MAX_CONTEXT_JSON_BYTES = 80_000
 
+# 예산이 지켜지는 진짜 이유. 판단은 계속 쌓이지만 packet 에 실리는 것은 최근
+# 몇 건뿐이라 `prior_assessments` 가 상한을 갖고, 그래서 다른 섹션이 다 차도
+# packet 은 예산 안에 머문다. 실측으로 가장 큰 packet 에 이 상한만큼 판단을
+# 채워도 54,240 바이트(예산의 68%)였다.
+#
+# 예전에는 `assessments[-3:]` 이라는 리터럴로 함수 안에 묻혀 있었다. 예산
+# 안전성 전체가 이 숫자에 걸려 있는데 이름도 근거도 없으면, 늘리는 사람은
+# 자기가 무엇을 건드리는지 모른다 — 늘린 순간 트리머가 처음으로 돌고, 그
+# 경로는 무효화 신호를 버린다.
+MAX_LIVE_ASSESSMENTS = 3
+
 
 class ContextError(ValueError):
     pass
@@ -2551,7 +2562,7 @@ def _memory_digest(
         ):
             evaluations[data["assessment_id"]] = data
 
-    selected = assessments[-3:]
+    selected = assessments[-MAX_LIVE_ASSESSMENTS:]
     result = []
     for index, (data, context) in enumerate(selected):
         request = context.get("request") or {}
@@ -3428,9 +3439,23 @@ def build_context(
     )
     compact_size = _compact_size(packet)
     if compact_size > MAX_CONTEXT_JSON_BYTES:
+        # 여기까지 왔다는 것은 트리머가 이미 다 돌고도 못 맞췄다는 뜻이다.
+        # 그 사실을 말하지 않으면 "packet 이 크다"로만 읽히고, 무엇을 줄여야
+        # 하는지 알 수 없다 — 트리머가 손댈 수 있는 것은 이미 다 버린 뒤다.
+        # packet 은 저장하지 않으므로 버린 내용이 남지는 않는다.
+        dropped = next(
+            (gap.get("trimmed") or []
+             for gap in packet["validation"]["optional_gaps"]
+             if gap.get("state") == "TRIMMED_FOR_BUDGET"),
+            [],
+        )
         raise ContextError(
             f"context packet이 {compact_size} bytes로 제한 "
             f"{MAX_CONTEXT_JSON_BYTES} bytes를 넘었다"
+            + (f" — 트리머가 {', '.join(dropped)} 를 버리고도 모자랐다. "
+               "packet 은 저장하지 않았다"
+               if dropped else
+               " — 트리머가 버릴 수 있는 항목이 없었다")
         )
     path = None
     if save:
