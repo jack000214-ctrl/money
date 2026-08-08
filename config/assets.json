@@ -222,6 +222,39 @@
       ],
       "filing_source": "DART",
       "filing_profile": "DART_KIFRS"
+    },
+    "000660": {
+      "name": "SK하이닉스",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "000660.KS",
+      "sector_code": "TECH_SEMICONDUCTORS",
+      "industry": "메모리 반도체(DRAM·HBM·NAND)",
+      "analysis_lens": "SEMICONDUCTOR_CYCLE",
+      "valuation_family": [
+        "NORMALIZED_CYCLE",
+        "DCF"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [
+        "KR_FLOW",
+        "KR_LENDING",
+        "KR_INVENTORY",
+        "NORMALIZED_EARNINGS",
+        "KR_SEGMENTS"
+      ],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS",
+      "peers": [
+        {
+          "asset_id": "005930",
+          "name": "삼성전자"
+        }
+      ]
     }
   }
 }

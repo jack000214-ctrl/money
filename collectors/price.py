@@ -12,7 +12,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,6 +50,34 @@ def _stable(value):
     if not isinstance(value, (int, float)):
         return value
     return float(f"%.{ADJUSTED_CLOSE_SIGNIFICANT_DIGITS}g" % value)
+
+
+# 이 파일이 저장하는 것은 일봉이며, 그것이 하류 계약의 전제다. 변동성·이동평균·
+# 거래량 배수·급변 판정이 전부 한 행 = 하루를 가정한다.
+DAILY_GRANULARITY = "1d"
+
+# 일봉의 행 간격 중앙값. 주말이 끼면 3일, 연휴가 끼면 더 벌어지지만 중앙값은
+# 1~2일에 머문다. 주봉(7)과 월봉(30)은 이 문턱 위에 있다.
+MAX_DAILY_GAP_DAYS = 4
+
+
+def granularity(meta: dict, rows: list[dict]) -> str:
+    """이 응답이 실제로 일봉인가.
+
+    `meta.dataGranularity` 가 있으면 그것이 권위다. 없으면 행 간격의 중앙값으로
+    센다. 관측이 한 행뿐이면 간격이 없으므로 `UNKNOWN` 이다 — 모르는 것을
+    일봉으로 단정하지 않고, 아래 `fetch` 도 모른다는 이유로 막지 않는다.
+    막는 것은 **일봉이 아님이 확인된** 경우뿐이다.
+    """
+    declared = meta.get("dataGranularity")
+    if isinstance(declared, str) and declared:
+        return declared
+    if len(rows) < 2:
+        return "UNKNOWN"
+    days = [date.fromisoformat(row["date"]) for row in rows]
+    gaps = sorted((days[i] - days[i - 1]).days for i in range(1, len(days)))
+    median_gap = gaps[len(gaps) // 2]
+    return DAILY_GRANULARITY if median_gap <= MAX_DAILY_GAP_DAYS else f"{median_gap}d"
 
 
 def session_state(meta: dict, last_date: str) -> str:
@@ -157,7 +185,21 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         )
     if not rows:
         fail(f"{symbol}: 유효한 가격 행이 없다")
-    return result.get("meta") or {}, rows
+
+    # Yahoo 는 interval=1d 로 요청해도 range 가 크면 조용히 봉을 굵게 만든다
+    # (range=max → dataGranularity=1mo). 그대로 저장하면 2,447행짜리 일봉
+    # 파일이 320행짜리 월봉으로 덮이는데 헤더에는 그 사실이 남지 않는다.
+    # 실제로 그랬고, 그 뒤의 변동성·이동평균·급변 판정은 전부 월봉 위에서
+    # 조용히 계산된다. 저장 전에 여기서 멈춰야 파일이 오염되지 않는다.
+    meta = result.get("meta") or {}
+    actual = granularity(meta, rows)
+    if actual not in (DAILY_GRANULARITY, "UNKNOWN"):
+        fail(
+            f"{symbol}: 일봉을 요청했는데 {actual} 봉이 왔다 (range={range_name}). "
+            "Yahoo 는 긴 range 에서 interval 을 조용히 낮춘다 — 저장하지 않고 "
+            "멈춘다. 긴 이력이 필요하면 --range 10y 를 쓴다"
+        )
+    return meta, rows
 
 
 def save(symbol: str, meta: dict, rows: list[dict]) -> Path:

@@ -29,6 +29,7 @@ import json
 import re
 import statistics
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -352,21 +353,62 @@ def merge_history(path: Path, packet: dict) -> dict:
     return packet
 
 
+ABSENT = "—"
+
+# 연도별 표의 열 — 이름, 칸 너비, 서식, 단위, packet 의 키.
+# 폭은 조 단위 회사 기준이다. SK하이닉스 2027년 추정 매출이 5,017,411(억원)
+# 이라 9자리를 쓴다. 좁게 잡으면 값이 넘쳐 옆 칸과 붙어 읽을 수 없다.
+ESTIMATE_COLUMNS = (
+    ("매출", 11, ",.0f", "", "revenue_100m"),
+    ("YoY", 8, ".1f", "%", "revenue_yoy_pct"),
+    ("영업익", 11, ",.0f", "", "operating_income_100m"),
+    ("EPS", 10, ",.0f", "", "eps"),
+    ("PER", 7, ".1f", "", "per"),
+    ("ROE", 7, ".1f", "%", "roe_pct"),
+)
+PERIOD_COLUMN_WIDTH = 11
+
+
+def display_width(text: str) -> int:
+    """터미널이 차지하는 칸 수. 한글은 두 칸인데 len 은 1 이라 헤더가 밀린다."""
+    return sum(
+        2 if unicodedata.east_asian_width(char) in "WF" else 1 for char in text
+    )
+
+
+def pad(text: str, width: int) -> str:
+    return " " * max(0, width - display_width(text)) + text
+
+
+def cell(value, width: int, spec: str = "", unit: str = "") -> str:
+    """숫자 한 칸. **없는 값을 0 으로도 크래시로도 바꾸지 않는다.**
+
+    출처 표는 칸을 자주 비운다 — 적자 연도에는 PER 이 없고, 첫 연도에는 전년
+    대비가 없으며, 열이 하나 밀리면 파서가 None 을 채운다. 예전에는 이 자리에서
+    TypeError 가 났고 packet 은 정상 저장됐는데 refresh 는 FAILED 로 보고했다.
+    0 으로 채우는 것은 더 나쁘다 — '적자라 PER 이 없다'가 'PER 0배'로 읽힌다.
+    """
+    if value is None:
+        return ABSENT.rjust(width)
+    return (format(value, spec) + unit).rjust(width)
+
+
 def show(packet: dict) -> None:
     summary = packet["summary"]
     dispersion = packet["dispersion"]
     revisions = packet["revisions"]
     print(f"{packet['asset_id']} 컨센서스 — 기준 {packet['as_of']}")
-    print(f"  투자의견 {summary['rating']} · 추정기관 "
-          f"{summary['institution_count']}곳")
-    print(f"  목표주가 컨센서스 {summary['target_price']:,.0f}원 "
+    print(f"  투자의견 {summary['rating'] if summary['rating'] is not None else ABSENT}"
+          f" · 추정기관 "
+          f"{summary['institution_count'] if summary['institution_count'] is not None else ABSENT}곳")
+    print(f"  목표주가 컨센서스 {cell(summary['target_price'], 0, ',.0f')}원 "
           f"(출처 평균, 최근 3개월)")
     for label, key in (("전체 3개월", "consensus_window"), ("최근 30일", "recent")):
         window = dispersion[key]
         if not window["count"]:
             continue
         print(f"    {label:<9} {window['count']:>2}곳 "
-              f"{window['min']:>9,.0f} ~ {window['max']:>9,.0f} "
+              f"{cell(window['min'], 9, ',.0f')} ~ {cell(window['max'], 9, ',.0f')} "
               f"(스프레드 {window['spread_pct']}%) "
               f"{window['oldest']}~{window['newest']}")
     wide, near = dispersion["consensus_window"], dispersion["recent"]
@@ -376,18 +418,22 @@ def show(packet: dict) -> None:
     estimates = packet.get("estimates") or {}
     if estimates.get("annual"):
         print("\n  연도별 실적·추정 (억원)")
-        print(f"    {'연도':<10}{'매출':>9}{'YoY':>8}{'영업익':>9}"
-              f"{'EPS':>9}{'PER':>7}{'ROE':>7}")
+        print("    " + pad("연도", PERIOD_COLUMN_WIDTH)
+              + "".join(pad(name, width) for name, width, *_ in ESTIMATE_COLUMNS))
         for year in estimates["annual"]:
             mark = "A" if year["actual"] else "E"
-            print(f"    {year['period']}({mark}) {year['revenue_100m']:>8,.0f}"
-                  f"{year['revenue_yoy_pct']:>7.1f}%{year['operating_income_100m']:>9,.0f}"
-                  f"{year['eps']:>9,.0f}{year['per']:>7.1f}{year['roe_pct']:>6.1f}%")
+            print("    "
+                  + f"{year['period']}({mark})".ljust(PERIOD_COLUMN_WIDTH)
+                  + "".join(
+                      cell(year.get(key), width, spec, unit)
+                      for _name, width, spec, unit, key in ESTIMATE_COLUMNS
+                  ))
         band = estimates["per_band_actual"]
         if band["min"]:
             print(f"    확정 연도 PER 밴드 {band['min']:.1f} ~ {band['max']:.1f}배 "
                   f"(중앙 {band['median']:.1f}) — 멀티플 판단의 자체 앵커다")
-    print(f"  컨센서스 EPS {summary['eps']:,.0f}원 · PER {summary['per']}배")
+    print(f"  컨센서스 EPS {cell(summary['eps'], 0, ',.0f')}원 · "
+          f"PER {summary['per'] if summary['per'] is not None else ABSENT}배")
     print(f"\n  최근 {revisions['window_days']}일 개정 {revisions['observed']}건 — "
           f"상향 {revisions['raised']} / 하향 {revisions['lowered']} / "
           f"유지 {revisions['unchanged']}")
@@ -395,13 +441,15 @@ def show(packet: dict) -> None:
                        ("최대 하향", revisions["largest_cut"])):
         if row:
             print(f"    {label}: {row['broker']} "
-                  f"{row['prior_target_price']:,.0f} → "
-                  f"{row['target_price']:,.0f} ({row['change_pct']:+.2f}%)")
+                  f"{cell(row['prior_target_price'], 0, ',.0f')} → "
+                  f"{cell(row['target_price'], 0, ',.0f')} "
+                  f"({cell(row['change_pct'], 0, '+.2f')}%)")
     if len(packet.get("history", [])) > 1:
         print("\n  기준일별 컨센서스 추이")
         for row in packet["history"][-6:]:
-            print(f"    {row['as_of']}  목표 {row['target_price']:>10,.0f}  "
-                  f"EPS {row['eps']:>8,.0f}  기관 {row['institution_count']:>3}")
+            print(f"    {row['as_of']}  목표 {cell(row['target_price'], 10, ',.0f')}  "
+                  f"EPS {cell(row['eps'], 8, ',.0f')}  "
+                  f"기관 {cell(row['institution_count'], 3)}")
     print(f"\n※ {SOURCE_NOTE}")
 
 

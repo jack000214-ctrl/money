@@ -661,6 +661,32 @@ def _dart_filing_index_error(data: dict[str, Any], asset_id: str) -> str | None:
     return None
 
 
+# 일봉 행 간격의 중앙값 상한. 주말·연휴가 끼어도 중앙값은 1~2일에 머물고,
+# 주봉(7)·월봉(30)은 이 위에 있다. 표본이 적으면 판정하지 않는다 — 갓 상장한
+# 종목이나 백필 중인 파일을 간격 부족만으로 계약 위반으로 몰지 않는다.
+MAX_DAILY_GAP_DAYS = 4
+MIN_BARS_TO_JUDGE_GRANULARITY = 5
+
+
+def _non_daily_reason(dates: list[str]) -> str | None:
+    """가격 파일이 일봉이 아니면 그 사실을, 판정할 수 없으면 None 을 돌려준다."""
+    if len(dates) < MIN_BARS_TO_JUDGE_GRANULARITY:
+        return None
+    try:
+        days = [dt.date.fromisoformat(value) for value in dates]
+    except ValueError:
+        return "가격 파일의 날짜 열을 읽을 수 없다"
+    gaps = sorted((days[i] - days[i - 1]).days for i in range(1, len(days)))
+    median_gap = gaps[len(gaps) // 2]
+    if median_gap > MAX_DAILY_GAP_DAYS:
+        return (
+            f"가격 파일이 일봉이 아니다 — 행 간격 중앙값 {median_gap}일. "
+            "변동성·이동평균·급변 판정이 한 행 = 하루를 가정하므로 이대로는 "
+            "쓸 수 없다. collectors.price history 로 --range 10y 이하로 다시 받는다"
+        )
+    return None
+
+
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
     if task.capability == "PRICE":
         try:
@@ -669,14 +695,13 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
                 metadata_line = handle.readline().strip()
                 retrieval_line = handle.readline().strip()
                 session_line = handle.readline().strip()
-                header = next(
-                    csv.reader(
-                        line
-                        for line in handle
-                        if not line.lstrip().startswith("#")
-                    ),
-                    [],
+                body = csv.reader(
+                    line
+                    for line in handle
+                    if not line.lstrip().startswith("#")
                 )
+                header = next(body, [])
+                dates = [row[0] for row in body if row]
         except OSError:
             return "가격 파일을 읽을 수 없다"
         if first_line != "# schema_version price-series/2.1.0":
@@ -720,6 +745,12 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         }
         if not required_fields.issubset(set(header)):
             return "가격 v2 필수 열이 없다"
+        # 한 행 = 하루라는 것이 이 파일을 읽는 모든 계산의 전제다. 수집기가
+        # 월봉 저장을 막지만 그것은 앞으로 저장될 파일에만 걸린다 — 이미
+        # 디스크에 있는 파일은 여기서 걸러야 모델에 실려 나가지 않는다.
+        error = _non_daily_reason(dates)
+        if error:
+            return error
     if task.capability == "CONSENSUS":
         try:
             data = load_json(path)

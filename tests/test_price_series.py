@@ -487,5 +487,123 @@ class TestPriceConsumers(unittest.TestCase):
         self.assertIsNone(result["triggers"]["scale_out_start"])
 
 
+def chart_payload(timestamps, granularity=None):
+    """일봉 형태의 최소 Yahoo 응답. meta 의 granularity 는 선택이다."""
+    count = len(timestamps)
+    meta = {"currency": "KRW"}
+    if granularity is not None:
+        meta["dataGranularity"] = granularity
+    return {
+        "chart": {
+            "result": [
+                {
+                    "timestamp": list(timestamps),
+                    "meta": meta,
+                    "indicators": {
+                        "quote": [
+                            {
+                                "close": [100.0] * count,
+                                "high": [101.0] * count,
+                                "low": [99.0] * count,
+                                "volume": [10] * count,
+                            }
+                        ],
+                        "adjclose": [{"adjclose": [100.0] * count}],
+                    },
+                }
+            ],
+            "error": None,
+        }
+    }
+
+
+class TestDailyGranularityContract(unittest.TestCase):
+    """일봉을 요청했는데 월봉이 와도 그대로 저장되던 구멍.
+
+    Yahoo 는 interval=1d 로 요청해도 range 가 크면 조용히 봉을 굵게 만든다
+    (range=max → dataGranularity=1mo). 실제로 2,447행짜리 일봉 파일이
+    320행짜리 월봉으로 덮였고, 헤더에는 그 사실이 남지 않았다. 그 뒤의
+    변동성·이동평균·급변 판정은 전부 월봉 위에서 조용히 계산된다.
+    """
+
+    def fetch(self, payload):
+        with patch(
+            "collectors.price.urllib.request.urlopen",
+            return_value=FakeResponse(payload),
+        ):
+            return price.fetch("TEST", "max")
+
+    def test_declared_monthly_granularity_is_refused_before_saving(self):
+        payload = chart_payload(
+            [86400 * 30 * step for step in range(1, 13)], granularity="1mo"
+        )
+        with self.assertRaises(SystemExit):
+            self.fetch(payload)
+
+    def test_monthly_row_spacing_is_refused_when_meta_is_silent(self):
+        # meta 가 granularity 를 말해 주지 않아도 행 간격이 말해 준다.
+        payload = chart_payload([86400 * 30 * step for step in range(1, 13)])
+        with self.assertRaises(SystemExit):
+            self.fetch(payload)
+
+    def test_weekly_row_spacing_is_refused_too(self):
+        payload = chart_payload([86400 * 7 * step for step in range(1, 13)])
+        with self.assertRaises(SystemExit):
+            self.fetch(payload)
+
+    def test_daily_rows_with_weekend_gaps_still_pass(self):
+        # 주말·공휴일을 건너뛰어도 일봉이다. 중앙 간격으로 세는 이유다.
+        days = [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16]
+        payload = chart_payload([86400 * day for day in days], granularity="1d")
+        meta, rows = self.fetch(payload)
+        self.assertEqual(len(rows), len(days))
+        self.assertEqual(price.granularity(meta, rows), "1d")
+
+    def test_granularity_is_unknown_rather_than_guessed_from_one_bar(self):
+        self.assertEqual(price.granularity({}, [{"date": "2026-07-28"}]), "UNKNOWN")
+
+    def test_refresh_flags_a_price_file_that_is_not_daily(self):
+        # 이미 디스크에 있는 파일도 검사한다. 쓰기를 막는 것만으로는 사고
+        # 이전에 저장된 파일이 그대로 모델에 실려 나간다.
+        task = RefreshTask(
+            name="price:TEST",
+            capability="PRICE",
+            artifact="prices/TEST.csv",
+            max_age_hours=12,
+            command=None,
+        )
+        header = (
+            "# schema_version price-series/2.1.0\n"
+            "# symbol TEST / currency KRW\n"
+            "# retrieved_at 2026-07-28T00:00:00+00:00 / "
+            "source Yahoo Finance chart API\n"
+            "# last_bar 2026-07-28 / session SETTLED\n"
+            "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n"
+        )
+        monthly = "".join(
+            f"2026-{month:02d}-01,100,100,1,101,99,1\n" for month in range(1, 8)
+        ) + "2026-07-28,100,100,1,101,99,1\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            now = dt.datetime(2026, 7, 28, 1, tzinfo=dt.timezone.utc)
+            path = root / "prices" / "TEST.csv"
+            path.parent.mkdir(parents=True)
+            path.write_text(header + monthly, encoding="utf-8")
+            with patch("cio.refresh.ROOT", root):
+                checked = inspect_task(task, now=now)
+            self.assertEqual(checked.state, "STALE")
+            self.assertIn("일봉", checked.reason)
+
+            daily = "".join(
+                f"2026-07-{day:02d},100,100,1,101,99,1\n"
+                for day in (13, 14, 15, 16, 17, 20, 21, 28)
+            )
+            path.write_text(header + daily, encoding="utf-8")
+            task.state = "UNKNOWN"
+            task.reason = None
+            with patch("cio.refresh.ROOT", root):
+                self.assertEqual(inspect_task(task, now=now).state, "FRESH")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -5,9 +5,11 @@
 그 실수를 대신 저지르면 안 된다.
 """
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from collectors import consensus
@@ -124,6 +126,102 @@ class TestHistory(unittest.TestCase):
                 [row["as_of"] for row in grown["history"]],
                 ["2026-07-28", "2026-08-04"],
             )
+
+
+class TestShowSurvivesMissingNumbers(unittest.TestCase):
+    """적자 연도에는 PER 이 없다. 그것이 표 전체를 지우면 안 된다.
+
+    실제로 SK하이닉스 2023년(영업손실)의 PER 이 null 이라 화면 함수가
+    TypeError 로 죽었고, packet 은 정상 저장됐는데 refresh 는 FAILED 로
+    보고했다. 없는 값은 크래시도 0 도 아니고 **없다고 보여야** 한다 —
+    0 으로 채우면 PER 밴드가 0 부터 시작한다.
+    """
+
+    def packet(self):
+        return {
+            "asset_id": "000660",
+            "as_of": "2026-08-03",
+            "summary": {
+                "rating": 4.0,
+                "target_price": 3322083.0,
+                "eps": None,
+                "per": None,
+                "institution_count": 24,
+            },
+            "dispersion": {
+                "consensus_window": {
+                    "count": 24, "min": 1480000.0, "max": 4700000.0,
+                    "median": 3300000.0, "mean": 3322083.0,
+                    "spread_pct": 217.57,
+                    "oldest": "2026-06-01", "newest": "2026-08-03",
+                },
+                "recent": {
+                    "count": 0, "min": None, "max": None, "median": None,
+                    "mean": None, "spread_pct": None,
+                    "oldest": None, "newest": None,
+                },
+            },
+            "revisions": {
+                "window_days": 90, "observed": 0, "raised": 0,
+                "lowered": 0, "unchanged": 0,
+                "largest_raise": None, "largest_cut": None,
+            },
+            "estimates": {
+                "annual": [
+                    {
+                        "period": "2023-12", "actual": True,
+                        "revenue_100m": 327657.0, "revenue_yoy_pct": None,
+                        "operating_income_100m": -77303.0, "eps": -12517.0,
+                        "per": None, "roe_pct": -15.61,
+                    },
+                    {
+                        "period": "2026-12", "actual": False,
+                        "revenue_100m": 3456048.0, "revenue_yoy_pct": 255.76,
+                        "operating_income_100m": 2663757.0, "eps": 345914.0,
+                        "per": 4.32, "roe_pct": 101.22,
+                    },
+                ],
+                "per_band_actual": {
+                    "years": 0, "min": None, "max": None, "median": None,
+                },
+            },
+            "history": [],
+        }
+
+    def render(self, packet):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            consensus.show(packet)
+        return buffer.getvalue()
+
+    def test_a_loss_year_without_per_does_not_kill_the_table(self):
+        text = self.render(self.packet())
+        self.assertIn("2023-12(A)", text)
+        self.assertIn("2026-12(E)", text)
+        self.assertIn("4.3", text)
+
+    def test_missing_numbers_render_as_absent_not_as_zero(self):
+        text = self.render(self.packet())
+        row = next(line for line in text.splitlines() if "2023-12(A)" in line)
+        self.assertIn("—", row)
+        # 0.0 으로 채우면 '적자라 PER 이 없다'가 'PER 0배'로 읽힌다.
+        self.assertNotIn("0.0", row.split("-77,303")[-1])
+
+    def test_summary_line_survives_a_missing_eps(self):
+        text = self.render(self.packet())
+        self.assertIn("컨센서스 EPS", text)
+
+    def test_estimates_row_shorter_than_the_contract_is_still_printed(self):
+        # 출처 표에 열이 하나 빠져 파서가 None 을 채운 경우다.
+        packet = self.packet()
+        packet["estimates"]["annual"][1] = {
+            "period": "2027-12", "actual": False,
+            "revenue_100m": None, "revenue_yoy_pct": None,
+            "operating_income_100m": None, "eps": None,
+            "per": None, "roe_pct": None,
+        }
+        text = self.render(packet)
+        self.assertIn("2027-12(E)", text)
 
 
 if __name__ == "__main__":
