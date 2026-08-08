@@ -1311,6 +1311,20 @@ def _data_coverage(
                     "--run --optional` 로 받는다"
                 ),
             }
+        # 수집기가 돌았고 "이 자산에서는 낼 수 없다"는 결론이 나온 경우다.
+        # 안 받은 것과 구분하지 않으면, 다시 돌려도 같은 결과인데 packet 은
+        # 계속 "받으면 된다"고 말하고 모델은 그 요청을 반복한다.
+        if isinstance(available_when, dict) and available_when.get(
+            "available"
+        ) is False:
+            return {
+                "state": "COLLECTOR_FOUND_NOTHING",
+                "note": (
+                    "수집기를 돌렸으나 이 자산에서 낼 수 없었다. 다시 돌려도 "
+                    "같으므로 재수집을 요청하지 않는다. 사유는 "
+                    "structured_optional 의 해당 항목에 있다"
+                ),
+            }
         if not available_when:
             return {
                 "state": "REGISTERED_NOT_COLLECTED",
@@ -1366,9 +1380,13 @@ def _data_coverage(
         "_role": (
             "이 자산에서 받을 수 있는 입력의 가용성이다. NOT_REGISTERED 는 "
             "등록하면 받을 수 있다는 뜻이고 NO_COLLECTOR_FOR_MARKET 은 "
-            "만들기 전에는 못 받는다는 뜻이다. **빈칸을 '해당 없음'으로 읽지 "
-            "말라** — 없는 입력이 결론을 바꿀 수 있으면 unknowns 에 적고, "
-            "계속 필요하면 research_requests 로 남긴다"
+            "만들기 전에는 못 받는다는 뜻이다. REGISTERED_NOT_COLLECTED 는 "
+            "아직 안 받았다는 뜻이라 refresh 로 채워지지만, "
+            "COLLECTOR_FOUND_NOTHING 은 **이미 돌렸고 낼 수 없었다**는 뜻이라 "
+            "다시 돌려도 같다 — 이 둘을 섞으면 채워지지 않을 것을 계속 "
+            "요청하게 된다. **빈칸을 '해당 없음'으로 읽지 말라** — 없는 입력이 "
+            "결론을 바꿀 수 있으면 unknowns 에 적고, 계속 필요하면 "
+            "research_requests 로 남긴다"
         ),
     }
     values = fundamentals.get("values") or {}
@@ -1612,7 +1630,28 @@ def _optional_collection_summaries(
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             data = None
-        if isinstance(data, dict) and data.get("latest_mix"):
+        if isinstance(data, dict) and data.get("available") is False:
+            # 표를 못 찾았다는 관측도 결과다. 이것을 싣지 않으면 packet 은
+            # "아직 안 받았다"로 읽고, 몇 번을 다시 돌려도 같은데 계속 받을 수
+            # 있는 것처럼 보인다.
+            summaries["segments"] = {
+                "available": False,
+                "absence": data.get("absence"),
+                "report": data.get("report_name"),
+                "single_segment_statement": data.get(
+                    "single_segment_statement"
+                ),
+                "_reason": data.get("_reason"),
+                "_retry_note": data.get("_retry_note"),
+                "_role": (
+                    "부문이 없다는 것도 관측이다. SINGLE_SEGMENT 는 회사가 그렇게 "
+                    "공시했다는 뜻이며 그 자체가 정보다 — 이 회사의 실적은 부문으로 "
+                    "쪼개 볼 수 없고, 제품군 비중은 부문 공시가 아니라 다른 근거로 "
+                    "찾아야 한다. NO_TABLE_FOUND 는 다르다: 우리가 못 읽은 것일 수 "
+                    "있으므로 결론이 부문에 걸리면 원문을 직접 본다"
+                ),
+            }
+        elif isinstance(data, dict) and data.get("latest_mix"):
             summaries["segments"] = {
                 "report": data.get("report_name"),
                 "period": data.get("latest_period"),

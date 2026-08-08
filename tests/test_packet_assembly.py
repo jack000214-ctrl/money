@@ -22,6 +22,7 @@ from unittest.mock import patch
 import helpers  # noqa: F401  (저장소 루트를 sys.path 에 올린다)
 from calculators.contracts import content_hash
 from calculators import position as position_module
+from collectors import kr_segments
 from cio import context
 from cio.context import ContextError
 
@@ -418,6 +419,171 @@ class TestEvidenceSnapshot(PacketPart):
         objects = self.knowledge / "evidence" / "objects"
         self.assertEqual([p.name for p in objects.iterdir()],
                          [f"{digest}.csv"])
+
+
+class TestUnavailableIsNotUncollected(PacketPart):
+    """돌렸는데 못 낸 것과 아직 안 받은 것은 다르다.
+
+    `kr_segments` 는 SK하이닉스에서 부문 표를 찾지 못한다. 예전에는 그 사실이
+    stderr 에만 찍히고 끝나서 파일이 안 생겼고, packet 은
+    `REGISTERED_NOT_COLLECTED` — "refresh 로 받는다"로 읽었다. 몇 번을 다시
+    돌려도 같은 결과인데 계속 받을 수 있는 것처럼 보였고, 모델은 그 요청을
+    반복하게 된다.
+
+    **단정하지는 않는다.** 수집기는 "단일 부문 회사"와 "표 형식이 다르다"를
+    구분하지 못한다. 아는 것은 "이 보고서에서 표를 특정하지 못했다"까지다.
+    """
+
+    ASSET = {"asset_id": "000660", "market": "KR", "asset_type": "STOCK",
+             "optional_collectors": ["KR_SEGMENTS"]}
+
+    def summaries(self, packet):
+        self.write("segments/000660.json", packet)
+        found, _sources = context._optional_collection_summaries(self.ASSET)
+        return found
+
+    def unavailable(self, **overrides):
+        data = {
+            "schema_version": "segment-summary/1.0.0",
+            "asset_id": "000660",
+            "available": False,
+            "report_name": "분기보고서 (2026.03)",
+            "_reason": "사업부문별 요약 표를 특정하지 못했다",
+            "_retry_note": "같은 보고서에 대해 다시 돌려도 결과는 같다",
+        }
+        data.update(overrides)
+        return data
+
+    def mix(self):
+        return {
+            "schema_version": "segment-summary/1.0.0",
+            "asset_id": "000660",
+            "report_name": "분기보고서 (2026.03)",
+            "latest_period": "2026-03",
+            "latest_mix": [{"name": "DS", "operating_income_share_pct": 93.8}],
+        }
+
+    def coverage(self, packet):
+        return context._data_coverage(
+            self.ASSET, structured_optional=self.summaries(packet),
+            fundamentals=None)["segment_revenue"]
+
+    def test_a_failed_lookup_still_reaches_the_packet(self):
+        block = self.summaries(self.unavailable())["segments"]
+        self.assertFalse(block["available"])
+        self.assertIn("표를 특정하지 못했다", block["_reason"])
+
+    def test_the_packet_says_retrying_will_not_help(self):
+        block = self.summaries(self.unavailable())["segments"]
+        self.assertIn("다시 돌려도", block["_retry_note"])
+
+    def test_the_state_is_not_the_one_that_means_go_collect_it(self):
+        self.assertEqual(self.coverage(self.unavailable())["state"],
+                         "COLLECTOR_FOUND_NOTHING")
+
+    def test_the_note_tells_the_model_not_to_request_it_again(self):
+        self.assertIn("재수집을 요청하지 않는다",
+                      self.coverage(self.unavailable())["note"])
+
+    def test_a_real_mix_is_still_available(self):
+        self.assertEqual(self.coverage(self.mix())["state"], "AVAILABLE")
+
+    def test_a_missing_file_still_means_go_collect_it(self):
+        """파일이 아예 없는 것은 여전히 '아직 안 받았다'이다."""
+        found, _sources = context._optional_collection_summaries(self.ASSET)
+        state = context._data_coverage(
+            self.ASSET, structured_optional=found,
+            fundamentals=None)["segment_revenue"]["state"]
+        self.assertEqual(state, "REGISTERED_NOT_COLLECTED")
+
+    def test_the_two_states_are_never_the_same(self):
+        """이 둘을 섞으면 채워지지 않을 것을 계속 요청하게 된다."""
+        self.assertNotEqual(self.coverage(self.unavailable())["state"],
+                            "REGISTERED_NOT_COLLECTED")
+
+
+class TestTheCollectorRecordsWhatItCouldNotFind(unittest.TestCase):
+    """수집기가 그 관측을 **만들어 내는지**.
+
+    packet 쪽만 검사하면 파일을 손으로 써 놓고 읽는 셈이라, 수집기가 다시
+    `fail()` 로 돌아가도 아무도 모른다. 실제로 그 변이를 넣어 보니 이 파일의
+    다른 테스트는 전부 통과했다.
+    """
+
+    FILING = {"accession_number": "20260515000123",
+              "description": "분기보고서 (2026.03)",
+              "filing_date": "2026-05-15", "report_date": "2026-03-31"}
+
+    def collect(self, table, document="<html/>"):
+        digest = "a" * 64
+        with patch.object(kr_segments, "_periodic_filing",
+                          return_value=self.FILING), \
+                patch.object(kr_segments, "_fetched_document",
+                             return_value=(document, Path(
+                                 f"data/raw/dart/objects/{digest}.json"))), \
+                patch.object(kr_segments, "find_segment_table",
+                             return_value=table), \
+                patch.object(kr_segments, "ROOT", Path(".")):
+            return kr_segments.collect("000660")
+
+    def test_a_missing_table_produces_a_record_not_an_exit(self):
+        packet = self.collect(None)
+        self.assertIs(packet["available"], False)
+
+    def test_the_record_names_the_report_it_looked_at(self):
+        """다음 정기보고서에서는 달라질 수 있으므로 어느 보고서인지가 남아야 한다."""
+        packet = self.collect(None)
+        self.assertEqual(packet["report_name"], "분기보고서 (2026.03)")
+        self.assertEqual(packet["rcept_no"], "20260515000123")
+
+    def test_without_a_declaration_it_does_not_guess(self):
+        """단일 부문이라는 공시가 없으면 표 형식이 바뀐 것일 수 있다."""
+        packet = self.collect(None)
+        self.assertEqual(packet["absence"], "NO_TABLE_FOUND")
+        self.assertIn("원문을 직접", packet["_reason"])
+        self.assertIsNone(packet["single_segment_statement"])
+
+    def test_a_declared_single_segment_is_a_fact_not_a_failure(self):
+        """K-IFRS 1108 은 단일 영업부문인 회사도 그 사실을 공시하게 한다.
+
+        추측할 필요가 없다 — 원문이 직접 말한다. 실제로 SK하이닉스 분기보고서에
+        그 문장이 있고, 그것을 읽지 않으면 "표가 없다"까지밖에 말하지 못한다.
+        """
+        packet = self.collect(None, document=(
+            "<p>4. 영업부문 (연결)</p>"
+            "<p>연결회사는 반도체 제품의 제조 및 판매의 단일영업부문으로 "
+            "구성되어 있습니다.</p>"))
+        self.assertEqual(packet["absence"], "SINGLE_SEGMENT")
+        self.assertIn("단일영업부문", packet["single_segment_statement"])
+
+    def test_the_declaration_is_quoted_rather_than_summarised(self):
+        """'단일 부문이다'만 남기면 우리 판정인지 회사의 공시인지 알 수 없다."""
+        packet = self.collect(None, document=(
+            "<p>연결회사는 반도체 제품의 제조 및 판매의 단일영업부문으로 "
+            "구성되어 있습니다.</p>"))
+        self.assertIn(packet["single_segment_statement"], packet["_reason"])
+
+    def test_a_single_segment_company_is_not_asked_to_retry(self):
+        packet = self.collect(None, document="<p>단일영업부문으로 구성됩니다.</p>")
+        self.assertIn("다시 받을 것이 없다", packet["_retry_note"])
+
+    def test_spacing_variants_of_the_declaration_are_recognised(self):
+        for text in ("단일 영업 부문", "하나의 영업부문", "단일 보고 부문"):
+            with self.subTest(text):
+                packet = self.collect(
+                    None, document=f"<p>회사는 {text}으로 구성되어 있습니다.</p>")
+                self.assertEqual(packet["absence"], "SINGLE_SEGMENT")
+
+    def test_the_record_points_at_the_raw_document(self):
+        """판단이 걸리면 원문을 열어야 하므로 위치가 남아야 한다."""
+        packet = self.collect(None)
+        self.assertIn("data/raw/dart/objects/", packet["raw_locator"])
+        self.assertEqual(len(packet["raw_payload_sha256"]), 64)
+
+    def test_no_segment_allocation_is_invented(self):
+        packet = self.collect(None)
+        self.assertNotIn("latest_mix", packet)
+        self.assertNotIn("segments", packet)
 
 
 if __name__ == "__main__":

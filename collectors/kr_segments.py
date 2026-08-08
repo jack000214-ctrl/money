@@ -39,6 +39,17 @@ ROW_LABELS = {
     "영업이익": "operating_income",
     "총자산": "total_assets",
 }
+# K-IFRS 1108 은 단일 영업부문인 회사도 **그 사실을 공시하게** 한다. 그래서
+# 표가 없는 이유를 추측하지 않아도 된다 — 원문이 직접 말한다.
+#
+#   "연결회사는 반도체 제품의 제조 및 판매의 단일영업부문으로 구성되어 있습니다"
+#
+# 이 문장을 읽지 않으면 "표를 못 찾았다"까지밖에 말할 수 없고, 그러면 표
+# 형식이 바뀐 것과 나눌 게 없는 것이 같아 보인다. 둘은 완전히 다르다 —
+# 앞은 고칠 수 있는 결함이고 뒤는 회사의 사실이다.
+SINGLE_SEGMENT_RE = re.compile(
+    r"단일\s*영업\s*부문|하나의\s*영업\s*부문|단일\s*보고\s*부문"
+)
 TABLE_RE = re.compile(r"<TABLE\b.*?</TABLE>", re.IGNORECASE | re.DOTALL)
 ROW_RE = re.compile(r"<TR\b.*?</TR>", re.IGNORECASE | re.DOTALL)
 CELL_RE = re.compile(r"<T[DH]\b.*?</T[DH]>", re.IGNORECASE | re.DOTALL)
@@ -87,6 +98,23 @@ def _share(text: str) -> float | None:
     except ValueError:
         return None
     return -value if negative else value
+
+
+def single_segment_statement(document: str) -> str | None:
+    """단일 영업부문이라고 **공시가 직접 말한** 문장. 없으면 None.
+
+    문장을 그대로 돌려주는 이유는 근거이기 때문이다. "단일 부문이다"라는 결론만
+    남기면 그것이 우리 판정인지 회사의 공시인지 구분되지 않는다.
+    """
+    plain = re.sub(r"\s+", " ", TAG_RE.sub(" ", document))
+    match = SINGLE_SEGMENT_RE.search(plain)
+    if not match:
+        return None
+    # 문장 경계로 자른다. 앞뒤 주석 번호까지 딸려오면 인용이 지저분해진다.
+    start = plain.rfind(".", 0, match.start()) + 1
+    end = plain.find("다.", match.end())
+    end = end + 2 if end != -1 else min(len(plain), match.end() + 120)
+    return plain[start:end].strip() or None
 
 
 def find_segment_table(document: str) -> str | None:
@@ -217,11 +245,41 @@ def collect(asset_id: str) -> dict[str, Any]:
     document, object_path = _fetched_document(rcept_no)
     table = find_segment_table(document)
     if table is None:
-        fail(
-            f"{asset_id}: {filing.get('description')} 에서 사업부문별 요약 표를 "
-            "특정하지 못했다. 단일 부문 회사이거나 표 형식이 다르다 — "
-            "부문 배분을 지어내지 않고 여기서 멈춘다"
-        )
+        # 표가 없는 이유는 둘이고, 그 둘은 완전히 다르다 — 나눌 게 없거나(회사의
+        # 사실), 표 형식이 바뀌었거나(우리 결함). 추측하지 않고 원문에 묻는다:
+        # K-IFRS 1108 은 단일 영업부문인 회사도 그 사실을 공시하게 한다.
+        statement = single_segment_statement(document)
+        return {
+            "schema_version": SCHEMA,
+            "asset_id": asset_id,
+            "source": "DART_PERIODIC_REPORT",
+            "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(
+                timespec="seconds"
+            ),
+            "available": False,
+            "rcept_no": rcept_no,
+            "report_name": filing.get("description"),
+            "filing_date": filing.get("filing_date"),
+            "raw_payload_sha256": object_path.stem,
+            "raw_locator": str(object_path.relative_to(ROOT)),
+            "absence": "SINGLE_SEGMENT" if statement else "NO_TABLE_FOUND",
+            "single_segment_statement": statement,
+            "_reason": (
+                f"이 회사는 단일 영업부문이라 부문 배분이 존재하지 않는다. "
+                f"공시 원문이 그렇게 적고 있다 — \"{statement}\""
+                if statement else
+                f"{filing.get('description')} 에서 사업부문별 요약 표를 특정하지 "
+                "못했고, 단일 영업부문이라는 공시도 없다. 표 형식이 바뀌었을 수 "
+                "있으므로 원문을 직접 본다. 부문 배분을 지어내지 않는다"
+            ),
+            "_retry_note": (
+                "회사의 사실이므로 다시 받을 것이 없다. 사업 구조가 바뀌어 "
+                "부문이 나뉘면 그때 표가 생긴다"
+                if statement else
+                "같은 보고서에 대해 다시 돌려도 결과는 같다. 다음 정기보고서가 "
+                "나오면 표 형식이 바뀌었을 수 있으므로 그때 다시 받는다"
+            ),
+        }
     try:
         periods, segments = parse_segment_table(table)
     except ContractError as exc:
@@ -309,6 +367,15 @@ def main() -> int:
     args = parser.parse_args()
     packet = collect(args.asset_id)
     path = save(packet)
+    if packet.get("available") is False:
+        # 실패가 아니라 관측이다 — "이 보고서에는 없다"를 알아낸 것이고 그
+        # 사실이 파일로 남는다. 0 이 아닌 코드로 끝내면 refresh 가 수집 실패로
+        # 세고, 다음에 또 돌린다.
+        print(f"{packet['asset_id']}  {packet['report_name']}")
+        print(f"저장: {path.relative_to(ROOT)}")
+        print("-" * 60)
+        print(f"  부문 배분 없음 — {packet['_reason']}")
+        return 0
     print(f"{packet['asset_id']}  {packet['report_name']}  ({packet['latest_period']})")
     print(f"저장: {path.relative_to(ROOT)}")
     print("-" * 60)
