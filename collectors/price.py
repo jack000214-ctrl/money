@@ -270,28 +270,41 @@ def cmd_history(args) -> None:
     print(f"저장: {path.relative_to(ROOT)}")
 
 
-def cmd_band(args) -> None:
-    rows = load(args.symbol)
-    if args.days:
-        rows = rows[-args.days :]
+def band(rows: list[dict], symbol: str, cost: float | None = None) -> dict:
+    """구간 내 위치와 고점 대비 낙폭.
+
+    렌더링에서 떼어 낸 이유는 이 값들이 판단에 그대로 인용되기 때문이다 —
+    "52주 고점 대비 -51.3%" 같은 문장이 화면에서 바로 나온다. print 안에서만
+    계산되면 저장되지도 검증되지도 않는다.
+
+    고가와 저가가 같은 구간(거래 정지·상장 직후)에서는 위치를 **지어내지 않고**
+    50 으로 둔다. 0 이나 100 으로 두면 "바닥"·"천장"이라는 없는 정보가 생긴다.
+    """
     closes = [float(row["close"]) for row in rows]
     current, high, low = closes[-1], max(closes), min(closes)
-    position = (current - low) / (high - low) * 100 if high > low else 50.0
     payload = {
-        "symbol": args.symbol,
+        "symbol": symbol,
         "from": rows[0]["date"],
         "to": rows[-1]["date"],
         "close": current,
         "high": high,
         "low": low,
-        "position_pct": round(position, 2),
-        "drawdown_pct": round((current / high - 1) * 100, 2),
+        "position_pct": (
+            round((current - low) / (high - low) * 100, 2) if high > low else 50.0
+        ),
+        "drawdown_pct": round((current / high - 1) * 100, 2) if high else None,
     }
-    if args.cost:
-        payload["return_from_cost_pct"] = round(
-            (current / args.cost - 1) * 100, 2
-        )
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    if cost:
+        payload["return_from_cost_pct"] = round((current / cost - 1) * 100, 2)
+    return payload
+
+
+def cmd_band(args) -> None:
+    rows = load(args.symbol)
+    if args.days:
+        rows = rows[-args.days :]
+    print(json.dumps(band(rows, args.symbol, args.cost),
+                     ensure_ascii=False, indent=2))
 
 
 def main() -> None:

@@ -181,8 +181,9 @@ def cmd_verify(a, key):
         k = num(row.get(field))
         y = num(yahoo.get(ykey)) if yahoo else None
         diff = ("—" if k is None or y is None
-                else ("일치" if abs(k - y) < max(1.0, abs(k) * 1e-6)
-                      else f"{(y / k - 1) * 100:+.4f}%"))
+                else "일치" if abs(k - y) < max(1.0, abs(k) * 1e-6)
+                else f"{y - k:+,.2f}" if not k
+                else f"{(y / k - 1) * 100:+.4f}%")
         print(f"{label:<14}{(f'{k:,.0f}' if k is not None else '-'):>18}"
               f"{(f'{y:,.0f}' if y is not None else '-'):>18}{diff:>12}")
 
@@ -228,8 +229,12 @@ def cmd_index(a, key):
                                ("고가", F_IDX_HIGH, "high"),
                                ("저가", F_IDX_LOW, "low")):
         k, y = num(row.get(field)), (num(yahoo.get(ykey)) if yahoo else None)
+        # 기준값이 0 이면 차이를 비율로 말할 수 없다. 0 으로 나누지 않고
+        # 절대차를 그대로 보여준다 — 두 출처가 다르다는 사실이 요점이다.
         diff = ("—" if k is None or y is None
-                else ("일치" if abs(k - y) < 0.01 else f"{(y / k - 1) * 100:+.4f}%"))
+                else "일치" if abs(k - y) < 0.01
+                else f"{y - k:+,.2f}" if not k
+                else f"{(y / k - 1) * 100:+.4f}%")
         print(f"{label:<8}{(f'{k:,.2f}' if k is not None else '-'):>16}"
               f"{(f'{y:,.2f}' if y is not None else '-'):>18}{diff:>14}")
 

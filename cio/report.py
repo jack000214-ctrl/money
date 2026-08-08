@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-import unicodedata
 from typing import Any
 
+from cio.display import display_width
 from calculators.contracts import ContractError, load_json
 from cio.assets import get_asset
 from cio.memory import READABLE_EVALUATION_SCHEMAS
@@ -38,17 +38,9 @@ INVALIDATION_ACTION_LABELS = {
 }
 
 
-def cell_width(text: str) -> int:
-    """터미널이 실제로 쓰는 칸 수.
-
-    `textwrap` 은 글자 수를 세는데 한글·한자·전각기호는 두 칸을 차지한다.
-    이 저장소의 출력은 대부분 한글이라 글자 수로 접으면 실제 줄은 두 배로
-    뻗어 나가고, 접는 의미가 사라진다.
-    """
-    return sum(
-        2 if unicodedata.east_asian_width(char) in ("W", "F") else 1
-        for char in text
-    )
+# 터미널 표시 폭. 공용 구현을 쓰되 이름은 유지한다 — 이 화면의 접기 로직이
+# 이 이름에 걸려 있고, 테스트도 이 경계를 이 이름으로 고정한다.
+cell_width = display_width
 
 
 def _wrap(text: str, indent: str = "  ") -> list[str]:
@@ -275,6 +267,9 @@ def format_assessment(
         )
         for row in checks:
             if not isinstance(row, dict):
+                # 헤더가 이미 len(checks) 를 약속했다. 조용히 건너뛰면 "6건"
+                # 이라 써놓고 5줄만 찍히고, 빠진 하나는 아무 데도 안 남는다.
+                lines.append(f"  —  [손상] 정산 항목이 dict 가 아니다: {row!r:.60}")
                 continue
             state = row.get("state") or "—"
             # 직전 판단의 몇 번 신호인지를 보여준다. 정산의 번호가 아니라

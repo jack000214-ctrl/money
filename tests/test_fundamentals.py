@@ -152,14 +152,26 @@ class TestLoader(unittest.TestCase):
 
 
 class TestRealSnapshot(unittest.TestCase):
-    """저장소에 실제로 들어온 스냅샷이 계약을 통과하는지."""
+    """저장소에 실제로 들어온 스냅샷이 계약을 통과하는지.
+
+    예전에는 파일이 없으면 `skipTest` 로 빠졌다. 그러면 **검사가 돌았는지가
+    실행 환경에 따라 달라지고**, 아무것도 안 본 실행과 전부 통과한 실행이
+    똑같이 초록으로 보인다. `knowledge/fundamentals/` 는 커밋 대상이므로
+    비어 있다는 것 자체가 사고다 — 조용히 넘어가지 않고 실패로 낸다.
+    """
+
+    def snapshots(self):
+        directory = ROOT / "knowledge" / "fundamentals"
+        return sorted(directory.glob("*.json")) if directory.exists() else []
+
+    def test_the_committed_snapshot_set_is_not_empty(self):
+        self.assertTrue(
+            self.snapshots(),
+            "knowledge/fundamentals/ 가 비었다. 이 검사가 아무것도 보지 않는다",
+        )
 
     def test_committed_snapshots_are_valid(self):
-        d = ROOT / "knowledge" / "fundamentals"
-        files = sorted(d.glob("*.json")) if d.exists() else []
-        if not files:
-            self.skipTest("수집된 스냅샷이 없다")
-        for path in files:
+        for path in self.snapshots():
             with self.subTest(path.name):
                 self.assertEqual(validate_fundamentals(
                     json.loads(path.read_text(encoding="utf-8"))), [])

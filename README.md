@@ -210,6 +210,19 @@ python3.13 -m calculators.position 214450 --price 331000 --add 5 10 20
 판정을 내기 시작하면 모델이 그것을 근거로 받아들이고, 그 순간 판단의 주체가 조용히
 바뀐다. `tests/test_position_math.py`가 그 경계를 고정한다.
 
+일부 계산기는 **refresh 배선에 없고 손으로 부른다.** packet 을 만들지 않으므로
+모델이 자동으로 받지 못하며, 결론에 쓰려면 조사 결과로 직접 인용해야 한다.
+
+```bash
+python3.13 -m calculators.peer_kr 214450 145020 214150 278470   # 한국 동종 비교
+python3.13 -m calculators.sector_strength --highlight 헬스케어    # 미국 섹터 상대강도
+```
+
+`sector_strength`는 미국 섹터 ETF 11종의 SPY 대비 상대강도이며 **한국 종목의 섹터
+대리가 아니다.** 상대강도는 밸류에이션 지표도 아니다 — 자금이 어디로 갔는지에 대한
+관측일 뿐이고, 이 값으로 비중을 정하지 않는다. 두 계산기의 산술 경계는
+`tests/test_manual_calculators.py`가 고정한다.
+
 미국 종목은 SEC 8-K 의 Item 번호를 함께 싣는다. `primaryDocDescription` 은 거의
 항상 form 코드와 같아서, Item 없이는 8-K 31건이 전부 "8-K"로만 보이고 임상 결과
 발표와 임원 교체를 구분할 수 없다.

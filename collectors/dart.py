@@ -13,6 +13,7 @@ DART 공시검색 화면은 JavaScript 기반이라 웹 도구로 목록을 가�
 import argparse
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -25,6 +26,9 @@ from xml.etree import ElementTree as ET
 from datetime import date, datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree
+
+from calculators.contracts import change_pct, ratio_pct
+from cio.display import cell, pad
 
 BASE = "https://opendart.fss.or.kr/api"
 ROOT = Path(__file__).resolve().parent.parent
@@ -609,10 +613,32 @@ def pick(rows, sj_div, names):
 
 
 def to_int(v):
-    try:
-        return int(str(v).replace(",", "").strip())
-    except (ValueError, AttributeError):
+    """공시 금액 문자열 → 정수. 못 읽으면 None.
+
+    예전에는 `int(str(v))` 하나였다. 현재 코퍼스(계정행 6,224건)에서는 전부
+    쉼표 섞인 정수라 문제가 없었지만, 그 말은 **다른 형태가 오면 조용히 None
+    이 된다**는 뜻이다. None 은 "계정을 못 찾았다"와 구분되지 않으므로 값이
+    있는데도 결측으로 처리되고, 그 자리는 화면에서 `—` 로만 남는다.
+
+    막는 형태는 셋이다. 소수점(주당이익은 원 단위 소수로 올 수 있다),
+    지수 표기(XBRL 직렬화기가 내기도 한다), 괄호 음수(회계 관행 표기).
+    """
+    if v is None:
         return None
+    s = str(v).replace(",", "").replace(" ", "").strip()
+    if not s or s in ("-", "—"):
+        return None
+    if s.startswith("(") and s.endswith(")"):
+        s = "-" + s[1:-1].strip()
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    try:
+        f = float(s)
+    except ValueError:
+        return None
+    return round(f) if math.isfinite(f) else None
 
 
 # ---------------------------------------------------------------------------
@@ -820,6 +846,28 @@ def acct(rows, sj_divs, ids=(), names=()):
 
 def amount(row, field="thstrm_amount"):
     return None if row is None else to_int(row.get(field))
+
+
+def declared_currency(rows):
+    """공시가 스스로 말한 통화. 여러 개면 섞인 것이므로 세우지 않는다.
+
+    예전에는 `"currency": "KRW"` 하드코딩이었다. 실제로 확인해 보니 지금
+    코퍼스에서는 통화를 밝힌 5,011 행이 전부 KRW 라 값은 맞았다 — 그러나
+    **맞는 것과 확인된 것은 다르다.** 통화가 다른 재무제표가 한 번 들어오면
+    원 단위로 저장된 값이 그대로 억원으로 환산돼 화면에 찍히고, 그 숫자는
+    자릿수까지 그럴듯하다.
+
+    XBRL 로 합성한 행은 통화 칸이 없다(1,213 행). 그건 결측이지 위반이
+    아니므로 밝힌 것들만 본다.
+    """
+    seen = {(r.get("currency") or "").strip() for r in rows}
+    seen.discard("")
+    if not seen:
+        return "KRW"
+    if len(seen) > 1:
+        fail(f"한 보고서에 통화가 섞여 있다: {sorted(seen)}. "
+             "원 단위 가정이 깨지므로 저장하지 않는다")
+    return seen.pop()
 
 
 def fetch_all(corp_code, year, report, fs, key):
@@ -1131,8 +1179,9 @@ def cmd_fundamentals(a, key):
     gross = income["gross_profit"]["quarters"][-1]["val"]
     spend = sum(income[e["key"]]["quarters"][-1]["val"] for e in expense_lines)
     op = income["operating_income"]["quarters"][-1]["val"]
-    residual = gross - spend - op
-    if abs(residual) > max(abs(op) * 0.005, 1e8):
+    expenses = [income[e["key"]]["quarters"][-1]["val"] for e in expense_lines]
+    residual, tolerance = income_identity_residual(gross, expenses, op)
+    if abs(residual) > tolerance:
         detail = (", ".join(f"{e['label']} {income[e['key']]['quarters'][-1]['val']/1e8:,.0f}억"
                             for e in expense_lines)
                   or "찾은 비용 라인 없음")
@@ -1191,9 +1240,10 @@ def cmd_fundamentals(a, key):
             if value:
                 outstanding += float(value)
         share_cross = outstanding or None
-    if share_cross and abs(shares / share_cross - 1) > 0.05:
+    gap_pct = shares_cross_check_pct(shares, share_cross)
+    if gap_pct is not None and gap_pct > 5.0:
         print(f"⚠ 희석주식수 {shares:,.0f} 와 유통주식수 합 {share_cross:,.0f} 가 "
-              f"{abs(shares/share_cross-1)*100:.1f}% 어긋난다. "
+              f"{gap_pct:.1f}% 어긋난다. "
               "우선주·전환증권 취급을 확인할 것", file=sys.stderr)
 
     raw["_instrument"] = {
@@ -1218,7 +1268,7 @@ def cmd_fundamentals(a, key):
         "instrument_id": a.stock_code,
         "company_name": name,
         "corp_code": corp,
-        "currency": "KRW",
+        "currency": declared_currency(bs_report),
         "period_end": period_end,
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(
             timespec="seconds"),
@@ -1363,16 +1413,108 @@ def cmd_financials(a, key):
                 print(f"  {r.get('account_nm')}")
         return
 
-    def show(period_label, rev_field, op_field):
-        rev, op = to_int(revenue.get(rev_field)), to_int(profit.get(op_field))
-        if rev is None or op is None or rev == 0:
-            return
-        print(f"{period_label:<22}매출 {rev/1e8:>12,.0f}억   "
-              f"영업이익 {op/1e8:>10,.0f}억   OPM {op/rev*100:>6.2f}%")
+    for default_label, field in (("당기", "thstrm"), ("전기", "frmtrm"),
+                                 ("전전기", "bfefrmtrm")):
+        print(financial_period_row(
+            revenue.get(f"{field}_nm", default_label),
+            to_int(revenue.get(f"{field}_amount")),
+            to_int(profit.get(f"{field}_amount"))))
 
-    show(revenue.get("thstrm_nm", "당기"), "thstrm_amount", "thstrm_amount")
-    show(revenue.get("frmtrm_nm", "전기"), "frmtrm_amount", "frmtrm_amount")
-    show(revenue.get("bfefrmtrm_nm", "전전기"), "bfefrmtrm_amount", "bfefrmtrm_amount")
+
+def financial_period_row(period_label, rev, op):
+    """기간 한 줄. 값이 없어도 **줄을 지우지 않는다.**
+
+    예전에는 매출이나 영업이익 하나만 없어도 `return` 으로 줄이 통째로
+    사라졌다. 사라진 줄은 "그 기간 공시가 없다"로 읽히지만 실제로는 계정명을
+    못 찾은 것일 수 있고, 둘은 완전히 다른 사건이다. 게다가 `quarter_metrics`
+    는 같은 상황에서 매출을 살리고 마진만 비운다 — 한 저장소 안에서 두 함수가
+    정반대로 굴면 어느 쪽이 맞는지 알 수 없다.
+
+    OPM 은 `ratio_pct` 에 맡긴다. 직접 나누면 매출 0 에서 터지고, 정정 공시로
+    매출이 음수인 기간에서는 부호가 뒤집힌 마진이 진짜처럼 찍힌다.
+
+    기간명은 회사가 쓴 문자열 그대로다 ("제 57 기 반기"). 한글 폭이 섞이므로
+    `pad` 로 맞춘다 — `:<22` 는 한글을 한 칸으로 세어 열이 밀린다.
+    """
+    if rev is None and op is None:
+        return pad(period_label, 22, align="<") + "해당 기간 값이 공시에 없다"
+    return (pad(period_label, 22, align="<")
+            + "매출 " + cell(rev, 13, ",.0f", "억", scale=1e8)
+            + "   영업이익 " + cell(op, 11, ",.0f", "억", scale=1e8)
+            + "   OPM " + cell(ratio_pct(op, rev), 7, ".2f", "%"))
+
+
+def income_identity_residual(gross, expenses, operating):
+    """매출총이익 − 비용라인 = 영업이익 인가. (잔차, 허용오차)를 낸다.
+
+    이 검사가 하는 일은 **비용 계정을 못 찾았다는 사실을 드러내는 것**이다.
+    표준코드에 없는 비용 라인이 있으면 그 회사의 영업이익은 매출총이익에서
+    일부만 뺀 값이 되고, 그대로 저장되면 마진이 과대계상된다. 숫자 자체는
+    그럴듯하게 나오므로 항등식 없이는 아무도 눈치채지 못한다.
+
+    허용오차를 영업이익에 비례시키되 하한을 두는 이유는 규모 차이다 — 조 단위
+    회사의 반올림 오차가 중소형주의 실제 누락보다 크다.
+    """
+    residual = gross - sum(expenses) - operating
+    tolerance = max(abs(operating) * 0.005, 1e8)
+    return residual, tolerance
+
+
+def shares_cross_check_pct(diluted, outstanding):
+    """희석주식수와 유통주식수 합의 괴리(%). 둘 중 하나가 없으면 내지 않는다.
+
+    괴리가 크면 우선주·전환증권 취급이 다르다는 뜻이고, 주식수는 주당 지표
+    전부의 분모다 — 여기가 어긋나면 EPS·BPS·시가총액이 함께 어긋난다.
+    """
+    if not diluted or not outstanding:
+        return None
+    return abs(diluted / outstanding - 1) * 100
+
+
+def back_derive_q4(annual, quarters):
+    """연간에서 1~3분기를 빼 4분기를 복원한다. 세 분기가 다 있어야 성립한다.
+
+    **음수가 나오면 값을 내지 않는다.** 이 뺄셈은 "thstrm_amount 가 누계가 아니라
+    해당 3개월 금액"이라는 전제 위에 서 있는데, 그 전제가 깨진 회사에서는 결과가
+    음수로 나온다. 음수 매출은 관측이 아니라 전제 위반이다 — 그대로 내면 화면에
+    진짜 실적처럼 찍히고, 그것을 읽는 쪽은 4분기에 매출이 마이너스였다고 믿는다.
+
+    영업이익은 실제로 음수일 수 있으므로 매출만 본다.
+    """
+    if len(quarters) != 3:
+        return None
+    values = list(quarters.values())
+    if any(v[0] is None or v[1] is None for v in values):
+        return None
+    if annual[0] is None or annual[1] is None:
+        return None
+    revenue = annual[0] - sum(v[0] for v in values)
+    if revenue < 0:
+        return None
+    return revenue, annual[1] - sum(v[1] for v in values)
+
+
+def quarter_metrics(series):
+    """분기 시리즈에 영업이익률과 전년동기 대비를 붙인다.
+
+    **기저가 0 이하면 비율을 만들지 않는다.** 적자에서 흑자로 돌아선 해의
+    전년동기 대비는 부호가 뒤집힌 숫자가 나오고, 그것은 성장률이 아니라
+    나눗셈의 부산물이다. 0 이면 나눗셈 자체가 성립하지 않는다.
+    """
+    rows = []
+    for label, (revenue, operating, source) in series.items():
+        prior = series.get(f"{label[:2]}{int(label[2:]) - 1:02d}")
+        margin = ratio_pct(operating, revenue)
+        growth = change_pct(revenue, prior[0] if prior else None)
+        rows.append({
+            "label": label,
+            "revenue": revenue,
+            "operating_income": operating,
+            "source": source,
+            "operating_margin_pct": round(margin, 2) if margin is not None else None,
+            "revenue_yoy_pct": round(growth, 1) if growth is not None else None,
+        })
+    return rows
 
 
 def cmd_quarters(a, key):
@@ -1399,23 +1541,25 @@ def cmd_quarters(a, key):
         rev_y, op_y, src_y, raw_y = fetch_is(info["corp_code"], year, "11011", a.fs, key)
         if rev_y is not None:
             raw_saved.append(save_raw(f"fs_{a.stock_code}_{year}_FY", raw_y))
-            if len(vals) == 3:
-                q4r = rev_y - sum(v[0] for v in vals.values())
-                q4o = op_y - sum(v[1] for v in vals.values())
-                vals["4Q"] = (q4r, q4o, f"{src_y}-역산")
+            fourth = back_derive_q4((rev_y, op_y), vals)
+            if fourth:
+                vals["4Q"] = (fourth[0], fourth[1], f"{src_y}-역산")
         for q in ["1Q", "2Q", "3Q", "4Q"]:
             if q in vals:
                 series[f"{q}{str(year)[2:]}"] = vals[q]
 
-    for label, (rev, op, src) in series.items():
-        prior = series.get(f"{label[:2]}{int(label[2:]) - 1:02d}")
-        yoy = f"{(rev / prior[0] - 1) * 100:>+10.1f}%" if prior else f"{'—':>11}"
-        opm = f"{op / rev * 100:>8.2f}%" if rev else f"{'—':>9}"
-        print(f"{label:<10}{rev/1e8:>12,.0f}{op/1e8:>12,.0f}{opm}{yoy}{src:>8}")
+    for row in quarter_metrics(series):
+        print(f"{row['label']:<10}"
+              + cell(row["revenue"], 12, ",.0f", scale=1e8)
+              + cell(row["operating_income"], 12, ",.0f", scale=1e8)
+              + cell(row["operating_margin_pct"], 9, ".2f", unit="%")
+              + cell(row["revenue_yoy_pct"], 11, "+.1f", unit="%")
+              + f"{row['source']:>8}")
 
     print("-" * 66)
     print(f"원본 {len(raw_saved)}건 저장: data/raw/dart/")
-    print("※ 4분기는 별도 보고서가 없어 연간에서 1~3분기를 뺀 값이다.")
+    print("※ 4분기는 별도 보고서가 없어 연간에서 1~3분기를 뺀 값이다. "
+          "뺀 결과가 음수면 분기 금액이 누계라는 뜻이므로 값을 내지 않는다.")
 
 
 def main():

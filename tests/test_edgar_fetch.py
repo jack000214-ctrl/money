@@ -8,13 +8,7 @@ from unittest.mock import patch
 
 from collectors import edgar
 from collectors.edgar import fiscal_quarters, trailing_four_quarters
-
-
-def point(fy, fp, start, end, value, form, filed):
-    return {
-        "fy": fy, "fp": fp, "start": start, "end": end, "val": value,
-        "form": form, "filed": filed,
-    }
+from helpers import point
 
 
 class TestFiscalCashFlow(unittest.TestCase):

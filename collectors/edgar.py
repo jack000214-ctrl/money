@@ -25,10 +25,13 @@ from calculators.contracts import (
     SCHEMA_VERSION,
     ContractError,
     canonical_payload_hash,
+    change_pct,
     fundamentals_id_for,
     load_raw_snapshot,
+    ratio_pct,
     save_validated_fundamentals,
 )
+from cio.display import cell
 
 RAW_DIR = ROOT / "data" / "raw" / "edgar"
 CACHE_DIR = ROOT / "data" / "cache"
@@ -636,10 +639,11 @@ def cmd_quarters(a, ua):
         o = oq.get(p["end"])
         prior = next((by_end[e] for e in by_end
                       if e[5:] == p["end"][5:] and e[:4] == str(int(p["end"][:4]) - 1)), None)
-        yoy = f"{(v/prior-1)*100:>+9.1f}%" if prior else f"{'—':>10}"
-        opm = f"{o/v*100:>8.2f}%" if o and v else f"{'—':>9}"
-        opv = f"{o/1e6:>14,.0f}" if o else f"{'—':>14}"
-        print(f"{p['start']}~{p['end']:<15}{v/1e6:>14,.0f}{opv}{opm}{yoy}")
+        print(f"{p['start']}~{p['end']:<15}"
+              + cell(v, 14, ",.0f", scale=1e6)
+              + cell(o, 14, ",.0f", scale=1e6)
+              + cell(ratio_pct(o, v), 9, ".2f", "%")
+              + cell(change_pct(v, prior), 10, "+.1f", "%"))
     print("\n※ 같은 종료일에 정정 제출이 있으면 최신 제출본을 쓴다.")
 
 

@@ -16,6 +16,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+from calculators.contracts import change_pct
+from cio.display import cell
 from collectors.dart import load_key, request as dart_request, resolve as dart_resolve
 
 CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{s}?range=5d&interval=1d"
@@ -200,10 +202,17 @@ def main():
             print(f"{label:<12} 비교 불가 (데이터 부족)")
             continue
         med = sorted(vals)[len(vals) // 2]
-        gap = (mine / med - 1) * 100 if med else 0
-        position = "중앙값보다 낮음" if gap < -10 else "중앙값보다 높음" if gap > 10 else "중앙값 근접"
+        # 중앙값이 0 이하면 차이를 비율로 말할 수 없다. 0 으로 두면
+        # 비교 불가가 "중앙값 근접"으로 읽힌다 — peer_us 와 같은 자리다.
+        gap = change_pct(mine, med)
+        position = (
+            "비교 불가 (중앙값이 0 이하)" if gap is None
+            else "중앙값보다 낮음" if gap < -10
+            else "중앙값보다 높음" if gap > 10
+            else "중앙값 근접"
+        )
         print(f"{label:<12}{mine:>8.1f}   중앙값 {med:>7.1f}   "
-              f"{gap:>+7.1f}%   {position}")
+              + cell(gap, 7, "+.1f", "%") + f"   {position}")
 
     print("\n※ 시가총액은 보통주 기준. 우선주 상장사는 실제 시총이 더 크다.")
     print("※ 전 종목 연간(FY) 연결 기준으로 통일했다 — '기준' 열이 회계연도다.")

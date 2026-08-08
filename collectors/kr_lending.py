@@ -35,6 +35,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from calculators.contracts import change_pct
+from cio.display import cell
+
 ROOT = Path(__file__).resolve().parent.parent
 LENDING_DIR = ROOT / "knowledge" / "lending"
 RAW_DIR = ROOT / "data" / "raw" / "datagokr"
@@ -363,9 +366,11 @@ def cmd_show(a):
     last = float(rows[-1]["balance_shares"] or 0)
     print("-" * 74)
     change = last - first
-    pct = (change / first * 100) if first else 0
+    # 시작 잔고가 0 이면 변화율이 성립하지 않는다. 0.0% 로 두면 "변동 없음"
+    # 으로 읽히는데, 실제로는 0 에서 늘어난 것이라 정반대다.
+    pct = change_pct(last, first)
     print(f"기간 잔고 변화  {first:,.0f} → {last:,.0f}주  "
-          f"({change:+,.0f}주 / {pct:+.1f}%)")
+          f"({change:+,.0f}주 / " + cell(pct, 0, "+.1f", "%") + ")")
 
     print(f"\n※ 출처 {SOURCE_NOTE}")
     print("※ 대차잔고는 '빌려간 뒤 아직 갚지 않은 주식'이다. 공매도 잔고가 아니다.")

@@ -29,10 +29,11 @@ import json
 import re
 import statistics
 import sys
-import unicodedata
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+from cio.display import ABSENT, cell, pad
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "knowledge" / "consensus"
@@ -353,8 +354,6 @@ def merge_history(path: Path, packet: dict) -> dict:
     return packet
 
 
-ABSENT = "—"
-
 # 연도별 표의 열 — 이름, 칸 너비, 서식, 단위, packet 의 키.
 # 폭은 조 단위 회사 기준이다. SK하이닉스 2027년 추정 매출이 5,017,411(억원)
 # 이라 9자리를 쓴다. 좁게 잡으면 값이 넘쳐 옆 칸과 붙어 읽을 수 없다.
@@ -367,30 +366,6 @@ ESTIMATE_COLUMNS = (
     ("ROE", 7, ".1f", "%", "roe_pct"),
 )
 PERIOD_COLUMN_WIDTH = 11
-
-
-def display_width(text: str) -> int:
-    """터미널이 차지하는 칸 수. 한글은 두 칸인데 len 은 1 이라 헤더가 밀린다."""
-    return sum(
-        2 if unicodedata.east_asian_width(char) in "WF" else 1 for char in text
-    )
-
-
-def pad(text: str, width: int) -> str:
-    return " " * max(0, width - display_width(text)) + text
-
-
-def cell(value, width: int, spec: str = "", unit: str = "") -> str:
-    """숫자 한 칸. **없는 값을 0 으로도 크래시로도 바꾸지 않는다.**
-
-    출처 표는 칸을 자주 비운다 — 적자 연도에는 PER 이 없고, 첫 연도에는 전년
-    대비가 없으며, 열이 하나 밀리면 파서가 None 을 채운다. 예전에는 이 자리에서
-    TypeError 가 났고 packet 은 정상 저장됐는데 refresh 는 FAILED 로 보고했다.
-    0 으로 채우는 것은 더 나쁘다 — '적자라 PER 이 없다'가 'PER 0배'로 읽힌다.
-    """
-    if value is None:
-        return ABSENT.rjust(width)
-    return (format(value, spec) + unit).rjust(width)
 
 
 def show(packet: dict) -> None:
@@ -406,6 +381,10 @@ def show(packet: dict) -> None:
     for label, key in (("전체 3개월", "consensus_window"), ("최근 30일", "recent")):
         window = dispersion[key]
         if not window["count"]:
+            # 줄을 지우면 "이 화면은 원래 한 줄"로 읽힌다. 최근 30일에 추정이
+            # 0곳이라는 사실 자체가 신호다 — 애널리스트가 갱신을 멈췄다는 뜻이라
+            # 남아 있는 평균이 오래된 목표가라는 경고가 된다.
+            print(f"    {label:<9}  0곳 (해당 기간 추정 없음)")
             continue
         print(f"    {label:<9} {window['count']:>2}곳 "
               f"{cell(window['min'], 9, ',.0f')} ~ {cell(window['max'], 9, ',.0f')} "

@@ -42,6 +42,36 @@ class ContractError(ValueError):
         super().__init__("; ".join(errors))
 
 
+def change_pct(current: Any, base: Any) -> float | None:
+    """전기 대비 변화율. **기저가 0 이하면 값을 내지 않는다.**
+
+    기저가 0 이면 나눗셈이 성립하지 않고, 음수면 부호가 뒤집힌다 — 적자에서
+    흑자로 돌아선 해의 "전년 대비 -250%" 는 성장률이 아니라 나눗셈의 부산물이다.
+    둘 다 그럴듯한 숫자로 나오기 때문에 화면에서 걸러지지 않는다.
+    """
+    if current is None or base is None:
+        return None
+    if not isinstance(current, (int, float)) or not isinstance(base, (int, float)):
+        return None
+    if base <= 0:
+        return None
+    return (current / base - 1) * 100
+
+
+def ratio_pct(part: Any, whole: Any) -> float | None:
+    """전체 대비 비율(마진 등). 분모가 0 이하면 값을 내지 않는다.
+
+    분자는 음수일 수 있다 — 영업손실은 실제로 일어나는 관측이다.
+    """
+    if part is None or whole is None:
+        return None
+    if not isinstance(part, (int, float)) or not isinstance(whole, (int, float)):
+        return None
+    if whole <= 0:
+        return None
+    return part / whole * 100
+
+
 def _duplicate_guard(pairs):
     out = {}
     for key, value in pairs:

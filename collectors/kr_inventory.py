@@ -88,7 +88,23 @@ def collect(stock_code: str, years: list[int], fs: str, key: str) -> tuple[str, 
              "업종이거나 계정명이 다르다")
 
     save_raw(f"inventory_{stock_code}", raw)
+    return name, derive_rows(inventories, cogs, years)
 
+
+def derive_rows(
+    inventories: dict[tuple[int, int], tuple[float, str]],
+    cogs: dict[tuple[int, int], dict],
+    years: list[int],
+) -> list[dict]:
+    """잔액과 매출원가에서 DIO·QoQ·YoY 를 낸다.
+
+    수집과 분리해 둔다 — 이 산술이 판단의 무효화 신호 문턱으로 인용되기
+    때문이다("DIO 145일 초과하면 절반 축소"). 네트워크 없이 검증할 수 있어야
+    그 문턱이 무엇을 뜻하는지 고정된다.
+
+    QoQ 의 직전 분기는 **1분기면 전년 4분기**다. 같은 해 안에서만 찾으면
+    매년 1분기의 QoQ 가 비고, 재고 사이클의 연말·연초 구간이 통째로 사라진다.
+    """
     rows = []
     # 비교표시로 채운 앞선 해가 요청 구간 밖일 수 있다. 표에는 요청 구간만 남긴다.
     for (fy, quarter) in sorted(k for k in inventories if k[0] in years):
@@ -115,7 +131,7 @@ def collect(stock_code: str, years: list[int], fs: str, key: str) -> tuple[str, 
             # 4분기 매출원가는 연간 − 3분기누계 역산이다. 표시할 때 구분한다
             "cogs_derived": bool(entry and entry.get("derived")),
         })
-    return name, rows
+    return rows
 
 
 def save(stock_code: str, name: str, rows: list[dict], fs: str) -> Path:

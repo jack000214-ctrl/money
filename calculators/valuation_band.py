@@ -28,6 +28,56 @@ from collectors.dart import (
     xbrl_facts,
 )
 from collectors.edgar import CONCEPT, user_agent
+from cio.display import cell
+
+
+def percentile_of(values: list[float], current: float) -> float:
+    """현재 값이 과거 분포의 몇 번째인가. 0~100."""
+    if not values:
+        return 50.0
+    return sum(1 for v in values if v < current) / len(values) * 100
+
+
+def target_prices(quantiles: list[float], targets: list[float],
+                  eps: float, current_price: float) -> list[dict]:
+    """PER 백분위를 주가로 환산한다.
+
+    두 가지를 **조용히 하지 않는다.**
+
+    범위 밖 백분위(0 이나 100)를 예전에는 말없이 중앙값으로 바꿨다. 사용자는
+    0백분위를 물었는데 화면에는 50백분위 값이 '0백분위'라는 라벨을 달고 찍혔다.
+    이제 값을 내지 않고 왜 못 내는지 적는다.
+
+    EPS 가 음수면 환산 주가도 음수가 된다. 적자 회사에 PER 배수를 곱하는 것은
+    산술은 되지만 뜻이 없다 — 음수 목표주가가 표에 진짜처럼 앉는다. 그래서
+    값을 비우고 이유를 남긴다.
+    """
+    rows = []
+    for target in targets:
+        index = int(target)
+        label = f"{target:.0f}백분위"
+        if not 1 <= index <= 99:
+            rows.append({"label": label, "per": None, "price": None,
+                         "vs_current_pct": None,
+                         "note": "1~99 백분위만 환산한다 (분위수 밖이다)"})
+            continue
+        per = quantiles[index - 1]
+        if eps <= 0:
+            rows.append({"label": label, "per": per, "price": None,
+                         "vs_current_pct": None,
+                         "note": "EPS 가 0 이하라 PER 배수를 주가로 환산할 수 없다"})
+            continue
+        price = per * eps
+        rows.append({
+            "label": label,
+            "per": per,
+            "price": price,
+            "vs_current_pct": (
+                (price / current_price - 1) * 100 if current_price else None
+            ),
+            "note": None,
+        })
+    return rows
 
 PRICE_DIR = ROOT / "knowledge" / "prices"
 # 같은 회사가 분기마다 계정명을 바꾼다 — 삼성E&A 는 1·2분기에 "기본주당순이익",
@@ -249,7 +299,7 @@ def main():
     print(f"현재 PER      {cur_per:>14,.2f}")
 
     qs = statistics.quantiles(pers, n=100)
-    pct = sum(1 for v in pers if v < cur_per) / len(pers) * 100
+    pct = percentile_of(pers, cur_per)
     print(f"\n[ PER 분포 ]")
     print(f"  최저 {min(pers):>7.2f}   25% {qs[24]:>7.2f}   중앙 {qs[49]:>7.2f}   "
           f"75% {qs[74]:>7.2f}   최고 {max(pers):>7.2f}")
@@ -260,11 +310,13 @@ def main():
     print(f"\n[ PER 백분위의 주가 환산 ]")
     print(f"  {'기준':<18}{'PER':>8}{'주가':>16}   현재가 대비")
     print("  " + "-" * 58)
-    for t in sorted(a.targets):
-        per_t = qs[int(t) - 1] if 1 <= int(t) <= 99 else statistics.median(pers)
-        price_t = per_t * cur_eps
-        print(f"  {f'{t:.0f}백분위':<18}{per_t:>8.2f}{price_t:>16,.0f}"
-              f"{(price_t / cur_price - 1) * 100:>+13.1f}%")
+    for row in target_prices(qs, sorted(a.targets), cur_eps, cur_price):
+        print(f"  {row['label']:<18}"
+              + cell(row["per"], 8, ".2f")
+              + cell(row["price"], 16, ",.0f")
+              + cell(row["vs_current_pct"], 13, "+.1f", "%"))
+        if row["note"]:
+            print(f"    └ {row['note']}")
 
     print(f"\n[ TTM EPS 추이 ]")
     for t in ttm[-6:]:

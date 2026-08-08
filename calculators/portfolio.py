@@ -19,6 +19,8 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from cio.display import display_width
+
 SCHEMA_VERSION = "1.0.0"
 COMPONENT = "portfolio-xray/lookthrough"
 
@@ -377,7 +379,7 @@ def render_text(result, meta):
         label = ("※ " if unclassified else "") + (r["name"] or r["asset_id"])
         if len(label) > 32:
             label = label[:31] + "…"
-        pad = 29 - sum(2 if ord(c) > 0x1100 else 1 for c in label)
+        pad = 29 - display_width(label)
         eq = "-" if r["equity_sleeve_pct"] is None else f"{r['equity_sleeve_pct']:.2f}"
         risk = "-" if r["risk_assets_pct"] is None else f"{r['risk_assets_pct']:.2f}"
         w(f"{label}{' ' * max(1, pad)}{r['total_assets_pct']:>9.2f}"

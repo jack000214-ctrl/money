@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+from calculators.contracts import change_pct, ratio_pct
+from cio.display import cell
 from collectors.edgar import (
     CONCEPT,
     OPINC_TAGS,
@@ -141,8 +143,8 @@ def gather(ticker, ua):
         cur = qs[-1]
         prior = next((p for p in qs if p["end"][5:] == cur["end"][5:]
                       and p["end"][:4] == str(int(cur["end"][:4]) - 1)), None)
-        if prior and prior["val"]:
-            row["growth"] = (cur["val"] / prior["val"] - 1) * 100
+        if prior:
+            row["growth"] = change_pct(cur["val"], prior["val"])
 
     row["price"], row["currency"] = price(ticker)
     if row["price"] and row["shares"]:
@@ -150,10 +152,8 @@ def gather(ticker, ua):
         row["per"] = row["mcap"] / row["netinc"] if row["netinc"] and row["netinc"] > 0 else None
         row["psr"] = row["mcap"] / row["revenue"] if row["revenue"] else None
         row["pbr"] = row["mcap"] / row["equity"] if row["equity"] and row["equity"] > 0 else None
-    row["opm"] = (row["opinc"] / row["revenue"] * 100
-                  if row["opinc"] is not None and row["revenue"] else None)
-    row["gpm"] = (row["gross"] / row["revenue"] * 100
-                  if row["gross"] is not None and row["revenue"] else None)
+    row["opm"] = ratio_pct(row["opinc"], row["revenue"])
+    row["gpm"] = ratio_pct(row["gross"], row["revenue"])
     return row
 
 
@@ -210,10 +210,18 @@ def main():
             continue
         med = sorted(vals)[len(vals) // 2]
         rank = sum(1 for v in vals if v < mine) + 1
-        gap = (mine / med - 1) * 100 if med else 0
-        position = "중앙값보다 낮음" if gap < -10 else "중앙값보다 높음" if gap > 10 else "중앙값 근접"
+        # 중앙값이 0 이하면 차이를 비율로 말할 수 없다. 예전에는 0 으로 두어
+        # '중앙값 근접'이라고 출력했는데, 그것은 측정이 아니라 기본값이었다.
+        gap = change_pct(mine, med)
+        position = (
+            "비교 불가 (중앙값이 0 이하)" if gap is None
+            else "중앙값보다 낮음" if gap < -10
+            else "중앙값보다 높음" if gap > 10
+            else "중앙값 근접"
+        )
         print(f"{label:<12}{mine:>8.1f}   중앙값 {med:>7.1f}   "
-              f"{gap:>+7.1f}%   {rank}/{len(vals)+1}위   {position}")
+              + cell(gap, 7, "+.1f", "%")
+              + f"   {rank}/{len(vals)+1}위   {position}")
 
     print("\n※ TTM = 복원 가능한 연속 최근 4분기 합. 불가능하면 최신 FY를 별도 표시한다.")
     print("※ 매출과 기간·방식이 다른 이익 항목은 마진·PER 계산에 섞지 않고 '—'로 둔다.")

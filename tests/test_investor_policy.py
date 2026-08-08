@@ -94,11 +94,41 @@ class TestPolicyContract(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_local_policy_if_present_passes(self):
-        """실제 정책은 gitignore 대상이라 없을 수 있다. 있으면 유효해야 한다."""
-        data, errors = load_policy()
-        if data is None and not errors:
-            self.skipTest("로컬 투자정책이 아직 없다")
+        """실제 정책은 gitignore 대상이라 없을 수 있다. 있으면 유효해야 한다.
+
+        여기서 `skipTest` 를 쓰지 않는다 — 없는 것은 정상이고, 없을 때 이
+        검사가 아무것도 보지 않는다는 사실은 아래 세 갈래 테스트가 대신
+        보장한다. `load_policy` 의 분기는 실행 환경과 무관하게 덮인다.
+        """
+        _data, errors = load_policy()
         self.assertEqual(errors, [])
+
+    def test_absent_policy_is_not_an_error(self):
+        """없는 것은 오류가 아니다 — '아직 정하지 않음'과 '읽기 실패'는 다르다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            data, errors = load_policy(Path(tmp) / "없는파일.json")
+        self.assertIsNone(data)
+        self.assertEqual(errors, [])
+
+    def test_unreadable_policy_reports_an_error_rather_than_absence(self):
+        """깨진 파일을 '정책 없음'으로 접으면 한도가 조용히 사라진다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "investor-policy.json"
+            path.write_text("{ 이건 JSON 이 아니다", encoding="utf-8")
+            data, errors = load_policy(path)
+        self.assertIsNone(data)
+        self.assertTrue(errors)
+
+    def test_present_but_invalid_policy_returns_both_data_and_errors(self):
+        """읽히기는 했으나 계약 미달이면 데이터와 오류가 함께 나와야 한다."""
+        broken = valid_policy()
+        del broken["objective"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "investor-policy.json"
+            path.write_text(json.dumps(broken), encoding="utf-8")
+            data, errors = load_policy(path)
+        self.assertIsNotNone(data)
+        self.assertTrue(errors)
 
     def test_valid_fixture_passes(self):
         self.assertEqual(validate_policy(valid_policy()), [])

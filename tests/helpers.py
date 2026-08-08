@@ -14,3 +14,20 @@ def write_csv(text):
     f.write(text.strip() + "\n")
     f.close()
     return f.name
+
+
+def point(fy, fp, start, end, value, form="10-Q", filed="2026-01-01"):
+    """SEC companyfacts 의 관측 한 개.
+
+    edgar 와 peer_us 가 같은 모양의 입력을 받으므로 픽스처도 하나여야 한다 —
+    한쪽에만 필드를 더하면 두 테스트가 다른 세상을 보게 된다.
+    """
+    return {
+        "fy": fy,
+        "fp": fp,
+        "start": start,
+        "end": end,
+        "val": value,
+        "form": form,
+        "filed": filed,
+    }

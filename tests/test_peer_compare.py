@@ -3,13 +3,7 @@
 import unittest
 
 from calculators.peer_us import align_period, periods, ttm
-
-
-def point(fy, fp, start, end, value, form="10-Q", filed="2026-01-01"):
-    return {
-        "fy": fy, "fp": fp, "start": start, "end": end, "val": value,
-        "form": form, "filed": filed,
-    }
+from helpers import point
 
 
 class TestPeerTtm(unittest.TestCase):

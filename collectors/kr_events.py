@@ -90,6 +90,66 @@ def stdev(values: list[float]) -> float:
     return (sum((v - mean) ** 2 for v in values) / (len(values) - 1)) ** 0.5
 
 
+def detect_moves(
+    window: list[tuple[str, float, int]],
+    *,
+    judged_series: dict[str, float],
+    dates: list[str],
+    index_of: dict[str, int],
+    aligned,
+    avg_volume: float,
+    sigma: float,
+    fixed: float | None,
+    vol_window: int,
+) -> list[dict]:
+    """어느 날이 '급변'인지 고르고 그 날의 배수를 낸다.
+
+    수집이 아니라 **판정 대상 선별**이다. 여기서 나온 목록이 그대로 packet 의
+    `events.moves` 가 되고, 모델은 그것을 "조사할 날"로 읽는다. 문턱이 한 칸
+    어긋나면 실제로 무슨 일이 있었던 날이 목록에서 빠지고, 모델은 그날을
+    평범한 날로 취급한다. 빠진 것은 화면에도 남지 않는다.
+
+    렌더링에서 떼어 낸 이유가 그것이다 — 이 숫자들은 print 직전에 만들어져
+    어디에도 저장되지 않았고, 그래서 대조할 대상조차 없었다.
+
+    임계값은 **그 날 이전** 구간의 표준편차로만 만든다. 미래를 쓰면 나중에
+    조용해진 구간의 급변이 사라진다.
+    """
+    moves = []
+    for i in range(1, len(window)):
+        prev, cur = window[i - 1], window[i]
+        if not prev[1]:
+            continue  # 직전 종가가 0 이면 변화율이 성립하지 않는다
+        change = (cur[1] / prev[1] - 1) * 100
+        bench = aligned(cur[0], prev[0])
+        excess = change - bench if bench is not None else None
+
+        # 이 날짜 직전 vol_window 거래일의 표준편차 — 미래를 쓰지 않는다
+        pos = index_of[cur[0]]
+        prior = [judged_series[d] for d in dates[max(1, pos - vol_window):pos]
+                 if d in judged_series]
+        deviation = stdev(prior)
+        limit = fixed if fixed is not None else max(sigma * deviation, 1.0)
+
+        # 벤치마크가 있으면 beta=1 상대변동으로 조사 우선순위를 정한다.
+        judged = abs(excess) if excess is not None else abs(change)
+        if judged < limit:
+            continue
+        moves.append({
+            "date": cur[0],
+            "close": cur[1],
+            "change_pct": round(change, 2),
+            "benchmark_pct": round(bench, 2) if bench is not None else None,
+            "excess_pct": round(excess, 2) if excess is not None else None,
+            "threshold_pct": round(limit, 2),
+            "sigma_used": round(deviation, 2),
+            "direction": "down" if change < 0 else "up",
+            "volume": cur[2],
+            "volume_vs_avg": round(cur[2] / avg_volume, 2) if avg_volume else None,
+        })
+    return moves
+
+
 def compare_with_benchmark(series: list[tuple[str, float, int]],
                            bench: list[tuple[str, float, int]] | None) -> dict:
     """구간별 종목·벤치마크 수익률과 beta=1 상대수익률을 계산한다."""
@@ -250,36 +310,17 @@ def build_event_packet(
     if str(threshold).lower() != "auto":
         fixed = float(threshold)
 
-    moves = []
-    for i in range(1, len(window)):
-        prev, cur = window[i - 1], window[i]
-        change = (cur[1] / prev[1] - 1) * 100
-        bench = aligned(cur[0], prev[0])
-        excess = change - bench if bench is not None else None
-
-        # 이 날짜 직전 vol_window 거래일의 표준편차 — 미래를 쓰지 않는다
-        pos = index_of[cur[0]]
-        prior = [judged_series[d] for d in dates[max(1, pos - vol_window):pos]
-                 if d in judged_series]
-        deviation = stdev(prior)
-        limit = fixed if fixed is not None else max(sigma * deviation, 1.0)
-
-        # 벤치마크가 있으면 beta=1 상대변동으로 조사 우선순위를 정한다.
-        judged = abs(excess) if excess is not None else abs(change)
-        if judged < limit:
-            continue
-        moves.append({
-            "date": cur[0],
-            "close": cur[1],
-            "change_pct": round(change, 2),
-            "benchmark_pct": round(bench, 2) if bench is not None else None,
-            "excess_pct": round(excess, 2) if excess is not None else None,
-            "threshold_pct": round(limit, 2),
-            "sigma_used": round(deviation, 2),
-            "direction": "down" if change < 0 else "up",
-            "volume": cur[2],
-            "volume_vs_avg": round(cur[2] / avg_volume, 2) if avg_volume else None,
-        })
+    moves = detect_moves(
+        window,
+        judged_series=judged_series,
+        dates=dates,
+        index_of=index_of,
+        aligned=aligned,
+        avg_volume=avg_volume,
+        sigma=sigma,
+        fixed=fixed,
+        vol_window=vol_window,
+    )
 
     filings = [f for f in filings if since.isoformat() <= f["filed"]
                <= last_date.isoformat()]

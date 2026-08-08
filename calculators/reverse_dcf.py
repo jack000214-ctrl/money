@@ -257,30 +257,53 @@ def check_fcf_sign(fcf):
 
 # ---------------------------------------------------------------- implied
 
-def cmd_implied(a):
-    fcf, _ = resolve_inputs(a)
-    validate_common(a)
-    check_fcf_sign(fcf)
+def implied_answer(a, fcf):
+    """현재가가 요구하는 성장률 또는 마진을 **퍼센트로** 낸다.
+
+    이 함수가 하는 일의 절반은 단위 변환이다 — 사용자는 퍼센트로 넣고, 모델은
+    소수로 풀고, 화면은 다시 퍼센트로 읽는다. 그 왕복이 한 번만 어긋나도
+    "요구 성장률 12.05%"가 "1205%" 또는 "0.12%"가 되는데, 둘 다 그럴듯해
+    보이지 않으므로 눈에 띈다. 정말 위험한 것은 **탐색 경계**다 — 경계도 같이
+    변환하지 않으면 "상한 30%로도 안 닿는다"는 경고가 엉뚱한 숫자를 말한다.
+
+    돌려주는 값은 전부 퍼센트 단위이며, 여기서만 곱하고 나눈다.
+    """
     common = dict(discount_rate=a.discount_rate / 100.0,
                   terminal_growth=a.terminal_growth / 100.0,
                   years=a.years, net_debt=a.net_debt, shares=a.shares)
-
     if a.solve_for == "growth":
         value_of = lambda g: equity_value_per_share(fcf, g, **common)  # noqa: E731
         lo, hi = GROWTH_BOUNDS
-        answer, status = solve(a.price, lo, hi, value_of)
-        label, unit, shown = "요구 FCF 성장률", "%", answer * 100
+        label = "요구 FCF 성장률"
     else:
         if a.revenue is None:
             fail("--solve-for margin 에는 --revenue 가 필요하다")
         if a.growth_assumption is None:
             fail("--solve-for margin 에는 --growth-assumption 이 필요하다")
-        g = a.growth_assumption / 100.0
+        growth = a.growth_assumption / 100.0
         value_of = lambda m: equity_value_per_share(  # noqa: E731
-            a.revenue * m, g, **common)
+            a.revenue * m, growth, **common)
         lo, hi = MARGIN_BOUNDS
-        answer, status = solve(a.price, lo, hi, value_of)
-        label, unit, shown = "요구 FCF 마진", "%", answer * 100
+        label = "요구 FCF 마진"
+    answer, status = solve(a.price, lo, hi, value_of)
+    return {
+        "label": label,
+        "unit": "%",
+        "value_pct": answer * 100,
+        "status": status,
+        "lower_bound_pct": lo * 100,
+        "upper_bound_pct": hi * 100,
+    }
+
+
+def cmd_implied(a):
+    fcf, _ = resolve_inputs(a)
+    validate_common(a)
+    check_fcf_sign(fcf)
+    result = implied_answer(a, fcf)
+    label, unit, shown = result["label"], result["unit"], result["value_pct"]
+    status = result["status"]
+    lo, hi = result["lower_bound_pct"], result["upper_bound_pct"]
 
     if a.json:
         print(json.dumps({"solve_for": a.solve_for, "value": shown,
@@ -302,10 +325,10 @@ def cmd_implied(a):
     print(f"\n[ 현재 가격이 요구하는 것 ]")
     print(f"  {label}   {shown:>10,.2f}{unit}")
     if status == "ABOVE_RANGE":
-        print(f"  ⚠ 탐색 상한({hi * 100:,.0f}{unit})으로도 현재가에 닿지 않는다. "
+        print(f"  ⚠ 탐색 상한({hi:,.0f}{unit})으로도 현재가에 닿지 않는다. "
               "이 모델로는 설명되지 않는 가격이다")
     elif status == "BELOW_RANGE":
-        print(f"  ⚠ 탐색 하한({lo * 100:,.0f}{unit})에서도 현재가를 넘는다. "
+        print(f"  ⚠ 탐색 하한({lo:,.0f}{unit})에서도 현재가를 넘는다. "
               "가격이 모델 가치보다 크게 낮다")
 
     print(f"\n※ 이 값은 예측이 아니라 **현재가에 내재된 시장의 요구**다.")
