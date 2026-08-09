@@ -1,7 +1,7 @@
 # schema_version price-series/2.1.0
 # symbol 214450.KQ / currency KRW
-# retrieved_at 2026-08-07T04:09:58+00:00 / source Yahoo Finance chart API
-# last_bar 2026-08-07 / session UNSETTLED
+# retrieved_at 2026-08-09T08:53:28+00:00 / source Yahoo Finance chart API
+# last_bar 2026-08-07 / session SETTLED
 date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2021-08-09,90000.0,86513.9,1.3462682789575575,90500.0,88100.0,55865
 2021-08-10,90300.0,86802.3,1.3462682789575575,92000.0,89300.0,72230
@@ -1221,4 +1221,4 @@ date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2026-08-04,384500.0,384500.0,1,394000.0,367500.0,172659
 2026-08-05,378000.0,378000.0,1,389000.0,374500.0,200641
 2026-08-06,394500.0,394500.0,1,400500.0,379000.0,221014
-2026-08-07,338000.0,338000.0,1,410000.0,333000.0,328093
+2026-08-07,378500.0,378500.0,1,410000.0,333000.0,644780
