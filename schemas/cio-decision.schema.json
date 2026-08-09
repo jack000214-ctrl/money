@@ -358,6 +358,14 @@
           ],
           "exclusiveMinimum": 0
         },
+        "limit_price": {
+          "description": "이 수량을 얼마에 걸 것인가 — 지금 증권사에 넣을 지정가다. TRIM·EXIT에는 필수, ADD에는 선택(진입가는 이미 price_plan.preferred_entry에 있어 강제하면 같은 뜻의 숫자가 둘이 된다), 나머지 방향에서는 null이어야 한다. **price_plan.scale_out_start와 다른 값이다** — 그쪽은 \"논지가 앞서가면 줄이기 시작할 가격\"이라는 미래 조건이고 이쪽은 지금 내는 주문이다. 서술에만 적은 가격은 주문이 되지 못한다.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
         "sell_reason": {
           "description": "판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 제약임을 밝혀야 한다.",
           "type": [

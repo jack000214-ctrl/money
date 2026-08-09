@@ -111,8 +111,17 @@ DRIVER_REQUIRED = {"name", "weight_pct", "basis", "researched"}
 # 필수로 만들면 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다.
 ACTION_KEYS = {
     "direction", "quantity", "sell_reason", "rationale", "undetermined_reason",
+    # 이 수량을 얼마에 걸 것인가. `required` 에 넣지 않은 것은 의도다 — 필수로
+    # 만들면 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다. 대신 아래
+    # 검증이 **매도 지시일 때만** 요구한다.
+    "limit_price",
 }
 ACTION_REQUIRED = {"direction", "quantity", "sell_reason", "rationale"}
+# 실행 가격이 필요한 지시. 매도에는 반드시 있어야 하고 ADD 는 있어도 된다 —
+# 진입가는 이미 price_plan.preferred_entry 에 있어서 강제하면 같은 뜻의 숫자가
+# 둘이 된다.
+EXECUTION_PRICE_REQUIRED = {"TRIM", "EXIT"}
+EXECUTION_PRICE_ALLOWED = EXECUTION_PRICE_REQUIRED | {"ADD"}
 
 RECURRING_KEYS = {
     "state", "amount_per_period", "currency", "period", "rationale",
@@ -1439,6 +1448,29 @@ def validate_decision(
             errors.append("action.quantity: 매도 수량은 0보다 커야 한다")
         if not selling and quantity is not None:
             errors.append("action.quantity: 매도가 아니면 null이어야 한다")
+        # 지시에 실행 가격이 없으면 그 가격은 rationale 문단으로 흘러가고,
+        # 문단은 지정가로 걸리지 않는다. 2026-08-07 이 그랬다 — 계약에 남은
+        # 것은 TRIM 30주뿐이었고 "390,000원 이상"은 서술에만 있었으며,
+        # 화면은 뜻이 다른 scale_out_start 470,000 을 보여 줬다.
+        limit_price = action.get("limit_price")
+        if direction in EXECUTION_PRICE_ALLOWED:
+            if limit_price is None:
+                if direction in EXECUTION_PRICE_REQUIRED:
+                    errors.append(
+                        "action.limit_price: 매도 지시에는 얼마에 걸지가 있어야 "
+                        "한다. 서술에만 적은 가격은 주문이 되지 못한다 — "
+                        "price_plan.scale_out_start 는 '논지가 앞서가면 줄이기 "
+                        "시작할 가격'이라 이 자리를 대신하지 못한다"
+                    )
+            else:
+                value = _number(limit_price, "action.limit_price", errors)
+                if value is not None and value <= 0:
+                    errors.append("action.limit_price: 0보다 커야 한다")
+        elif limit_price is not None:
+            errors.append(
+                f"action.limit_price: {direction}은 주문을 내는 지시가 아니므로 "
+                "null이어야 한다. 여기 가격이 있으면 화면이 그것을 주문으로 읽는다"
+            )
         _nonempty(action.get("rationale"), "action.rationale", errors)
         # 예전 계약은 여기서 HOLD 를 강제했다. 그러면 시스템이 모델의 "모른다"를
         # "계속 보유하라"로 번역한다 — 보유 중인 종목에서 그것은 빈 값이 아니라

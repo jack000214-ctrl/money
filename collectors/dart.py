@@ -29,10 +29,12 @@ from xml.etree import ElementTree
 
 from calculators.contracts import change_pct, ratio_pct
 from cio.display import cell, pad
+from cio.documents import stored_filing_keys
 
 BASE = "https://opendart.fss.or.kr/api"
 ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw" / "dart"
+KNOWLEDGE_DIR = ROOT / "knowledge"
 CACHE_DIR = ROOT / "data" / "cache"
 
 from calculators.contracts import (
@@ -509,6 +511,123 @@ def cmd_document(a, key):
     print(f"인용 ID: DARTDOC:{rcept_no}")
     for name in sorted(documents):
         print(f"  {name}  {len(documents[name]):,}자")
+
+
+# 색인에서 원문까지 자동으로 받아 둘 공시. **잠정실적만이다.**
+#
+# 정기보고서는 100만 자라 이 배선이 감당할 문서가 아니고, 필요한 자리만
+# `cio search` 로 읽는 것이 이 저장소의 방식이다. 잠정실적 공정공시는 2,285자에
+# 분기당 한 건이며 정기보고서보다 먼저 나와 분기 사이의 공백을 메운다 —
+# 파마리서치의 품목군별 매출은 정기보고서에도 없고 여기에만 있다.
+AUTO_DOCUMENT_FORMS = ("PROVISIONAL_RESULT",)
+AUTO_DOCUMENT_LIMIT = 8
+
+
+def sync_provisional_documents(asset_id, *, key, limit=AUTO_DOCUMENT_LIMIT):
+    """색인에 있는 잠정실적 공시 중 원문을 아직 안 받은 것을 받는다.
+
+    색인에 있는데 안 받아서 못 본 것은 데이터가 없는 것이 아니다. 2026-08-07
+    판단은 접수번호까지 알면서 원문 수집을 사용자 대기열로 넘겼고, 그 안에 있던
+    품목군별 매출이 이틀 뒤에야 논지를 바꿨다.
+
+    이미 받은 것은 다시 받지 않는다. 최신부터 받는 것은 상한에 걸릴 때 이번
+    분기 실적이 먼저 남아야 하기 때문이다.
+    """
+    index_path = KNOWLEDGE_DIR / "filings" / f"{asset_id}.json"
+    stamp = datetime.now(timezone.utc).astimezone()
+    result = {
+        "asset_id": asset_id,
+        "collected_at": stamp.isoformat(timespec="seconds"),
+        "forms": list(AUTO_DOCUMENT_FORMS),
+        "fetched": [],
+        "skipped": [],
+        "failed": [],
+        "missing_index": False,
+    }
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        result["missing_index"] = True
+        return result
+
+    rows = []
+    for filing in index.get("filings") or []:
+        if not isinstance(filing, dict):
+            continue
+        if filing.get("form") not in AUTO_DOCUMENT_FORMS:
+            continue
+        rcept_no = str(filing.get("accession_number") or "").strip()
+        if not re.fullmatch(r"\d{14}", rcept_no):
+            continue
+        rows.append((str(filing.get("filing_date") or ""), rcept_no))
+    rows.sort(reverse=True)
+
+    # 원문 보유 여부를 모르면(None) 아무것도 받지 않는다. 모르는 것을 "없다"로
+    # 읽으면 refresh 마다 색인 전체를 다시 받는다.
+    stored = stored_filing_keys(asset_id)
+    if stored is None:
+        result["skipped"] = [rcept_no for _, rcept_no in rows]
+        _write_document_marker(asset_id, result)
+        return result
+
+    for _, rcept_no in rows:
+        if rcept_no in stored:
+            result["skipped"].append(rcept_no)
+            continue
+        if len(result["fetched"]) >= limit:
+            result["skipped"].append(rcept_no)
+            continue
+        try:
+            fetch_document(rcept_no, key)
+        except (OSError, SystemExit, ValueError) as exc:
+            result["failed"].append({"rcept_no": rcept_no, "reason": str(exc)})
+            continue
+        result["fetched"].append(rcept_no)
+    _write_document_marker(asset_id, result)
+    return result
+
+
+def _write_document_marker(asset_id, result):
+    """무엇을 받았고 무엇을 못 받았는지의 표식.
+
+    안 쓰면 "받을 것이 없었다"와 "안 돌았다"가 구분되지 않고, refresh 는
+    산출물이 없다는 이유로 영원히 다시 돈다.
+    """
+    out = KNOWLEDGE_DIR / "filings" / "_documents"
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{asset_id}.json"
+    temporary_name = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=out, delete=False
+        ) as temporary:
+            json.dump(result, temporary, ensure_ascii=False, indent=2)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_name = temporary.name
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name and Path(temporary_name).exists():
+            Path(temporary_name).unlink()
+    return path
+
+
+def cmd_documents(a, key):
+    result = sync_provisional_documents(a.stock_code, key=key)
+    if result["missing_index"]:
+        print(f"{a.stock_code}: 공시 색인이 없다 — 먼저 `filings` 를 받는다")
+        return 1
+    print(
+        f"{a.stock_code} 잠정실적 원문  "
+        f"받음 {len(result['fetched'])} / 이미 있음 {len(result['skipped'])} / "
+        f"실패 {len(result['failed'])}"
+    )
+    for rcept_no in result["fetched"]:
+        print(f"  받음   DARTDOC:{rcept_no}")
+    for row in result["failed"]:
+        print(f"  실패   {row['rcept_no']}  {row['reason']}")
+    return 1 if result["failed"] and not result["fetched"] else 0
 
 
 def cmd_filings(a, key):
@@ -1578,6 +1697,11 @@ def main():
     doc = sub.add_parser("document", help="접수번호로 공시 원문 받기")
     doc.add_argument("rcept_no", help="14자리 접수번호")
 
+    docs = sub.add_parser(
+        "documents", help="색인의 잠정실적 공시 중 안 받은 원문을 받기"
+    )
+    docs.add_argument("stock_code")
+
     s = sub.add_parser("financials", help="재무제표")
     s.add_argument("stock_code")
     s.add_argument("--year", required=True)
@@ -1606,6 +1730,7 @@ def main():
         "resolve": cmd_resolve,
         "filings": cmd_filings,
         "document": cmd_document,
+        "documents": cmd_documents,
         "financials": cmd_financials,
         "quarters": cmd_quarters,
         "fundamentals": cmd_fundamentals,

@@ -91,6 +91,69 @@ def _csv_rows(path: Path) -> list[dict[str, str]]:
         )
 
 
+def _daily_ranges(symbol: str) -> list[tuple[str, float, float, float]]:
+    """일봉의 (날짜, 고가, 저가, 분할계수). 새로 수집하는 것은 없다.
+
+    고가·저가는 이미 price-series CSV 에 들어 있는데 `_price_summary` 가
+    종가만 꺼내 쓰느라 버려지고 있었다. 문턱을 장중에 스쳤는지는 이 두 칸으로
+    답이 나오며 분봉은 필요 없다.
+
+    분할계수를 함께 돌려주는 이유는 `close` 와 같은 원가격이기 때문이다.
+    가격계획의 문턱은 판단 시점의 원가격이므로, 그 사이 분할이 있었으면
+    비교 자체가 성립하지 않는다.
+    """
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    if not path.exists():
+        return []
+    rows: list[tuple[str, float, float, float]] = []
+    for row in _csv_rows(path):
+        date = row.get("date")
+        if not date:
+            continue
+        try:
+            high = float(row["high"])
+            low = float(row["low"])
+            factor = float(row.get("split_adjustment_factor") or 1.0)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (
+            not math.isfinite(high)
+            or not math.isfinite(low)
+            or not math.isfinite(factor)
+            or low <= 0
+            or high < low
+        ):
+            continue
+        rows.append((date, high, low, factor))
+    rows.sort(key=lambda item: item[0])
+    return rows
+
+
+def _bars_since(
+    ranges: list[tuple[str, float, float, float]] | None,
+    decided_at: Any,
+) -> list[tuple[str, float, float]]:
+    """판단일(포함) 이후의 봉만 남긴다.
+
+    판단 당일을 포함하는 것은 의도다. 2026-08-07 11:16 판단의 재검토 하단
+    340,000원은 **같은 날** 저가 333,000원에 스쳤고, 당일을 빼면 이 블록이
+    존재하는 이유였던 그 사건이 잡히지 않는다.
+
+    분할계수가 구간 안에서 달라지면 빈 목록을 준다. 원가격끼리의 비교가
+    성립하지 않는 구간에서 스쳤다·안 스쳤다를 말하는 것은 관측이 아니라
+    오답이며, 여기서는 모른다고 말하는 편이 옳다.
+    """
+    if not ranges or not isinstance(decided_at, str) or len(decided_at) < 10:
+        return []
+    since = decided_at[:10]
+    window = [row for row in ranges if row[0] >= since]
+    if not window:
+        return []
+    if len({row[3] for row in window}) != 1:
+        return []
+    return [(date, high, low) for date, high, low, _ in window]
+
+
 def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
     source = {
@@ -1177,6 +1240,100 @@ def _pct(value: float | None) -> float | None:
     return None if value is None else round(value, 2)
 
 
+# 어떤 공시가 추정을 낡게 만드는가. 실적을 새로 말하는 것만 센다 — IR 개최나
+# 주주총회까지 세면 이 표시가 항상 켜져 있게 되고, 항상 켜진 경고는 아무것도
+# 말하지 않는다.
+ESTIMATE_INVALIDATING_FORMS = {
+    "PROVISIONAL_RESULT",
+    "ANNUAL_REPORT",
+    "HALF_REPORT",
+    "QUARTER_REPORT",
+    "10-K",
+    "10-K/A",
+    "10-Q",
+    "10-Q/A",
+}
+
+
+def _estimates_event_lag(asset_id: str, as_of: Any) -> dict[str, Any] | None:
+    """추정치 기준일 이후에 실적 공시가 있었는가.
+
+    신선도를 시간으로만 재면 이것을 못 잡는다. `consensus:214450` 는 as_of
+    2026-07-28 로 refresh 가 FRESH 라고 답했는데 그 사이 2026-08-07 에 2Q26
+    잠정실적이 나왔고, 그 EPS 위에서 계산된 "2026E PER 19.87배" 가 판단에
+    그대로 들어갔다. 문제는 12일 낡은 것이 아니라 **사건 하나만큼** 낡은 것이다.
+
+    다시 수집해도 제공처가 아직 개정하지 않았으면 as_of 는 그대로다 — 실제로
+    그랬다. 그래서 이것은 수집 지시(STALE)가 아니라 **판단 입력**이며,
+    refresh 의 상태를 건드리지 않고 packet 의 관측으로만 남긴다.
+
+    기준일과 공시일이 같은 날이면 켜지 않는다. 그날 그 공시를 반영했는지
+    로컬에서 가릴 수 없고, 모르는 것을 경고로 바꾸면 경고가 신호를 잃는다.
+    """
+    if not isinstance(as_of, str) or len(as_of) < 10:
+        return None
+    boundary = as_of[:10]
+    try:
+        data = load_json(KNOWLEDGE_DIR / "filings" / f"{asset_id}.json")
+    except (ContractError, OSError):
+        return None
+    events = []
+    for filing in (data.get("filings") or []) if isinstance(data, dict) else []:
+        if not isinstance(filing, dict):
+            continue
+        filed = filing.get("filing_date")
+        if not isinstance(filed, str) or filed[:10] <= boundary:
+            continue
+        if filing.get("form") not in ESTIMATE_INVALIDATING_FORMS:
+            continue
+        events.append(
+            {
+                "filing_date": filed[:10],
+                "form": filing.get("form"),
+                "accession_number": filing.get("accession_number"),
+                "description": filing.get("description"),
+            }
+        )
+    if not events:
+        return None
+    events.sort(key=lambda row: row["filing_date"], reverse=True)
+    return {
+        "estimates_as_of": boundary,
+        "latest_event_date": events[0]["filing_date"],
+        "events_since": len(events),
+        "events": events[:4],
+        "_role": (
+            "이 추정치는 기준일 이후에 나온 실적 공시를 **반영하지 않았다.** "
+            "시간으로는 신선해도 사건으로는 낡았다는 뜻이며, 이 EPS 로 낸 "
+            "배수는 그만큼 실제와 다르다. 다시 수집해도 제공처가 개정하지 "
+            "않았으면 같은 값이 오므로 재수집을 요청하는 자리가 아니다 — "
+            "공시 원문의 실적으로 직접 조정하거나, 조정하지 않았다면 그 "
+            "한계를 unknowns 에 적는다"
+        ),
+    }
+
+
+def _with_event_lag(
+    block: dict[str, Any] | None,
+    asset_id: str,
+    *,
+    as_of_key: str,
+) -> dict[str, Any] | None:
+    """추정 기준일이 실린 블록에 사건 낙후를 붙인다.
+
+    배수가 계산되는 자리와 EPS 가 실린 자리 **둘 다**에 붙인다. 한 곳만 보고
+    결론을 쓰는 경로가 실제로 있었다 — 2026-08-09 판단은 `multiples_at_review_price`
+    의 19.87배를 그대로 인용했고 `structured_optional.consensus` 는 개정 방향을
+    보려고 따로 읽었다. 둘 중 하나만 표시하면 다른 쪽을 읽은 날 놓친다.
+    """
+    if not isinstance(block, dict):
+        return block
+    lag = _estimates_event_lag(asset_id, block.get(as_of_key))
+    if lag:
+        block["stale_across_event"] = lag
+    return block
+
+
 def _forward_multiple_row(asset_id: str, name: str | None) -> dict[str, Any]:
     """컨센서스 파일 하나에서 선행 배수 한 줄. 없으면 available=False.
 
@@ -1499,6 +1656,9 @@ def _optional_collection_summaries(
                         "멀티플은 직접 정한다. 2차 출처(EXPLORATORY)다"
                     ),
                 }
+                _with_event_lag(
+                    summaries["consensus"], asset_id, as_of_key="as_of"
+                )
                 sources.append(
                     {
                         "source_id": f"CONSENSUS:{asset_id}",
@@ -2309,11 +2469,22 @@ def _prior_plan_check(
     latest_close: float | None,
     close_date: str | None,
     close_is_settled: bool | None,
+    bars: list[tuple[str, float, float]] | None = None,
 ) -> dict[str, Any] | None:
     """직전 가격계획의 각 문턱을 현재 종가와 기계적으로 대조한다.
 
     판단이 아니라 산술이다. 모델이 자기가 세운 손절·재검토 가격이 이미
     닿았는지를 매번 다시 계산하지 않게 하는 것이 목적이다.
+
+    `bars` 는 판단일 이후의 (날짜, 고가, 저가) 다. 종가만 보면 장중에 스친
+    문턱이 통째로 사라진다 — 2026-08-07 파마리서치가 그랬다. 직전 계획의
+    재검토 하단이 340,000원이었고 그날 저가가 333,000원이었는데, 종가
+    378,500원만 대조하니 닿지 않은 것으로 남았다.
+
+    **스친 것과 종가로 뚫린 것은 다른 사실이라 칸을 나눈다.** `triggered` 는
+    종가 기준 그대로 두고 장중 관측은 `intraday` 아래에만 쌓는다. 둘을 합치면
+    "종가가 손절 아래에서 끝났다"와 "장중에 한 번 스쳤다"가 구분되지 않고,
+    그 구분이 사라지면 다음 판단이 스친 것만으로 매도를 정산하게 된다.
     """
     if not isinstance(plan, dict) or latest_close is None:
         return None
@@ -2343,6 +2514,15 @@ def _prior_plan_check(
     if scale_out is not None and latest_close >= scale_out:
         triggered.append("scale_out_start")
     return {
+        "intraday": _intraday_touch(
+            bars,
+            stop=stop,
+            reask_below=reask_below,
+            reask_above=reask_above,
+            scale_out=scale_out,
+            entry_low=entry_low,
+            entry_high=entry_high,
+        ),
         "close": latest_close,
         "close_date": close_date,
         "close_is_settled": close_is_settled,
@@ -2372,11 +2552,107 @@ def _prior_plan_check(
         ),
         "triggered": triggered,
         "_note": (
-            "종가와 문턱의 산술 비교일 뿐이다. 장중 저가·고가로 스쳤는지는 "
-            "보지 않으며, 문턱에 닿았다는 사실이 그때의 논지가 여전히 옳다는 "
-            "뜻도 아니다. 왜 닿았는지는 모델이 판단한다"
+            "종가와 문턱의 산술 비교다. 장중에 스쳤는지는 intraday 에 따로 "
+            "있으며 둘은 같은 사실이 아니다. 문턱에 닿았다는 사실이 그때의 "
+            "논지가 여전히 옳다는 뜻도 아니다 — 왜 닿았는지는 모델이 판단한다"
         ),
     }
+
+
+def _intraday_touch(
+    bars: list[tuple[str, float, float]] | None,
+    *,
+    stop: float | None,
+    reask_below: float | None,
+    reask_above: float | None,
+    scale_out: float | None,
+    entry_low: float | None,
+    entry_high: float | None,
+) -> dict[str, Any] | None:
+    """판단일 이후의 고가·저가가 각 문턱을 스쳤는지.
+
+    **닿은 날은 가장 이른 날을 적는다.** 마지막 날을 적으면 "언제부터 알 수
+    있었나"가 사라지고, 그것이 이 블록의 존재 이유다.
+
+    봉이 없으면 빈 값이 아니라 `None` 이다. false 로 채우면 관측하지 않은 것이
+    관측된 음성으로 둔갑한다 — packet 에서 그 둘은 절대 같은 값일 수 없다.
+    """
+    usable = [
+        (str(date), float(high), float(low))
+        for date, high, low in (bars or [])
+        if isinstance(high, (int, float))
+        and isinstance(low, (int, float))
+        and not isinstance(high, bool)
+        and not isinstance(low, bool)
+        and math.isfinite(float(high))
+        and math.isfinite(float(low))
+        and float(low) > 0
+    ]
+    if not usable:
+        return None
+    usable.sort(key=lambda row: row[0])
+
+    def first_day(hit: Any) -> str | None:
+        for date, high, low in usable:
+            if hit(high, low):
+                return date
+        return None
+
+    checks: list[tuple[str, str, str | None]] = [
+        (
+            "stop_price",
+            "stop_touched_on",
+            None if stop is None else first_day(lambda h, l: l <= stop),
+        ),
+        (
+            "reask_below",
+            "reask_below_touched_on",
+            None
+            if reask_below is None
+            else first_day(lambda h, l: l <= reask_below),
+        ),
+        (
+            "reask_above",
+            "reask_above_touched_on",
+            None
+            if reask_above is None
+            else first_day(lambda h, l: h >= reask_above),
+        ),
+        (
+            "scale_out_start",
+            "scale_out_touched_on",
+            None
+            if scale_out is None
+            else first_day(lambda h, l: h >= scale_out),
+        ),
+        (
+            # 봉의 [저가, 고가] 구간이 진입 범위와 겹치면 그 가격에 살 수 있었다.
+            "entry_range",
+            "entry_range_touched_on",
+            None
+            if entry_low is None or entry_high is None
+            else first_day(lambda h, l: l <= entry_high and h >= entry_low),
+        ),
+    ]
+    result: dict[str, Any] = {
+        "from": usable[0][0],
+        "to": usable[-1][0],
+        "sessions": len(usable),
+        "high": max(high for _, high, _ in usable),
+        "low": min(low for _, _, low in usable),
+        "touched": [name for name, _, day in checks if day is not None],
+    }
+    for _, key, day in checks:
+        result[key] = day
+    result["_note"] = (
+        "판단일 이후 일봉의 고가·저가가 각 문턱을 스쳤는지다. **스친 것은 "
+        "종가로 뚫린 것과 다르다** — 종가 기준 판정은 위의 triggered 에 있다. "
+        "장중에 스쳤다는 것은 그날 그 가격에 거래가 가능했다는 사실일 뿐, "
+        "그 가격에 체결됐다는 뜻도 그때 행동했어야 했다는 뜻도 아니다. "
+        "봉 안에서의 순서는 일봉이 담지 않으므로 같은 날 두 문턱을 스쳤다면 "
+        "어느 쪽이 먼저인지는 여기서 알 수 없다"
+    )
+    return result
 
 
 def _compact_size(value: Any) -> int:
@@ -2489,6 +2765,7 @@ def _memory_digest(
     close_date: str | None = None,
     close_is_settled: bool | None = None,
     target_annual_return_pct: Any = None,
+    daily_ranges: list[tuple[str, float, float, float]] | None = None,
 ) -> dict[str, Any]:
     directory = KNOWLEDGE_DIR / "assessments" / asset_id
     assessments = []
@@ -2708,6 +2985,7 @@ def _memory_digest(
                 latest_close=latest_close,
                 close_date=close_date,
                 close_is_settled=close_is_settled,
+                bars=_bars_since(daily_ranges, data.get("created_at")),
             )
             row["pace_since_decision"] = _pace_since_decision(
                 decided_at=data.get("created_at"),
@@ -3392,7 +3670,7 @@ def build_context(
         # 준비상태 이분화, 주장-근거 결속(claim_kind·basis), 분기 브리지.
         # 프롬프트 본문이 바뀌면 반드시 올린다 — 같은 버전이 다른 규칙을
         # 가리키면 모델 비교가 깨진다.
-        "prompt_version": "2.3",
+        "prompt_version": "2.4",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -3450,11 +3728,13 @@ def build_context(
                 pipeline_for_context(asset["asset_id"])
                 if asset["analysis_lens"] == "CLINICAL_BIOTECH" else None
             ),
-            "multiples_at_review_price": (
+            "multiples_at_review_price": _with_event_lag(
                 position_multiples(
                     asset["asset_id"], price, estimates_only=True
                 )
-                if asset["asset_type"] == "STOCK" else None
+                if asset["asset_type"] == "STOCK" else None,
+                asset["asset_id"],
+                as_of_key="consensus_as_of",
             ),
             "applicable_calculation": calculation,
             "events": events,
@@ -3481,6 +3761,7 @@ def build_context(
                         "target_annual_return_pct"
                     )
                 ),
+                daily_ranges=_daily_ranges(asset["price_symbol"]),
             ),
             "research_requirements": _research_requirements(asset),
             "open_research_requests": open_requests_for_context(

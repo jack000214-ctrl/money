@@ -199,6 +199,21 @@ def format_assessment(
         lines.append(f"            └ 막힌 이유: {action['undetermined_reason']}")
     if action.get("sell_reason"):
         lines.append(f"            └ 매도 사유: {action['sell_reason']}")
+    # 수량과 실행 가격은 **화면에 찍혀야 한다.** 2026-08-07 판단은 TRIM 30주를
+    # 390,000원에 걸라는 지시였는데 화면에는 둘 다 없었고(수량은 아예 렌더링되지
+    # 않았다) 그 숫자들은 논지 문단 안에만 있었다. 읽는 사람이 본 것은 뜻이
+    # 다른 scale_out_start 470,000 이었다.
+    quantity = action.get("quantity")
+    limit_price = action.get("limit_price")
+    if quantity is not None or limit_price is not None:
+        parts = []
+        if quantity is not None:
+            parts.append(f"{_num(quantity, digits=0)}주")
+        if limit_price is not None:
+            parts.append(
+                f"지정가 {_num(limit_price, digits=0)} {currency}".rstrip()
+            )
+        lines.append(f"            └ 주문: {' · '.join(parts)}")
     lines.append(
         f"  승률 {_num(data.get('win_probability_pct'), unit='%')}   "
         f"확신도 {_num(data.get('confidence_pct'), unit='%')}   "

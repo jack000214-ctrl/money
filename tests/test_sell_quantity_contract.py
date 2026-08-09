@@ -47,10 +47,14 @@ def _decision(context, direction, quantity, sell_reason="VALUATION"):
     data["context_id"] = context["context_id"]
     data["verdict"] = "WAIT"
     data["proposed_trade"] = {**data["proposed_trade"], "amount": 0}
+    selling = direction in {"TRIM", "EXIT"}
     data["action"] = {
         "direction": direction,
         "quantity": quantity,
-        "sell_reason": sell_reason if direction in {"TRIM", "EXIT"} else None,
+        # 매도 지시에는 얼마에 걸지가 함께 있어야 한다. 이 파일이 보는 것은
+        # 수량 대조이므로 가격은 유효한 값을 하나 채워 두고 지나간다.
+        "limit_price": 190000.0 if selling else None,
+        "sell_reason": sell_reason if selling else None,
         "rationale": "이유",
     }
     return data

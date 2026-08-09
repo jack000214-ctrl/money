@@ -254,6 +254,37 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     ],
                 )
             )
+            # 색인에 있는데 안 받아서 못 본 것은 데이터가 없는 것이 아니다.
+            # 2026-08-07 판단은 접수번호까지 알면서 잠정실적 원문 수집을
+            # 사용자 대기열로 넘겼고, 그 안에 있던 품목군별 매출이 이틀 뒤에야
+            # 논지를 바꿨다. 색인이 갱신되면 함께 돈다 (dependencies).
+            #
+            # 잠정실적만 받는다 — 정기보고서는 100만 자라 이 배선이 감당할
+            # 문서가 아니고, 필요한 자리만 `cio search` 로 읽는다.
+            #
+            # required=False 인 것은 의도다. 원문 하나를 못 받았다고 packet 을
+            # BLOCKED 로 만들면, 있으면 좋은 입력 때문에 판단 자체가 멈춘다.
+            tasks.append(
+                RefreshTask(
+                    name=f"filing_documents:{asset['asset_id']}",
+                    capability="FILING_DOCUMENTS",
+                    artifact=(
+                        f"knowledge/filings/_documents/{asset['asset_id']}.json"
+                    ),
+                    max_age_hours=720,
+                    command=[
+                        sys.executable,
+                        "-m",
+                        "collectors.dart",
+                        "documents",
+                        asset["asset_id"],
+                    ],
+                    required=False,
+                    dependencies=[
+                        f"knowledge/filings/{asset['asset_id']}.json"
+                    ],
+                )
+            )
             # 색인은 "결산실적공시예고"라는 제목만 갖는다. 판단을 바꾸는 값인
             # 공시예정일은 원문 본문에만 있어서, 이벤트까지 며칠 남았는지 알려면
             # 매번 원문을 열어야 했다. 이벤트 전에 살 것인가는 매수 판단의 1차
