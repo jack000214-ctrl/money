@@ -158,14 +158,35 @@ def collect_requests(asset_id: str) -> list[dict[str, Any]]:
     자유 문장이라 스키마 변화와 무관하게 뜻이 유지되고, 여기서 버리면 가장
     오래된 미해결 요청부터 사라지기 때문이다. 대신 출처 판단의 재검증
     상태를 `from_unverified_assessment`로 함께 남긴다.
+
+    **폐기된 판단의 요청도 같은 이유로 읽는다.** 처음에는 살아 있는 판단만
+    훑었는데, 그러면 새 판단이 옛 판단을 대체하고 옛것을 `retire` 하는 정상
+    흐름에서 미해결 요청이 통째로 증발했다. 실제로 그랬다 — 세 건이 사라지고
+    `resolved` 쪽에는 어느 요청도 가리키지 않는 해결 기록 8건만 남았다.
+    `asked_count` 는 "몇 번이나 요청했는데 아직 없는가"를 세라고 만든 값인데,
+    폐기를 빼면 살아 있는 판단 수를 넘을 수 없어 신호가 죽는다.
+
+    폐기가 뜻하는 것은 "그 결론을 근거로 인용하지 않는다"이지 "그 데이터가
+    이제 필요 없다"가 아니다. 요청은 결론이 아니라 아직 메워지지 않은 공백을
+    가리키며, 그 공백은 판단을 폐기해도 그대로 있다. `score` 가 폐기된 판단도
+    채점하는 것과 같은 구분이다.
     """
-    directory = KNOWLEDGE_DIR / "assessments" / asset_id
-    if not directory.exists():
+    directories = [
+        KNOWLEDGE_DIR / "assessments" / asset_id,
+        KNOWLEDGE_DIR / "retired" / asset_id,
+    ]
+    paths = [
+        path
+        for directory in directories
+        if directory.exists()
+        for path in sorted(directory.glob("CIO-*.json"))
+    ]
+    if not paths:
         return []
     from cio.decision import require_valid_decision, validate_context_integrity
 
     grouped: dict[str, dict[str, Any]] = {}
-    for path in sorted(directory.glob("CIO-*.json")):
+    for path in paths:
         try:
             data = load_json(path)
         except (ContractError, OSError):

@@ -4,6 +4,7 @@ import csv
 import datetime as dt
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,27 @@ EVALUATION_SCHEMA = "cio-evaluation/1.1.0"
 # 무엇이 없어졌는지 아무도 모른다. 추가된 필드는 읽는 쪽이 안 보면 그만이다.
 READABLE_EVALUATION_SCHEMAS = frozenset(
     {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0"}
+)
+
+# 지문에서 빼는 키. **라이터와 리더가 반드시 같은 집합을 써야 한다.**
+# evaluation_id 는 자기 자신이고 evaluated_at 은 채점을 다시 돌릴 때마다
+# 바뀐다. 나머지 넷은 지문을 계산한 **뒤에** 붙는 저장 시점의 분류 라벨이며
+# 예측 내용이 아니다 — source(LIVE/RETIRED), citable, contract_gap, retired.
+#
+# 두 집합이 어긋나면 리더가 모든 평가를 변조로 보고 `continue` 한다. 실제로
+# 그랬다: 라이터는 이 넷을 붙이기 전에 지문을 냈고 리더는 붙은 뒤에 다시
+# 계산해서, 116건 중 일치 0건으로 packet 의 latest_evaluation 이 언제나
+# null 이었다. 판단이 자기 직전 판단의 성적을 한 번도 못 본 것이다. 조용히
+# 건너뛰므로 score 출력만 보면 멀쩡해 보인다.
+EVALUATION_ID_EXCLUDED_KEYS = frozenset(
+    {
+        "evaluation_id",
+        "evaluated_at",
+        "source",
+        "citable",
+        "contract_gap",
+        "retired",
+    }
 )
 
 
@@ -150,6 +172,32 @@ def _memory_asset_dir(kind: str, asset_id: str) -> Path:
     except ValueError as exc:
         raise ContractError(["memory 저장 경로가 허용 범위를 벗어났다"]) from exc
     return path
+
+
+def _price_session(symbol: str) -> dict[str, Any] | None:
+    """가격 파일 헤더에서 마지막 봉의 확정 여부를 읽는다.
+
+    `_price_rows` 는 `#` 로 시작하는 줄을 전부 버리므로 이 사실이 채점까지
+    오지 못했다. 장중에 `score` 를 돌리면 진행 중인 봉이 확정 종가와 똑같은
+    모양으로 `price.latest` 에 들어가고, 저장된 평가만 봐서는 그것이 종가인지
+    14시의 값인지 구분할 수 없다. packet 은 이 구분을 갖고 있는데
+    (`price.last_bar.is_settled_close`) 평가 기록에는 없었다.
+    """
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    if not path.exists():
+        return None
+    with path.open(encoding="utf-8-sig") as handle:
+        for line in handle:
+            if not line.lstrip().startswith("#"):
+                break
+            match = re.fullmatch(
+                r"#\s*last_bar\s+(\d{4}-\d{2}-\d{2})\s*/\s*session\s+"
+                r"(SETTLED|UNSETTLED|UNKNOWN)\s*",
+                line.rstrip("\n"),
+            )
+            if match:
+                return {"last_bar": match.group(1), "session": match.group(2)}
+    return None
 
 
 def _price_rows(symbol: str) -> list[dict[str, Any]]:
@@ -520,6 +568,7 @@ def evaluate_assessment(
     rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     asset = get_asset(assessment["asset_id"])
+    session = _price_session(asset["price_symbol"])
     rows = rows or _price_rows(asset["price_symbol"])
     rows = [
         {
@@ -599,6 +648,28 @@ def evaluate_assessment(
             "target_date": horizon.isoformat(),
             "latest_available_date": latest["date"],
             "complete": complete,
+            # 마지막 관측이 확정 종가인가. 장중에 채점하면 진행 중인 봉이
+            # price.latest 에 들어가는데, 그 사실이 남지 않으면 나중에 이
+            # 평가를 읽는 쪽이 14시의 값을 종가로 인용한다.
+            "latest_is_settled_close": (
+                None
+                if session is None
+                else (
+                    session.get("session") == "SETTLED"
+                    or session.get("last_bar") != latest["date"]
+                )
+            ),
+            "_settled_note": (
+                None
+                if session is None
+                else (
+                    "마지막 봉이 확정 종가가 아니다 — 장중 수집분이다. "
+                    "이 평가의 실현 수익률은 진행 중인 값이다"
+                    if session.get("session") == "UNSETTLED"
+                    and session.get("last_bar") == latest["date"]
+                    else None
+                )
+            ),
         },
         "price": {
             "start": start_price,
@@ -702,7 +773,7 @@ def evaluate_assessment(
         {
             key: value
             for key, value in evaluation.items()
-            if key not in {"evaluation_id", "evaluated_at"}
+            if key not in EVALUATION_ID_EXCLUDED_KEYS
         },
         "EVAL-",
     )
@@ -822,6 +893,41 @@ def _score_one(
     return evaluation
 
 
+def _prune_superseded_evaluations(
+    directory: Path, *, assessment_id: str, keep: str
+) -> int:
+    """같은 판단의 옛 채점을 지운다. 남기는 것은 방금 쓴 한 건뿐이다.
+
+    `evaluation_id` 가 내용 지문이라 가격이 하루만 움직여도 새 파일이 된다.
+    그래서 `score` 를 돌릴 때마다 판단 하나에 파일이 하나씩 쌓였고, 실제로
+    고유 판단 15건에 파일 116건까지 갔다(판단 하나당 최대 13개). 디스크가
+    문제가 아니라 **"이 판단의 평가"가 열세 가지가 되는 것**이 문제다 —
+    읽는 쪽이 매번 `evaluated_at` 로 직접 골라야 하고, 고르는 규칙이 읽는
+    곳마다 달라질 수 있다.
+
+    지워도 되는 이유는 이것이 **파생 데이터**이기 때문이다. 평가는 판단과
+    가격 시계열만 있으면 언제든 다시 만들어진다. 원본(판단·가격)은 그대로
+    있으므로 track record 를 잃지 않는다. 반대로 판단 자체는 절대 지우지
+    않는다 — 그것은 파생이 아니라 그날 실제로 한 예측이다.
+    """
+    removed = 0
+    for path in sorted(directory.glob("EVAL-*.json")):
+        if path.stem == keep:
+            continue
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        if data.get("assessment_id") != assessment_id:
+            continue
+        try:
+            path.unlink()
+        except OSError:
+            continue
+        removed += 1
+    return removed
+
+
 def score_asset(asset_id: str) -> dict[str, Any]:
     """저장된 판단을 이후 가격으로 사후평가한다.
 
@@ -854,6 +960,7 @@ def score_asset(asset_id: str) -> dict[str, Any]:
     retired_evaluated: list[dict[str, Any]] = []
     not_citable: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
+    superseded = 0
 
     targets: list[tuple[Path, bool]] = []
     if assessment_dir.exists():
@@ -888,11 +995,13 @@ def score_asset(asset_id: str) -> dict[str, Any]:
                 }
             )
             continue
-        out = _memory_asset_dir(
-            "evaluations", asset["asset_id"]
-        ) / f"{evaluation['evaluation_id']}.json"
+        directory = _memory_asset_dir("evaluations", asset["asset_id"])
+        out = directory / f"{evaluation['evaluation_id']}.json"
         if not out.exists():
             write_json(out, evaluation)
+        superseded += _prune_superseded_evaluations(
+            directory, assessment_id=stored_id, keep=evaluation["evaluation_id"]
+        )
         row = {
             "assessment_id": stored_id,
             "evaluation_id": evaluation["evaluation_id"],
@@ -914,4 +1023,5 @@ def score_asset(asset_id: str) -> dict[str, Any]:
         "scored_but_not_citable": not_citable,
         "retired_evaluated": retired_evaluated,
         "skipped": skipped,
+        "superseded_removed": superseded,
     }

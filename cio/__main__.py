@@ -35,7 +35,7 @@ from cio.requests import (
     resolve_request,
 )
 from cio.pipeline import PipelineError, format_pipeline, record_program
-from cio.report import format_report
+from cio.report import evaluations_for, format_evaluations, format_report
 from cio.retire import RetireError, format_survey, retire, survey
 
 MIN_PYTHON = (3, 13)
@@ -246,6 +246,18 @@ def cmd_pipeline(args) -> int:
 
 def cmd_show(args) -> int:
     print(format_report(args.asset_id, assessment_id=args.assessment_id))
+    return 0
+
+
+def cmd_evals(args) -> int:
+    if args.json:
+        print(
+            json.dumps(
+                evaluations_for(args.asset_id), ensure_ascii=False, indent=2
+            )
+        )
+        return 0
+    print(format_evaluations(args.asset_id, with_plan=args.plan))
     return 0
 
 
@@ -527,6 +539,18 @@ def build_parser() -> argparse.ArgumentParser:
     score = sub.add_parser("score", help="저장된 decision을 가격으로 사후평가")
     score.add_argument("asset_id")
     score.set_defaults(func=cmd_score)
+
+    evals = sub.add_parser(
+        "evals", help="저장된 채점 결과를 읽는다 (packet 에 없는 track record)"
+    )
+    evals.add_argument("asset_id")
+    evals.add_argument(
+        "--plan",
+        action="store_true",
+        help="그때의 진입·손절·분할매도 문턱까지 함께 본다",
+    )
+    evals.add_argument("--json", action="store_true")
+    evals.set_defaults(func=cmd_evals)
 
     show = sub.add_parser("show", help="기록된 판단을 읽는다")
     show.add_argument("asset_id")

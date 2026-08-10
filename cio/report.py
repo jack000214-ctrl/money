@@ -459,4 +459,158 @@ def format_report(asset_id: str, *, assessment_id: str | None = None) -> str:
     return format_assessment(data, status=status, warnings=warnings)
 
 
-__all__ = ["format_report", "format_assessment", "load_assessment"]
+def _all_assessment_paths(asset_id: str) -> list[tuple[Any, str]]:
+    """살아 있는 판단과 폐기된 판단을 모두 모은다.
+
+    폐기된 것을 포함하는 이유는 `cio score` 와 같다 — **채점 계약은 인용
+    계약보다 작다.** 폐기의 뜻은 "근거로 인용하지 않는다"이지 "그런 예측을
+    한 적이 없다"가 아니며, 둘을 하나로 묶으면 계약을 조일 때마다 track
+    record 가 통째로 사라진다.
+    """
+    rows: list[tuple[Any, str]] = []
+    for directory, source in (
+        (KNOWLEDGE_DIR / "assessments" / asset_id, "LIVE"),
+        (KNOWLEDGE_DIR / "retired" / asset_id, "RETIRED"),
+    ):
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("CIO-*.json")):
+            rows.append((path, source))
+    return rows
+
+
+def evaluations_for(asset_id: str) -> dict[str, Any]:
+    """판단별 최신 평가를 모아 track record 로 편다.
+
+    packet 은 살아 있는 판단 최대 3건에 스칼라 다섯 개만 싣는다. 그것이
+    맞는 설계다 — 채점 이력 전체를 packet 에 넣으면 예산을 먹고, 대부분의
+    판단에서 읽히지도 않는다. 그러나 "내가 지금 같은 실수를 반복하는
+    중인가"를 묻고 싶을 때 꺼낼 경로가 없으면, 모델은 파일을 직접 뒤지거나
+    (재현되지 않는다) 아예 안 본다. 이 함수가 그 자리다 — `local_documents`
+    본문에 대해 `cio search` 가 하는 것과 같은 역할이다.
+    """
+    asset = get_asset(asset_id)
+    resolved = asset["asset_id"]
+    rows: list[dict[str, Any]] = []
+    unscored = 0
+    for path, source in _all_assessment_paths(resolved):
+        try:
+            data = load_json(path)
+        except (ContractError, OSError):
+            continue
+        assessment_id = data.get("assessment_id") or path.stem
+        evaluation = _find_evaluation(resolved, assessment_id)
+        if evaluation is None:
+            unscored += 1
+        plan = data.get("price_plan") or {}
+        price = (evaluation or {}).get("price") or {}
+        window = (evaluation or {}).get("window") or {}
+        thresholds = (evaluation or {}).get("thresholds") or {}
+        triggers = (evaluation or {}).get("triggers") or {}
+        rows.append(
+            {
+                "assessment_id": assessment_id,
+                "created_at": data.get("created_at"),
+                "source": source,
+                "citable": (evaluation or {}).get("citable"),
+                "verdict": data.get("verdict"),
+                "action": (data.get("action") or {}).get("direction"),
+                "asked_price": price.get("start"),
+                "latest_price": price.get("latest"),
+                "return_to_latest_pct": price.get("return_to_latest_pct"),
+                "window_complete": window.get("complete") if evaluation else None,
+                "win_observed": thresholds.get("win_observed"),
+                "failure_observed": thresholds.get("failure_observed"),
+                "expected_return_pct": (
+                    (data.get("expected_return_pct") or {}).get(
+                        "probability_weighted"
+                    )
+                ),
+                "price_plan": {
+                    "preferred_entry": plan.get("preferred_entry"),
+                    "stop_price": plan.get("stop_price"),
+                    "scale_out_start": plan.get("scale_out_start"),
+                },
+                "triggered": sorted(
+                    name
+                    for name, value in triggers.items()
+                    if isinstance(value, dict)
+                ),
+                "evaluation_id": (evaluation or {}).get("evaluation_id"),
+            }
+        )
+    rows.sort(key=lambda row: str(row.get("created_at") or ""))
+    return {
+        "asset_id": resolved,
+        "name": asset.get("name"),
+        "assessment_count": len(rows),
+        "scored_count": len(rows) - unscored,
+        "unscored_count": unscored,
+        "rows": rows,
+        "_role": (
+            "저장된 채점 결과의 조회다. 판정하지 않으며 무엇이 좋은 판단인지 "
+            "여기서 정하지 않는다. RETIRED 는 근거로 인용하지 않되 채점에는 "
+            "남는다 — 폐기는 인용 계약이고 채점 계약은 그보다 작다"
+        ),
+    }
+
+
+def format_evaluations(asset_id: str, *, with_plan: bool = False) -> str:
+    report = evaluations_for(asset_id)
+    lines = [
+        "=" * WIDTH,
+        f"평가 — {report['asset_id']} {report.get('name') or ''}".rstrip(),
+        f"  판단 {report['assessment_count']}건 · 채점 {report['scored_count']}건"
+        f" · 미채점 {report['unscored_count']}건",
+        "=" * WIDTH,
+    ]
+    if not report["rows"]:
+        lines.append("  기록된 판단이 없다")
+        return "\n".join(lines)
+
+    header = (
+        f"  {_pad('판단시각', 17)}{_pad('ID', 10)}{_pad('출처', 9)}"
+        f"{_pad('기준가', 10)}{_pad('결론', 14)}{_pad('실현%', 8)}"
+    )
+    if with_plan:
+        header += f"{_pad('선호진입', 10)}{_pad('손절', 10)}{_pad('분할매도', 10)}"
+    lines += ["", header, "  " + "-" * (WIDTH - 4)]
+    for row in report["rows"]:
+        created = str(row.get("created_at") or "")[:16].replace("T", " ")
+        decision = f"{row.get('verdict') or '—'}/{row.get('action') or '—'}"
+        line = (
+            f"  {_pad(created, 17)}"
+            f"{_pad(str(row['assessment_id'])[4:12], 10)}"
+            f"{_pad(row['source'], 9)}"
+            f"{_pad(_num(row.get('asked_price'), digits=0), 10)}"
+            f"{_pad(decision, 14)}"
+            f"{_pad(_signed(row.get('return_to_latest_pct')), 8)}"
+        )
+        if with_plan:
+            plan = row["price_plan"]
+            line += (
+                f"{_pad(_num(plan.get('preferred_entry'), digits=0), 10)}"
+                f"{_pad(_num(plan.get('stop_price'), digits=0), 10)}"
+                f"{_pad(_num(plan.get('scale_out_start'), digits=0), 10)}"
+            )
+        lines.append(line)
+        if row["triggered"]:
+            lines.append(f"      발동: {', '.join(row['triggered'])}")
+
+    lines += [
+        "",
+        "  ※ RETIRED 는 근거로 인용하지 않는다. 채점에는 남기며 그것이 폐기의 뜻이다",
+        "  ※ 실현%는 판단 시점 기준가 대비 최신가이며 평가 기간이 끝나지 않았다",
+    ]
+    if not with_plan:
+        lines.append("  ※ --plan 으로 그때의 진입·손절·분할매도 문턱까지 본다")
+    return "\n".join(lines)
+
+
+__all__ = [
+    "format_report",
+    "format_assessment",
+    "load_assessment",
+    "evaluations_for",
+    "format_evaluations",
+]

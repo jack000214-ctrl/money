@@ -27,7 +27,10 @@ from calculators.contracts import (
 from cio.assets import get_asset
 from cio.documents import documents_for_context, fetch_hint, stored_filing_keys
 from cio.decision import require_valid_decision, validate_context_integrity
-from cio.memory import READABLE_EVALUATION_SCHEMAS
+from cio.memory import (
+    EVALUATION_ID_EXCLUDED_KEYS,
+    READABLE_EVALUATION_SCHEMAS,
+)
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from cio.policy import POLICY_PATH, load_policy, policy_for_context
 from cio.requests import open_requests_for_context
@@ -788,6 +791,34 @@ def _earnings_calendar_section(
             },
             source,
         )
+    # 남은 영업일은 **수집 시점이 아니라 지금** 기준으로 다시 센다.
+    #
+    # 이 값은 수집기가 계산해 파일에 굳힌 파생값이다. 캘린더 자체는 하루쯤
+    # 지나도 FRESH 라 refresh 가 건너뛰는데, 그러면 어제 센 "4영업일 남음"이
+    # 오늘 packet 에 그대로 실린다. 실제로 그랬다 — 2026-08-09 수집분이
+    # 2026-08-10 packet 에 4를 실었고 참값은 3이었다. 며칠 남았는지는 판단이
+    # 직접 쓰는 입력(이벤트 전에 주문을 낼 것인가)이라 하루 차이가 결론을
+    # 바꾼다. 날짜(`date`)는 사실이고 남은 일수는 그 사실에서 파생된 값이므로,
+    # 파생값은 읽는 시점에 다시 만든다.
+    today = dt.datetime.now(KST).date()
+
+    def _days_left(target: Any) -> int | None:
+        if not isinstance(target, str):
+            return None
+        try:
+            end = dt.date.fromisoformat(target)
+        except ValueError:
+            return None
+        if end < today:
+            return None
+        days = 0
+        cursor = today
+        while cursor < end:
+            cursor += dt.timedelta(days=1)
+            if cursor.weekday() < 5:
+                days += 1
+        return days
+
     summary: dict[str, Any] = {
         "as_of_date": data.get("as_of_date"),
         "business_day_basis": data.get("business_day_basis"),
@@ -817,6 +848,13 @@ def _earnings_calendar_section(
                 "_content",
             )
         }
+        summary["next_provisional_result"]["business_days_remaining"] = (
+            _days_left(upcoming.get("disclosure_date"))
+        )
+        summary["next_provisional_result"]["_days_basis"] = (
+            f"packet 조립 시점({today.isoformat()}) 기준으로 다시 셌다. "
+            "수집 파일의 값은 수집일 기준이라 그대로 실으면 낡는다"
+        )
     if isinstance(report, dict):
         summary["expected_periodic_report"] = {
             key: report.get(key)
@@ -830,6 +868,14 @@ def _earnings_calendar_section(
                 "_content",
             )
         }
+        summary["expected_periodic_report"]["business_days_remaining"] = (
+            _days_left(report.get("date"))
+        )
+        summary["expected_periodic_report"]["_days_basis"] = (
+            f"packet 조립 시점({today.isoformat()}) 기준으로 다시 셌다. "
+            "None 이면 추정일이 이미 지났다는 뜻이며, 그때는 제출이 "
+            "늦어지는 중인지 색인을 확인한다"
+        )
     elif data.get("expected_periodic_report_missing_reason"):
         summary["expected_periodic_report"] = None
         summary["expected_periodic_report_missing_reason"] = data[
@@ -2855,7 +2901,7 @@ def _memory_digest(
                 {
                     key: value
                     for key, value in data.items()
-                    if key not in {"evaluation_id", "evaluated_at"}
+                    if key not in EVALUATION_ID_EXCLUDED_KEYS
                 },
                 "EVAL-",
             )

@@ -1,6 +1,6 @@
 {
   "schema_version": "market-regime/2.0.0",
-  "collected_at": "2026-08-09T17:53:34+09:00",
+  "collected_at": "2026-08-10T14:11:21+09:00",
   "lookback_days": 500,
   "by_market": {
     "KR": {
@@ -9,24 +9,24 @@
       "mark": "🟠",
       "score": 3,
       "notes": [
-        "주요 지수 고점 대비 -34.9% — 약세장"
+        "주요 지수 고점 대비 -31.3% — 약세장"
       ],
       "indices": [
         {
           "symbol": "^KS11",
           "name": "KOSPI",
-          "as_of": "2026-08-07",
-          "close": 6258.77,
+          "as_of": "2026-08-10",
+          "close": 6265.0,
           "high": 9114.5498,
-          "drawdown_pct": -31.33
+          "drawdown_pct": -31.26
         },
         {
           "symbol": "^KQ11",
           "name": "KOSDAQ",
-          "as_of": "2026-08-07",
-          "close": 798.81,
+          "as_of": "2026-08-10",
+          "close": 844.02,
           "high": 1226.1801,
-          "drawdown_pct": -34.85
+          "drawdown_pct": -31.17
         }
       ],
       "volatility": {
@@ -38,7 +38,7 @@
         "percentile": 8.8,
         "in_score": false
       },
-      "worst_drawdown_pct": -34.85
+      "worst_drawdown_pct": -31.26
     }
   },
   "macro": {
@@ -50,12 +50,12 @@
     {
       "symbol": "^KS11",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-08-07"
+      "data_as_of": "2026-08-10"
     },
     {
       "symbol": "^KQ11",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-08-07"
+      "data_as_of": "2026-08-10"
     },
     {
       "symbol": "^VIX",
