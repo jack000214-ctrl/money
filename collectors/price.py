@@ -202,9 +202,135 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
     return meta, rows
 
 
-def save(symbol: str, meta: dict, rows: list[dict]) -> Path:
+def _existing_rows(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            return list(
+                csv.DictReader(
+                    line for line in handle if not line.lstrip().startswith("#")
+                )
+            )
+    except OSError:
+        return []
+
+
+def _unsettled_date(path: Path) -> str | None:
+    """저장된 파일의 마지막 봉이 미확정이면 그 날짜.
+
+    미확정 봉은 장중 수집분이라 다시 받으면 값이 **당연히** 다르다. 이것을
+    겹침 대조에 넣으면 재수집마다 "분할이 있었다"로 오판한다. 실제로 그렇게
+    잘못 만들었고, 첫 실행에서 2026-08-10 하나 때문에 병합이 거부돼 이력이
+    그대로 날아갔다.
+    """
+    if not path.exists():
+        return None
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.lstrip().startswith("#"):
+                    return None
+                parts = line.strip().split()
+                if len(parts) >= 5 and parts[1] == "last_bar":
+                    return parts[2] if parts[-1] == "UNSETTLED" else None
+    except OSError:
+        return None
+    return None
+
+
+def _same_bar(left: dict, right: dict) -> bool:
+    """겹치는 날의 봉이 같은 사실을 말하는가.
+
+    `close` 는 원가격이라 정정이 없으면 변하지 않고,
+    `split_adjustment_factor` 는 액면분할이 있으면 변한다. 이 둘이 맞으면
+    같은 기준의 시계열이다. `adjusted_close` 는 재수집마다 말단 자릿수가
+    흔들려(96241.3 vs 96241.2) 판정에 쓰지 않는다.
+    """
+    for key, tolerance in (("close", 1e-6), ("split_adjustment_factor", 1e-9)):
+        try:
+            a, b = float(left[key]), float(right[key])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if abs(a - b) > tolerance * max(1.0, abs(a)):
+            return False
+    return True
+
+
+def merge_with_existing(
+    path: Path, rows: list[dict]
+) -> tuple[list[dict], str | None]:
+    """이미 있는 이력 앞부분을 보존한 채 새 수집분을 얹는다.
+
+    수집은 `--range` 만큼만 받아 오는데 저장이 통째로 덮어쓰기였다. 그래서
+    `refresh` 가 고정으로 쓰는 `5y` 때문에 파일이 **롤링 5년 창**이 됐고,
+    돌릴 때마다 가장 오래된 하루가 조용히 떨어졌다. 실제로 000660 은
+    2016-08-08 부터 2,448 일이 있었는데 한 번의 refresh 로 1,220 일
+    (2021-08-10 부터) 이 됐다 — 1,229 일이 사라졌고 아무 경고도 없었다.
+
+    가격 이력은 재수집으로 복구되는 것처럼 보이지만 그렇지 않다. 이 저장소는
+    3년 실측 PER 밴드(`per_band_actual`)·12개월 수익률·고점 대비 낙폭을 전부
+    여기서 뽑고, 무엇보다 **과거 판단의 채점**이 이 시계열 위에 선다. 창이
+    깎이면 track record 가 앞에서부터 지워진다.
+
+    **겹치는 구간이 어긋나면 병합하지 않는다.** 액면분할이나 데이터 정정이
+    있었다는 뜻이고, 그때 옛 행을 남기면 두 기준이 한 파일에 섞인다. 그 경우
+    새 수집분만 쓰고 사실을 알린다 — 조용히 고르지 않는다.
+    """
+    previous = _existing_rows(path)
+    if not previous or not rows:
+        return rows, None
+    fresh = {row["date"]: row for row in rows}
+    # 미확정 봉은 대조에서 뺀다 — 장중 값이라 재수집하면 달라지는 것이 정상이다.
+    # 저장된 파일이 미확정으로 끝났을 수 있고, 이번 수집의 마지막 봉도 그렇다.
+    volatile = {rows[-1]["date"]}
+    stale_unsettled = _unsettled_date(path)
+    if stale_unsettled:
+        volatile.add(stale_unsettled)
+    overlap = [
+        row
+        for row in previous
+        if row.get("date") in fresh and row["date"] not in volatile
+    ]
+    if not overlap:
+        # 겹치는 날이 하나도 없으면 이어 붙일 근거가 없다. 잘못 이으면
+        # 사이가 빈 시계열이 되고 수익률이 조용히 틀린다.
+        return rows, None
+    mismatched = [
+        row["date"] for row in overlap if not _same_bar(row, fresh[row["date"]])
+    ]
+    if mismatched:
+        return rows, (
+            f"겹치는 {len(overlap)}일 중 {len(mismatched)}일의 원가격·분할계수가 "
+            f"다르다 (예: {mismatched[0]}). 액면분할이나 정정으로 보이며 "
+            "옛 이력을 이어 붙이지 않았다 — 두 기준이 섞이면 수익률이 틀린다"
+        )
+    earliest = rows[0]["date"]
+    kept = [
+        row
+        for row in previous
+        if row.get("date")
+        and row["date"] < earliest
+        and all(row.get(field) not in (None, "") for field in FIELDS)
+    ]
+    if not kept:
+        return rows, None
+    merged = kept + rows
+    return merged, (
+        f"기존 이력 {len(kept)}일을 보존했다 ({kept[0]['date']} 부터). "
+        f"이번 수집은 {earliest} 부터라 그대로 저장하면 그만큼 잘린다"
+    )
+
+
+def save(
+    symbol: str, meta: dict, rows: list[dict], *, merge: bool = True
+) -> Path:
     PRICE_DIR.mkdir(parents=True, exist_ok=True)
     path = PRICE_DIR / f"{safe_name(symbol)}.csv"
+    if merge:
+        rows, note = merge_with_existing(path, rows)
+        if note:
+            print(f"※ {note}", file=sys.stderr)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     temporary_name: str | None = None
     try:
@@ -257,10 +383,15 @@ def load(symbol: str) -> list[dict[str, float | str]]:
 def cmd_history(args) -> None:
     meta, rows = fetch(args.symbol, args.range)
     state = session_state(meta, rows[-1]["date"])
+    fetched = len(rows)
     path = save(args.symbol, meta, rows)
+    # 저장된 파일을 그대로 읽어 보고한다. 받아 온 행수를 그대로 찍으면
+    # 병합으로 보존한 이력이 화면에서 사라지고, 사용자는 파일이 잘린 줄 안다.
+    saved = _existing_rows(path)
     print(
-        f"{args.symbol} {meta.get('currency') or 'UNKNOWN'} {len(rows)}일 "
-        f"{rows[0]['date']} ~ {rows[-1]['date']}"
+        f"{args.symbol} {meta.get('currency') or 'UNKNOWN'} {len(saved)}일 "
+        f"{saved[0]['date']} ~ {saved[-1]['date']}"
+        + (f" (이번 수집 {fetched}일)" if len(saved) != fetched else "")
     )
     if state != "SETTLED":
         print(
