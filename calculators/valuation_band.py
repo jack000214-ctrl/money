@@ -31,10 +31,16 @@ from collectors.edgar import CONCEPT, user_agent
 from cio.display import cell
 
 
-def percentile_of(values: list[float], current: float) -> float:
-    """현재 값이 과거 분포의 몇 번째인가. 0~100."""
+def percentile_of(values: list[float], current: float) -> float | None:
+    """현재 값이 과거 분포의 몇 번째인가. 0~100. 분포가 없으면 None.
+
+    빈 이력에 50 을 돌려주던 자리다. 0 으로 나누지 않으려던 것인데, 그 대가로
+    **분포가 아예 없는 상태**가 "정확히 중간"이라는 관측으로 바뀌었다. 화면에는
+    `현재 백분위 50.0%` 가 찍히고 막대의 점도 한가운데 놓인다. 이 저장소의
+    출력을 읽는 것은 모델이므로 그것은 그대로 근거가 된다.
+    """
     if not values:
-        return 50.0
+        return None
     return sum(1 for v in values if v < current) / len(values) * 100
 
 
@@ -120,10 +126,25 @@ def num(v):
 
 # ---------------------------------------------------------------- 한국 (DART)
 
-def kr_filing_dates(corp_code, key):
-    """정기보고서 접수일. 시점 보존을 위해 '언제 공시됐는지'가 필요하다."""
+def kr_filing_dates(corp_code, key, years):
+    """정기보고서 접수일. 시점 보존을 위해 '언제 공시됐는지'가 필요하다.
+
+    조회 연도를 EPS 와 **같은 목록으로** 받는다. 여기만 2023 부터로 박혀 있어서
+    `--years 2019 2020` 처럼 그 이전을 요청하면 EPS 는 받아 오고 접수일만 비었고,
+    `ttm_series` 가 그 구간을 통째로 버렸다. 실패가 아니라 짧아진 밴드로
+    나타나므로 요청한 기간을 못 받았다는 사실이 화면에서 사라진다.
+
+    접수일 기준으로 훑기 때문에 요청 연도 **다음 해**까지 본다 — 4분기를 담는
+    사업보고서는 이듬해 3월에 접수된다.
+    """
     out = {}
-    for year in range(2023, datetime.now().year + 1):
+    current_year = datetime.now().year
+    scan = sorted(
+        year
+        for year in {*years, *(year + 1 for year in years)}
+        if year <= current_year
+    )
+    for year in scan:
         data = dart_request("list.json", {
             "corp_code": corp_code, "bgn_de": f"{year}0101", "end_de": f"{year}1231",
             "pblntf_ty": "A", "page_count": "100"}, key)
@@ -139,7 +160,7 @@ def kr_filing_dates(corp_code, key):
 
 def kr_eps_series(stock_code, key, years):
     info = dart_resolve(stock_code, key)
-    filed = kr_filing_dates(info["corp_code"], key)
+    filed = kr_filing_dates(info["corp_code"], key, years)
     quarterly = {}
 
     for year in years:
@@ -218,7 +239,12 @@ def q_index(key):
 
 
 def ttm_series(quarterly):
-    """연속된 4개 분기 EPS만 TTM으로 누적한다."""
+    """연속된 4개 분기 EPS만 TTM으로 누적한다.
+
+    버리는 구간은 **왜 버렸는지와 함께** 말한다. 접수일이 없어 버리는 갈래만
+    조용했는데, 그 갈래가 하필 접수일 조회 연도가 어긋났을 때 통째로 켜진다 —
+    밴드는 실패하지 않고 그냥 짧아져서 나오고, 화면에는 아무 표시도 없다.
+    """
     keys = sorted(quarterly)
     out = []
     skipped = []
@@ -226,13 +252,17 @@ def ttm_series(quarterly):
         window = keys[i - 3:i + 1]
         idx = [q_index(k) for k in window]
         if idx[-1] - idx[0] != 3 or len(set(idx)) != 4:
-            skipped.append(window[-1])
+            skipped.append((window[-1], "연속 4분기가 아니다"))
             continue
         if any(quarterly[k]["eps"] is None for k in window):
-            skipped.append(window[-1])
+            skipped.append((window[-1], "분기 EPS 가 비어 있다"))
             continue
         filing_dates = [quarterly[k].get("filed") for k in window]
-        if any(not filed for filed in filing_dates):
+        missing = [k for k, date in zip(window, filing_dates) if not date]
+        if missing:
+            skipped.append(
+                (window[-1], f"공시 접수일이 없다 ({', '.join(missing)})")
+            )
             continue
         filed = max(filing_dates)
         out.append({
@@ -241,9 +271,8 @@ def ttm_series(quarterly):
             "known_from": filed.replace(".", "-") if "." in filed else
                           f"{filed[:4]}-{filed[4:6]}-{filed[6:8]}" if len(filed) == 8 else filed,
         })
-    if skipped:
-        print(f"※ 연속 4분기가 확보되지 않아 제외한 구간: {', '.join(skipped)}",
-              file=sys.stderr)
+    for period, reason in skipped:
+        print(f"※ TTM 에서 제외한 구간 {period} — {reason}", file=sys.stderr)
     return out
 
 
@@ -303,9 +332,13 @@ def main():
     print(f"\n[ PER 분포 ]")
     print(f"  최저 {min(pers):>7.2f}   25% {qs[24]:>7.2f}   중앙 {qs[49]:>7.2f}   "
           f"75% {qs[74]:>7.2f}   최고 {max(pers):>7.2f}")
-    print(f"  현재 백분위  {pct:>5.1f}%")
-    bar = int(pct / 100 * 40)
-    print(f"  과거 낮은 배수 [{'─' * bar}●{'─' * (40 - bar)}] 과거 높은 배수")
+    print("  현재 백분위 " + cell(pct, 6, ".1f", "%"))
+    if pct is None:
+        # 점을 어디에도 못 찍는다. 가운데 찍으면 그것이 곧 '중간'이라는 답이다.
+        print("  과거 분포가 없어 밴드 안의 위치를 낼 수 없다")
+    else:
+        bar = int(pct / 100 * 40)
+        print(f"  과거 낮은 배수 [{'─' * bar}●{'─' * (40 - bar)}] 과거 높은 배수")
 
     print(f"\n[ PER 백분위의 주가 환산 ]")
     print(f"  {'기준':<18}{'PER':>8}{'주가':>16}   현재가 대비")

@@ -30,12 +30,14 @@ class TestPriceBand(unittest.TestCase):
         self.assertEqual(band(rows, "X")["position_pct"], 50.0)
 
     def test_a_flat_window_does_not_claim_a_position(self):
-        """고가와 저가가 같으면 '바닥'도 '천장'도 없는 정보다.
+        """고가와 저가가 같으면 위치라는 것이 아예 없다.
 
-        0 이나 100 으로 두면 거래 정지 구간이 '52주 최저'로 읽힌다.
+        0 이나 100 으로 두면 거래 정지 구간이 '52주 최저'로 읽힌다. 그래서
+        예전에는 50 을 넣었는데, 그것도 '구간 중간'이라는 없는 정보다. 세
+        값 다 지어낸 것이고 답은 넷째다 — 범위가 없으면 위치도 없다.
         """
         rows = series(("2026-01-01", 100), ("2026-01-02", 100))
-        self.assertEqual(band(rows, "X")["position_pct"], 50.0)
+        self.assertIsNone(band(rows, "X")["position_pct"])
 
     def test_cost_return_appears_only_when_a_cost_is_given(self):
         rows = series(("2026-08-07", 1422000))
@@ -60,8 +62,14 @@ class TestPercentileOf(unittest.TestCase):
     def test_the_lowest_ever_is_zero_percent(self):
         self.assertEqual(percentile_of([2.0, 3.0, 4.0], 1.0), 0.0)
 
-    def test_an_empty_history_does_not_divide_by_zero(self):
-        self.assertEqual(percentile_of([], 5.0), 50.0)
+    def test_an_empty_history_has_no_percentile_at_all(self):
+        """0 으로 나누지 않는 것과 50 을 지어내는 것은 다른 일이다.
+
+        분포가 없는 상태에 50 을 돌려주면 화면에 `현재 백분위 50.0%` 가 찍히고
+        막대의 점도 한가운데 놓인다. 이 저장소의 출력을 읽는 것은 모델이므로
+        그것이 그대로 근거가 된다 — 없는 분포가 '중간'이라는 관측이 된다.
+        """
+        self.assertIsNone(percentile_of([], 5.0))
 
 
 class TestTargetPrices(unittest.TestCase):

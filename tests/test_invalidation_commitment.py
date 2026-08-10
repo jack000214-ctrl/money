@@ -340,6 +340,24 @@ class TestPaceIsMeasured(unittest.TestCase):
         self.assertLess(pace["return_since_decision_pct"], 0)
         self.assertLess(pace["pace_progress_over_elapsed_x"], 0)
 
+    def test_a_split_is_not_a_50_percent_loss(self):
+        """질문가는 그날의 호가이고 종가는 오늘 기준이다.
+
+        2:1 분할 하나로 실현 수익이 -50% 로 찍히면, 모델은 "가격이 논지보다
+        뒤처졌다"를 근거로 받아들인다. 없던 사건이 근거가 되는 것이다.
+        """
+        pace = self._pace(latest_close=24525.0, split_factor=0.5)
+        # 43,700 은 분할 후 21,850 이고 종가는 24,525 다 → +12.24%.
+        self.assertAlmostEqual(
+            pace["return_since_decision_pct"], 12.2426, places=3
+        )
+        self.assertEqual(pace["asked_price"], 43700)
+        self.assertEqual(pace["split_adjustment"]["compared_price"], 21850.0)
+
+    def test_no_split_adds_nothing(self):
+        self.assertNotIn("split_adjustment", self._pace())
+        self.assertNotIn("split_adjustment", self._pace(split_factor=1.0))
+
     def test_missing_inputs_yield_nothing_rather_than_a_guess(self):
         self.assertIsNone(self._pace(asked_price=None))
         self.assertIsNone(self._pace(latest_close=None))

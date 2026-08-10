@@ -167,6 +167,16 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
             if adjusted and index < len(adjusted) and adjusted[index] is not None
             else close
         )
+        # Yahoo 가 주는 close·high·low 는 **응답 시점 기준으로 분할이 이미
+        # 반영된** 값이다. MSTR 10:1 분할 직전 종가가 1,246 이 아니라 124.68 로
+        # 오고 분할 다음 날과 끊김 없이 이어지며, 배당이 없는 종목은 분할 전
+        # 구간에서도 adjusted_close 가 close 와 같다. 그러니 이 계수는 저장된
+        # 값을 다시 고치라는 뜻이 아니다.
+        #
+        # 계수의 뜻은 하나뿐이다 — `저장된 값 = 그날 실제 호가 × 이 계수`.
+        # 그래서 쓰는 곳도 하나다. **그때의 호가로 적힌 값**(과거 판단의 손절가,
+        # 그때 물어본 가격)을 이 시계열과 맞출 때 그 값 쪽에 곱한다.
+        # 시계열 쪽에 곱하면 두 번 조정된다 (`cio/memory.py:_first_trigger`).
         split_adjustment_factor = math.prod(
             factor
             for split_date, factor in split_events
@@ -240,12 +250,13 @@ def _unsettled_date(path: Path) -> str | None:
 
 
 def _same_bar(left: dict, right: dict) -> bool:
-    """겹치는 날의 봉이 같은 사실을 말하는가.
+    """겹치는 날의 봉이 같은 기준의 같은 사실을 말하는가.
 
-    `close` 는 원가격이라 정정이 없으면 변하지 않고,
-    `split_adjustment_factor` 는 액면분할이 있으면 변한다. 이 둘이 맞으면
-    같은 기준의 시계열이다. `adjusted_close` 는 재수집마다 말단 자릿수가
-    흔들려(96241.3 vs 96241.2) 판정에 쓰지 않는다.
+    `close` 는 **수집 시점 기준으로 분할이 반영된** 값이라(위 `fetch` 의 설명)
+    분할도 정정도 없으면 변하지 않고, 있으면 `split_adjustment_factor` 와 함께
+    변한다. 그래서 둘이 맞으면 같은 기준의 시계열이고, 어긋나면 저장된 옛 행이
+    옛 기준이라는 뜻이라 이어 붙일 수 없다. `adjusted_close` 는 재수집마다
+    말단 자릿수가 흔들려(96241.3 vs 96241.2) 판정에 쓰지 않는다.
     """
     for key, tolerance in (("close", 1e-6), ("split_adjustment_factor", 1e-9)):
         try:
@@ -408,8 +419,11 @@ def band(rows: list[dict], symbol: str, cost: float | None = None) -> dict:
     "52주 고점 대비 -51.3%" 같은 문장이 화면에서 바로 나온다. print 안에서만
     계산되면 저장되지도 검증되지도 않는다.
 
-    고가와 저가가 같은 구간(거래 정지·상장 직후)에서는 위치를 **지어내지 않고**
-    50 으로 둔다. 0 이나 100 으로 두면 "바닥"·"천장"이라는 없는 정보가 생긴다.
+    고가와 저가가 같은 구간(거래 정지·상장 직후)에서는 위치를 **내지 않는다.**
+    0 이나 100 은 "바닥"·"천장"이라는 없는 정보를 만들고, 50 도 마찬가지로
+    "구간 중간"이라는 없는 정보를 만든다. 예전에는 50 을 넣으면서 그것을
+    "지어내지 않는 것"이라 적어 뒀는데, 세 값 다 지어낸 것이고 답은 넷째다 —
+    범위가 없으면 위치도 없다.
     """
     closes = [float(row["close"]) for row in rows]
     current, high, low = closes[-1], max(closes), min(closes)
@@ -421,7 +435,7 @@ def band(rows: list[dict], symbol: str, cost: float | None = None) -> dict:
         "high": high,
         "low": low,
         "position_pct": (
-            round((current - low) / (high - low) * 100, 2) if high > low else 50.0
+            round((current - low) / (high - low) * 100, 2) if high > low else None
         ),
         "drawdown_pct": round((current / high - 1) * 100, 2) if high else None,
     }

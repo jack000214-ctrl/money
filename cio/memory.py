@@ -258,23 +258,39 @@ def _first_trigger(
     level: float | None,
     direction: str,
 ) -> dict[str, Any] | None:
+    """판단 시점 호가로 적은 문턱이 이 경로에서 처음 닿은 날.
+
+    **저장된 close·high·low 는 이미 오늘 기준으로 분할이 반영돼 있다.** Yahoo 가
+    소급 조정해서 주기 때문이다 — MSTR 10:1 분할 전날 종가는 1,246 이 아니라
+    124.68 로 저장돼 있고 분할 다음 날(135.99)과 끊김 없이 이어진다. TSLA·SCHD·
+    IBM 모두 같고, 분할 전 구간의 `adjusted_close / close` 도 1 이다(배당분만
+    남는다). 그러니 **시계열 쪽은 손대지 않는다.**
+
+    바꿔야 하는 것은 문턱이다. 손절가는 판단하던 날의 호가라 그 뒤에 분할이
+    있었으면 오늘 기준이 아니다. `split_adjustment_factor` 는 그 행 **이후**의
+    분할계수를 모두 곱한 값이고 `저장값 = 그날 호가 × 그 행의 계수` 이므로,
+    문턱에 판단일 행의 계수를 곱하면 저장된 시계열과 같은 기준이 된다.
+
+    이전에는 시계열 값에도 같은 계수를 곱했다. 이미 조정된 값을 한 번 더
+    조정하는 것이라, 판단 뒤에 2:1 분할이 한 번만 있어도 분할 전 구간의 저가가
+    절반으로 읽혀 **닿은 적 없는 손절가가 닿았다고 기록된다.** 채점은 뒤늦게
+    돌아보는 계산이라 이런 오차는 아무도 눈치채지 못한 채 track record 에 남는다.
+    """
     if level is None:
         return None
     start_factor = float(rows[0].get("split_adjustment_factor") or 1.0)
     comparable_level = level * start_factor
     for row in rows:
         value = float(row[field])
-        row_factor = float(row.get("split_adjustment_factor") or 1.0)
-        comparable_value = value * row_factor
-        if (direction == "down" and comparable_value <= comparable_level) or (
-            direction == "up" and comparable_value >= comparable_level
+        if (direction == "down" and value <= comparable_level) or (
+            direction == "up" and value >= comparable_level
         ):
             return {
                 "date": row["date"],
                 "observed": value,
                 "level": level,
-                "split_adjusted_observed": round(comparable_value, 8),
                 "split_adjusted_level": round(comparable_level, 8),
+                "split_adjustment_applied": round(start_factor, 10),
             }
     return None
 
@@ -598,18 +614,24 @@ def evaluate_assessment(
     end = horizon_rows[-1] if horizon_rows else usable[0]
     start_price = float(request["price"])
     first = usable[0]
-    adjustment_factor = (
+    start_split_factor = float(
+        first.get("split_adjustment_factor") or 1.0
+    )
+    # 질문가는 그날의 호가다. 저장된 시계열은 오늘 기준으로 분할이 반영돼
+    # 있으므로(`_first_trigger` 참고) 질문가에 판단일 행의 분할계수를 곱해야
+    # 같은 기준이 된다. 조정종가는 거기에 배당까지 반영한 값이라 그 비율을 한
+    # 번 더 곱한다 — `adjusted_close / close` 는 두 값이 같은 분할 기준이므로
+    # 배당분만 남는다.
+    dividend_factor = (
         first["adjusted_close"] / first["close"] if first["close"] > 0 else 1.0
     )
+    adjustment_factor = start_split_factor * dividend_factor
     adjusted_cost = start_price * adjustment_factor
     realized = (end["adjusted_close"] / adjusted_cost - 1) * 100
     latest_return = (latest["adjusted_close"] / adjusted_cost - 1) * 100
     plan = assessment["price_plan"]
     path_until_horizon = (
         horizon_rows if complete else usable
-    )
-    start_split_factor = float(
-        first.get("split_adjustment_factor") or 1.0
     )
     split_adjusted_start = start_price * start_split_factor
     win_threshold = float(assessment["win_return_threshold_pct"])
@@ -685,12 +707,10 @@ def evaluate_assessment(
             "adjustment_factor_at_start": round(adjustment_factor, 10),
             "return_to_end_pct": round(realized, 4),
             "return_to_latest_pct": round(latest_return, 4),
+            # 고가·저가는 저장된 그대로 쓴다. 분할 보정이 필요한 쪽은 질문가다.
             "max_gain_pct": round(
                 (
-                    max(
-                        row["high"] * row["split_adjustment_factor"]
-                        for row in path_until_horizon
-                    )
+                    max(row["high"] for row in path_until_horizon)
                     / split_adjusted_start
                     - 1
                 )
@@ -699,10 +719,7 @@ def evaluate_assessment(
             ),
             "max_loss_pct": round(
                 (
-                    min(
-                        row["low"] * row["split_adjustment_factor"]
-                        for row in path_until_horizon
-                    )
+                    min(row["low"] for row in path_until_horizon)
                     / split_adjusted_start
                     - 1
                 )

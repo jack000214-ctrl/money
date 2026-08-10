@@ -15,6 +15,7 @@ from cio.context import (
     _compact_size,
     _fit_context_budget,
     _prior_plan_check,
+    _split_factor_since,
 )
 from cio import context as context_module
 
@@ -110,6 +111,54 @@ class TestPriorPlanCheck(unittest.TestCase):
         )
         self.assertIsNone(result["stop_breached"])
         self.assertNotIn("stop_price", result["triggered"])
+
+
+class TestPriorPlanAcrossASplit(unittest.TestCase):
+    """계획의 문턱은 판단하던 날의 호가, 종가는 오늘 기준이다.
+
+    2:1 분할이 한 번만 있어도 문턱이 두 배로 남아 **닿은 적 없는 손절가가 매
+    판단마다 닿았다고** packet 에 실린다. 그리고 그 packet 을 읽는 것은 모델이고,
+    `stop_style` 이 THESIS 면 손절 판정이 유일한 매도 규율이다.
+    """
+
+    def check(self, close, factor):
+        return _prior_plan_check(
+            PLAN,
+            latest_close=close,
+            close_date="2026-07-28",
+            close_is_settled=True,
+            split_factor=factor,
+        )
+
+    def test_a_split_does_not_manufacture_a_stop_breach(self):
+        # 분할 전 기준 228,000 이던 종가가 분할 후 114,000 이다.
+        # 손절 152,000 은 분할 후 76,000 이라 여전히 닿지 않았다.
+        # 보정을 안 하면 114,000 <= 152,000 으로 손절이 켜진다.
+        result = self.check(114000, 0.5)
+        self.assertEqual(result["triggered"], [])
+        self.assertFalse(result["stop_breached"])
+
+    def test_the_levels_shown_are_the_ones_the_model_wrote(self):
+        """화면과 인용에 남는 값은 그때의 문턱이어야 한다."""
+        result = self.check(114000, 0.5)
+        self.assertEqual(result["stop_price"], PLAN["stop_price"])
+        self.assertEqual(
+            result["split_adjustment"]["compared_levels"]["stop_price"],
+            PLAN["stop_price"] * 0.5,
+        )
+        self.assertIn("_warning", result["split_adjustment"])
+
+    def test_a_real_breach_still_fires_after_a_split(self):
+        """보정은 문턱을 없애는 것이 아니다. 안전장치가 사라지면 더 나쁘다."""
+        result = self.check(70000, 0.5)
+        self.assertIn("stop_price", result["triggered"])
+
+    def test_without_a_split_nothing_is_added_to_the_packet(self):
+        """정상일 때 한 줄도 늘리지 않는다 — 매 판단마다 나가는 자리다."""
+        for factor in (1.0, None, 0, "x"):
+            result = self.check(228000, factor)
+            self.assertNotIn("split_adjustment", result, factor)
+            self.assertEqual(result["triggered"], [])
 
 
 class TestIntradayTouch(unittest.TestCase):
@@ -265,14 +314,39 @@ class TestBarsSince(unittest.TestCase):
             [row[0] for row in bars], ["2026-08-06", "2026-08-07"]
         )
 
-    def test_split_inside_the_window_yields_nothing(self):
-        # 분할이 끼면 원가격끼리의 비교가 성립하지 않는다. 그 구간에서
-        # 스쳤다·안 스쳤다를 말하는 것은 관측이 아니라 오답이다.
-        ranges = [
-            ("2026-08-05", 232000.0, 226000.0, 2.0),
-            ("2026-08-06", 120000.0, 115000.0, 1.0),
-        ]
-        self.assertEqual(_bars_since(ranges, "2026-08-05"), [])
+    SPLIT_RANGES = [
+        # 1:2 병합이 2026-08-06 에 있었다. 저장된 고가·저가는 이미 오늘 기준
+        # 으로 조정돼 있어(2026-08-05 의 실제 호가는 116,000/113,000 이었다)
+        # 두 행은 서로 비교된다. 기준이 다른 쪽은 판단 시점의 문턱뿐이다.
+        ("2026-08-05", 232000.0, 226000.0, 2.0),
+        ("2026-08-06", 120000.0, 115000.0, 1.0),
+    ]
+
+    def test_split_inside_the_window_still_gives_the_bars(self):
+        """분할이 끼어도 봉은 그대로 준다.
+
+        예전에는 빈 목록을 줬다. 창은 언제나 판단일부터 시작하므로 분할일이
+        창에서 빠지는 날이 오지 않고, 그래서 분할 한 번에 장중 관측이 영구히
+        꺼졌다. 저장된 값은 이미 같은 기준이라 못 볼 이유가 없다.
+        """
+        bars = _bars_since(self.SPLIT_RANGES, "2026-08-05")
+        self.assertEqual([row[0] for row in bars], ["2026-08-05", "2026-08-06"])
+
+    def test_the_conversion_factor_comes_from_the_decision_day_bar(self):
+        """`저장값 = 그날 호가 × 계수` — 그러니 문턱에 곱할 것은 판단일 행의 계수다."""
+        self.assertEqual(
+            _split_factor_since(self.SPLIT_RANGES, "2026-08-05"), 2.0
+        )
+        # 분할 뒤에 내린 판단이면 곱할 것이 없다.
+        self.assertEqual(
+            _split_factor_since(self.SPLIT_RANGES, "2026-08-06"), 1.0
+        )
+
+    def test_no_bar_after_the_decision_means_no_factor(self):
+        """모르는 것을 1 로 채우면 분할을 못 본 것과 같아진다."""
+        self.assertIsNone(_split_factor_since(self.SPLIT_RANGES, "2026-09-01"))
+        self.assertIsNone(_split_factor_since(None, "2026-08-05"))
+        self.assertIsNone(_split_factor_since(self.SPLIT_RANGES, None))
 
     def test_missing_inputs_yield_nothing(self):
         self.assertEqual(_bars_since(None, "2026-08-05"), [])

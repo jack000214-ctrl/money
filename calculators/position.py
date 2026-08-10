@@ -272,7 +272,14 @@ def recurring_pattern(asset_id: str, today: dt.date | None = None) -> dict[str, 
     )
     if not dates:
         return None
-    quantities = {_number(row.get("quantity")) for row in marked}
+    # 읽힌 수량만 모은다. 빈 칸이나 숫자가 아닌 칸은 `_number` 가 None 을 내는데,
+    # 그것까지 집합에 넣으면 전 행이 안 읽힌 원장에서 원소가 {None} 하나가 되어
+    # "수량이 하나로 모였다"로 통과한 뒤 빈 목록의 첫 원소를 꺼내다 죽는다.
+    readable_quantities = [
+        quantity
+        for row in marked
+        if (quantity := _number(row.get("quantity"))) is not None
+    ]
     days_since_last = (today - dates[-1]).days
     return {
         "detected": True,
@@ -282,9 +289,13 @@ def recurring_pattern(asset_id: str, today: dt.date | None = None) -> dict[str, 
         "first_date": dates[0].isoformat(),
         "last_date": dates[-1].isoformat(),
         "days_since_last": days_since_last,
+        # 모든 행의 수량을 읽었고 그 값이 하나로 모일 때만 '몇 주씩'이라고
+        # 말한다. 한 행이라도 못 읽었으면 모르는 것이지 같은 것이 아니다.
         "quantity_per_trade": (
-            sorted(q for q in quantities if q is not None)[0]
-            if len(quantities) == 1 else None
+            readable_quantities[0]
+            if len(readable_quantities) == len(marked)
+            and len(set(readable_quantities)) == 1
+            else None
         ),
         "_role": (
             "원장에 남은 정기 자동매수 흔적이다. 원장에는 체결된 거래만 있고 "

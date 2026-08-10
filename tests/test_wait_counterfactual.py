@@ -63,15 +63,18 @@ class TestFilled(unittest.TestCase):
         self.assertAlmostEqual(waited["advantage_pct"], 5.7895, places=3)
 
     def test_split_does_not_move_the_fill_or_the_entry_return(self):
-        """진입가는 판단 시점 호가다. 분할 뒤 저가와 직접 비교하면 안 된다."""
+        """진입가는 판단 시점 호가다. 분할 뒤 저가와 직접 비교하면 안 된다.
+
+        저장된 봉은 이미 분할이 반영돼 있으므로(분할 전 종가 50.5 = 그날 호가
+        101 의 절반) 보정할 쪽은 진입가 하나다.
+        """
         rows = [
-            _row("2026-01-02", 100.0, low=99.0, high=101.0,
-                 adjusted=50.0, factor=0.5),
+            _row("2026-01-02", 50.5, low=49.5, high=51.0, factor=0.5),
             _row("2026-01-15", 55.0, low=45.0, high=65.0),
             _row("2026-02-02", 56.0, low=54.0, high=60.0),
         ]
         waited = _evaluate(rows)["counterfactual"]["waited_for_entry"]
-        # 95 는 분할 보정 후 47.5 다. 99*0.5=49.5 로는 안 채워지고 45 에서 채워진다.
+        # 95 는 분할 보정 후 47.5 다. 저가 49.5 로는 안 채워지고 45 에서 채워진다.
         self.assertTrue(waited["filled"])
         self.assertEqual(waited["fill"]["date"], "2026-01-15")
         # 55/47.5 - 1 = 15.7895%. 조정 없이 55/95 로 재면 -42% 가 된다.

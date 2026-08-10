@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from cio.display import cell  # noqa: E402
+
 PRICE_DIR = ROOT / "knowledge" / "prices"
 OUT = ROOT / "knowledge" / "market" / "sector-strength.json"
 SCHEMA = "sector-strength/1.0.0"
@@ -84,8 +87,14 @@ def main():
                              e["windows"]["12개월"]["excess_pct"] or -999),
               reverse=True)
 
-    bench_row = {name: round(window_return(bench, days) or 0.0, 2)
-                 for name, days in WINDOWS}
+    # 벤치마크 이력이 짧아 구간 수익률을 못 내면 비운다. 예전에는 0.0 이
+    # 들어가 "SPY 가 12개월간 0% 움직였다"가 knowledge/market/ 에 저장됐고,
+    # 그 표를 읽는 것은 모델이다.
+    bench_row = {
+        name: round(value, 2) if (value := window_return(bench, days)) is not None
+        else None
+        for name, days in WINDOWS
+    }
 
     payload = {
         "schema_version": SCHEMA,
@@ -122,15 +131,17 @@ def main():
         line = f"{mark}{e['sector']:<11}{e['symbol']:<7}"
         for name, _ in WINDOWS:
             w = e["windows"][name]
-            if w["return_pct"] is None:
-                line += f"{'-':>14}"
-            else:
-                line += f"{w['return_pct']:>+6.1f}/{w['excess_pct']:>+6.1f}"
+            # 수익률은 있는데 초과수익만 없는 경우가 있다(벤치마크 이력이 그
+            # 구간을 못 덮을 때). 예전에는 그 자리에서 f"{None:>+6.1f}" 로
+            # 표 전체가 죽었다 — cio/display.cell 이 있는 이유다.
+            line += cell(w["return_pct"], 7, "+.1f") + "/" + cell(
+                w["excess_pct"], 6, "+.1f"
+            )
         print(line)
     print("-" * 74)
     line = f" {'SPY (시장)':<18}"
     for name, _ in WINDOWS:
-        line += f"{bench_row[name]:>+6.1f}/{'—':>6}"
+        line += cell(bench_row[name], 7, "+.1f") + "/" + f"{'—':>6}"
     print(line)
 
     if a.highlight:

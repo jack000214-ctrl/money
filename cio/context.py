@@ -136,25 +136,57 @@ def _bars_since(
     ranges: list[tuple[str, float, float, float]] | None,
     decided_at: Any,
 ) -> list[tuple[str, float, float]]:
-    """판단일(포함) 이후의 봉만 남긴다.
+    """판단일(포함) 이후의 봉. 저장된 값을 그대로 준다.
 
     판단 당일을 포함하는 것은 의도다. 2026-08-07 11:16 판단의 재검토 하단
     340,000원은 **같은 날** 저가 333,000원에 스쳤고, 당일을 빼면 이 블록이
     존재하는 이유였던 그 사건이 잡히지 않는다.
 
-    분할계수가 구간 안에서 달라지면 빈 목록을 준다. 원가격끼리의 비교가
-    성립하지 않는 구간에서 스쳤다·안 스쳤다를 말하는 것은 관측이 아니라
-    오답이며, 여기서는 모른다고 말하는 편이 옳다.
+    분할이 구간 안에 있어도 봉은 그대로 준다. 저장된 고가·저가는 이미 오늘
+    기준으로 분할이 반영된 값이라 서로 비교할 수 있고(`collectors/price.py`),
+    기준이 다른 쪽은 **판단 시점 호가로 적힌 문턱**이다. 그 변환은
+    `_split_factor_since` 가 낸다.
+
+    예전에는 계수가 달라지면 빈 목록을 줬다. 그러면 분할 한 번에 장중 관측이
+    영구히 꺼진다 — 창은 언제나 판단일부터 시작하므로 분할일이 창에서 빠지는
+    날이 오지 않기 때문이다.
     """
     if not ranges or not isinstance(decided_at, str) or len(decided_at) < 10:
         return []
     since = decided_at[:10]
-    window = [row for row in ranges if row[0] >= since]
-    if not window:
-        return []
-    if len({row[3] for row in window}) != 1:
-        return []
-    return [(date, high, low) for date, high, low, _ in window]
+    return [
+        (date, high, low) for date, high, low, _ in ranges if date >= since
+    ]
+
+
+def _split_factor_since(
+    ranges: list[tuple[str, float, float, float]] | None,
+    decided_at: Any,
+) -> float | None:
+    """판단 시점 호가를 저장된 시계열 기준으로 옮기는 계수.
+
+    `저장값 = 그날 호가 × 그 행의 분할계수` 이므로 판단일 행의 계수가 그대로
+    변환 계수다. 분할이 없었으면 1.0 이고 그때는 아무것도 달라지지 않는다.
+
+    이것이 없으면 직전 계획의 손절가는 판단하던 날의 호가로 남아 있는데 종가는
+    오늘 기준이라, 2:1 분할 한 번에 **닿은 적 없는 손절가가 매 판단마다
+    닿았다고** packet 에 실린다. 그리고 그 packet 을 읽는 것은 모델이다.
+    """
+    if not ranges or not isinstance(decided_at, str) or len(decided_at) < 10:
+        return None
+    since = decided_at[:10]
+    for date, _, _, factor in ranges:
+        if date >= since:
+            return factor if factor > 0 else None
+    return None
+
+
+def _usable_factor(value: Any) -> float:
+    """대조에 쓸 분할계수. 모르면 1.0 — 분할이 없었던 경우와 같은 취급이다."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 1.0
+    number = float(value)
+    return number if math.isfinite(number) and number > 0 else 1.0
 
 
 def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
@@ -254,11 +286,15 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             "drawdown_from_12m_high_pct": round(
                 (closes[-1] / high - 1) * 100, 2
             ),
+            # 고가와 저가가 같으면(거래 정지·상장 직후) 위치라는 것이 없다.
+            # 예전에는 50 을 넣었다. 0·100 을 피하려던 것인데 50 도 똑같이
+            # 지어낸 값이고, 이 자리는 화면이 아니라 **packet** 이라 모델이
+            # "구간 중간"을 관측으로 읽는다. 없는 것은 없다고 낸다.
             "position_in_12m_range_pct": round(
                 (closes[-1] - low) / (high - low) * 100, 2
             )
             if high > low
-            else 50.0,
+            else None,
             "realized_volatility_3m_pct": round(
                 statistics.stdev(returns) * math.sqrt(252) * 100, 2
             )
@@ -2399,6 +2435,7 @@ def _pace_since_decision(
     close_date: str | None,
     close_is_settled: bool | None,
     target_annual_return_pct: Any,
+    split_factor: float | None = None,
 ) -> dict[str, Any] | None:
     """수익이 **얼마나 빨리** 왔는지 잰다.
 
@@ -2434,7 +2471,11 @@ def _pace_since_decision(
         if isinstance(horizon_months, (int, float)) and horizon_months > 0
         else None
     )
-    realized_pct = (latest_close / float(asked_price) - 1) * 100
+    # 질문가는 그날의 호가이고 종가는 오늘 기준이다. 그 사이 분할이 있었으면
+    # 계수를 곱해야 같은 것을 잰다 — 안 그러면 2:1 분할 하나로 실현 수익이
+    # -50% 로 찍히고, 그 값이 "논지보다 가격이 뒤처졌다"는 근거가 된다.
+    compared_price = float(asked_price) * _usable_factor(split_factor)
+    realized_pct = (latest_close / compared_price - 1) * 100
 
     elapsed_pct = (
         round(elapsed_days / horizon_days * 100, 4) if horizon_days else None
@@ -2467,7 +2508,7 @@ def _pace_since_decision(
         if objective_pct > 0:
             objective_x = round(realized_pct / objective_pct, 2)
 
-    return {
+    result: dict[str, Any] = {
         "decided_on": decided.isoformat(),
         "observed_on": observed.isoformat(),
         "close_is_settled": close_is_settled,
@@ -2496,6 +2537,16 @@ def _pace_since_decision(
             "정한다. 몇 배부터 무엇을 하라는 문턱을 PC 는 갖고 있지 않다"
         ),
     }
+    if compared_price != float(asked_price):
+        result["split_adjustment"] = {
+            "factor": round(_usable_factor(split_factor), 10),
+            "compared_price": round(compared_price, 6),
+            "_warning": (
+                "판단 이후 분할이 있었다. asked_price 는 그날의 호가이고 "
+                "수익률은 compared_price 로 계산했다"
+            ),
+        }
+    return result
 
 
 def _date_of(value: Any) -> dt.date | None:
@@ -2516,11 +2567,18 @@ def _prior_plan_check(
     close_date: str | None,
     close_is_settled: bool | None,
     bars: list[tuple[str, float, float]] | None = None,
+    split_factor: float | None = None,
 ) -> dict[str, Any] | None:
     """직전 가격계획의 각 문턱을 현재 종가와 기계적으로 대조한다.
 
     판단이 아니라 산술이다. 모델이 자기가 세운 손절·재검토 가격이 이미
     닿았는지를 매번 다시 계산하지 않게 하는 것이 목적이다.
+
+    `split_factor` 는 판단 이후의 분할계수다(`_split_factor_since`). 계획의
+    문턱은 판단하던 날의 호가인데 종가는 오늘 기준이라, 그 사이 분할이
+    있었으면 두 수는 같은 것을 재지 않는다. 문턱 쪽에 계수를 곱해 맞추고
+    **맞췄다는 사실을 같이 싣는다** — 화면에 남는 값은 모델이 그때 쓴 원래
+    문턱이어야 하므로, 대조에 쓴 값은 따로 적는다.
 
     `bars` 는 판단일 이후의 (날짜, 고가, 저가) 다. 종가만 보면 장중에 스친
     문턱이 통째로 사라진다 — 2026-08-07 파마리서치가 그랬다. 직전 계획의
@@ -2543,6 +2601,12 @@ def _prior_plan_check(
             return None
         return float(value) if math.isfinite(value) else None
 
+    factor = _usable_factor(split_factor)
+
+    def comparable(value: float | None) -> float | None:
+        """문턱을 저장된 종가와 같은 기준으로 옮긴다."""
+        return None if value is None else value * factor
+
     stop = level("stop_price")
     reask_below = level("reask_below")
     reask_above = level("reask_above")
@@ -2550,51 +2614,58 @@ def _prior_plan_check(
     entry_low = level("entry_range_low")
     entry_high = level("entry_range_high")
     preferred = level("preferred_entry")
+    stop_c = comparable(stop)
+    reask_below_c = comparable(reask_below)
+    reask_above_c = comparable(reask_above)
+    scale_out_c = comparable(scale_out)
+    entry_low_c = comparable(entry_low)
+    entry_high_c = comparable(entry_high)
+    preferred_c = comparable(preferred)
     triggered: list[str] = []
-    if stop is not None and latest_close <= stop:
+    if stop_c is not None and latest_close <= stop_c:
         triggered.append("stop_price")
-    if reask_below is not None and latest_close <= reask_below:
+    if reask_below_c is not None and latest_close <= reask_below_c:
         triggered.append("reask_below")
-    if reask_above is not None and latest_close >= reask_above:
+    if reask_above_c is not None and latest_close >= reask_above_c:
         triggered.append("reask_above")
-    if scale_out is not None and latest_close >= scale_out:
+    if scale_out_c is not None and latest_close >= scale_out_c:
         triggered.append("scale_out_start")
-    return {
+    result: dict[str, Any] = {
         "intraday": _intraday_touch(
             bars,
-            stop=stop,
-            reask_below=reask_below,
-            reask_above=reask_above,
-            scale_out=scale_out,
-            entry_low=entry_low,
-            entry_high=entry_high,
+            stop=stop_c,
+            reask_below=reask_below_c,
+            reask_above=reask_above_c,
+            scale_out=scale_out_c,
+            entry_low=entry_low_c,
+            entry_high=entry_high_c,
         ),
         "close": latest_close,
         "close_date": close_date,
         "close_is_settled": close_is_settled,
         "stop_price": stop,
-        "stop_breached": None if stop is None else latest_close <= stop,
+        "stop_breached": None if stop_c is None else latest_close <= stop_c,
         "reask_below": reask_below,
         "reask_below_reached": (
-            None if reask_below is None else latest_close <= reask_below
+            None if reask_below_c is None else latest_close <= reask_below_c
         ),
         "reask_above": reask_above,
         "reask_above_reached": (
-            None if reask_above is None else latest_close >= reask_above
+            None if reask_above_c is None else latest_close >= reask_above_c
         ),
         "scale_out_start": scale_out,
         "scale_out_reached": (
-            None if scale_out is None else latest_close >= scale_out
+            None if scale_out_c is None else latest_close >= scale_out_c
         ),
         "in_entry_range": (
             None
-            if entry_low is None or entry_high is None
-            else entry_low <= latest_close <= entry_high
+            if entry_low_c is None or entry_high_c is None
+            else entry_low_c <= latest_close <= entry_high_c
         ),
         "close_vs_preferred_entry_pct": (
             None
-            if preferred is None or preferred <= 0
-            else round((latest_close / preferred - 1) * 100, 2)
+            if preferred_c is None or preferred_c <= 0
+            else round((latest_close / preferred_c - 1) * 100, 2)
         ),
         "triggered": triggered,
         "_note": (
@@ -2603,6 +2674,32 @@ def _prior_plan_check(
             "논지가 여전히 옳다는 뜻도 아니다 — 왜 닿았는지는 모델이 판단한다"
         ),
     }
+    # 분할이 없으면 아무것도 덧붙이지 않는다. 매 판단마다 나가는 자리라
+    # 정상일 때의 한 줄이 비용이다.
+    if factor != 1.0:
+        result["split_adjustment"] = {
+            "factor": round(factor, 10),
+            "compared_levels": {
+                name: round(value, 6)
+                for name, value in (
+                    ("stop_price", stop_c),
+                    ("reask_below", reask_below_c),
+                    ("reask_above", reask_above_c),
+                    ("scale_out_start", scale_out_c),
+                    ("entry_range_low", entry_low_c),
+                    ("entry_range_high", entry_high_c),
+                    ("preferred_entry", preferred_c),
+                )
+                if value is not None
+            },
+            "_warning": (
+                "판단 이후 분할이 있었다. 위에 적힌 문턱은 **판단하던 날의 "
+                "호가**이고 종가는 오늘 기준이라 그대로 비교되지 않는다. "
+                "대조에는 compared_levels 의 값을 썼다 — 인용할 때 어느 쪽 "
+                "기준인지 밝히지 않으면 다음 판단이 두 기준을 섞는다"
+            ),
+        }
+    return result
 
 
 def _intraday_touch(
@@ -3026,12 +3123,18 @@ def _memory_digest(
                     "사유가 되지 않는다 — 약속은 가격이 움직일 것을 알고 한 것이다"
                 ),
             }
+            # 판단 시점 호가(문턱·질문가)를 저장된 시계열 기준으로 옮기는
+            # 계수. 분할이 없었으면 1.0 이라 아무것도 달라지지 않는다.
+            split_factor = _split_factor_since(
+                daily_ranges, data.get("created_at")
+            )
             row["price_vs_prior_plan"] = _prior_plan_check(
                 plan,
                 latest_close=latest_close,
                 close_date=close_date,
                 close_is_settled=close_is_settled,
                 bars=_bars_since(daily_ranges, data.get("created_at")),
+                split_factor=split_factor,
             )
             row["pace_since_decision"] = _pace_since_decision(
                 decided_at=data.get("created_at"),
@@ -3042,6 +3145,7 @@ def _memory_digest(
                 close_date=close_date,
                 close_is_settled=close_is_settled,
                 target_annual_return_pct=target_annual_return_pct,
+                split_factor=split_factor,
             )
         result.append(row)
     unusable.sort(key=lambda item: str(item.get("created_at") or ""))

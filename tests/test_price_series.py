@@ -283,7 +283,10 @@ class TestPriceConsumers(unittest.TestCase):
             ):
                 summary, _source = _price_summary("TEST")
         self.assertEqual(summary["returns_pct"]["1m"], 10.0)
-        self.assertEqual(summary["position_in_12m_range_pct"], 50.0)
+        # 이 표본은 종가가 전부 100 이라 고가=저가다. 범위가 없으면 그 안의
+        # 위치도 없다 — 여기는 packet 이라 50 을 넣으면 모델이 "구간 중간"을
+        # 관측으로 읽는다.
+        self.assertIsNone(summary["position_in_12m_range_pct"])
         self.assertEqual(summary["returns_basis"], "ADJUSTED_CLOSE")
         self.assertTrue(summary["last_bar"]["is_settled_close"])
         self.assertIsNone(summary["last_bar"]["_warning"])
@@ -396,16 +399,30 @@ class TestPriceConsumers(unittest.TestCase):
                 self.assertEqual(inspect_task(task, now=now).state, "STALE")
 
     def test_split_does_not_false_trigger_stop_or_scale_out(self):
-        assessment = normalize_decision(valid_decision())
+        """저장된 봉은 **이미 분할이 반영된** 값이다. 한 번 더 조정하면 안 된다.
+
+        판단일 2026-01-01 / 질문가 100 / 손절 80 / 분할매도 시작 140 인데
+        2026-01-15 에 2:1 분할이 있었다. Yahoo 는 소급 조정해서 주므로 분할 전
+        구간의 종가·고가·저가는 이미 절반으로 저장돼 있고, 그 행의
+        `split_adjustment_factor` 만 0.5 로 남아 "이 값 = 그날 호가 × 0.5" 를
+        말한다. 실제 파일이 그렇다 — MSTR 은 10:1 분할 전날 종가가 124.68 이고
+        분할 다음 날 135.99 로 끊김 없이 이어진다.
+
+        그러니 보정할 것은 시계열이 아니라 **판단 시점 호가로 적힌 문턱**이다.
+        시계열에까지 계수를 곱하면 분할 전 구간이 통째로 절반이 되어, 닿은 적
+        없는 손절가가 닿았다고 기록되고 수익률은 -45% 로 뒤집힌다.
+        """
         rows = [
+            # 분할 전. 그날 실제 호가는 close 101 / high 102 / low 99 였고
+            # 파일에는 2:1 이 반영된 절반 값이 들어 있다.
             {
                 "date": "2026-01-02",
-                "close": 100.0,
-                "adjusted_close": 50.0,
+                "close": 50.5,
+                "adjusted_close": 50.5,
                 "has_adjusted_close": True,
                 "split_adjustment_factor": 0.5,
-                "high": 101.0,
-                "low": 99.0,
+                "high": 51.0,
+                "low": 49.5,
             },
             {
                 "date": "2026-01-15",
@@ -413,8 +430,8 @@ class TestPriceConsumers(unittest.TestCase):
                 "adjusted_close": 55.0,
                 "has_adjusted_close": True,
                 "split_adjustment_factor": 1.0,
-                "high": 65.0,
-                "low": 45.0,
+                "high": 57.0,
+                "low": 54.0,
             },
             {
                 "date": "2026-02-02",
@@ -426,6 +443,7 @@ class TestPriceConsumers(unittest.TestCase):
                 "low": 54.0,
             },
         ]
+        assessment = normalize_decision(valid_decision())
         with (
             patch(
                 "cio.memory.get_asset",
@@ -434,9 +452,20 @@ class TestPriceConsumers(unittest.TestCase):
             patch("cio.memory.find_context", return_value=(valid_context(), None)),
         ):
             result = evaluate_assessment(assessment, rows=rows)
+        # 손절 80 은 분할 후 기준 40, 분할매도 시작 140 은 70 이다. 경로의
+        # 저가 최저는 49.5, 고가 최고는 57 이라 어느 쪽도 닿지 않았다.
         self.assertIsNone(result["triggers"]["stop"])
         self.assertIsNone(result["triggers"]["scale_out_start"])
-        self.assertGreater(result["price"]["return_to_end_pct"], 0)
+        # 질문가 100 은 분할 후 기준 50 이고 지평 종가는 55 다 → +10%.
+        self.assertAlmostEqual(
+            result["price"]["return_to_end_pct"], 10.0, places=6
+        )
+        self.assertAlmostEqual(
+            result["price"]["adjustment_factor_at_start"], 0.5, places=10
+        )
+        # 최대손실은 49.5/50 - 1 = -1% 다. 시계열을 한 번 더 조정하면 -50% 가 된다.
+        self.assertAlmostEqual(result["price"]["max_loss_pct"], -1.0, places=6)
+        self.assertAlmostEqual(result["price"]["max_gain_pct"], 14.0, places=6)
         self.assertEqual(
             result["price"]["price_path_basis"], "SPLIT_ADJUSTED_RAW_OHLC"
         )

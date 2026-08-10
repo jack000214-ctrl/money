@@ -91,6 +91,11 @@ def get_series(
     return remote, "REMOTE_EPHEMERAL" if remote else "MISSING"
 
 
+def _rounded(value: float | None) -> float | None:
+    """없는 값은 없는 채로 둔다. round(None or 0) 은 0 을 지어낸다."""
+    return None if value is None else round(value, 2)
+
+
 def percentile(values: list[float], value: float) -> float | None:
     if not values:
         return None
@@ -191,7 +196,9 @@ def analyse(
             "as_of": volatility_points[-1][0],
             "value": round(volatility_now, 2),
             "median": round(statistics.median(values), 2),
-            "percentile": round(percentile(values, volatility_now) or 0, 2),
+            # `or 0` 이었다. 백분위가 없는 상태(빈 분포)가 0 백분위,
+            # 곧 "역대 최저"라는 관측으로 바뀐다. 없으면 없다고 낸다.
+            "percentile": _rounded(percentile(values, volatility_now)),
             "in_score": config["volatility_in_score"],
         }
 
@@ -251,7 +258,7 @@ def macro(
                 "as_of": points[-1][0],
                 "value": round(values[-1], 4),
                 "median": round(statistics.median(values), 4),
-                "percentile": round(percentile(values, values[-1]) or 0, 2),
+                "percentile": _rounded(percentile(values, values[-1])),
             }
         )
     return rows, sources

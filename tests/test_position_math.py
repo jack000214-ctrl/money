@@ -262,7 +262,38 @@ class TestJudgmentBoundary(TempPortfolio):
         self.assertEqual(found["trade_count"], 8)
         self.assertEqual(found["last_date"], "2026-01-08")
         self.assertEqual(found["days_since_last"], 52)
+        self.assertEqual(found["quantity_per_trade"], 5)
         self.assertNotIn("appears_active", found)
+
+    def test_unreadable_quantities_report_nothing_instead_of_crashing(self):
+        """수량 칸을 못 읽으면 '모른다'다. 그리고 죽지 않는다.
+
+        빈 칸은 `_number` 가 None 을 내는데, 그 None 들이 집합에 들어가면
+        원소가 하나(={None})라서 '수량이 하나로 모였다'로 통과하고, 그 다음
+        줄에서 빈 목록의 첫 원소를 꺼내다 IndexError 로 죽었다. 원장은
+        사용자가 손으로 만드는 파일이라 빈 칸은 언제든 생긴다.
+        """
+        rows = ["settle_date,side,quantity,price_krw,fee_krw,tax_krw,note"]
+        rows += [f"2026-01-{day:02d},BUY,,100000,0,0,적립 매수"
+                 for day in range(1, 9)]
+        (position_module.TRADES_DIR / "AAA.csv").write_text(
+            "\n".join(rows) + "\n", encoding="utf-8"
+        )
+        found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        self.assertEqual(found["trade_count"], 8)
+        self.assertIsNone(found["quantity_per_trade"])
+
+    def test_a_single_unreadable_row_is_not_averaged_away(self):
+        """일곱 행이 5주여도 한 행을 못 읽었으면 '5주씩'이 아니다."""
+        rows = ["settle_date,side,quantity,price_krw,fee_krw,tax_krw,note"]
+        rows += [f"2026-01-{day:02d},BUY,5,100000,0,0,적립 매수"
+                 for day in range(1, 8)]
+        rows += ["2026-01-08,BUY,,100000,0,0,적립 매수"]
+        (position_module.TRADES_DIR / "AAA.csv").write_text(
+            "\n".join(rows) + "\n", encoding="utf-8"
+        )
+        found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        self.assertIsNone(found["quantity_per_trade"])
 
 
 class TestReconciliation(TempPortfolio):

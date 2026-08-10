@@ -7,11 +7,14 @@
 올바른 값은 TTM 14,539원 / PER 24.55 / 백분위 36.0% 였다.
 """
 
+import contextlib
+import io
 import unittest
+from unittest.mock import patch
 
 from helpers import ROOT  # noqa: F401  (sys.path 설정)
 from calculators.valuation_band import (
-    is_eps_account, per_history, q_index, ttm_series,
+    is_eps_account, kr_filing_dates, per_history, q_index, ttm_series,
 )
 
 
@@ -66,14 +69,38 @@ class TestTTMSeries(unittest.TestCase):
         self.assertEqual(ttm_series(quarterly), [])
 
     def test_missing_filing_date_excluded(self):
-        """공시일이 없으면 시점 보존이 불가능하므로 제외한다."""
+        """공시일이 없으면 시점 보존이 불가능하므로 제외한다.
+
+        그리고 **말없이 버리지 않는다.** 접수일 조회 연도가 EPS 조회 연도와
+        어긋나면 이 갈래가 통째로 켜지는데, 그때 밴드는 실패하지 않고 그냥
+        짧아져 나온다. 이유가 안 뜨면 요청한 기간을 못 받았다는 사실 자체가
+        화면에서 사라진다.
+        """
         quarterly = {
             "2025-03": q(3482, "2025-05-15"),
             "2025-06": q(4563, "2025-08-14"),
             "2025-09": q(4714, "2025-11-14"),
             "2025-12": q(2174, None),
         }
-        self.assertEqual(ttm_series(quarterly), [])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self.assertEqual(ttm_series(quarterly), [])
+        message = stderr.getvalue()
+        self.assertIn("2025-12", message)
+        self.assertIn("접수일", message)
+
+    def test_each_skip_says_which_reason_it_was(self):
+        """'연속 4분기가 아니다' 와 '접수일이 없다' 는 원인도 대처도 다르다."""
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            ttm_series({
+                "2025-03": q(1, "2025-05-15"),
+                "2025-06": q(None, "2025-08-14"),
+                "2025-09": q(1, "2025-11-14"),
+                "2025-12": q(1, "2026-03-19"),
+            })
+        self.assertIn("분기 EPS", stderr.getvalue())
+        self.assertNotIn("접수일", stderr.getvalue())
 
     def test_known_from_is_latest_filing_in_the_window(self):
         """이전 분기 정정이 늦게 나오면 정정 공개 전에는 새 TTM을 쓰지 않는다."""
@@ -85,6 +112,38 @@ class TestTTMSeries(unittest.TestCase):
         }
         out = ttm_series(quarterly)
         self.assertEqual(out[0]["known_from"], "2026-06-01")
+
+
+class TestFilingDateYears(unittest.TestCase):
+    """접수일은 EPS 와 **같은 연도**를 훑어야 한다.
+
+    조회 연도가 2023 부터로 박혀 있었다. `--years` 로 그 이전을 요청하면 EPS 는
+    받아 오는데 접수일이 없어 `ttm_series` 가 그 구간을 전부 버렸고, 명령은
+    실패하지 않고 짧아진 밴드를 냈다.
+    """
+
+    def scanned(self, years):
+        seen = []
+
+        def fake_request(endpoint, params, key):
+            seen.append(int(params["bgn_de"][:4]))
+            return {"list": []}
+
+        with patch("calculators.valuation_band.dart_request", fake_request):
+            kr_filing_dates("00123456", "KEY", years)
+        return seen
+
+    def test_requested_years_are_all_scanned(self):
+        self.assertLessEqual({2019, 2020}, set(self.scanned([2019, 2020])))
+
+    def test_the_year_after_is_scanned_for_the_annual_report(self):
+        """4분기를 담는 사업보고서는 이듬해 3월에 접수된다."""
+        self.assertIn(2021, self.scanned([2019, 2020]))
+
+    def test_future_years_are_not_requested(self):
+        self.assertEqual(
+            [year for year in self.scanned([2019, 2020]) if year > 2026], []
+        )
 
 
 class TestPerHistoryPointInTime(unittest.TestCase):
