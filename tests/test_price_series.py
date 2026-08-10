@@ -318,6 +318,117 @@ class TestPriceConsumers(unittest.TestCase):
         self.assertFalse(summary["last_bar"]["is_settled_close"])
         self.assertIn("확정 종가가 아니다", summary["last_bar"]["_warning"])
 
+    def _last_bar(self, session_line):
+        with tempfile.TemporaryDirectory() as tmp:
+            knowledge = Path(tmp)
+            path = knowledge / "prices" / "TEST.csv"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                "# schema_version price-series/2.1.0\n"
+                "# symbol TEST / currency USD\n"
+                "# retrieved_at 2026-07-29T00:59:00+00:00 / "
+                "source Yahoo Finance chart API\n"
+                + session_line
+                + "date,close,adjusted_close,split_adjustment_factor,"
+                "high,low,volume\n"
+                "2026-07-28,100,100,1,101,99,40000000\n"
+                "2026-07-29,104,104,1,105,103,9000000\n",
+                encoding="utf-8",
+            )
+            with (
+                patch("cio.context.KNOWLEDGE_DIR", knowledge),
+                patch("cio.context.ROOT", knowledge),
+            ):
+                summary, _source = _price_summary("TEST")
+        return summary["last_bar"]
+
+    def test_an_undecidable_session_is_not_reported_as_unsettled(self):
+        """수집기는 세 갈래를 남기는데 packet 이 둘로 접고 있었다.
+
+        `session_state` 는 거래소 세션 경계를 못 읽으면 UNKNOWN 을 낸다. 그걸
+        `bool(session) and ... == "SETTLED"` 로 접으면 **모른다가 '확정 종가가
+        아니다'** 로 바뀌고, 경고는 UNSETTLED 일 때만 붙으므로 모델은 이유 없는
+        음성 하나만 본다. 관측하지 않은 것과 관측된 음성은 같은 값일 수 없다.
+        """
+        bar = self._last_bar("# last_bar 2026-07-29 / session UNKNOWN\n")
+        self.assertEqual(bar["session"], "UNKNOWN")
+        self.assertIsNone(bar["is_settled_close"])
+        self.assertIn("판별하지 못했다", bar["_warning"])
+
+    def test_a_missing_session_header_is_also_undecidable(self):
+        bar = self._last_bar("")
+        self.assertEqual(bar["session"], "UNKNOWN")
+        self.assertIsNone(bar["is_settled_close"])
+        self.assertIsNotNone(bar["_warning"])
+
+    def test_a_settled_bar_carries_no_warning(self):
+        bar = self._last_bar("# last_bar 2026-07-29 / session SETTLED\n")
+        self.assertIs(bar["is_settled_close"], True)
+        self.assertIsNone(bar["_warning"])
+
+
+class TestScoringKeepsTheThirdSessionState(unittest.TestCase):
+    """채점 기록도 세 갈래를 둘로 접지 않는다.
+
+    평가는 저장되고 나중에 읽힌다. 그때 `latest_is_settled_close: false` 만
+    남아 있으면 읽는 쪽은 그것을 관측으로 받아들이는데, 실제로는 판별을 못 한
+    것일 수 있다. packet 과 같은 규칙이어야 두 기록이 같은 뜻을 갖는다.
+    """
+
+    ROWS = [
+        {
+            "date": "2026-01-02", "close": 100.0, "adjusted_close": 100.0,
+            "has_adjusted_close": True, "split_adjustment_factor": 1.0,
+            "high": 101.0, "low": 99.0,
+        },
+        {
+            "date": "2026-02-02", "close": 110.0, "adjusted_close": 110.0,
+            "has_adjusted_close": True, "split_adjustment_factor": 1.0,
+            "high": 111.0, "low": 109.0,
+        },
+    ]
+
+    def window(self, session):
+        with (
+            patch(
+                "cio.memory.get_asset",
+                return_value={"asset_id": "TSLA", "price_symbol": "TSLA"},
+            ),
+            patch("cio.memory.find_context", return_value=(valid_context(), None)),
+            patch("cio.memory._price_session", return_value=session),
+        ):
+            result = evaluate_assessment(
+                normalize_decision(valid_decision()), rows=self.ROWS
+            )
+        return result["window"]
+
+    def test_undecidable_session_is_null_not_false(self):
+        window = self.window({"last_bar": "2026-02-02", "session": "UNKNOWN"})
+        self.assertIsNone(window["latest_is_settled_close"])
+        self.assertIn("판별하지 못했다", window["_settled_note"])
+
+    def test_intraday_bar_is_false_and_says_why(self):
+        window = self.window({"last_bar": "2026-02-02", "session": "UNSETTLED"})
+        self.assertIs(window["latest_is_settled_close"], False)
+        self.assertIn("장중 수집분", window["_settled_note"])
+
+    def test_settled_bar_is_true_with_no_note(self):
+        window = self.window({"last_bar": "2026-02-02", "session": "SETTLED"})
+        self.assertIs(window["latest_is_settled_close"], True)
+        self.assertIsNone(window["_settled_note"])
+
+    def test_an_older_bar_is_closed_whatever_the_header_says(self):
+        """쓰고 있는 행이 헤더의 마지막 봉이 아니면 이미 닫힌 봉이다."""
+        for state in ("UNKNOWN", "UNSETTLED", "SETTLED"):
+            window = self.window({"last_bar": "2026-03-01", "session": state})
+            self.assertIs(window["latest_is_settled_close"], True, state)
+            self.assertIsNone(window["_settled_note"], state)
+
+    def test_no_price_header_at_all_is_unknown(self):
+        window = self.window(None)
+        self.assertIsNone(window["latest_is_settled_close"])
+        self.assertIsNone(window["_settled_note"])
+
     def test_refresh_rejects_v1_and_accepts_complete_v2(self):
         task = RefreshTask(
             name="price:TEST",

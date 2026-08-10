@@ -673,24 +673,29 @@ def evaluate_assessment(
             # 마지막 관측이 확정 종가인가. 장중에 채점하면 진행 중인 봉이
             # price.latest 에 들어가는데, 그 사실이 남지 않으면 나중에 이
             # 평가를 읽는 쪽이 14시의 값을 종가로 인용한다.
+            # 세 갈래를 둘로 접지 않는다(`cio/context.py` 의 last_bar 와 같은
+            # 규칙). 쓰고 있는 마지막 행이 헤더의 마지막 봉이 아니면 이미 닫힌
+            # 봉이라 세션 상태와 무관하게 확정이다. 같은 봉일 때만 상태를 보고,
+            # 그 상태가 UNKNOWN 이면 모르는 것이다.
             "latest_is_settled_close": (
                 None
                 if session is None
-                else (
-                    session.get("session") == "SETTLED"
-                    or session.get("last_bar") != latest["date"]
-                )
+                else True
+                if session.get("last_bar") != latest["date"]
+                else None
+                if session.get("session") == "UNKNOWN"
+                else session.get("session") == "SETTLED"
             ),
             "_settled_note": (
                 None
-                if session is None
-                else (
-                    "마지막 봉이 확정 종가가 아니다 — 장중 수집분이다. "
-                    "이 평가의 실현 수익률은 진행 중인 값이다"
-                    if session.get("session") == "UNSETTLED"
-                    and session.get("last_bar") == latest["date"]
-                    else None
-                )
+                if session is None or session.get("last_bar") != latest["date"]
+                else "마지막 봉이 확정 종가가 아니다 — 장중 수집분이다. "
+                "이 평가의 실현 수익률은 진행 중인 값이다"
+                if session.get("session") == "UNSETTLED"
+                else "마지막 봉이 확정 종가인지 판별하지 못했다. 이 평가의 "
+                "실현 수익률이 확정 종가 기준인지 알 수 없다"
+                if session.get("session") == "UNKNOWN"
+                else None
             ),
         },
         "price": {

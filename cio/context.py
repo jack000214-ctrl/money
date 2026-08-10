@@ -182,7 +182,18 @@ def _split_factor_since(
 
 
 def _usable_factor(value: Any) -> float:
-    """대조에 쓸 분할계수. 모르면 1.0 — 분할이 없었던 경우와 같은 취급이다."""
+    """대조에 쓸 분할계수. 없으면 1.0.
+
+    **이 1.0 은 지어낸 값이 아니다.** `_split_factor_since` 가 None 을 내는
+    경우는 (a) 가격 파일이 없거나 (b) 판단일 이후의 봉이 하나도 없을 때뿐이다.
+    (a) 면 대조할 종가 자체가 없어 호출부가 먼저 None 을 내고, (b) 면 마지막
+    봉이 판단보다 **앞서** 있다는 뜻이라 그 사이에 분할이 끼어들 구간이 없다.
+    두 경우 다 "분할 없음"이 관측이지 가정이 아니다.
+
+    형이 틀렸거나 0 이하인 값도 1.0 으로 모으는 것은 다른 문제다 — 그건 계수를
+    못 읽은 것이므로, 여기가 조용해지면 `collectors/price.py` 가 이상한 계수를
+    쓴 사실이 묻힌다. 그 검사는 수집 시점에 있어야 하고 여기 있으면 늦다.
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 1.0
     number = float(value)
@@ -221,6 +232,9 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
         r"# last_bar (\d{4}-\d{2}-\d{2}) / session (\w+)",
         session_line,
     )
+    # 헤더 줄이 없으면 그것도 '모른다'다. 수집기가 UNKNOWN 을 쓰는 경우와
+    # 같은 자리이므로 같은 값으로 모은다.
+    session_state = session.group(2) if session else "UNKNOWN"
     rows = _csv_rows(path)
     points = []
     adjusted_complete = True
@@ -302,16 +316,29 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             else None,
             # 마지막 행이 확정 종가인지. 장중 수집분이면 close·거래량·수익률이
             # 전부 진행 중인 값이라 확정 일봉처럼 인용하면 안 된다.
+            #
+            # **세 갈래를 두 갈래로 접지 않는다.** 수집기는 SETTLED·UNSETTLED·
+            # UNKNOWN 을 구분해 헤더에 남기는데(`collectors/price.py` 의
+            # `session_state`), 여기서 `bool(session) and ...` 로 접으면 모른다가
+            # **확정 종가가 아니다**로 바뀐다. 게다가 그때는 아래 경고도 안 붙어서
+            # 모델은 이유 없는 음성 하나만 보게 된다.
             "last_bar": {
                 "date": session.group(1) if session else points[-1][0],
-                "session": session.group(2) if session else "UNKNOWN",
-                "is_settled_close": bool(session)
-                and session.group(2) == "SETTLED",
+                "session": session_state,
+                "is_settled_close": (
+                    None
+                    if session_state == "UNKNOWN"
+                    else session_state == "SETTLED"
+                ),
                 "_warning": (
                     "마지막 봉이 확정 종가가 아니다 — 장중 수집분이다. close 와 "
                     "그것을 쓰는 수익률·낙폭·변동성은 진행 중인 값이며 종가로 "
                     "인용하면 안 된다"
-                    if session and session.group(2) == "UNSETTLED"
+                    if session_state == "UNSETTLED"
+                    else "마지막 봉이 확정 종가인지 판별하지 못했다 — 거래소가 "
+                    "선언한 세션 경계를 못 읽었다. 확정으로도 미확정으로도 "
+                    "인용하면 안 된다"
+                    if session_state == "UNKNOWN"
                     else None
                 ),
             },
