@@ -23,6 +23,11 @@ Nothing is repeated across the three.
    analysis lens, and valuation families.
 3. `python3.13 -m cio refresh ASSET`. Add `--run` when required artifacts are stale or
    missing; add `--optional` when the asset's lens makes those inputs useful.
+
+   Then `python3.13 -m cio score ASSET`, **before** building the packet. The packet
+   reads stored evaluations off disk, so scoring afterwards leaves
+   `prior_assessments[].latest_evaluation` one step behind — you would judge without
+   seeing how your own previous judgment actually did.
 4. Build the packet. **Carry the user's own words through** — they are verified, not
    assumed.
 
@@ -61,6 +66,10 @@ Nothing is repeated across the three.
    Korean accession numbers are in `filings.latest_material_events`. The DART viewer
    URL is a frame shell and `snapshot` will say so.
 7. Produce one decision JSON matching the schema. Follow `prompts/cio-system.md`.
+   Before you write the price plan, read `prior_assessments[].latest_evaluation` and
+   `pace_since_decision`. If the price already reached what you called a twelve-month
+   target, say so and act on it — a threshold does not look at the clock, so half a
+   horizon of return arriving in two days trips nothing on its own.
 8. `python3.13 -m cio validate DECISION.json` for a dry run (writes nothing), or
    `python3.13 -m cio record DECISION.json` for an official attempt — it validates,
    stores valid output, and quarantines invalid output with its errors.
@@ -76,6 +85,13 @@ These are about running the tools. The judgment rules are in the prompt.
 - `validation = PASS|BLOCKED` describes data, arithmetic, freshness and reference
   integrity only. You own `verdict`. From a `BLOCKED` context, repair the inputs and
   prepare again rather than issuing a numeric verdict.
+- **Quote numbers; do not manufacture them.** Every figure you report — realized P&L,
+  transaction tax, post-trade weight, days to an event — must come from the packet, a
+  calculator, or a command. Arithmetic done in your reply is not reproducible, is not
+  in the record, and is not checked by anything. The division of labour is the point:
+  the local program calculates and verifies, you judge. If a number you need is
+  missing, say it is missing and file a `research_request`; do not fill the gap by
+  hand. This is the one rule no validator can enforce, which is exactly why it is here.
 - Preserve currency boundaries. A USD price and a KRW budget need a dated FX
   conversion; never divide them directly.
 - Keep local source IDs and every newly researched source in the decision record.
@@ -85,15 +101,39 @@ These are about running the tools. The judgment rules are in the prompt.
 
 ## Investor policy
 
-`python3.13 -m cio policy` shows the user's capital constraints and which limits are
-still unset. The packet carries the same values plus arithmetic comparisons. A limit
-that is unset is **not** unlimited — see the prompt for how to answer when a conclusion
-depends on one.
+Read it from the packet's `investor_policy` block — values, `unset`,
+`intentionally_unset`, and a `checks` array with the arithmetic (`now`, `breach_now`,
+exposure against each limit). A limit that is unset is **not** unlimited; see the
+prompt for how to answer when a conclusion depends on one. Note that deliberate gaps
+are split by shape: a gap in a checkable limit shows up in `checks` as
+`NO_LIMIT_BY_CHOICE`, a gap in a non-limit field shows up in `intentionally_unset`.
+Look in both before concluding a limit is missing.
+
+`python3.13 -m cio policy` is a **user-facing view, not a workflow step.** It shows the
+same policy without requiring an asset and exits non-zero when the file is absent or
+invalid, which makes it useful to a human and to a shell script. It has no logic the
+packet does not already run, and running it changes nothing about your decision — a
+step whose omission changes no outcome is not a step.
 
 ## Evaluation
 
-`python3.13 -m cio score ASSET` when price history has accumulated. It scores live and
-retired judgments separately (`source: LIVE|RETIRED`) and adds fixed 1/3/6/12/24-month
-returns and benchmark-relative excess alongside the model's self-declared thresholds.
-Compare models on the fixed horizons, never on self-chosen ones, and never on a single
-outcome.
+`python3.13 -m cio score ASSET` scores stored judgments against later prices. It keeps
+one evaluation per judgment, scores live and retired ones separately
+(`source: LIVE|RETIRED`), and adds fixed 1/3/6/12/24-month returns and
+benchmark-relative excess alongside the model's self-declared thresholds. Compare
+models on the fixed horizons, never on self-chosen ones, and never on a single outcome.
+
+The packet carries only the live judgments' `latest_evaluation` — five scalars each.
+That is deliberate: a full scoring history would eat the budget and go unread in most
+judgments. When you need the deeper view, ask for it:
+
+```bash
+python3.13 -m cio evals ASSET           # latest evaluation per judgment
+python3.13 -m cio evals ASSET --plan    # with each judgment's entry, stop, scale-out
+```
+
+`--plan` puts the thresholds in a column, which is how a real defect surfaced: across
+eleven judgments on one asset the `preferred_entry` tracked that day's quote at
+r = +0.827 — a fixed discount below the screen rather than an estimate of worth, so the
+entry band was never reached even when the price fell into it. **No single judgment can
+see that about itself.** Read this before repeating a plan you have written before.
