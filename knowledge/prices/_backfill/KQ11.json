@@ -2,12 +2,14 @@
   "schema_version": "price-backfill/1.0.0",
   "symbol": "^KQ11",
   "target": "KQ11.csv",
-  "collected_at": "2026-08-10T05:11:20+00:00",
-  "calendar_source": "KOSDAQ 종목 시계열 1219거래일",
+  "collected_at": "2026-08-11T00:57:56+00:00",
+  "calendar_source": "KOSDAQ 종목 시계열 2447거래일",
   "checked_range": {
     "from": "2021-08-10",
-    "to": "2026-08-10"
+    "to": "2026-08-11"
   },
-  "filled": [],
+  "filled": [
+    "2026-08-10"
+  ],
   "unfilled": []
 }

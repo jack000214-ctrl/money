@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "214450",
   "corp_code": "00970453",
-  "collected_at": "2026-08-09T08:53:32+00:00",
+  "collected_at": "2026-08-11T00:58:01+00:00",
   "source": "DART_LIST",
-  "since": "20250705",
-  "until": "20260809",
+  "since": "20250707",
+  "until": "20260811",
   "pblntf_types": [
     "A",
     "B",
