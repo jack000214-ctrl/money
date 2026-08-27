@@ -780,6 +780,11 @@ REPORT_SEQUENCE = [("1q", 1), ("half", 2), ("3q", 3), ("annual", 4)]
 CF_OCF_IDS = ["ifrs-full_CashFlowsFromUsedInOperatingActivities"]
 CF_CAPEX_IDS = [
     "ifrs-full_PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"]
+CF_CAPEX_NAMES = [
+    "유형자산의 취득",
+    "기타의 유형자산의 취득",
+    "기타유형자산의 취득",
+]
 CF_INTANGIBLE_IDS = [
     "ifrs-full_PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"]
 
@@ -998,7 +1003,7 @@ def fetch_all(corp_code, year, report, fs, key):
         key, allow_empty=True)
 
 
-def restore_cf_quarters(by_report, ids, label):
+def restore_cf_quarters(by_report, ids, label, names=()):
     """누계 현금흐름을 3개월로 되돌린다.
 
     Q1 = 1분기, Q2 = 반기 − 1분기, Q3 = 3분기 − 반기, Q4 = 연간 − 3분기.
@@ -1010,7 +1015,7 @@ def restore_cf_quarters(by_report, ids, label):
         rows = by_report.get(report)
         if not rows:
             continue
-        row = acct(rows, "CF", ids)
+        row = acct(rows, "CF", ids, names)
         value = amount(row)
         if value is not None:
             cumulative[q] = value
@@ -1178,6 +1183,12 @@ def resolve_shares(bs_report):
     """
     parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS,
                       ["지배기업 소유주지분"])
+    # 별도재무제표에는 지배기업 소유주지분 행이 존재하지 않는다. 그 경우에만
+    # 동일 기간의 당기순이익을 EPS 분자로 사용한다. 연결재무에서는 총당기순이익과
+    # 지배주주 EPS를 섞지 않도록 기존 지배주주 행을 계속 우선한다.
+    if parent_row is None or amount(parent_row) is None:
+        parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_IDS,
+                          ["당기순이익", "분기순이익", "반기순이익"])
     eps_row = acct(bs_report, ("IS", "CIS"), IS_DILUTED_EPS_IDS,
                    ["희석주당이익(손실)"])
     eps_basis = "DILUTED"
@@ -1228,10 +1239,14 @@ def cmd_fundamentals(a, key):
         try:
             for q, row in restore_cf_quarters(by_report, CF_OCF_IDS, "영업현금흐름").items():
                 ocf[(year, q)] = row
-            for q, row in restore_cf_quarters(by_report, CF_CAPEX_IDS, "capex").items():
+        except LookupError:
+            pass
+        try:
+            for q, row in restore_cf_quarters(
+                    by_report, CF_CAPEX_IDS, "capex", CF_CAPEX_NAMES).items():
                 capex[(year, q)] = row
-        except LookupError as exc:
-            fail(str(exc))
+        except LookupError:
+            pass
         try:
             for q, row in restore_cf_quarters(
                     by_report, CF_INTANGIBLE_IDS, "무형자산취득").items():
@@ -1239,7 +1254,11 @@ def cmd_fundamentals(a, key):
         except LookupError:
             pass  # 무형자산 취득이 없는 회사도 있다. capex 정의에 영향 없음
 
-    latest = max(k for k in ocf if k in capex)
+    common_cf = [k for k in ocf if k in capex]
+    if not common_cf:
+        fail("영업현금흐름과 capex가 함께 있는 분기를 하나도 확보하지 못했다. "
+             f"영업현금흐름 확보: {sorted(ocf)} / capex 확보: {sorted(capex)}")
+    latest = max(common_cf)
     if a.period_end:
         want = [k for k in sorted(ocf)
                 if f"{k[0]}-{QUARTER_END[k[1]]}" == a.period_end]

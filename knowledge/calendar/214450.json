@@ -1,8 +1,8 @@
 {
   "schema_version": "earnings-calendar/1.0.0",
   "asset_id": "214450",
-  "collected_at": "2026-08-11T09:58:02+09:00",
-  "as_of_date": "2026-08-11",
+  "collected_at": "2026-08-20T11:02:13+09:00",
+  "as_of_date": "2026-08-20",
   "source": "DART_DOCUMENT",
   "source_grade": "PRIMARY",
   "next_provisional_result": {
@@ -22,14 +22,14 @@
     "date": "2026-08-13",
     "estimated": true,
     "report_class": "INTERIM",
-    "basis": "과거 INTERIM 정기보고서의 (잠정실적 → 제출) 간격 중앙값 6.0일",
-    "sample_size": 3,
-    "business_days_remaining": 2,
+    "basis": "과거 INTERIM 정기보고서의 (잠정실적 → 제출) 간격 중앙값 6.5일",
+    "sample_size": 4,
+    "business_days_remaining": null,
     "_content": "재고자산·부문별 매출·주요 매출처가 여기 나온다. 잠정실적 공정공시에는 이 항목들이 없다"
   },
   "expected_periodic_report_missing_reason": null,
   "periodic_report_lag": {
-    "observation_count": 4,
+    "observation_count": 5,
     "observations": [
       {
         "provisional_date": "2025-08-08",
@@ -58,15 +58,22 @@
         "report_form": "QUARTER_REPORT",
         "report_class": "INTERIM",
         "gap_days": 7
+      },
+      {
+        "provisional_date": "2026-08-07",
+        "report_date": "2026-08-14",
+        "report_form": "HALF_REPORT",
+        "report_class": "INTERIM",
+        "gap_days": 7
       }
     ],
     "median_gap_days_by_class": {
       "ANNUAL": null,
-      "INTERIM": 6.0
+      "INTERIM": 6.5
     },
     "sample_size_by_class": {
       "ANNUAL": 1,
-      "INTERIM": 3
+      "INTERIM": 4
     },
     "_note": "정기보고서 제출일은 공시되지 않는다. 과거 (잠정실적 → 그 다음 정기보고서) 간격의 중앙값이며 추정이다. INTERIM(분기·반기, 기간말 +45일)과 ANNUAL(사업보고서, +90일)은 법정 기한이 달라 따로 센다. 관측이 2건 미만인 부류는 내지 않는다"
   },

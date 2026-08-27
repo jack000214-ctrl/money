@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-b4c09d513cafc651635c",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "214450",
+  "created_at": "2026-08-20T11:13:26+09:00",
+  "source_ids": [
+    "FUNDAMENTALS:214450",
+    "DARTDOC:20260814002997",
+    "CONSENSUS:214450"
+  ],
+  "inputs": {
+    "price": 406500.0,
+    "shares": 11564273.0,
+    "fcf": 137896000000.0,
+    "net_debt": -524411000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 2.0,
+    "years": 10,
+    "input_provenance": {
+      "verified": false,
+      "source": "manual",
+      "reason": "순현금은 반기보고서 20260814002997 의 현금 2,203억 + 단기금융상품 3,178억 − 총차입 137억. packet 의 fundamentals 는 단기금융상품을 0 으로 잡는다(REQ-a68c073fec83)"
+    },
+    "revenue": 603577000000.0,
+    "horizon_months": 12,
+    "scenario_growth_pct": {
+      "bear": 4.0,
+      "base": 12.0,
+      "bull": 20.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": 4.0,
+        "value_per_share": 220845.16013728408,
+        "total_return_pct": -45.67154732170133,
+        "annualized_return_pct": -45.67154732170133
+      },
+      "base": {
+        "growth_pct": 12.0,
+        "value_per_share": 359242.2286048065,
+        "total_return_pct": -11.625528018497777,
+        "annualized_return_pct": -11.625528018497777
+      },
+      "bull": {
+        "growth_pct": 20.0,
+        "value_per_share": 606777.0947474262,
+        "total_return_pct": 49.2686579944468,
+        "annualized_return_pct": 49.2686579944468
+      }
+    },
+    "_units": "total_return_pct 는 수렴기간 말의 누적 총수익률이고 판단 계약의 expected_return_pct 로 가는 값이다. annualized_return_pct 는 같은 값을 연율로 바꾼 참고치이며 계약의 어느 자리에도 들어가지 않는다",
+    "implied_growth_pct": 13.922627588827352,
+    "implied_growth_status": "SOLVED"
+  }
+}
