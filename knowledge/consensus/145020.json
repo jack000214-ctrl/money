@@ -1,16 +1,16 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "145020",
-  "collected_at": "2026-08-20T11:02:18+09:00",
-  "as_of": "2026-08-10",
+  "collected_at": "2026-09-02T13:33:25+09:00",
+  "as_of": "2026-09-01",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
   "summary": {
     "rating": 4.0,
-    "target_price": 391429.0,
+    "target_price": 393333.0,
     "eps": 14078.0,
-    "per": 17.54,
-    "institution_count": 14
+    "per": 17.4,
+    "institution_count": 15
   },
   "estimates": {
     "annual": [
@@ -63,31 +63,31 @@
         "period": "2026-12",
         "fiscal_year": 2026,
         "actual": false,
-        "revenue_100m": 5380.0,
-        "revenue_yoy_pct": 26.55,
-        "operating_income_100m": 2193.0,
+        "revenue_100m": 5382.0,
+        "revenue_yoy_pct": 26.6,
+        "operating_income_100m": 2191.0,
         "net_income_100m": 1746.0,
         "eps": 14078.0,
-        "per": 17.54,
-        "pbr": 2.41,
-        "roe_pct": 16.81,
-        "ev_ebitda": 10.18,
-        "net_debt_ratio_pct": -54.94
+        "per": 17.4,
+        "pbr": 2.39,
+        "roe_pct": 16.8,
+        "ev_ebitda": 10.1,
+        "net_debt_ratio_pct": -54.73
       },
       {
         "period": "2027-12",
         "fiscal_year": 2027,
         "actual": false,
-        "revenue_100m": 6579.0,
-        "revenue_yoy_pct": 22.29,
-        "operating_income_100m": 2848.0,
-        "net_income_100m": 2242.0,
-        "eps": 17918.0,
-        "per": 13.78,
-        "pbr": 2.02,
+        "revenue_100m": 6581.0,
+        "revenue_yoy_pct": 22.28,
+        "operating_income_100m": 2843.0,
+        "net_income_100m": 2246.0,
+        "eps": 17947.0,
+        "per": 13.65,
+        "pbr": 2.0,
         "roe_pct": 18.11,
-        "ev_ebitda": 7.42,
-        "net_debt_ratio_pct": -58.64
+        "ev_ebitda": 7.36,
+        "net_debt_ratio_pct": -58.43
       }
     ],
     "per_band_actual": {
@@ -102,34 +102,34 @@
   "dispersion": {
     "consensus_window": {
       "window_days": 90,
+      "count": 15,
+      "min": 350000.0,
+      "max": 430000.0,
+      "median": 400000.0,
+      "mean": 393333.0,
+      "spread_pct": 22.86,
+      "oldest": "2026-07-07",
+      "newest": "2026-09-01"
+    },
+    "recent": {
+      "window_days": 30,
       "count": 14,
       "min": 350000.0,
       "max": 430000.0,
       "median": 395000.0,
-      "mean": 391429.0,
-      "spread_pct": 22.86,
-      "oldest": "2026-07-07",
-      "newest": "2026-08-10"
-    },
-    "recent": {
-      "window_days": 30,
-      "count": 13,
-      "min": 350000.0,
-      "max": 430000.0,
-      "median": 390000.0,
-      "mean": 390000.0,
+      "mean": 392143.0,
       "spread_pct": 22.86,
       "oldest": "2026-08-07",
-      "newest": "2026-08-10"
+      "newest": "2026-09-01"
     },
     "_note": "목표가가 넓게 갈릴수록 평균은 합의가 아니라 평균일 뿐이다. 두 창의 최대·최소가 다르면 오래된 목표가가 평균을 끌고 있다는 신호이며, 그 목표가는 지금과 다른 주가 수준에서 잡힌 값이다"
   },
   "revisions": {
     "window_days": 90,
     "observed": 14,
-    "raised": 5,
+    "raised": 4,
     "lowered": 0,
-    "unchanged": 9,
+    "unchanged": 10,
     "largest_raise": {
       "broker": "신한투자",
       "date": "2026-08-07",
@@ -142,6 +142,22 @@
     "_note": "상향·하향 전환은 관측 가능한 사건이다. 목표가 수준보다 방향이 정보를 담는다"
   },
   "brokers": [
+    {
+      "broker": "유진투자",
+      "date": "2026-09-01",
+      "target_price": 420000.0,
+      "prior_target_price": null,
+      "change_pct": null,
+      "rating": "BUY"
+    },
+    {
+      "broker": "키움",
+      "date": "2026-08-19",
+      "target_price": 430000.0,
+      "prior_target_price": 430000.0,
+      "change_pct": 0.0,
+      "rating": "BUY"
+    },
     {
       "broker": "교보",
       "date": "2026-08-10",
@@ -180,14 +196,6 @@
       "target_price": 400000.0,
       "prior_target_price": 400000.0,
       "change_pct": 0.0,
-      "rating": "BUY"
-    },
-    {
-      "broker": "키움",
-      "date": "2026-08-07",
-      "target_price": 430000.0,
-      "prior_target_price": 380000.0,
-      "change_pct": 13.16,
       "rating": "BUY"
     },
     {
@@ -275,6 +283,15 @@
       "eps": 14078.0,
       "per": 17.54,
       "institution_count": 14
+    },
+    {
+      "as_of": "2026-09-01",
+      "collected_at": "2026-09-02T13:33:25+09:00",
+      "rating": 4.0,
+      "target_price": 393333.0,
+      "eps": 14078.0,
+      "per": 17.4,
+      "institution_count": 15
     }
   ]
 }

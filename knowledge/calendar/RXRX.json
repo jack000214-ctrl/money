@@ -1,33 +1,26 @@
 {
   "schema_version": "earnings-calendar/1.0.0",
   "asset_id": "RXRX",
-  "collected_at": "2026-08-03T14:47:19+09:00",
-  "as_of_date": "2026-08-03",
+  "collected_at": "2026-09-02T13:36:37+09:00",
+  "as_of_date": "2026-09-02",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "source_grade": "PRIMARY",
   "next_provisional_result": null,
   "next_provisional_result_missing_reason": "미국에는 결산실적 공시예고에 해당하는 제도가 없다. 발표일은 회사가 8-K(Item 2.02)로 당일 알리며 사전 공시되지 않는다",
   "expected_periodic_report": {
-    "date": "2026-08-05",
+    "date": "2026-11-05",
     "estimated": true,
     "report_class": "INTERIM",
-    "period_end": "2026-06-30",
+    "period_end": "2026-09-30",
     "basis": "과거 INTERIM 보고서의 (결산기말 → 제출) 간격 중앙값 36.0일",
-    "sample_size": 6,
-    "business_days_remaining": 2,
+    "sample_size": 7,
+    "business_days_remaining": 46,
     "_content": "10-Q/10-K 본문이다. 현금·번레이트·희석주식수가 여기서 갱신된다. 실적 요약은 보통 같은 날 8-K(Item 2.02)로 먼저 나온다"
   },
   "expected_periodic_report_missing_reason": null,
   "periodic_report_lag": {
-    "observation_count": 8,
+    "observation_count": 9,
     "observations": [
-      {
-        "period_end": "2024-12-31",
-        "filing_date": "2025-02-28",
-        "form": "10-K",
-        "report_class": "ANNUAL",
-        "lag_days": 59
-      },
       {
         "period_end": "2025-03-31",
         "filing_date": "2025-05-05",
@@ -62,6 +55,13 @@
         "form": "10-Q",
         "report_class": "INTERIM",
         "lag_days": 36
+      },
+      {
+        "period_end": "2026-06-30",
+        "filing_date": "2026-08-05",
+        "form": "10-Q",
+        "report_class": "INTERIM",
+        "lag_days": 36
       }
     ],
     "median_lag_days_by_class": {
@@ -70,7 +70,7 @@
     },
     "sample_size_by_class": {
       "ANNUAL": 2,
-      "INTERIM": 6
+      "INTERIM": 7
     },
     "_note": "미국에는 실적 발표 예고 공시가 없다. 과거 (결산기말 → 10-Q/10-K 제출) 간격의 중앙값이며 추정이다. 10-Q(INTERIM)와 10-K(ANNUAL)는 법정 기한이 달라 따로 센다. 관측이 2건 미만인 부류는 내지 않는다"
   },

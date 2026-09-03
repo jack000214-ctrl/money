@@ -1,15 +1,15 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "214150",
-  "collected_at": "2026-08-20T11:02:20+09:00",
-  "as_of": "2026-08-18",
+  "collected_at": "2026-09-02T13:33:27+09:00",
+  "as_of": "2026-08-28",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
   "summary": {
     "rating": 4.0,
     "target_price": 61312.0,
-    "eps": 2369.0,
-    "per": 14.1,
+    "eps": 2355.0,
+    "per": 13.95,
     "institution_count": 16
   },
   "estimates": {
@@ -63,31 +63,31 @@
         "period": "2026-12",
         "fiscal_year": 2026,
         "actual": false,
-        "revenue_100m": 4407.0,
-        "revenue_yoy_pct": 30.85,
-        "operating_income_100m": 1935.0,
-        "net_income_100m": 1547.0,
-        "eps": 2369.0,
-        "per": 14.1,
-        "pbr": 3.44,
-        "roe_pct": 26.09,
-        "ev_ebitda": 9.73,
-        "net_debt_ratio_pct": -25.02
+        "revenue_100m": 4401.0,
+        "revenue_yoy_pct": 30.67,
+        "operating_income_100m": 1925.0,
+        "net_income_100m": 1537.0,
+        "eps": 2355.0,
+        "per": 13.95,
+        "pbr": 3.38,
+        "roe_pct": 25.93,
+        "ev_ebitda": 9.61,
+        "net_debt_ratio_pct": -24.99
       },
       {
         "period": "2027-12",
         "fiscal_year": 2027,
         "actual": false,
-        "revenue_100m": 5541.0,
-        "revenue_yoy_pct": 25.72,
-        "operating_income_100m": 2547.0,
+        "revenue_100m": 5552.0,
+        "revenue_yoy_pct": 26.16,
+        "operating_income_100m": 2549.0,
         "net_income_100m": 1997.0,
         "eps": 3061.0,
-        "per": 10.91,
-        "pbr": 2.83,
-        "roe_pct": 28.48,
-        "ev_ebitda": 7.13,
-        "net_debt_ratio_pct": -33.87
+        "per": 10.73,
+        "pbr": 2.78,
+        "roe_pct": 28.45,
+        "ev_ebitda": 6.98,
+        "net_debt_ratio_pct": -34.06
       }
     ],
     "per_band_actual": {
@@ -109,18 +109,18 @@
       "mean": 61312.0,
       "spread_pct": 40.0,
       "oldest": "2026-06-19",
-      "newest": "2026-08-18"
+      "newest": "2026-08-28"
     },
     "recent": {
       "window_days": 30,
-      "count": 15,
+      "count": 13,
       "min": 50000.0,
-      "max": 70000.0,
+      "max": 67000.0,
       "median": 60000.0,
-      "mean": 60733.0,
-      "spread_pct": 40.0,
-      "oldest": "2026-07-23",
-      "newest": "2026-08-18"
+      "mean": 59923.0,
+      "spread_pct": 34.0,
+      "oldest": "2026-08-13",
+      "newest": "2026-08-28"
     },
     "_note": "목표가가 넓게 갈릴수록 평균은 합의가 아니라 평균일 뿐이다. 두 창의 최대·최소가 다르면 오래된 목표가가 평균을 끌고 있다는 신호이며, 그 목표가는 지금과 다른 주가 수준에서 잡힌 값이다"
   },
@@ -128,8 +128,8 @@
     "window_days": 90,
     "observed": 14,
     "raised": 0,
-    "lowered": 13,
-    "unchanged": 1,
+    "lowered": 11,
+    "unchanged": 3,
     "largest_raise": null,
     "largest_cut": {
       "broker": "유안타",
@@ -142,6 +142,22 @@
     "_note": "상향·하향 전환은 관측 가능한 사건이다. 목표가 수준보다 방향이 정보를 담는다"
   },
   "brokers": [
+    {
+      "broker": "신한투자",
+      "date": "2026-08-28",
+      "target_price": 62000.0,
+      "prior_target_price": 62000.0,
+      "change_pct": 0.0,
+      "rating": "매수"
+    },
+    {
+      "broker": "키움",
+      "date": "2026-08-19",
+      "target_price": 54000.0,
+      "prior_target_price": 54000.0,
+      "change_pct": 0.0,
+      "rating": "BUY"
+    },
     {
       "broker": "유안타",
       "date": "2026-08-18",
@@ -183,44 +199,12 @@
       "rating": "Buy"
     },
     {
-      "broker": "키움",
-      "date": "2026-08-13",
-      "target_price": 54000.0,
-      "prior_target_price": 58000.0,
-      "change_pct": -6.9,
-      "rating": "BUY"
-    },
-    {
-      "broker": "한국투자",
-      "date": "2026-08-13",
-      "target_price": 60000.0,
-      "prior_target_price": 65000.0,
-      "change_pct": -7.69,
-      "rating": "매수"
-    },
-    {
-      "broker": "다올투자",
-      "date": "2026-08-13",
-      "target_price": 60000.0,
-      "prior_target_price": 70000.0,
-      "change_pct": -14.29,
-      "rating": "BUY"
-    },
-    {
       "broker": "DB",
       "date": "2026-08-13",
       "target_price": 54000.0,
       "prior_target_price": 68000.0,
       "change_pct": -20.59,
       "rating": "Buy"
-    },
-    {
-      "broker": "삼성",
-      "date": "2026-08-13",
-      "target_price": 60000.0,
-      "prior_target_price": 70000.0,
-      "change_pct": -14.29,
-      "rating": "BUY"
     },
     {
       "broker": "대신",
@@ -239,12 +223,28 @@
       "rating": "Buy"
     },
     {
-      "broker": "신한투자",
-      "date": "2026-07-31",
-      "target_price": 62000.0,
-      "prior_target_price": 87000.0,
-      "change_pct": -28.74,
+      "broker": "한국투자",
+      "date": "2026-08-13",
+      "target_price": 60000.0,
+      "prior_target_price": 65000.0,
+      "change_pct": -7.69,
       "rating": "매수"
+    },
+    {
+      "broker": "다올투자",
+      "date": "2026-08-13",
+      "target_price": 60000.0,
+      "prior_target_price": 70000.0,
+      "change_pct": -14.29,
+      "rating": "BUY"
+    },
+    {
+      "broker": "삼성",
+      "date": "2026-08-13",
+      "target_price": 60000.0,
+      "prior_target_price": 70000.0,
+      "change_pct": -14.29,
+      "rating": "BUY"
     },
     {
       "broker": "상상인",
@@ -299,6 +299,15 @@
       "target_price": 61312.0,
       "eps": 2369.0,
       "per": 14.1,
+      "institution_count": 16
+    },
+    {
+      "as_of": "2026-08-28",
+      "collected_at": "2026-09-02T13:33:27+09:00",
+      "rating": 4.0,
+      "target_price": 61312.0,
+      "eps": 2355.0,
+      "per": 13.95,
       "institution_count": 16
     }
   ]

@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "028050",
   "corp_code": "00126308",
-  "collected_at": "2026-08-06T00:52:15+00:00",
+  "collected_at": "2026-09-03T04:43:29+00:00",
   "source": "DART_LIST",
-  "since": "20250702",
-  "until": "20260806",
+  "since": "20250730",
+  "until": "20260903",
   "pblntf_types": [
     "A",
     "B",
@@ -16,8 +16,8 @@
     {
       "pblntf_ty": "A",
       "pblntf_ty_name": "정기공시",
-      "raw_payload_sha256": "2343ea290dd1626576b588240d50a139b8b0aabbf14717b3877be6773fa2f321",
-      "raw_locator": "data/raw/dart/objects/2343ea290dd1626576b588240d50a139b8b0aabbf14717b3877be6773fa2f321.json"
+      "raw_payload_sha256": "25de13dfd9a537e7055369877a7af01ef5294bf5c3587d2d2c22768b57f9c497",
+      "raw_locator": "data/raw/dart/objects/25de13dfd9a537e7055369877a7af01ef5294bf5c3587d2d2c22768b57f9c497.json"
     },
     {
       "pblntf_ty": "B",
@@ -27,8 +27,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "8ad1625be7f44166e00d8043672af8b44b7966e176f80cd24fc427217f192d79",
-      "raw_locator": "data/raw/dart/objects/8ad1625be7f44166e00d8043672af8b44b7966e176f80cd24fc427217f192d79.json"
+      "raw_payload_sha256": "4ff7f53291318b1f907f05812c6cb13afe2e78792f2ba422a9b9d9f0f312617c",
+      "raw_locator": "data/raw/dart/objects/4ff7f53291318b1f907f05812c6cb13afe2e78792f2ba422a9b9d9f0f312617c.json"
     },
     {
       "pblntf_ty": "F",
@@ -37,6 +37,76 @@
     }
   ],
   "filings": [
+    {
+      "filing_date": "2026-09-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260901800464",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260901800464"
+    },
+    {
+      "filing_date": "2026-08-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260831800593",
+      "description": "[기재정정]단일판매ㆍ공급계약체결",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260831800593"
+    },
+    {
+      "filing_date": "2026-08-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260828800535",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260828800535"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260819800380",
+      "description": "[기재정정]단일판매ㆍ공급계약체결",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819800380"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814003428",
+      "description": "반기보고서 (2026.06)",
+      "filer": "삼성E&A",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003428"
+    },
+    {
+      "filing_date": "2026-08-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260813801416",
+      "description": "[기재정정]단일판매ㆍ공급계약체결",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813801416"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260807800723",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807800723"
+    },
     {
       "filing_date": "2026-08-03",
       "report_date": null,
@@ -374,7 +444,7 @@
       "accession_number": "20260316801898",
       "description": "[기재정정]단일판매ㆍ공급계약체결",
       "filer": "삼성E&A",
-      "remark": "유",
+      "remark": "유정",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316801898"
     },
     {
@@ -434,7 +504,7 @@
       "accession_number": "20260213800866",
       "description": "[기재정정]단일판매ㆍ공급계약체결",
       "filer": "삼성E&A",
-      "remark": "유",
+      "remark": "유정",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213800866"
     },
     {
@@ -566,76 +636,6 @@
       "filer": "삼성E&A",
       "remark": "유정",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260115800445"
-    },
-    {
-      "filing_date": "2026-01-12",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20260112800312",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260112800312"
-    },
-    {
-      "filing_date": "2026-01-05",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20260105800352",
-      "description": "최대주주등소유주식변동신고서",
-      "filer": "삼성E&A",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260105800352"
-    },
-    {
-      "filing_date": "2025-12-31",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251231800357",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251231800357"
-    },
-    {
-      "filing_date": "2025-12-30",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251230800450",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800450"
-    },
-    {
-      "filing_date": "2025-12-26",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251226800496",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251226800496"
-    },
-    {
-      "filing_date": "2025-12-15",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251215801116",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251215801116"
-    },
-    {
-      "filing_date": "2025-12-15",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20251215801108",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251215801108"
     }
   ]
 }

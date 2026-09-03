@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "IBM",
   "cik": "0000051143",
-  "collected_at": "2026-08-03T05:47:18+00:00",
+  "collected_at": "2026-09-02T04:36:39+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",
@@ -19,9 +19,35 @@
     "S-3/A",
     "S-3ASR"
   ],
-  "raw_payload_sha256": "4a9b40fff72450baa9624b452814c32f798227c761bd940cb9f3e71256f13604",
-  "raw_locator": "data/raw/edgar/objects/4a9b40fff72450baa9624b452814c32f798227c761bd940cb9f3e71256f13604.json",
+  "raw_payload_sha256": "5d379cd6d9b669ac634946256ae1f55ab4aaa60cc44ac3e2d1ba423c0a27d015",
+  "raw_locator": "data/raw/edgar/objects/5d379cd6d9b669ac634946256ae1f55ab4aaa60cc44ac3e2d1ba423c0a27d015.json",
   "filings": [
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-08-10",
+      "form": "8-K",
+      "accession_number": "0001104659-26-097089",
+      "primary_document": "tm2623193d1_8k.htm",
+      "description": "FORM 8-K",
+      "items": [
+        "9.01"
+      ],
+      "item_labels": [
+        "9.01 재무제표·첨부서류"
+      ],
+      "document_url": "https://www.sec.gov/Archives/edgar/data/51143/000110465926097089/tm2623193d1_8k.htm"
+    },
+    {
+      "filing_date": "2026-08-11",
+      "report_date": "",
+      "form": "424B5",
+      "accession_number": "0001104659-26-094038",
+      "primary_document": "tm2621321-2_424b5.htm",
+      "description": "424B5",
+      "items": null,
+      "item_labels": null,
+      "document_url": "https://www.sec.gov/Archives/edgar/data/51143/000110465926094038/tm2621321-2_424b5.htm"
+    },
     {
       "filing_date": "2026-07-23",
       "report_date": "2026-06-30",
@@ -741,40 +767,6 @@
       "items": null,
       "item_labels": null,
       "document_url": "https://www.sec.gov/Archives/edgar/data/51143/000005114324000025/ibm-20240331.htm"
-    },
-    {
-      "filing_date": "2024-04-25",
-      "report_date": "2024-04-24",
-      "form": "8-K",
-      "accession_number": "0000051143-24-000021",
-      "primary_document": "ibm-20240424.htm",
-      "description": "8-K",
-      "items": [
-        "7.01",
-        "9.01"
-      ],
-      "item_labels": [
-        "7.01 Reg FD 공정공시",
-        "9.01 재무제표·첨부서류"
-      ],
-      "document_url": "https://www.sec.gov/Archives/edgar/data/51143/000005114324000021/ibm-20240424.htm"
-    },
-    {
-      "filing_date": "2024-04-24",
-      "report_date": "2024-04-24",
-      "form": "8-K",
-      "accession_number": "0000051143-24-000018",
-      "primary_document": "ibm-20240424.htm",
-      "description": "8-K",
-      "items": [
-        "2.02",
-        "9.01"
-      ],
-      "item_labels": [
-        "2.02 실적 발표",
-        "9.01 재무제표·첨부서류"
-      ],
-      "document_url": "https://www.sec.gov/Archives/edgar/data/51143/000005114324000018/ibm-20240424.htm"
     }
   ]
 }

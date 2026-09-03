@@ -1,0 +1,16 @@
+{
+  "schema_version": "segment-summary/1.0.0",
+  "asset_id": "028050",
+  "source": "DART_PERIODIC_REPORT",
+  "collected_at": "2026-09-03T04:44:20+00:00",
+  "available": false,
+  "rcept_no": "20260814003428",
+  "report_name": "반기보고서 (2026.06)",
+  "filing_date": "2026-08-14",
+  "raw_payload_sha256": "d3019902952b36fd5e49835e948a1408c4ce834fcb004afdee911372315a43d2",
+  "raw_locator": "data/raw/dart/objects/d3019902952b36fd5e49835e948a1408c4ce834fcb004afdee911372315a43d2.json",
+  "absence": "NO_TABLE_FOUND",
+  "single_segment_statement": null,
+  "_reason": "반기보고서 (2026.06) 에서 사업부문별 요약 표를 특정하지 못했고, 단일 영업부문이라는 공시도 없다. 표 형식이 바뀌었을 수 있으므로 원문을 직접 본다. 부문 배분을 지어내지 않는다",
+  "_retry_note": "같은 보고서에 대해 다시 돌려도 결과는 같다. 다음 정기보고서가 나오면 표 형식이 바뀌었을 수 있으므로 그때 다시 받는다"
+}

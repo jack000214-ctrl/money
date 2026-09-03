@@ -1,8 +1,8 @@
 {
   "schema_version": "earnings-calendar/1.0.0",
   "asset_id": "IBM",
-  "collected_at": "2026-08-03T14:47:18+09:00",
-  "as_of_date": "2026-08-03",
+  "collected_at": "2026-09-02T13:36:39+09:00",
+  "as_of_date": "2026-09-02",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "source_grade": "PRIMARY",
   "next_provisional_result": null,
@@ -14,7 +14,7 @@
     "period_end": "2026-09-30",
     "basis": "과거 INTERIM 보고서의 (결산기말 → 제출) 간격 중앙값 24.0일",
     "sample_size": 8,
-    "business_days_remaining": 59,
+    "business_days_remaining": 37,
     "_content": "10-Q/10-K 본문이다. 현금·번레이트·희석주식수가 여기서 갱신된다. 실적 요약은 보통 같은 날 8-K(Item 2.02)로 먼저 나온다"
   },
   "expected_periodic_report_missing_reason": null,

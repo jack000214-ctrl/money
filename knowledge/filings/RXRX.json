@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "RXRX",
   "cik": "0001601830",
-  "collected_at": "2026-08-03T05:47:19+00:00",
+  "collected_at": "2026-09-02T04:36:37+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",
@@ -19,9 +19,39 @@
     "S-3/A",
     "S-3ASR"
   ],
-  "raw_payload_sha256": "fac1df7e2f4637a42a41dbb330f0678cb49c0fbca540a0ddc8da99ad07575907",
-  "raw_locator": "data/raw/edgar/objects/fac1df7e2f4637a42a41dbb330f0678cb49c0fbca540a0ddc8da99ad07575907.json",
+  "raw_payload_sha256": "edb9caa0052b9d43d1212612f988b06a396a2a8eab1d8fd857ad61acfb8df963",
+  "raw_locator": "data/raw/edgar/objects/edb9caa0052b9d43d1212612f988b06a396a2a8eab1d8fd857ad61acfb8df963.json",
   "filings": [
+    {
+      "filing_date": "2026-08-05",
+      "report_date": "2026-06-30",
+      "form": "10-Q",
+      "accession_number": "0001601830-26-000098",
+      "primary_document": "rxrx-20260630.htm",
+      "description": "10-Q",
+      "items": null,
+      "item_labels": null,
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000098/rxrx-20260630.htm"
+    },
+    {
+      "filing_date": "2026-08-05",
+      "report_date": "2026-08-05",
+      "form": "8-K",
+      "accession_number": "0001601830-26-000097",
+      "primary_document": "rxrx-20260805.htm",
+      "description": "8-K",
+      "items": [
+        "2.02",
+        "7.01",
+        "9.01"
+      ],
+      "item_labels": [
+        "2.02 실적 발표",
+        "7.01 Reg FD 공정공시",
+        "9.01 재무제표·첨부서류"
+      ],
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000097/rxrx-20260805.htm"
+    },
     {
       "filing_date": "2026-06-18",
       "report_date": "2026-06-17",
@@ -785,34 +815,6 @@
       "items": null,
       "item_labels": null,
       "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183024000093/rxrxfinalprospectussupplem.htm"
-    },
-    {
-      "filing_date": "2024-06-27",
-      "report_date": "2024-06-26",
-      "form": "8-K",
-      "accession_number": "0001601830-24-000091",
-      "primary_document": "rxrx-20240626.htm",
-      "description": "8-K",
-      "items": [
-        "8.01",
-        "9.01"
-      ],
-      "item_labels": [
-        "8.01 기타 중요 사건",
-        "9.01 재무제표·첨부서류"
-      ],
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183024000091/rxrx-20240626.htm"
-    },
-    {
-      "filing_date": "2024-06-26",
-      "report_date": "",
-      "form": "424B5",
-      "accession_number": "0001601830-24-000088",
-      "primary_document": "rxrxpreliminaryprospectuss.htm",
-      "description": "424B5",
-      "items": null,
-      "item_labels": null,
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183024000088/rxrxpreliminaryprospectuss.htm"
     }
   ]
 }

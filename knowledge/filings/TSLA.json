@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "TSLA",
   "cik": "0001318605",
-  "collected_at": "2026-08-03T05:47:00+00:00",
+  "collected_at": "2026-09-02T04:36:41+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",

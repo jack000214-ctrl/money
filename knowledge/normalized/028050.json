@@ -3,7 +3,7 @@
   "instrument_id": "028050",
   "name": "삼성E&A",
   "fs": "CFS",
-  "created_at": "2026-08-01T22:10:14+09:00",
+  "created_at": "2026-09-03T13:47:21+09:00",
   "source": "OpenDART fnlttSinglAcntAll 현금흐름표·손익계산서 (분기 복원)",
   "grade": "DERIVED",
   "_not_a_valuation_input": "fundamentals 스냅샷과 달리 이 값은 실측이 아니라 가공이다. DCF 에 쓰려면 사용자가 명시적으로 고르고 그 선택이 분석에 남아야 한다",
@@ -191,15 +191,23 @@
       "fcf_ttm": 708029061964.0,
       "revenue_ttm": 9198196656280.0,
       "fcf_margin_pct": 7.7
+    },
+    {
+      "period_end": "2026-06-30",
+      "ocf_ttm": -188455223693.0,
+      "capex_ttm": 49106950721.0,
+      "fcf_ttm": -237562174414.0,
+      "revenue_ttm": 9629504748877.0,
+      "fcf_margin_pct": -2.47
     }
   ],
   "normalization": {
     "window": {
       "from": "2020-09-30",
-      "to": "2026-03-31",
-      "ttm_points": 23
+      "to": "2026-06-30",
+      "ttm_points": 24
     },
-    "current_fcf_ttm": 708029061964.0,
+    "current_fcf_ttm": -237562174414.0,
     "peak": {
       "period_end": "2025-06-30",
       "fcf_ttm": 3111938907992.0
@@ -211,12 +219,12 @@
     "amplitude_ratio": null,
     "amplitude_note": "최저 TTM 이 0 이하라 배수가 성립하지 않는다. 사이클의 저점에서 FCF 가 음수인 회사다 — 정상화 없이는 DCF 가 음수 가치를 낸다",
     "bases": {
-      "mean_ttm": 539595470621.1739,
-      "median_ttm": 209660113068.0,
-      "mean_margin_on_current_revenue": 558730458629.9474
+      "mean_ttm": 507213902078.0417,
+      "median_ttm": 205300436663.0,
+      "mean_margin_on_current_revenue": 550647179889.9498
     },
-    "mean_fcf_margin_pct": 6.07,
-    "current_vs_mean_x": 1.31
+    "mean_fcf_margin_pct": 5.72,
+    "current_vs_mean_x": -0.47
   },
-  "normalized_id": "NORM-ec416b79b7c1f4b591e5"
+  "normalized_id": "NORM-7de2ab11c7eb5bf146ac"
 }
