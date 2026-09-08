@@ -1,6 +1,6 @@
 ---
 name: decide-investment
-description: Evaluate a user-selected Korean or US stock or ETF at a stated price and amount as a provider-neutral AI CIO. Use when the user asks whether buying will win or fail, expected return, a preferred entry, downside stop, scale-out start, recheck prices, position amount, thesis challenge, or later evaluation of a recorded investment assessment.
+description: Analyze a user-selected Korean or US stock or ETF with the local Personal CIO project. Use for buy, hold, trim or exit questions, including a stated holding and average cost, price plans, thesis challenges and evaluation of recorded assessments. Produces a researched, validated decision; does not place orders.
 ---
 
 # Decide Investment
@@ -14,10 +14,27 @@ This file is the **workflow**. The judgment rules live in `prompts/cio-system.md
 which step 5 loads. Field semantics live in each packet field's `_role`/`_note`.
 Nothing is repeated across the three.
 
+## Project location
+
+This skill runs the existing Personal CIO repository, not a standalone copy. Resolve
+this SKILL.md's symlink, then go up two directories to the repository root. Read its
+README.md quick start and run all commands there. From another working directory,
+`python3.13 <installed-skill>/scripts/run.py assets` runs the CIO CLI in that root;
+all arguments after the script name are CIO arguments. Never copy personal policy,
+holdings or credentials into the skill installation.
+
+For investment analysis, use only the user request, packet and CIO prompt; do not
+read session memory. If the user also asks for development, follow the repository's
+AGENTS.md development bootstrap, but do not use development memory as investment
+evidence. Do not stage or commit changes.
+
 ## Workflow
 
-1. Confirm one asset, a candidate price, an amount, and the amount currency. Ask only
-   for a value that cannot be inferred safely.
+1. Identify one asset, a candidate price and the intent. New capital (`NEW_BUY`/`ADD`)
+   needs an amount and currency. A holding review (`HOLD_REVIEW`/`TRIM_REVIEW`/
+   `EXIT_REVIEW`) needs no buy budget. Ask only for a value that cannot be inferred
+   safely. "Should I sell?" without a chosen sell size is `HOLD_REVIEW`; do not turn
+   the entire holding into `--quantity` (that flag means the proposed sell size).
 2. `python3.13 -m cio assets`. If absent, register it with the correct `KR|US`,
    `STOCK|ETF`, exchange, price symbol, filing source or ETF structure, benchmarks,
    analysis lens, and valuation families.
@@ -39,6 +56,23 @@ Nothing is repeated across the three.
      --claim "each thing the user asserted as fact"   # repeatable
    ```
 
+   For a holding review, omit `--amount`/`--amount-currency`. When the user states a
+   holding, pass `--held-quantity HELD` and, if stated, `--average-cost COST` (asset
+   currency). These preserve this question's conditions without editing the ledger:
+
+   ```bash
+   python3.13 -m cio prepare ASSET --price PRICE --intent HOLD_REVIEW \
+     --held-quantity HELD --average-cost COST --verbatim "user's exact question" \
+     --claim "each factual assertion"
+   ```
+
+   If the user chose a sell size, add `--quantity SELL`, or use
+   `--target-quantity REMAINING`. Check `request.position_input`,
+   `portfolio.local_position_comparison` and both readiness states. User inputs are
+   scenario conditions, not broker-verified facts: never confirm them using their
+   own derived calculations. Explain any conflict with the local holding. A
+   position-only scenario has no reliable account cash or weights; do not infer them.
+
    Pass `--intent` always: a trim review is not a new-buy question. Pass `--claim` for
    every factual assertion in the request; each one must later be closed as
    `CONFIRMED`, `REFUTED`, or `UNVERIFIABLE` or the decision will not record.
@@ -49,6 +83,10 @@ Nothing is repeated across the three.
    question requires them; do not load the repository indiscriminately.
 6. Search local originals before the web. `local_documents` lists what is stored; the
    body is not in the packet because one annual report runs to a million characters.
+   For each material gap, identify which requested answer or assumption it could
+   change, then collect or calculate that input. Within authorized project work,
+   build a reusable extractor or calculator when the gap recurs. Do not remove a
+   requested output merely because its supporting evidence needs more work.
 
    ```bash
    python3.13 -m cio docs ASSET                # what is stored, what is not fetched
@@ -66,10 +104,31 @@ Nothing is repeated across the three.
    Korean accession numbers are in `filings.latest_material_events`. The DART viewer
    URL is a frame shell and `snapshot` will say so.
 7. Produce one decision JSON matching the schema. Follow `prompts/cio-system.md`.
+   For a staged-buy proposal, include `entry_plan`; its budget is checked against
+   the saved request and its arithmetic is rendered by `show`. Read
+   `docs/advisory-plans.md` for the small plan and condition-review contract.
+   If `capital_changes` is missing or invalid, run `collectors.kr_capital` for
+   supported Korean issuance forms before using its figures. An EPS assumption
+   with `earnings_basis_required` must include the bridge in `docs/assumptions.md`.
+   When `model_contract.assumption_review_required` is true, read
+   `docs/assumptions.md` for the input contract and examples. Select your method,
+   bases, plausible alternatives and boundary search intervals, then run:
+
+   ```bash
+   python3.13 -m cio assumptions data/decision-assumptions.json --context CTX_ID
+   python3.13 -m cio assumptions ASM_ID --asset ASSET --json
+   ```
+
+   The report belongs to that saved context; no second `prepare` is needed. Use its
+   baseline returns and combined win probability in the decision. Answer every
+   alternative and boundary in `assumption_review.responses`. New research cited
+   there must already be preserved by `snapshot` or the filing collector; bare URLs
+   cannot replace files. Read previous assumption reports by ID when carried forward.
    Before you write the price plan, read `prior_assessments[].latest_evaluation` and
    `pace_since_decision`. If the price already reached what you called a twelve-month
-   target, say so and act on it — a threshold does not look at the clock, so half a
-   horizon of return arriving in two days trips nothing on its own.
+   target, explicitly reassess it. Prior plans are hypotheses to evaluate and learn
+   from; replace them whenever current reasoning warrants it, including when the
+   earlier analysis was mistaken. Explain current evidence for keeping a plan too.
 8. `python3.13 -m cio validate DECISION.json` for a dry run (writes nothing), or
    `python3.13 -m cio record DECISION.json` for an official attempt — it validates,
    stores valid output, and quarantines invalid output with its errors.

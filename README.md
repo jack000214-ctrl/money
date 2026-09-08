@@ -25,7 +25,24 @@ PC는 종목의 좋고 나쁨을 판단하지 않는다. 대신 근거의 무결
 정한 위험 한도 위반을 **기계적으로** 검사한다. 이 둘은 다르다 — 앞은 판정이고
 뒤는 부등호 비교다.
 
+널리 쓰이는 가치평가 방법과 관행적인 가정을 활용할 수 있다. PER·DCF 등의 계산은
+Python으로 재사용하고, 모델은 해당 자산에 맞는 방법과 성장률·배수·할인율·확률을
+선택한다. 관행에서 가져온 값도 적용 이유와 재검토 조건을 남기고, 결론을 좌우하면
+대체 가정으로 계산한다. 프로그램이 이런 값을 몰래 채우거나 매수·매도를 확정하지 않는다.
+공시값·단위·명시된 사용자 한도는 검사하며, 제도 규칙은 출처·시행일·적용 범위를 남긴다.
+자세한 구분은 [가정 검토](docs/assumptions.md#관행을-사용하는-법)에 있다.
+
 ## 빠른 시작
+
+Codex 개인 스킬로 등록하려면 다음을 한 번 실행한다. 프로젝트의 정본 디렉터리를
+연결하므로 개선 내용이 설치본에도 바로 반영되고 개인정보를 복사하지 않는다.
+
+```bash
+python3.13 skills/decide-investment/scripts/install.py
+```
+
+등록 후 `$decide-investment`로 사용한다. 다른 작업 폴더에서도 설치된 스킬의
+`scripts/run.py`가 프로젝트 루트에서 CIO 명령을 실행한다.
 
 기준 런타임은 Python 3.13.12다. 프로젝트 실행에는 외부 Python 패키지가 필요하지
 않는다. 저장소 루트에서 등록 자산과 필요한 수집 작업을 확인한다.
@@ -87,6 +104,18 @@ python3.13 -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --quantity 
 python3.13 -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --target-quantity 60
 ```
 
+질문에 보유수량·평단을 직접 제시했다면 `--held-quantity`·`--average-cost`로
+이번 분석의 조건을 보존한다. `--quantity`는 보유수량이 아니라 **검토 매도수량**이다.
+
+```bash
+python3.13 -m cio prepare 028050 --price 50000 --intent HOLD_REVIEW \
+  --held-quantity 100 --average-cost 45000 --verbatim "100주 보유 중인데 팔까?"
+```
+
+이 입력은 실제 잔고 확인이나 원장 갱신이 아니다. 원장과 다른 값은 함께 표시하고,
+이번 보유분의 평가손익만 계산한다. 계좌 현금·총자산·비중은 자금 출처를 모르므로
+비워 둔다. 사용자가 실제로 가진 수량인지와 별개로 제시한 시나리오는 분석할 수 있다.
+
 두 질문을 하나의 "이 가격에 살까"로 정규화하면 분할매도를 묻는 packet이 매수
 사다리를 만든다. 실제로 그랬다 — `TRIM_REVIEW`로 물었는데 질문은 "이 가격과
 금액으로 매수하면…"이었고 803주 매수 계획이 함께 실려 나갔다. **묻지 않은
@@ -110,6 +139,19 @@ python3.13 -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --target-qu
 
 모델 출력을 `decision.json`으로 저장했다면 읽기 전용 검증을 할 수 있다. 공식
 시도는 `record`가 다시 검증한 뒤 유효 판단 또는 실패 출력으로 남긴다.
+
+새 판단은 가정의 근거와 대체 계산도 남긴다. 모델이 EPS·배수·확률·DCF 가정과
+검사 범위를 정하고, PC가 민감도와 목표수익률 경계값을 계산한다. 그 결과에서
+판단을 유지할지 바꿀지는 모델이 답한다.
+
+```bash
+python3.13 -m cio assumptions data/decision-assumptions.json --context CTX-...
+python3.13 -m cio assumptions ASM-... --asset 028050 --json
+```
+
+계산과 근거는 해당 context에 결속된다. 판단의 `assumption_review`가 계산 ID와
+모든 검사에 대한 모델의 해석을 인용하며, 다음 packet과 `show`에서도 확인할 수
+있다. 입력 형식·예제·지원 범위는 [가정 검토](docs/assumptions.md)에 있다.
 
 ```bash
 python3.13 -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
@@ -140,8 +182,9 @@ python3.13 -m cio show 005930 --id CIO-319aa4b74a186eea9544
 역산은 낮아진 가격에서 시작하므로 **"더 싸졌다"가 기계적으로 도출된다.** 손절가
 10,000원짜리 판단이 정작 10,000원에 닿았을 때 20,000원부터 분할매도하라는 답으로
 바뀌는 경로가 그것이다. 다음 판단은 `prior_signal_checks`로 그 약속을 하나씩 닫아야
-하고, 약속과 다르게 행동하려면 사유를 남겨야 한다. 뒤집는 것은 허용한다 — 사실이
-바뀌면 판단도 바뀌어야 한다. 막는 것은 조용히 뒤집는 것이다.
+하고, 약속과 다르게 행동하려면 사유를 남겨야 한다. 과거 판단의 주된 용도는 회고와
+개선이며, 결론·가격선·가정은 언제든 버릴 수 있다. 새 사실뿐 아니라 과거 해석의
+오류나 더 적합한 방법론도 변경 이유다. 유지할 때도 현재 근거를 설명한다.
 
 가격 문턱은 시간을 보지 않는다. 24개월치 수익의 절반을 이틀에 받아도 분할매도가는
 켜지지 않고, packet에는 그 사실을 담을 자리가 없었다. `pace_since_decision`이 그
@@ -279,6 +322,18 @@ python3.13 -m collectors.kr_calendar 214450
 모델이 조사한 원문은 인용하기 전에 로컬에 보존한다. 받은 그대로 저장하며
 정제하지 않는다.
 
+한국 EPC 기업은 연결 도급공사계약 주석을 따로 추출한다. 수주잔고의 범위,
+미청구·초과청구공사·선수금·충당부채 잔액, 계약 추정 변경의 누적·미래 손익을
+단위와 기간까지 보존한다. 삼성E&A에는 `KR_EPC`가 등록되어 `refresh --optional`과
+packet에 연결되어 있다.
+
+```bash
+python3.13 -m collectors.kr_epc 028050
+```
+
+누적값의 인접 분기 차감과 같은 기준일 재무의 비율은 PC가 계산한다. 이익의
+반복성·선수금의 성격은 모델이 판단한다. [추출 범위와 한계](docs/data-policy.md#epc-연결-도급공사계약-주석).
+
 ```bash
 python3.13 -m cio snapshot <URL> --asset 005930 --label dram-price-2026q3
 python3.13 -m collectors.dart document 20260730800077   # 한국 공시 원문
@@ -317,6 +372,7 @@ python3.13 -m cio search 005930 "주요 매출처"
 - [판단 계약](docs/decision-contract.md)
 - [데이터 정책](docs/data-policy.md)
 - [평가와 기억](docs/evaluation.md)
+- [조건부 배분 계획과 기업행동](docs/advisory-plans.md)
 
 기계 판독 계약의 최종 권위는 문서 설명이 아니라 코드와
 `schemas/cio-decision.schema.json`이다.

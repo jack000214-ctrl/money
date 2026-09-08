@@ -1,0 +1,208 @@
+# 가정의 근거와 판단 변경 조건
+
+이 기능이 답하는 질문은 두 개다. **어떤 근거로 그 가정을 골랐는가**는 모델이
+설명하고, **가정을 바꾸면 계산이 어떻게 달라지는가**는 PC가 재현한다. 계산을
+읽고 행동을 유지할지 바꿀지는 다시 모델이 정한다.
+
+## 관행을 사용하는 법
+
+널리 쓰이는 방법과 가정을 활용할 수 있다. 매번 새로운 평가법을 만들거나 관행적인
+가정을 모두 배제할 필요는 없다. 구분할 것은 **계산 방법**, **그 계산에 넣을 값**,
+**계산을 해석한 투자 판단**이다.
+
+| 종류 | 처리 |
+|---|---|
+| EPS × PER, 현금흐름 할인 등 계산 방법 | 적용 조건과 단위를 명시해 Python으로 재사용한다. 해당 자산에 맞는지는 모델이 고른다 |
+| 관행에서 선택한 배수·할인율·성장률·시나리오 확률 | 모델이 명시적으로 선택하고 이유를 기록한다. 코드가 모든 종목의 기본값으로 채우지 않는다 |
+| 공시값이나 적용할 제도 규칙 | 출처·기준시점·적용 범위를 남기고 대조한다. 제도 규칙에는 시행일도 필요하다 |
+| 매수·매도 여부와 계획 변경 | 모델이 사업 근거, 반대 논지와 대체 계산을 함께 보고 판단한다 |
+
+별도의 관행 승인 절차나 새 필드는 필요 없다. 기존 `bases`에 다음을 기록한다.
+
+- 관행적인 값을 채택했다면 `MODEL_CHOICE`, 자료에 관행적인 추정 방법을 적용했다면
+  `MODEL_ESTIMATE`로 남긴다. 그 추정의 입력 관측값과 추정 결과를 혼동하지 않는다.
+- `rationale`에 어떤 관행을 왜 적용했는지와 적용 한계를 쓰고, `revisit_when`에
+  어떤 관측이 바뀌면 다시 검토할지 쓴다. 참고 자료가 있으면 `evidence_refs`에 연결한다.
+- 결론을 좌우하는 가정은 `tests`에 합리적인 대체 값을 넣어 민감도를 확인한다.
+  흔히 쓰인다는 사실만으로 확률이 보정됐거나 배수가 적정하다고 표현하지 않는다.
+
+이렇게 선택한 값도 다른 가정과 같은 계산·저장 경로를 쓴다. PC는 특정 관행을
+따랐다는 이유로 가산점을 주거나 verdict를 바꾸지 않는다.
+
+## 순서
+
+1. 기존 `refresh → score → prepare`로 저장된 context를 읽는다.
+2. 모델이 조사한 원문을 `cio snapshot` 또는 공시 수집기로 보존한다. 기존
+   `cio search`로 필요한 부분을 읽는다. 원문 바이트와 모델이 읽는 발췌는 분리한다.
+3. 모델이 가정 spec을 작성한다. 개인 정책이나 분석 가격이 포함될 수 있으므로
+   `data/decision-assumptions.json` 같은 무시되는 경로를 쓴다.
+4. `cio assumptions`가 근거 파일을 봉인하고 기준·대체·경계 계산을 수행한다.
+5. 모델이 결과를 해석하고 모든 검사에 대해 판단을 유지·변경·재평가한다고 답한다.
+6. `cio validate → record → show`가 계산 결속·숫자·누락된 응답을 검사하고 표시한다.
+   다음 packet은 최신 판단의 가정 분석 ID와 경계값 요약을 이어받는다.
+
+```bash
+python3.13 -m cio assumptions data/decision-assumptions.json --context CTX-...
+python3.13 -m cio assumptions ASM-... --asset 028050 --json
+```
+
+수집 뒤 **같은 context에서 계산하고 결정**한다. 계산 뒤 다시 prepare하면 다른
+context가 되므로 이전 계산을 그 새 context에 붙일 수 없다. 새 기준일·가격·정책을
+쓰려면 새 packet에서 새로 계산한다. 검토 가격과 통화는 spec과 packet이 같아야 한다.
+
+## 가정 spec
+
+기계 판독 형태는 `schemas/cio-assumptions.schema.json`, 산술·논리 검사는
+`calculators/assumptions.py`가 권위다. 다음 템플릿의 값은 전부 설명용이며 실제
+판단에 쓸 기본값이 아니다. 실제 자료와 모델 선택으로 바꾼다.
+
+- `config/templates/assumptions-earnings-multiple.json`: 양의 EPS × PER.
+- `config/templates/assumptions-dcf.json`: 기존 2단계 FCF DCF의 재사용.
+
+### inputs
+
+`method`, `price`, `currency`, `horizon_months`, `win_return_threshold_pct`,
+`scenarios`를 받는다. `scenarios`는 `bear/base/bull` 세 갈래다.
+
+| 변수 | 단위·의미 |
+|---|---|
+| `eps` | 자산 통화/주. 모델이 평가하려는 기간의 EPS |
+| `multiple` | EPS에 적용할 PER, 배 |
+| `cash_distribution` | 평가 기간 안에 받을 가정 배당 합계, 자산 통화/주 |
+| `probability_pct` | 이 시나리오가 실현될 모델 확률. 세 갈래 합 100 |
+| `conditional_win_probability_pct` | 이 시나리오 안에서 승리 문턱을 넘을 모델 확률 |
+| `growth_pct` | DCF의 1단계 연 FCF 성장률, % |
+
+EPS 방식은 `eps × multiple`을 주가로, 가정 배당을 합한 금액을 기간 말 자산으로
+계산한다. 배당 재투자는 가정하지 않으며, 순현금을 별도로 더하지 않는다.
+손실 EPS·적자 바이오·옵션 ETF에 이 공식을 강제하지 않는다.
+
+DCF의 공통 입력 `dcf`에는 `fcf`, `shares`, `net_debt`, `discount_rate_pct`,
+`terminal_growth_pct`, `years`가 있다. FCF·순부채는 같은 자산 통화,
+주식수는 주 단위다. 성장률은 시나리오별로 고른다. 할인율은 영구성장률보다
+커야 한다. 별도 배당을 더하지 않으며 **현재 추정한 내재가치로 평가기간 안에
+가격이 수렴한다**는 기존 DCF 가정이다. 기업가치와 평가기간 말 목표주가가 같은
+개념이라고 암묵적으로 읽지 않는다. 이 수렴 가정도 모델이 설명해야 한다.
+음의 잔여 지분가치는 0으로 제한하고 제한 전 값도 함께 남긴다.
+
+### bases
+
+계산 변수마다 왜 그 값을 골랐는지 설명한다. 같은 근거를 공유하는 여러 변수는
+한 항목의 `parameters`에 묶을 수 있다. 모든 계산 변수는 정확히 한 번 포함한다.
+예: `scenarios.base.eps`, `scenarios.bear.probability_pct`, `dcf.shares`.
+
+각 항목은 `id`, `parameters`, `origin`, `rationale`, `evidence_refs`,
+`revisit_when`을 가진다.
+
+- `OBSERVED`: 관측 자료에서 읽은 값.
+- `MODEL_ESTIMATE`: 관측에서 모델이 추정한 값. 전망의 기간·비교 기준·조정 이유를 쓴다.
+- `MODEL_CHOICE`: 모델이 정한 배수·확률·할인율 등. 직접 근거가 없다면 참조 목록은
+  비울 수 있지만 이유와 재검토 조건은 필요하다. 출처를 지어내지 않는다.
+
+`evidence_refs`는 packet의 근거 ID 또는 해당 자산에 보존된 공시·웹 원문 ID다.
+PC는 파일 존재·내용 지문을 확인하며 원문도 내용 주소로 봉인한다. EPS·FCF 같은
+재무 가정을 가격 파일이나 공시 제목 색인만으로 뒷받침할 수는 없다.
+다만 **파일이 그 추정이나 배수를 정당화하는지는 모델의 책임**이다. `OBSERVED`
+표시는 모델이 붙인 것이며 PC가 원문의 의미나 값 추출을 인증한 표시가 아니다.
+
+### 이익·주식수·가격 단위 연결
+
+spec의 선택 필드 `earnings_basis`는 전망 순이익을 EPS에 연결한다. 새 packet에
+`earnings_basis_required`가 있으면 EPS 배수 방식에서 필수다. 기존 판단에는 소급하지 않는다.
+
+```json
+{
+  "shares": 100,
+  "basis": "MODEL_SCENARIO",
+  "source_id": null,
+  "net_income": {"bear": 1000, "base": 1500, "bull": 2000},
+  "price_basis": "UNCHANGED",
+  "price_unit_multiplier": 1,
+  "rationale": "설명용이다. 실제 전망 이익과 이 분모를 선택한 이유를 적는다."
+}
+```
+
+EPS는 `net_income / shares × price_unit_multiplier`와 대조한다. 순이익·세율·성장률·
+확률의 기본값을 만들지 않는다. `basis`가 packet의 `capital_changes.share_bases` 항목이면
+`source_id`와 주식수를 공시 추출값에 대조하고, 해당 근거를 `bases.evidence_refs`에 넣어
+봉인한다. 별도 전환·상환 가정 등 모델이 선택한 분모는 `MODEL_SCENARIO`와 이유로 구분한다.
+
+가격 단위는 `PRE_BONUS`, `POST_BONUS`, `UNCHANGED`다. 알려진 공시 분모에서는
+무상 전후 분모와 가격 단위를 함께 비교한다. 예를 들어 무상 후 분모로 계산한 EPS를
+무상 전 가격에 비교할 때는 공시 비율만큼 환산해야 한다. 이 대조는 현재 실제 권리
+취득·납입 완료를 인증하지 않는다. 미래 이익은 여전히 모델 전망이다.
+
+대체 가정 검사는 모델이 지정한 EPS 등 입력을 변화시킨 계산이다. 그 값은 baseline의
+이익·주식수 가정을 바꾼 반사실이며 새로 확인된 공시값이 아니다.
+
+### 비교 기준
+
+`{"basis":"POLICY_TARGET"}`이면 그 context의 목표 연수익률을 평가 기간의
+누적 수익률로 환산한다. 정책이 없으면 기본값을 만들지 않고 오류를 낸다.
+또는 `basis: MODEL`, `total_return_pct`, `rationale`로 모델이 비교선을 선택한다.
+
+이 비교선은 매도 지시가 아니다. 모델이 기대수익과 비교할 숫자다.
+
+### tests와 boundaries
+
+`tests`에는 `id`, `changes`, `rationale`을 쓴다. `changes`는 변수 경로 → 대체 값의
+객체다. 한 변수씩 바꾸거나 여러 가정을 함께 바꿀 수 있다. 확률을 옮길 때는
+다른 시나리오 확률도 함께 고쳐 합 100을 유지한다. 입력과 같은 값만 넣는 검사는
+거부한다. 어떤 대체 값이 현실적인지는 PC가 고르지 않는다.
+
+`boundaries`에는 `id`, `parameter`, `low`, `high`를 쓴다. 모델이 선택한 구간 안에서
+**나머지 가정을 고정한 기대수익이 비교선과 같아지는 변수 값**을 역산한다.
+확률은 합 100 제약이 있어 한 변수만 독립적으로 역산하지 않는다. 범위 밖이면
+`NOT_BRACKETED`, 한 값으로 정할 수 없으면 `NO_UNIQUE_BOUNDARY`다. 숫자를
+지어내거나 끝값을 정답으로 내지 않는다. 검색 구간 끝에서도 계산이 성립해야 한다.
+
+## 결정에 연결
+
+```json
+{
+  "assumption_review": {
+    "status": "EVALUATED",
+    "analysis_id": "ASM-계산기가발급한ID",
+    "interpretation": "가정 선택의 근거, 취약한 가정, 직전 판단에서 달라진 이유",
+    "responses": [
+      {
+        "id": "lower_multiple",
+        "effect": "CHANGE",
+        "verdict": "WAIT",
+        "action": "TRIM",
+        "rationale": "이 대체 가정이 현실이 되면 왜 행동을 바꾸는지"
+      }
+    ]
+  }
+}
+```
+
+위 예시는 형태 설명일 뿐 매도 권고가 아니다. 모든 test와 boundary에 각 한 번
+답한다. `KEEP`은 현재 verdict·action과 같아야 하고 `CHANGE`는 적어도 하나가
+달라야 한다. `REASSESS`이면 둘을 null로 두고 무엇을 더 확인할지 이유에 쓴다.
+이 답은 **반사실 가정 아래의 모델 계획**이며 현재 주문이나 자동 실행 규칙이 아니다.
+실제 관측 시점의 매도 규율은 기존 `invalidation_signals`로 함께 남긴다.
+
+계산의 기간·승리 문턱·시나리오 확률·수익률·합산 승리확률은 결정의 대응 필드와
+대조한다. 다른 값을 쓰려면 새 가정 계산을 만든다. 파일 지문뿐 아니라 저장된
+입력으로 다시 계산한 출력도 대조하므로 출력 숫자만 바꾸고 지문을 새로 붙여도
+통과하지 못한다.
+
+`UNSUPPORTED_METHOD`이면 `analysis_id: null`, `responses: []`이고 해석에
+사용한 방법과 왜 현재 계산기를 적용할 수 없는지 적는다. 지원하는 DCF·EPS 배수
+방법을 이 경로로 생략할 수는 없다. 지원하지 않는 방법을 썼다는 사실은 화면과
+다음 packet에 남는다.
+
+## 보존과 남은 한계
+
+분석은 `knowledge/assumptions/<asset>/ASM-....json`에 저장한다. context와 개인
+비교선이 들어가므로 Git에서 제외한다. 코드·템플릿·계약만 버전 관리한다.
+원문 본문·가정 전체·전체 민감도 표는 매번 packet에 싣지 않는다. 저장 ID와 작은
+경계·응답 요약으로 시작하고 필요한 경우 원문을 읽는다. 예산 초과로 요약이
+빠지면 기존 `TRIMMED_FOR_BUDGET`에 표시된다.
+
+새 packet만 가정 검토를 요구한다. 기존 판단과 평가 이력은 소급 무효화하지 않는다.
+확률을 연결했다고 확률이 정확해지는 것은 아니며, 판단 개선은 미래 평가로 확인해야
+한다. 어떤 가정을 빠뜨렸는지, 대체 범위를 지나치게 좁게 골랐는지, 근거가 가정을
+지지하는지는 여전히 모델이 책임진다. 현재 도구는 임의 수식·옵션 손익·적자기업
+가치평가 전부를 지원하는 범용 엔진이 아니다.

@@ -577,7 +577,7 @@
             ]
           },
           "override_reason": {
-            "description": "committed_action 과 taken_action 이 다를 때 왜 뒤집는지. 가격이 그 사이에 움직였다는 것은 사유가 되지 않는다 — 약속은 가격이 움직일 것을 알고 한 것이다.",
+            "description": "과거 계획과 이번 행동이 다를 때 이유를 기록한다. 승인이 필요한 것이 아니다. 새 사실·기존 해석의 오류·방법론 개선·기대수익을 바꾸는 가격 변화가 근거가 될 수 있으며 계산과 논리에 연결해 설명한다.",
             "type": [
               "string",
               "null"
@@ -827,6 +827,246 @@
         }
       },
       "additionalProperties": false
+    },
+    "assumption_review": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "EVALUATED",
+            "UNSUPPORTED_METHOD"
+          ]
+        },
+        "analysis_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^ASM-[0-9a-f]{20}$"
+        },
+        "interpretation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "모델이 기준 가정과 대체 결과를 해석한다. 근거·관측 부족·판단을 바꾸는 조건을 설명한다."
+        },
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,47}$"
+              },
+              "effect": {
+                "enum": [
+                  "KEEP",
+                  "CHANGE",
+                  "REASSESS"
+                ]
+              },
+              "verdict": {
+                "enum": [
+                  "BUY_NOW",
+                  "WAIT",
+                  "AVOID",
+                  "INSUFFICIENT",
+                  null
+                ]
+              },
+              "action": {
+                "enum": [
+                  "ADD",
+                  "HOLD",
+                  "TRIM",
+                  "EXIT",
+                  "UNDETERMINED",
+                  "NOT_APPLICABLE",
+                  null
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "id",
+              "effect",
+              "verdict",
+              "action",
+              "rationale"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "status",
+        "analysis_id",
+        "interpretation",
+        "responses"
+      ],
+      "additionalProperties": false,
+      "description": "새 context가 요구하면 필수. PC 계산 ID에 결속하고 모든 대체 가정·경계값에 모델이 답한다. 구버전 판단에는 소급 강제하지 않는다."
+    },
+    "entry_plan": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "enum": [
+            "KRW",
+            "USD"
+          ]
+        },
+        "reference_basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "reference_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,47}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "budget": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "reference_price": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "share_multiplier": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "requires_review": {
+                "type": "boolean"
+              },
+              "condition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "cancel_if": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "valid_from": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "valid_until": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "capital_source_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "stage_id",
+              "name",
+              "budget",
+              "reference_price",
+              "share_multiplier",
+              "requires_review",
+              "condition",
+              "cancel_if",
+              "valid_from",
+              "valid_until"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "currency",
+        "reference_basis",
+        "reference_date",
+        "stages"
+      ],
+      "additionalProperties": false,
+      "description": "현재 집행액을 제외한 향후 조건부 배분. 사용자가 요청한 예산에 결속하며 주문 기능이 아니다."
+    },
+    "entry_plan_checks": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "properties": {
+          "assessment_id": {
+            "type": "string",
+            "pattern": "^CIO-[0-9a-f]{20}$"
+          },
+          "stage_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "state": {
+            "enum": [
+              "SATISFIED",
+              "NOT_SATISFIED",
+              "UNVERIFIABLE",
+              "CANCELLED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        },
+        "required": [
+          "assessment_id",
+          "stage_id",
+          "condition",
+          "state",
+          "note",
+          "evidence_refs"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "allOf": [

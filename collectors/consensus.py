@@ -26,6 +26,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import html as html_module
+import math
 import re
 import statistics
 import sys
@@ -91,10 +93,9 @@ def cells(row: str) -> list[str]:
     return [
         text
         for text in (
-            re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", cell)).strip()
+            re.sub(r"\s+", " ", html_module.unescape(re.sub(r"<[^>]+>", "", cell))).strip()
             for cell in re.findall(r"<t[hd].*?</t[hd]>", row, re.S)
         )
-        if text
     ]
 
 
@@ -118,7 +119,7 @@ def number(text: str | None) -> float | None:
         value = float(cleaned)
     except ValueError:
         return None
-    return value
+    return value if math.isfinite(value) else None
 
 
 def parse_date(text: str) -> str | None:
@@ -300,24 +301,49 @@ def summarize(brokers: list[dict], as_of: str) -> tuple[dict, dict]:
     return dispersion, revisions
 
 
-def build(code: str, html: str, estimate_html: str = "") -> dict:
-    summary = parse_summary(html)
-    brokers = parse_brokers(html)
-    if not brokers:
-        fail("제공처별 목표주가 표(cTB24)를 찾지 못했다. 페이지 구조가 바뀌었다")
-    as_of = max(b["date"] for b in brokers)
-    dispersion, revisions = summarize(brokers, as_of)
+def build(code: str, html: str, estimate_html: str = "", *, collected_at=None) -> dict:
+    collected_at = collected_at or dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).isoformat(timespec="seconds")
+    components = {}
+    summary = dict.fromkeys(("rating", "target_price", "eps", "per", "institution_count"))
+    # Independent components: absent recommendations must not discard earnings.
+    if 'id="cTB15"' not in html:
+        components["summary"] = {"state": "PARSE_ERROR", "reason": "요약표를 찾지 못했다"}
+    else:
+        try:
+            summary = parse_summary(html)
+            components["summary"] = {"state": "AVAILABLE" if all(v is not None for v in summary.values()) else "PARTIAL",
+                                     "reason": "비어 있는 칸은 null로 보존"}
+        except SystemExit:
+            components["summary"] = {"state": "PARSE_ERROR", "reason": "요약표 열을 해석하지 못했다"}
+    brokers = parse_brokers(html) if html else []
+    components["brokers"] = {"state": "AVAILABLE" if brokers else "NO_DATA" if "제시된 의견이 없습니다" in html else "PARSE_ERROR",
+                             "reason": "제공처별 의견 상태; 실적 추정 유무와 별개"}
+    estimates = parse_estimates(estimate_html) if estimate_html else {"annual": []}
+    estimate_state = "AVAILABLE" if estimates["annual"] else "NO_DATA" if any(t in estimate_html for t in ("데이터가 없습니다", "자료가 없습니다", "추정실적이 없습니다")) else "PARSE_ERROR"
+    components["estimates"] = {"state": estimate_state, "reason": "연도별 실적·추정 표의 관측 상태"}
+    as_of = max((b["date"] for b in brokers), default=None)
+    # A retrieval date is not the publication date of an earnings estimate.
+    dispersion, revisions = summarize(brokers, as_of or collected_at[:10])
+    if components["brokers"]["state"] == "PARSE_ERROR":
+        for window in dispersion.values():
+            if isinstance(window, dict):
+                window["count"] = None
+        for field in ("observed", "raised", "lowered", "unchanged"):
+            revisions[field] = None
     return {
         "schema_version": SCHEMA,
         "asset_id": code,
-        "collected_at": dt.datetime.now(
-            dt.timezone(dt.timedelta(hours=9))
-        ).isoformat(timespec="seconds"),
+        "collected_at": collected_at,
         "as_of": as_of,
+        "as_of_basis": "LATEST_BROKER_REPORT" if as_of else "UNKNOWN",
+        "estimates_as_of": None,
+        "components": components,
+        "available": estimate_state == "AVAILABLE",
+        "state": "AVAILABLE" if all(c["state"] == "AVAILABLE" for c in components.values()) else "PARTIAL" if estimate_state == "AVAILABLE" else estimate_state,
         "source": SOURCE,
         "source_grade": "EXPLORATORY",
         "summary": summary,
-        "estimates": parse_estimates(estimate_html) if estimate_html else None,
+        "estimates": estimates,
         "dispersion": dispersion,
         "revisions": revisions,
         "brokers": brokers,
@@ -339,6 +365,9 @@ def merge_history(path: Path, packet: dict) -> dict:
             history = json.loads(path.read_text(encoding="utf-8")).get("history") or []
         except (OSError, json.JSONDecodeError):
             history = []
+    if packet.get("as_of") is None:
+        packet["history"] = history
+        return packet
     point = {
         "as_of": packet["as_of"],
         "collected_at": packet["collected_at"],
@@ -372,7 +401,9 @@ def show(packet: dict) -> None:
     summary = packet["summary"]
     dispersion = packet["dispersion"]
     revisions = packet["revisions"]
-    print(f"{packet['asset_id']} 컨센서스 — 기준 {packet['as_of']}")
+    print(f"{packet['asset_id']} 컨센서스 — 보고일 기준 {packet['as_of'] or '미확인'}")
+    if packet.get("estimates_as_of") is None:
+        print("  실적 전망의 개정일은 확인되지 않았다. 수집일을 전망일로 대체하지 않는다")
     print(f"  투자의견 {summary['rating'] if summary['rating'] is not None else ABSENT}"
           f" · 추정기관 "
           f"{summary['institution_count'] if summary['institution_count'] is not None else ABSENT}곳")
@@ -380,6 +411,9 @@ def show(packet: dict) -> None:
           f"(출처 평균, 최근 3개월)")
     for label, key in (("전체 3개월", "consensus_window"), ("최근 30일", "recent")):
         window = dispersion[key]
+        if window["count"] is None:
+            print(f"    {label:<9}  확인 불가 (자료 부재로 판정하지 않음)")
+            continue
         if not window["count"]:
             # 줄을 지우면 "이 화면은 원래 한 줄"로 읽힌다. 최근 30일에 추정이
             # 0곳이라는 사실 자체가 신호다 — 애널리스트가 갱신을 멈췄다는 뜻이라
@@ -413,9 +447,9 @@ def show(packet: dict) -> None:
                   f"(중앙 {band['median']:.1f}) — 멀티플 판단의 자체 앵커다")
     print(f"  컨센서스 EPS {cell(summary['eps'], 0, ',.0f')}원 · "
           f"PER {summary['per'] if summary['per'] is not None else ABSENT}배")
-    print(f"\n  최근 {revisions['window_days']}일 개정 {revisions['observed']}건 — "
-          f"상향 {revisions['raised']} / 하향 {revisions['lowered']} / "
-          f"유지 {revisions['unchanged']}")
+    print(f"\n  최근 {revisions['window_days']}일 개정 {cell(revisions['observed'], 0)}건 — "
+          f"상향 {cell(revisions['raised'], 0)} / 하향 {cell(revisions['lowered'], 0)} / "
+          f"유지 {cell(revisions['unchanged'], 0)}")
     for label, row in (("최대 상향", revisions["largest_raise"]),
                        ("최대 하향", revisions["largest_cut"])):
         if row:
@@ -439,6 +473,8 @@ def main() -> int:
     parser.add_argument("asset_id")
     parser.add_argument("--show", action="store_true", help="저장본만 출력")
     args = parser.parse_args()
+    from cio.assets import get_asset
+    get_asset(args.asset_id)  # Resolve the registered ID before constructing paths.
 
     path = OUT_DIR / f"{args.asset_id}.json"
     if args.show:
@@ -447,24 +483,40 @@ def main() -> int:
         show(json.loads(path.read_text(encoding="utf-8")))
         return 0
 
-    html = fetch(args.asset_id)
-    estimate_html = fetch(args.asset_id, ESTIMATE_URL)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    raw_path = RAW_DIR / f"consensus_{args.asset_id}_{stamp}.html"
-    raw_path.write_text(html, encoding="utf-8")
-    (RAW_DIR / f"estimates_{args.asset_id}_{stamp}.html").write_text(
-        estimate_html, encoding="utf-8"
-    )
-
-    packet = merge_history(path, build(args.asset_id, html, estimate_html))
+    fetched, failures, originals = {}, {}, {}
+    for component, url in (("summary", URL), ("estimates", ESTIMATE_URL)):
+        try:
+            fetched[component] = fetch(args.asset_id, url)
+            prefix = "consensus" if component == "summary" else "estimates"
+            raw_path = RAW_DIR / f"{prefix}_{args.asset_id}_{stamp}.html"
+            raw_path.write_text(fetched[component], encoding="utf-8")
+            originals[component] = str(raw_path.relative_to(ROOT))
+        except SystemExit:
+            failures[component] = "NETWORK_ERROR"
+    packet = build(args.asset_id, fetched.get("summary", ""), fetched.get("estimates", ""))
+    for component, state in failures.items():
+        packet["components"][component] = {"state": state, "reason": "HTTP 또는 연결 실패. 로그 확인"}
+    if "estimates" in failures:
+        packet["state"] = "NETWORK_ERROR"
+    packet["raw_sources"] = originals
+    attempt = {"asset_id": args.asset_id, "attempted_at": packet["collected_at"],
+               "state": packet["state"], "components": packet["components"], "raw_sources": originals}
+    attempt_path = ROOT / "knowledge" / "collection_status" / f"consensus-{args.asset_id}.json"
+    attempt_path.parent.mkdir(parents=True, exist_ok=True)
+    attempt_path.write_text(json.dumps(attempt, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if not packet["available"] and packet["state"] != "NO_DATA":
+        print("오류: 실적 추정을 확보하지 못했다. 기존 성공 자료는 유지하며 실패 상태를 별도 보존했다", file=sys.stderr)
+        return 1
+    packet = merge_history(path, packet)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     show(packet)
     print(f"저장: {path.relative_to(ROOT)}")
-    print(f"원본: {raw_path.relative_to(ROOT)}")
+    print(f"구성요소 상태: {packet['components']}")
     return 0
 
 

@@ -22,6 +22,7 @@ knowledge/portfolio/decisions/
 # ── CIO 세션 컨텍스트 및 평가 기록 ──────────────────────────────────
 # 판단 시점의 정책 지문·포트폴리오 스냅샷 포함
 knowledge/contexts/
+knowledge/assumptions/
 knowledge/assessments/
 knowledge/evaluations/
 knowledge/evidence/

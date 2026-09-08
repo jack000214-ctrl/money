@@ -224,11 +224,47 @@ def format_assessment(
         f"  제안 집행액 {_num(trade.get('amount'), digits=0)} "
         f"{trade.get('currency') or ''}"
     )
+    if data.get("entry_plan"):
+        from cio.entry_plan import plan_calculation
+        from cio.decision import find_context
+        try:
+            plan_context, _ = find_context(data["context_id"])
+            calculation = plan_calculation(data["entry_plan"], data, plan_context)
+            lines.extend(_section("조건부 추가 배분 계획"))
+            lines.extend(_wrap(data["entry_plan"]["reference_basis"]))
+            for stage in calculation["stages"]:
+                lines.append(f"  {stage['stage_id']}: 예산 {_num(stage['budget'], digits=0)} · 해당 단위 가격 {_num(stage['quoted_price'], digits=2)} · {_num(stage['quantity'], digits=0)}주")
+                lines.extend(_wrap(f"조건: {stage['condition']} / 취소: {stage['cancel_if']} / 유효 {stage['valid_from']}~{stage['valid_until']}"))
+            lines.append(f"  추가 배분 후 남는 예산 {_num(calculation['total_unspent'], digits=0)} {calculation['currency']}")
+            lines.extend(_wrap("계산된 배분 제안이며 주문·체결 기록이 아니다."))
+        except (ValueError, OSError, KeyError) as exc:
+            lines.extend(_wrap(f"분할계획 계산을 확인할 수 없다: {exc}"))
+    for check in data.get("entry_plan_checks") or []:
+        lines.extend(_wrap(f"과거 단계 {check['stage_id']}: {check['state']} — {check['note']}"))
 
     lines.extend(_section("논지"))
     lines.extend(_wrap(data.get("thesis") or "—"))
 
     # 반대 논지를 결론과 같은 크기로 둔다. 접으면 확증 편향의 편을 드는 화면이 된다.
+    review = data.get("assumption_review")
+    if review:
+        lines.extend(_section("가정과 판단이 바뀌는 조건"))
+        lines.extend(_wrap(review.get("interpretation") or "—"))
+        if review.get("status") == "EVALUATED":
+            from cio.assumptions import format_analysis, load_analysis
+            from cio.decision import find_context
+            try:
+                context, _ = find_context(data["context_id"])
+                report = load_analysis(data["asset_id"], review["analysis_id"], context)
+                lines.extend(format_analysis(report, include_bases=False).splitlines())
+            except (ContractError, OSError, ValueError) as exc:
+                lines.extend(_wrap(f"가정 분석을 확인할 수 없다: {exc}"))
+        else:
+            lines.append("  이 방법의 전용 가정 계산은 아직 지원되지 않는다")
+        for response in review.get("responses") or []:
+            lines.append(f"  {response['id']}: {response['effect']} · {response.get('verdict')} / {response.get('action')}")
+            lines.extend(_wrap(response["rationale"]))
+
     counter = data.get("strongest_counter_thesis") or {}
     lines.extend(_section("가장 강한 반대 논지"))
     lines.extend(_wrap(counter.get("text") or "—"))
@@ -429,8 +465,12 @@ def _format_evaluation(
         f"({'완료' if window.get('complete') else '진행 중'})",
         f"  질문가 기준 수익률 {_signed(price.get('return_to_end_pct'))}",
     ]
+    if evaluation.get("entry_plan"):
+        lines.append("  조건부 단계 관측 (실제 체결 미확인):")
+        for stage in evaluation["entry_plan"]["stages"]:
+            lines.append(f"    {stage['stage_id']}: 가격 {stage['price_touch_date'] or '—'} · 조건 확인 후 가격 {stage['eligible_price_touch_date'] or '—'} · {stage['observation']}")
     waited = counterfactual.get("waited_for_entry") or {}
-    if waited:
+    if waited and not evaluation.get("entry_plan"):
         filled = waited.get("filled")
         entry = _num(waited.get("entry_price"), digits=0)
         if filled:
@@ -445,7 +485,9 @@ def _format_evaluation(
                 f"  기다린 것의 차이 {_signed(waited.get('advantage_pct'))} "
                 "(즉시 매수 대비)"
             )
-    if verdict in {"WAIT", "AVOID"}:
+    if evaluation.get("entry_plan"):
+        lines.append("  실제 집행이 확인되지 않아 분할전략 수익률은 산출하지 않았다")
+    elif verdict in {"WAIT", "AVOID"}:
         lines.append(
             "  ※ WAIT·AVOID 는 질문가 수익률이 아니라 위 반사실이 본 채점이다"
         )

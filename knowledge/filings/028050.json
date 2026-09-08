@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "028050",
   "corp_code": "00126308",
-  "collected_at": "2026-09-03T04:43:29+00:00",
+  "collected_at": "2026-09-08T00:37:43+00:00",
   "source": "DART_LIST",
-  "since": "20250730",
-  "until": "20260903",
+  "since": "20250804",
+  "until": "20260908",
   "pblntf_types": [
     "A",
     "B",
@@ -27,8 +27,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "4ff7f53291318b1f907f05812c6cb13afe2e78792f2ba422a9b9d9f0f312617c",
-      "raw_locator": "data/raw/dart/objects/4ff7f53291318b1f907f05812c6cb13afe2e78792f2ba422a9b9d9f0f312617c.json"
+      "raw_payload_sha256": "c0c95280d2601eb33e1b22820ed635460c2acc1c13d7f3219425c250c874b183",
+      "raw_locator": "data/raw/dart/objects/c0c95280d2601eb33e1b22820ed635460c2acc1c13d7f3219425c250c874b183.json"
     },
     {
       "pblntf_ty": "F",
@@ -37,6 +37,16 @@
     }
   ],
   "filings": [
+    {
+      "filing_date": "2026-09-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260907800462",
+      "description": "[첨부정정]지속가능경영보고서등관련사항(자율공시)",
+      "filer": "삼성E&A",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260907800462"
+    },
     {
       "filing_date": "2026-09-01",
       "report_date": null,
@@ -224,7 +234,7 @@
       "accession_number": "20260630800894",
       "description": "지속가능경영보고서등관련사항(자율공시)",
       "filer": "삼성E&A",
-      "remark": "유",
+      "remark": "유정",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800894"
     },
     {
@@ -626,16 +636,6 @@
       "filer": "삼성E&A",
       "remark": "유",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260116800425"
-    },
-    {
-      "filing_date": "2026-01-15",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20260115800445",
-      "description": "[기재정정]단일판매ㆍ공급계약체결",
-      "filer": "삼성E&A",
-      "remark": "유정",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260115800445"
     }
   ]
 }

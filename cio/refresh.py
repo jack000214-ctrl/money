@@ -370,6 +370,12 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
             )
 
         if asset["market"] == "KR":
+            tasks.append(RefreshTask(
+                name=f"capital:{asset['asset_id']}", capability="KR_CAPITAL",
+                artifact=f"knowledge/capital/{asset['asset_id']}.json", max_age_hours=24,
+                command=[sys.executable, "-m", "collectors.kr_capital", asset["asset_id"]],
+                required=False, dependencies=[f"knowledge/filings/{asset['asset_id']}.json"],
+            ))
             tasks.append(
                 RefreshTask(
                     name=f"consensus:{asset['asset_id']}",
@@ -588,6 +594,14 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
                 ],
             )
         )
+
+    if "KR_EPC" in enabled:
+        tasks.append(RefreshTask(
+            name=f"epc:{asset_id}", capability="KR_EPC",
+            artifact=f"knowledge/epc/{asset_id}.json", max_age_hours=2160,
+            required=False, dependencies=[f"knowledge/filings/{asset_id}.json"],
+            command=[sys.executable, "-m", "collectors.kr_epc", asset_id],
+        ))
 
     if "NORMALIZED_EARNINGS" in enabled:
         year = dt.date.today().year
@@ -814,6 +828,23 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         error = _non_daily_reason(dates)
         if error:
             return error
+    if task.capability == "KR_EPC":
+        from collectors.kr_epc import contract_errors
+        try:
+            errors = contract_errors(load_json(path), task.name.split(":", 1)[-1])
+        except (OSError, ValueError) as exc:
+            return f"EPC 자료를 읽을 수 없다: {exc}"
+        if errors:
+            return errors[0]
+    if task.capability == "KR_CAPITAL":
+        from collectors.kr_capital import contract_errors
+        try:
+            asset_id = task.name.split(":", 1)[1]
+            errors = contract_errors(load_json(path), asset_id, index=load_json(ROOT / "knowledge" / "filings" / f"{asset_id}.json"))
+        except (OSError, ValueError, KeyError) as exc:
+            return str(exc)
+        if errors:
+            return errors[0]
     if task.capability == "CONSENSUS":
         try:
             data = load_json(path)
@@ -824,6 +855,9 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         if data.get("asset_id") != task.name.split(":", 1)[-1]:
             return "컨센서스 packet의 asset_id가 요청 자산과 다르다"
         estimates = data.get("estimates")
+        components = data.get("components") or {}
+        if data.get("state") == "NO_DATA" and (components.get("estimates") or {}).get("state") == "NO_DATA":
+            return None  # Fresh observation of absence, not a failed download.
         if not isinstance(estimates, dict) or not estimates.get("annual"):
             # 연도별 추정이 밸류에이션의 본체다. 목표주가만 있는 packet 은
             # 애널리스트의 결론만 있고 입력이 없는 상태다.

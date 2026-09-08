@@ -52,7 +52,7 @@ SINGLE_SEGMENT_RE = re.compile(
 )
 TABLE_RE = re.compile(r"<TABLE\b.*?</TABLE>", re.IGNORECASE | re.DOTALL)
 ROW_RE = re.compile(r"<TR\b.*?</TR>", re.IGNORECASE | re.DOTALL)
-CELL_RE = re.compile(r"<T[DH]\b.*?</T[DH]>", re.IGNORECASE | re.DOTALL)
+CELL_RE = re.compile(r"<T[DHE]\b.*?</T[DHE]>", re.IGNORECASE | re.DOTALL)
 TAG_RE = re.compile(r"<[^>]+>")
 
 

@@ -614,8 +614,10 @@ def evaluate_assessment(
     end = horizon_rows[-1] if horizon_rows else usable[0]
     start_price = float(request["price"])
     first = usable[0]
+    at_start = [row for row in rows if row["date"] <= start.isoformat()]
+    reference_bar = at_start[-1] if at_start else first
     start_split_factor = float(
-        first.get("split_adjustment_factor") or 1.0
+        reference_bar.get("split_adjustment_factor") or 1.0
     )
     # 질문가는 그날의 호가다. 저장된 시계열은 오늘 기준으로 분할이 반영돼
     # 있으므로(`_first_trigger` 참고) 질문가에 판단일 행의 분할계수를 곱해야
@@ -623,7 +625,7 @@ def evaluate_assessment(
     # 번 더 곱한다 — `adjusted_close / close` 는 두 값이 같은 분할 기준이므로
     # 배당분만 남는다.
     dividend_factor = (
-        first["adjusted_close"] / first["close"] if first["close"] > 0 else 1.0
+        reference_bar["adjusted_close"] / reference_bar["close"] if reference_bar["close"] > 0 else 1.0
     )
     adjustment_factor = start_split_factor * dividend_factor
     adjusted_cost = start_price * adjustment_factor
@@ -791,6 +793,25 @@ def evaluate_assessment(
             "여러 평가를 모아 모델·프롬프트별로 회고한다"
         ),
     }
+    if assessment.get("entry_plan"):
+        from cio.entry_plan import observations
+        from zoneinfo import ZoneInfo
+        review_rows = []
+        zone = ZoneInfo("Asia/Seoul" if asset["market"] == "KR" else "America/New_York")
+        for path in (KNOWLEDGE_DIR / "assessments" / assessment["asset_id"]).glob("CIO-*.json"):
+            try:
+                candidate = load_json(path)
+                if not candidate.get("entry_plan_checks"):
+                    continue
+                require_valid_decision(candidate)
+                recorded = dt.datetime.fromisoformat(candidate["created_at"]).astimezone(zone).isoformat()
+                review_rows.extend({**check, "recorded_at": recorded, "review_assessment_id": candidate["assessment_id"]} for check in candidate["entry_plan_checks"])
+            except (ContractError, ValueError, OSError, KeyError):
+                continue
+        evaluation["entry_plan"] = observations(assessment, path_until_horizon,
+            start_factor=start_split_factor, adjustment_factor=adjustment_factor, end=end, reviews=review_rows,
+            decision_date=dt.datetime.fromisoformat(assessment["created_at"]).astimezone(zone).date().isoformat())
+        evaluation["counterfactual"]["waited_for_entry"]["_note"] += " 조건부 분할계획의 실행 평가는 entry_plan에 별도로 표시한다. 이 단일 가격 비교를 전체 계획의 성과로 읽지 않는다."
     evaluation["evaluation_id"] = stable_hash(
         {
             key: value

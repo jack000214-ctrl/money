@@ -355,6 +355,8 @@ def _build_packet(
     amount,
     review_quantity=None,
     target_quantity=None,
+    held_quantity=None,
+    average_cost=None,
     stale_ledger=False,
     portfolio=(),
     filings=None,
@@ -442,6 +444,8 @@ def _build_packet(
             intent=intent,
             review_quantity=review_quantity,
             target_quantity=target_quantity,
+            held_quantity=held_quantity,
+            average_cost=average_cost,
             save=False,
         )
     return packet

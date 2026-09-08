@@ -360,6 +360,7 @@ DART_VIEWER = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
 DART_FILING_TYPES = (
     ("A", "정기공시"),
     ("B", "주요사항보고"),
+    ("C", "발행공시"),
     ("I", "거래소공시"),
     ("F", "외부감사관련"),
 )
@@ -373,6 +374,7 @@ DART_FORM_RULES = (
     ("QUARTER_REPORT", ("분기보고서",)),
     ("AUDIT_REPORT", ("감사보고서",)),
     ("MATERIAL_EVENT", ("주요사항보고서",)),
+    ("MATERIAL_EVENT", ("증권신고서", "투자설명서")),
     ("PROVISIONAL_RESULT", ("잠정실적", "영업(잠정)실적", "손익구조")),
     ("FAIR_DISCLOSURE", ("공정공시",)),
     ("EQUITY_CHANGE", ("유상증자", "무상증자", "전환사채", "신주인수권", "자기주식")),
@@ -1173,7 +1175,28 @@ def resolve_debt(bs_report):
     return 0.0, [], "NO_DEBT_LINE_ITEMS"
 
 
-def resolve_shares(bs_report):
+def _total_eps(rows, basis):
+    """Total EPS, or the sum of explicitly disclosed continuing/discontinued EPS.
+
+    A missing discontinued component is unknown, not zero. Never divide total
+    parent income by continuing-only EPS (or mix basic and diluted components).
+    """
+    ids = IS_DILUTED_EPS_IDS if basis == "DILUTED" else IS_BASIC_EPS_IDS
+    names = (["희석주당이익(손실)"] if basis == "DILUTED" else
+             ["기본주당순이익", "기본주당이익(손실)"])
+    value = amount(acct(rows, ("IS", "CIS"), ids, names))
+    if value is not None:
+        return value
+    stem = "Diluted" if basis == "DILUTED" else "Basic"
+    components = [amount(acct(rows, ("IS", "CIS"), [
+        f"ifrs-full_{stem}EarningsLossPerShareFrom{scope}Operations"
+    ])) for scope in ("Continuing", "Discontinued")]
+    if all(value is not None for value in components):
+        return sum(components)
+    return None
+
+
+def resolve_shares(bs_report, *, fs_div="CFS"):
     """지배주주 순이익 ÷ 주당이익으로 주식수를 낸다. → (shares, eps_basis)
 
     희석증권이 없는 회사는 희석주당이익을 아예 공시하지 않는다 (삼성E&A는
@@ -1181,22 +1204,21 @@ def resolve_shares(bs_report):
     기본을 희석이라고 부르면 전환사채가 있는 회사에서 주식수가 조용히 적게
     잡히고, 그 오차는 주당가치 전체에 곱해진다.
     """
-    parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS,
-                      ["지배기업 소유주지분"])
+    # The generic owner label can also denote comprehensive income in CIS.
+    # Use the profit-attribution concept, never that ambiguous label.
+    parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_PARENT_IDS)
     # 별도재무제표에는 지배기업 소유주지분 행이 존재하지 않는다. 그 경우에만
     # 동일 기간의 당기순이익을 EPS 분자로 사용한다. 연결재무에서는 총당기순이익과
     # 지배주주 EPS를 섞지 않도록 기존 지배주주 행을 계속 우선한다.
-    if parent_row is None or amount(parent_row) is None:
+    if (parent_row is None or amount(parent_row) is None) and fs_div == "OFS":
         parent_row = acct(bs_report, ("IS", "CIS"), IS_NET_IDS,
                           ["당기순이익", "분기순이익", "반기순이익"])
-    eps_row = acct(bs_report, ("IS", "CIS"), IS_DILUTED_EPS_IDS,
-                   ["희석주당이익(손실)"])
+    eps = _total_eps(bs_report, "DILUTED")
     eps_basis = "DILUTED"
-    if eps_row is None or amount(eps_row) is None:
-        eps_row = acct(bs_report, ("IS", "CIS"), IS_BASIC_EPS_IDS,
-                       ["기본주당순이익", "기본주당이익(손실)"])
+    if eps is None:
+        eps = _total_eps(bs_report, "BASIC")
         eps_basis = "BASIC_NO_DILUTED_DISCLOSED"
-    parent_ni, eps = amount(parent_row), amount(eps_row)
+    parent_ni = amount(parent_row)
     if not parent_ni or not eps:
         fail("주당이익(희석·기본 모두) 또는 지배기업 소유주지분 순이익을 찾지 "
              "못했다. 주식수를 기억으로 채우지 않는다")
@@ -1359,7 +1381,7 @@ def cmd_fundamentals(a, key):
     debt, debt_detail, debt_basis = resolve_debt(bs_report)
 
     # --- 주식수: 지배주주 순이익 ÷ 주당이익 ---
-    shares, eps_basis = resolve_shares(bs_report)
+    shares, eps_basis = resolve_shares(bs_report, fs_div=a.fs)
 
     total = request("stockTotqySttus.json",
                     {"corp_code": corp, "bsns_year": str(a.year - 1),

@@ -426,6 +426,10 @@ def _latest_fundamentals(
         "income_statement_ttm": income_summary,
         "source": data.get("source") or observed_filing_source,
     }
+    # This describes the historical EPS denominator, not today's capitalization.
+    for field in ("eps_basis", "share_count_cross_check"):
+        if field in data:
+            summary[field] = data[field]
     # TTM 네 숫자만 실으면 분기 흐름이 packet 에서 사라진다. 수집기가 이미
     # 만들어 둔 시계열을 지우지 말고 한 줄씩 접어 함께 싣는다.
     bridge = _earnings_bridge(data)
@@ -1519,6 +1523,7 @@ def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
 # 없어서** 모델은 그 입력이 이 회사에 원래 없는 것인지 이번에만 빠진 것인지
 # 구분할 수 없었다. 빈칸은 "해당 없음"으로 읽힌다.
 COVERAGE_NO_COLLECTOR = {
+    "epc_contract_notes": "현재 도급공사 주석 추출기는 한국 DART 연결 보고서 경로다. 이 시장의 원문은 모델이 직접 확인한다",
     "forward_estimates": (
         "컨센서스 수집기는 네이버 금융 기반이라 KR 전용이다. forward EPS·"
         "성장률·목표주가가 필요하면 직접 조사해 sources 에 등록한다"
@@ -1580,6 +1585,12 @@ def _data_coverage(
         # 수집기가 돌았고 "이 자산에서는 낼 수 없다"는 결론이 나온 경우다.
         # 안 받은 것과 구분하지 않으면, 다시 돌려도 같은 결과인데 packet 은
         # 계속 "받으면 된다"고 말하고 모델은 그 요청을 반복한다.
+        if isinstance(available_when, dict) and available_when.get("state") == "INVALID":
+            return {"state": "REGISTERED_NOT_COLLECTED", "note": "산출물이 원문 재검증에 실패했다. refresh로 복구한다"}
+        if isinstance(available_when, dict) and available_when.get("state") in {"NETWORK_ERROR", "PARSE_ERROR", "NO_DATA", "PARTIAL", "STALE_AFTER_FAILURE"}:
+            return {"state": available_when["state"], "last_attempt": available_when.get("last_attempt"),
+                    "components": available_when.get("components"),
+                    "note": "연결 실패는 재시도, 해석 실패는 수집기 점검, NO_DATA는 제공처의 부재 관측이다. PARTIAL은 정상 부분만 사용한다. 실패 후 남은 과거 값의 기준일을 확인한다"}
         if isinstance(available_when, dict) and available_when.get(
             "available"
         ) is False:
@@ -1663,7 +1674,8 @@ def _data_coverage(
             "shares_diluted": shares,
             "basis": fundamentals.get("eps_basis"),
             "note": (
-                "현재 시점의 희석주식수 하나뿐이고 **주식수 추이는 없다** — "
+                "재무 보고기간의 EPS 분모이며 현재 발행주식수·미래 완전희석주식수가 아니다. "
+                "**주식수 추이는 없다** — "
                 "SBC·전환사채·유상증자로 몇 %씩 늘고 있는지는 이 packet 이 "
                 "답하지 못한다. 희석이 결론에 걸리면 원문에서 직접 읽는다"
                 + (
@@ -1680,11 +1692,19 @@ def _data_coverage(
             "note": "재무 스냅샷에 희석주식수가 없다",
         }
     )
+    if asset.get("analysis_lens") == "EPC_BACKLOG" or "KR_EPC" in enabled:
+        coverage["epc_contract_notes"] = row(
+            "epc_contract_notes", registered="KR_EPC" in enabled,
+            available_when=optional.get("epc_contract_notes"), market_supported=is_kr,
+        )
+        if (optional.get("epc_contract_notes") or {}).get("unresolved"):
+            coverage["epc_contract_notes"]["unresolved"] = optional["epc_contract_notes"]["unresolved"]
     return coverage
 
 
 def _optional_collection_summaries(
     asset: dict[str, Any],
+    *, fundamentals: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     enabled = set(asset.get("optional_collectors") or [])
     asset_id = asset["asset_id"]
@@ -1693,6 +1713,7 @@ def _optional_collection_summaries(
 
     if asset["market"] == "KR":
         path = KNOWLEDGE_DIR / "consensus" / f"{asset_id}.json"
+        data = None
         if path.exists():
             try:
                 data = load_json(path)
@@ -1710,6 +1731,8 @@ def _optional_collection_summaries(
                 # 어느 쪽으로 개정되는가 셋뿐이다.
                 summaries["consensus"] = {
                     "as_of": data.get("as_of"),
+                    "estimates_as_of": data.get("estimates_as_of"),
+                    "as_of_basis": data.get("as_of_basis"),
                     "consensus_eps": (data.get("summary") or {}).get("eps"),
                     "consensus_per": (data.get("summary") or {}).get("per"),
                     "rating": (data.get("summary") or {}).get("rating"),
@@ -1765,6 +1788,9 @@ def _optional_collection_summaries(
                         "멀티플은 직접 정한다. 2차 출처(EXPLORATORY)다"
                     ),
                 }
+                if data.get("components"):
+                    summaries["consensus"].update(state=data.get("state"), available=data.get("available"), components=data["components"])
+                    summaries["consensus"]["_warning"] += " 전망 자체의 갱신일은 estimates_as_of이며 null이면 모른다. 수집일이나 최신 목표가 보고일로 대체하지 않는다."
                 _with_event_lag(
                     summaries["consensus"], asset_id, as_of_key="as_of"
                 )
@@ -1776,6 +1802,21 @@ def _optional_collection_summaries(
                         "data_as_of": data.get("as_of"),
                     }
                 )
+        attempt_path = KNOWLEDGE_DIR / "collection_status" / f"consensus-{asset_id}.json"
+        if attempt_path.exists():
+            try:
+                attempt = load_json(attempt_path)
+            except (ContractError, OSError):
+                attempt = None
+            if attempt and attempt.get("asset_id") == asset_id:
+                summary = summaries.setdefault("consensus", {"available": False})
+                summary["last_attempt"] = attempt
+                newer_attempt = not data or str(attempt.get("attempted_at") or "") >= str(data.get("collected_at") or "")
+                if newer_attempt and attempt.get("state") in {"NETWORK_ERROR", "PARSE_ERROR"}:
+                    summary["state"] = "STALE_AFTER_FAILURE" if summary.get("estimates") else attempt["state"]
+                    summary["components"] = attempt.get("components")
+                sources.append({"source_id": f"COLLECTION_STATUS:{asset_id}", "kind": "COLLECTION_STATUS",
+                                "path": str(attempt_path.relative_to(ROOT)), "data_as_of": attempt.get("attempted_at")})
         peer_block = _peer_multiples(asset)
         if peer_block:
             summaries["peer_multiples"] = peer_block
@@ -1945,6 +1986,22 @@ def _optional_collection_summaries(
                     "data_as_of": data.get("filing_date"),
                 }
             )
+
+    if "KR_EPC" in enabled:
+        from collectors.kr_epc import contract_errors
+        from calculators.epc import summary as epc_summary
+        path = KNOWLEDGE_DIR / "epc" / f"{asset_id}.json"
+        if path.exists():
+            try:
+                data = load_json(path)
+                errors = contract_errors(data, asset_id)
+            except (OSError, ValueError) as exc:
+                errors = [str(exc)]
+            if errors:
+                summaries["epc_contract_notes"] = {"available": False, "state": "INVALID", "problems": errors}
+            else:
+                summaries["epc_contract_notes"] = epc_summary(data, fundamentals)
+                sources.append({"source_id": f"KR_EPC:{asset_id}", "kind": "FILING_DERIVED", "path": str(path.relative_to(ROOT)), "data_as_of": data["reports"][0]["report_date"]})
 
     if "NORMALIZED_EARNINGS" in enabled:
         path = KNOWLEDGE_DIR / "normalized" / f"{asset_id}.json"
@@ -2124,8 +2181,8 @@ def _sell_block(
     target_quantity: float | None,
     price: float,
     fx: float | None,
-    cash: float,
-    total_at_review: float,
+    cash: float | None,
+    total_at_review: float | None,
     market: str,
 ) -> dict[str, Any]:
     """보유분을 어떻게 할지 묻는 질문의 산술.
@@ -2159,7 +2216,7 @@ def _sell_block(
         and quantity > held_quantity + 1e-9
     ):
         errors.append(
-            f"검토 수량 {quantity}이 원장의 보유수량 {held_quantity}을 넘는다"
+            f"검토 수량 {quantity}이 분석 기준 보유수량 {held_quantity}을 넘는다"
         )
         quantity = None
     block: dict[str, Any] = {
@@ -2197,13 +2254,71 @@ def _sell_block(
     )
     block["post_trade_weight_total_assets_pct"] = (
         round(remaining_value_krw / total_at_review * 100, 2)
-        if remaining_value_krw is not None and total_at_review > 0
+        if remaining_value_krw is not None and total_at_review is not None and total_at_review > 0
         else None
     )
     block["cash_after_krw"] = (
-        round(cash + proceeds_krw, 2) if proceeds_krw is not None else None
+        round(cash + proceeds_krw, 2)
+        if cash is not None and proceeds_krw is not None else None
     )
     return block
+
+
+def _user_position_summary(
+    asset: dict[str, Any], *, quantity: float, average_cost: float | None,
+    price: float, review_quantity: float | None, target_quantity: float | None,
+    local_portfolio: dict[str, Any],
+) -> dict[str, Any]:
+    """이번 질문의 보유 입력만 계산한다. 거래·계좌 잔액을 추정하지 않는다."""
+    fx, fx_as_of = _fx_rate() if asset["market"] == "US" else (1.0, None)
+    value = quantity * price
+    cost = quantity * average_cost if average_cost is not None else None
+    pnl = value - cost if cost is not None else None
+    local = local_portfolio.get("existing_position") or {}
+    return {
+        "available": True,
+        "scope": "USER_SUPPLIED_POSITION",
+        "total_assets_krw": None,
+        "cash_krw": None,
+        "existing_position": {
+            "held": quantity > 0,
+            "quantity": quantity,
+            "average_cost": average_cost,
+            "average_cost_currency": asset["currency"],
+            "authority": "USER_INPUT",
+            "verified": False,
+            "value_at_review_price": round(value, 2),
+            "cost_basis": round(cost, 2) if cost is not None else None,
+            "unrealized_pnl": round(pnl, 2) if pnl is not None else None,
+            "value_at_review_price_krw": round(value * fx, 2) if fx is not None else None,
+            "cost_basis_krw": round(cost * fx, 2) if cost is not None and fx is not None else None,
+            "unrealized_pnl_krw": round(pnl * fx, 2) if pnl is not None and fx is not None else None,
+            "unrealized_pnl_pct": round((price / average_cost - 1) * 100, 2)
+            if average_cost else None,
+            "weight_at_review_price_pct": None,
+            "fx_krw_per_usd": fx if asset["market"] == "US" else None,
+            "fx_as_of": fx_as_of,
+        },
+        "local_position_comparison": {
+            "available": local_portfolio.get("available", False),
+            "quantity": local.get("quantity"),
+            "average_cost": local.get("average_cost"),
+            "as_of": local.get("value_as_of"),
+            "quantity_matches": local.get("quantity") == quantity
+            if local.get("quantity") is not None else None,
+            "average_cost_matches": math.isclose(local["average_cost"], average_cost, abs_tol=0.01)
+            if local.get("average_cost") is not None and average_cost is not None else None,
+        },
+        "proposed_trade": _sell_block(
+            held_quantity=quantity, review_quantity=review_quantity,
+            target_quantity=target_quantity, price=price, fx=fx, cash=None,
+            total_at_review=None, market=asset["market"],
+        ),
+        "_role": "사용자가 이번 질문에 명시한 보유 조건의 산술이며 실제 잔고 확인이 아니다. "
+        "이 조건 아래에서만 보유분 행동을 판단한다. 로컬 원장은 변경하지 않는다. "
+        "달라진 수량의 거래·자금 출처를 모르므로 총자산·현금·계좌 비중은 계산하지 않는다. "
+        "손익은 세금·수수료·슬리피지 전이며 사용자 주장 검증의 독립 근거가 아니다",
+    }
 
 
 def _portfolio_summary(
@@ -2840,7 +2955,7 @@ def _compact_size(value: Any) -> int:
 CONTEXT_ID_RESERVE_BYTES = 64
 
 
-def _fit_context_budget(packet: dict[str, Any]) -> None:
+def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> None:
     """예산을 넘으면 이어받은 서술부터 단계적으로 버린다.
 
     직전 논지가 길다는 이유로 packet 자체를 만들지 못하면 판단이 멈춘다.
@@ -2889,13 +3004,25 @@ def _fit_context_budget(packet: dict[str, Any]) -> None:
     )
     # 서사부터 버린다 — 가격 문턱과 무효화 신호는 이번 판단에서 바로 대조해야
     # 하지만, 지난번 논지의 문장은 필요하면 원문을 열어보면 된다.
-    for field in ("thesis", "strongest_counter_thesis"):
+    for field in ("thesis", "strongest_counter_thesis", "assumption_review"):
         if carried.get(field) is None:
             continue
         carried[field] = None
         trimmed.append(f"prior_assessments.carried_forward.{field}")
         if fits():
             return
+    if carried.get("entry_plan") and not fits():
+        # Keep the full plan by a content-addressed reference if it cannot fit.
+        identifier = next((r.get("assessment_id") for r in rows if r.get("carried_forward") is carried), None)
+        plan_path = KNOWLEDGE_DIR / "assessments" / packet["request"]["asset_id"] / f"{identifier}.json"
+        if identifier and plan_path.is_file():
+            if seal_plans:
+                plan_path = _snapshot_evidence(plan_path, content_hash(plan_path))
+            carried["entry_plan_ref"] = {"assessment_id": identifier, "path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)}
+            carried.pop("entry_plan")
+            trimmed.append("prior_assessments.carried_forward.entry_plan (use entry_plan_ref)")
+            if fits():
+                return
     open_requests = packet["context"].get("open_research_requests") or []
     while len(open_requests) > 2 and not fits():
         open_requests.pop(-2)
@@ -3083,6 +3210,8 @@ def _memory_digest(
         # 가장 최근 판단만 논지까지 싣는다. 세 건을 모두 실으면 packet 예산을
         # 넘고, 모델이 확인해야 하는 것은 "지금 살아 있는 계획"이다.
         if index == len(selected) - 1:
+            if evaluation and evaluation.get("entry_plan") and row.get("latest_evaluation"):
+                row["latest_evaluation"]["entry_plan"] = evaluation["entry_plan"]
             plan = data.get("price_plan")
             counter = data.get("strongest_counter_thesis") or {}
             signals = data.get("invalidation_signals")
@@ -3135,10 +3264,10 @@ def _memory_digest(
                     else None
                 ),
                 "_role": (
-                    "직전 판단의 살아 있는 계획이다. 이번 판단은 이 무효화 "
-                    "신호와 재검토 사건이 실제로 발생했는지 먼저 확인한 뒤 "
-                    "시작한다. 과거 결론을 따르라는 뜻이 아니라, 바뀐 것이 "
-                    "무엇인지 명시하라는 뜻이다. drivers 는 그때의 이익 동인 "
+                    "과거 모델의 판단 기록이며 회고와 개선을 위한 비교 대상이다. "
+                    "현재 근거로 판단한 뒤 대조하며 결론·가정·가격선은 언제든 "
+                    "버릴 수 있다. 새로운 사실 없이 과거 해석의 오류를 발견해도 "
+                    "수정한다. 유지할 때도 현재 근거를 밝힌다. drivers 는 그때의 이익 동인 "
                     "배분이며 researched:false 였던 것은 아직 한 번도 보지 않은 "
                     "동인이다 — 계속 미루고 있는지 확인한다"
                 ),
@@ -3146,10 +3275,17 @@ def _memory_digest(
                     "각 신호의 action 은 그 조건이 관측되면 보유분에 무엇을 "
                     "할지 직전 판단이 미리 정해 둔 약속이다. prior_signal_checks "
                     "로 하나씩 닫아야 하며, FIRED 인데 약속과 다르게 행동하려면 "
-                    "override_reason 이 필요하다. 그 사이 가격이 움직였다는 것은 "
-                    "사유가 되지 않는다 — 약속은 가격이 움직일 것을 알고 한 것이다"
+                    "override_reason 이 필요하다. 과거 기록을 그대로 정산하는 "
+                    "것과 현재 그 행동을 따르는 것은 다르다. 변경은 모델이 "
+                    "결정하며 이유만 남긴다. 가격 변화도 가치·기대수익 계산에 "
+                    "연결되면 판단을 바꾸는 근거가 될 수 있다"
                 ),
             }
+            if data.get("assumption_review"):
+                from cio.assumptions import carried_review
+                row["carried_forward"]["assumption_review"] = carried_review(data)
+            if data.get("entry_plan"):
+                row["carried_forward"]["entry_plan"] = data["entry_plan"]
             # 판단 시점 호가(문턱·질문가)를 저장된 시계열 기준으로 옮기는
             # 계수. 분할이 없었으면 1.0 이라 아무것도 달라지지 않는다.
             split_factor = _split_factor_since(
@@ -3182,6 +3318,12 @@ def _memory_digest(
         "state": "CARRIED_FORWARD" if result else "NO_LIVE_JUDGMENT",
         "live": result,
     }
+    latest_with_plan = next((a for a, _ in reversed(assessments) if a.get("entry_plan")), None)
+    if latest_with_plan and (not result or latest_with_plan["assessment_id"] != result[-1]["assessment_id"]):
+        plan_path = directory / f"{latest_with_plan['assessment_id']}.json"
+        digest["latest_entry_plan"] = {"assessment_id": latest_with_plan["assessment_id"],
+            "entry_plan_ref": {"path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)},
+            "_role": "가장 최근의 유효한 분할 제안 기록이다. 이후 판단에 계획이 생략됐다고 잃지 않는다. 현재 실행 지시가 아니며 조건·취소 기록을 재검토한다."}
     if unusable:
         digest["not_carried"] = {
             "count": len(unusable),
@@ -3203,8 +3345,8 @@ def _memory_digest(
             ),
         }
     digest["_directive"] = (
-        "직전 판단이 살아 있다. 무효화 신호와 재검토 문턱이 실제로 닿았는지 "
-        "먼저 확인하고, 바뀐 것을 명시한 뒤 시작한다"
+        "현재 근거로 판단한 뒤 과거의 예측·가정·계획과 대조해 개선점을 찾는다. "
+        "과거 결론은 언제든 버릴 수 있다. 유지·변경 모두 현재 근거를 설명한다"
         if result
         else "이 자산에 유효한 판단이 0건이다. 이어받을 논지가 없으므로 "
         "처음부터 판단한다. 아래 목록은 그런 판단이 있었다는 사실일 뿐이며 "
@@ -3213,7 +3355,9 @@ def _memory_digest(
     return digest
 
 
-def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
+def _research_requirements(
+    asset: dict[str, Any], filings: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
     common = [
         {
             "owner": "MODEL",
@@ -3221,8 +3365,45 @@ def _research_requirements(asset: dict[str, Any]) -> list[dict[str, str]]:
             "instruction": "최신 공시 이후 변화와 가장 강한 반대 근거를 직접 조사한다",
         }
     ]
+    if asset.get("asset_type") == "STOCK" and any(
+        any(word in str(row.get("description", ""))
+            for word in ("증자", "권리락", "주식분할", "주식병합", "신주인수권"))
+        for row in (filings or {}).get("latest_material_events", [])
+    ):
+        common.append({
+            "owner": "MODEL",
+            "topic": "corporate_action_price_and_share_basis",
+            "known_local_gap": "재무의 shares_diluted는 과거 EPS 분모이며 현재 발행주식수나 "
+                "예정 증자 후 주식수가 아니다. 가격계획·분할매수의 권리 전후 기준과 "
+                "청약 자격·추가 납입액은 자동으로 검증되지 않는다",
+            "instruction": "최신 정정공시 원문으로 발행·유통·잠재 주식수, 배정·권리락·납입·상장 "
+                "일정을 구분한다. 가치평가에는 선택한 미래 주식수를 명시하고, 가격과 수량을 "
+                "같은 권리 기준으로 환산한다. 무상증자를 수익으로 세거나 과거 EPS 분모를 "
+                "현재 시가총액 분모로 사용하지 않는다",
+        })
     lens = asset["analysis_lens"]
     additions = {
+        "EPC_BACKLOG": [
+            {
+                "owner": "MODEL",
+                "topic": "backlog_scope_and_conversion",
+                "instruction": "발행사 IR의 전체 수주잔고, 사업보고서 주요 프로젝트 잔고, "
+                "재무 주석의 잔여 수행의무는 범위가 다르다. 기준일·범위·신규수주와 "
+                "매출 전환을 확인하고 입찰 파이프라인을 확정 수주에 합산하지 않는다",
+            },
+            {
+                "owner": "MODEL",
+                "topic": "epc_earnings_quality",
+                "known_local_gap": "epc_contract_notes가 연결 도급공사 주석의 잔액·누적 "
+                "추정 변경 손익·미래 손익을 추출한다. unresolved 항목, 실제 전입액과 "
+                "잔액의 구분, 이익 반복성·선수금 사용 제약은 원문 추가 확인이 필요하다",
+                "instruction": "최신 연결 도급공사계약 주석에서 총계약수익·원가 추정 변경의 "
+                "당기/미래 손익 영향, 미청구·초과청구공사, 선수금과 공사손실충당부채를 "
+                "확인한다. 추정 변경 이익 전부를 일회성으로 빼거나 반복 이익으로 "
+                "연장하지 말고 지속성을 판단한다. EPC 선수금을 주주의 자유 현금과 "
+                "동일시하지 말고 DCF·순현금 가치에 반영한 가정을 공개한다",
+            },
+        ],
         "SEMICONDUCTOR_CYCLE": [
             {
                 "owner": "MODEL",
@@ -3426,6 +3607,8 @@ def build_context(
     intent: str | None = None,
     review_quantity: float | None = None,
     target_quantity: float | None = None,
+    held_quantity: float | None = None,
+    average_cost: float | None = None,
     verbatim: str | None = None,
     claims: list[str] | None = None,
     save: bool = True,
@@ -3447,6 +3630,13 @@ def build_context(
     )
     verbatim = (verbatim or "").strip() or None
     assertions = _user_assertions(claims)
+    if average_cost is not None and held_quantity is None:
+        problems.append("--average-cost는 --held-quantity와 함께 준다")
+    if held_quantity is not None and family != "EXISTING_POSITION":
+        problems.append("--held-quantity는 보유분 검토에만 준다")
+    for name, value in (("held_quantity", held_quantity), ("average_cost", average_cost)):
+        if value is not None and (not math.isfinite(value) or value <= 0):
+            problems.append(f"{name}는 0보다 큰 유한한 숫자여야 한다")
     if not math.isfinite(price) or price <= 0:
         problems.append("price는 0보다 큰 유한한 숫자여야 한다")
     # 받는 입력이 갈래마다 다르다. 한쪽 입력을 다른 갈래에 허용하면 그 자리가
@@ -3498,6 +3688,7 @@ def build_context(
             ("price", price), ("amount", amount),
             ("review_quantity", review_quantity),
             ("target_quantity", target_quantity),
+            ("held_quantity", held_quantity), ("average_cost", average_cost),
         )
         if isinstance(value, float) and not math.isfinite(value)
     ]
@@ -3610,7 +3801,7 @@ def build_context(
     etf, source = _etf_summary(asset)
     if source:
         sources.append(source)
-    structured_optional, optional_sources = _optional_collection_summaries(asset)
+    structured_optional, optional_sources = _optional_collection_summaries(asset, fundamentals=fundamentals)
     sources.extend(optional_sources)
     portfolio, source = _portfolio_summary(
         asset,
@@ -3623,9 +3814,18 @@ def build_context(
     )
     if source:
         sources.append(source)
-    ledger_source = _attach_position_math(
-        portfolio, asset, price, include_add_ladder=(family == "NEW_CAPITAL")
-    )
+    user_position = held_quantity is not None and held_quantity > 0 and family == "EXISTING_POSITION"
+    if user_position:
+        portfolio = _user_position_summary(
+            asset, quantity=held_quantity, average_cost=average_cost, price=price,
+            review_quantity=review_quantity, target_quantity=target_quantity,
+            local_portfolio=portfolio,
+        )
+        ledger_source = None
+    else:
+        ledger_source = _attach_position_math(
+            portfolio, asset, price, include_add_ladder=(family == "NEW_CAPITAL")
+        )
     if ledger_source:
         sources.append(ledger_source)
     if asset["market"] == "US":
@@ -3748,7 +3948,7 @@ def build_context(
         )
     else:
         for gap in optional_gaps:
-            if gap.get("task") == "portfolio:holdings":
+            if gap.get("task") == "portfolio:holdings" and not user_position:
                 position_problems.append(
                     f"보유 원장이 최신이 아니다({gap.get('state')}) — {gap.get('reason')}"
                 )
@@ -3789,6 +3989,12 @@ def build_context(
     if family == "EXISTING_POSITION":
         request["review_quantity"] = review_quantity
         request["target_remaining_quantity"] = target_quantity
+    if held_quantity is not None or average_cost is not None:
+        request["position_input"] = {
+            "quantity": held_quantity, "average_cost": average_cost,
+            "currency": asset["currency"], "source": "USER_INPUT",
+            "as_of": created_at, "verified": False,
+        }
     if verbatim:
         request["verbatim"] = verbatim
     if assertions:
@@ -3807,6 +4013,11 @@ def build_context(
         request["asked_vs_latest_close_pct"] = round(
             (price / price_summary["close"] - 1) * 100, 2
         )
+    from cio.capital import section as capital_section
+    capital, capital_sources = capital_section(asset)
+    for source in capital_sources:
+        if source["source_id"] not in {s.get("source_id") for s in sources if s}:
+            sources.append(source)
     evidence_index = []
     evidence_by_id: dict[str, dict[str, Any]] = {}
     for item in sources:
@@ -3847,7 +4058,9 @@ def build_context(
         # 준비상태 이분화, 주장-근거 결속(claim_kind·basis), 분기 브리지.
         # 프롬프트 본문이 바뀌면 반드시 올린다 — 같은 버전이 다른 규칙을
         # 가리키면 모델 비교가 깨진다.
-        "prompt_version": "2.4",
+        "prompt_version": "2.9",
+        "assumption_review_required": True,
+        "assumption_spec": "schemas/cio-assumptions.schema.json",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
         "provider_neutral": True,
@@ -3881,6 +4094,7 @@ def build_context(
                 "position_action": {
                     "status": "BLOCKED" if position_problems else "PASS",
                     "problems": sorted(set(position_problems)),
+                    "basis": "USER_INPUT_CONDITIONAL" if user_position else "LOCAL_HOLDINGS",
                 },
                 "_role": (
                     "security_view 는 이 종목에 대한 관점을 세울 수 있는가이고 "
@@ -3940,7 +4154,7 @@ def build_context(
                 ),
                 daily_ranges=_daily_ranges(asset["price_symbol"]),
             ),
-            "research_requirements": _research_requirements(asset),
+            "research_requirements": _research_requirements(asset, filings),
             "open_research_requests": open_requests_for_context(
                 asset["asset_id"]
             ),
@@ -3951,7 +4165,16 @@ def build_context(
         "evidence_index": evidence_index,
         "model_contract": model_contract,
     }
-    _fit_context_budget(packet)
+    if capital:
+        packet["context"]["capital_changes"] = capital
+        packet["model_contract"]["earnings_basis_required"] = capital.get("state") == "ANNOUNCED"
+    if save:
+        prior = packet["context"].get("prior_assessments") or {}
+        ref = ((prior.get("latest_entry_plan") or {}).get("entry_plan_ref") if isinstance(prior, dict) else None)
+        if ref:
+            original = ROOT / ref["path"]
+            ref["path"] = str(_snapshot_evidence(original, ref["content_sha256"]).relative_to(ROOT))
+    _fit_context_budget(packet, seal_plans=save)
     packet["context_id"] = stable_hash(
         {key: value for key, value in packet.items() if key != "context_id"},
         "CTX-",

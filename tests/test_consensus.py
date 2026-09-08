@@ -11,6 +11,8 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
+from contextlib import redirect_stderr
 
 from collectors import consensus
 
@@ -66,6 +68,34 @@ class TestDispersionWindows(unittest.TestCase):
 
 
 class TestParsing(unittest.TestCase):
+    def test_missing_recommendations_do_not_shift_or_discard_earnings(self):
+        html = ('<table id="cTB15"><tr><th>투자의견</th><th>목표주가(원)</th>'
+                '<th>EPS(원)</th><th>PER(배)</th><th>추정기관수</th></tr>'
+                '<tr><td>&nbsp;</td><td></td><td>857</td><td>54.66</td><td></td></tr></table>'
+                '<table id="cTB24"><tr><td>최근 3개월 이내에 제시된 의견이 없습니다.</td></tr></table>')
+        estimates = '<table id="cTB25"><tr><td>2027.12(E)</td>' + ''.join(f'<td>{v}</td>' for v in ['2293','39.86','666','545','1777','26.36','','20.11','20.55','42.84']) + '</tr></table>'
+        packet = consensus.build('290650', html, estimates, collected_at='2026-09-08T13:00:00+09:00')
+        self.assertIsNone(packet['summary']['target_price'])
+        self.assertEqual(packet['summary']['eps'], 857)
+        self.assertEqual(packet['summary']['per'], 54.66)
+        self.assertIsNone(packet['summary']['institution_count'])
+        self.assertEqual(packet['state'], 'PARTIAL')
+        self.assertEqual(packet['components']['brokers']['state'], 'NO_DATA')
+        self.assertEqual(packet['estimates']['annual'][0]['eps'], 1777)
+        self.assertIsNone(packet['estimates']['annual'][0]['pbr'])
+        self.assertEqual(packet['estimates']['annual'][0]['roe_pct'], 20.11)
+        self.assertIsNone(packet['as_of'])
+        self.assertIsNone(packet['estimates_as_of'])
+
+    def test_parse_failure_is_not_absence(self):
+        packet = consensus.build('290650', '<html>changed layout</html>', '<html>changed layout</html>')
+        self.assertEqual(packet['state'], 'PARSE_ERROR')
+        self.assertFalse(packet['available'])
+        self.assertIsNone(packet['dispersion']['recent']['count'])
+        self.assertIsNone(packet['revisions']['observed'])
+        absent = consensus.build('290650', '', '추정실적이 없습니다')
+        self.assertEqual(absent['state'], 'NO_DATA')
+
     def test_broker_rows_without_a_prior_target_are_kept(self):
         html = (
             '<table id="cTB24"><tr><td>제공처</td><td>최종일자</td>'
@@ -98,6 +128,28 @@ class TestParsing(unittest.TestCase):
 
 
 class TestHistory(unittest.TestCase):
+    def test_network_failure_preserves_last_good_file_and_records_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);out=root/'knowledge'/'consensus';out.mkdir(parents=True)
+            original=b'{"last_good": true}\n';(out/'290650.json').write_bytes(original)
+            with patch.object(consensus,'ROOT',root), patch.object(consensus,'OUT_DIR',out), patch.object(consensus,'RAW_DIR',root/'raw'), patch.object(consensus,'fetch',side_effect=SystemExit(1)), patch('sys.argv',['consensus','290650']), redirect_stderr(io.StringIO()):
+                self.assertEqual(consensus.main(),1)
+            self.assertEqual((out/'290650.json').read_bytes(),original)
+            status=json.loads((root/'knowledge'/'collection_status'/'consensus-290650.json').read_text())
+            self.assertEqual(status['state'],'NETWORK_ERROR')
+            self.assertEqual(status['components']['estimates']['state'],'NETWORK_ERROR')
+
+    def test_failure_status_reaches_packet_without_a_success_file(self):
+        from cio.context import _optional_collection_summaries, _data_coverage
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);knowledge=root/'knowledge';folder=knowledge/'collection_status';folder.mkdir(parents=True)
+            (folder/'consensus-290650.json').write_text(json.dumps({'asset_id':'290650','attempted_at':'2026-09-08T13:00:00+09:00','state':'PARSE_ERROR','components':{'estimates':{'state':'PARSE_ERROR'}}}))
+            asset={'asset_id':'290650','market':'KR','optional_collectors':[]}
+            with patch('cio.context.ROOT',root),patch('cio.context.KNOWLEDGE_DIR',knowledge):
+                summaries,_=_optional_collection_summaries(asset)
+            coverage=_data_coverage(asset,structured_optional=summaries)
+            self.assertEqual(coverage['forward_estimates']['state'],'PARSE_ERROR')
+
     def test_same_basis_date_does_not_grow_the_series(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "214450.json"

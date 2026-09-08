@@ -204,6 +204,42 @@ PARENT_NI = is_("ifrs-full_ProfitLossAttributableToOwnersOfParent",
 
 
 class TestEpsBasis(unittest.TestCase):
+    def test_consolidated_total_or_comprehensive_income_cannot_replace_parent_profit(self):
+        rows = [is_("ifrs-full_ProfitLoss", "당기순이익", 1000),
+                is_("ifrs-full_ProfitLossAttributableToNoncontrollingInterests", "비지배지분", 200),
+                is_("ifrs-full_BasicEarningsLossPerShare", "기본주당순이익", 10)]
+        with self.assertRaises(SystemExit):
+            resolve_shares(rows)
+        rows.append(is_("ifrs-full_ComprehensiveIncomeAttributableToOwnersOfParent", "지배기업 소유주지분", 1200))
+        with self.assertRaises(SystemExit):
+            resolve_shares(rows)
+        # Total profit is appropriate only for an explicitly separate statement.
+        shares, _ = resolve_shares(rows[:1] + rows[2:3], fs_div="OFS")
+        self.assertEqual(shares, 100)
+
+    def test_continuing_and_discontinued_eps_are_added(self):
+        rows = [is_("ifrs-full_ProfitLossAttributableToOwnersOfParent", "지배기업 소유주지분", -120000),
+                is_("ifrs-full_DilutedEarningsLossPerShareFromContinuingOperations", "계속영업희석주당손익", -100),
+                is_("ifrs-full_DilutedEarningsLossPerShareFromDiscontinuedOperations", "중단영업희석주당손익", -20)]
+        self.assertEqual(resolve_shares(rows), (1000.0, "DILUTED"))
+
+    def test_zero_discontinued_is_observed_but_missing_is_not_zero(self):
+        rows = [is_("ifrs-full_ProfitLossAttributableToOwnersOfParent", "지배기업 소유주지분", -27998804598),
+                is_("ifrs-full_DilutedEarningsLossPerShareFromContinuingOperations", "계속영업희석주당손익", -1059)]
+        with self.assertRaises(SystemExit):
+            resolve_shares(rows)
+        rows.append(is_("ifrs-full_DilutedEarningsLossPerShareFromDiscontinuedOperations", "중단영업희석주당손익", 0))
+        shares, basis = resolve_shares(rows)
+        self.assertAlmostEqual(shares, 26438908.968838528)
+        self.assertEqual(basis, "DILUTED")
+
+    def test_basic_and_diluted_components_cannot_be_mixed(self):
+        rows = [PARENT_NI,
+                is_("ifrs-full_DilutedEarningsLossPerShareFromContinuingOperations", "계속영업희석주당손익", 700),
+                is_("ifrs-full_BasicEarningsLossPerShareFromDiscontinuedOperations", "중단영업기본주당손익", 0)]
+        with self.assertRaises(SystemExit):
+            resolve_shares(rows)
+
     def test_diluted_is_preferred(self):
         rows = [PARENT_NI,
                 is_("ifrs-full_DilutedEarningsLossPerShare", "희석주당이익(손실)", 700),

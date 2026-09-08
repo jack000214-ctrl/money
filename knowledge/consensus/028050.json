@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "028050",
-  "collected_at": "2026-09-03T13:43:32+09:00",
+  "collected_at": "2026-09-08T09:37:47+09:00",
   "as_of": "2026-08-26",
   "source": "FnGuide via navercomp.wisereport.co.kr",
   "source_grade": "EXPLORATORY",
@@ -9,7 +9,7 @@
     "rating": 4.0,
     "target_price": 68619.0,
     "eps": 3777.0,
-    "per": 11.57,
+    "per": 12.71,
     "institution_count": 21
   },
   "estimates": {
@@ -68,10 +68,10 @@
         "operating_income_100m": 9821.0,
         "net_income_100m": 7403.0,
         "eps": 3777.0,
-        "per": 11.57,
-        "pbr": 1.6,
+        "per": 12.71,
+        "pbr": 1.76,
         "roe_pct": 14.68,
-        "ev_ebitda": 4.96,
+        "ev_ebitda": 5.74,
         "net_debt_ratio_pct": -64.16
       },
       {
@@ -83,10 +83,10 @@
         "operating_income_100m": 11916.0,
         "net_income_100m": 9182.0,
         "eps": 4685.0,
-        "per": 9.33,
-        "pbr": 1.4,
+        "per": 10.25,
+        "pbr": 1.54,
         "roe_pct": 16.02,
-        "ev_ebitda": 3.66,
+        "ev_ebitda": 4.32,
         "net_debt_ratio_pct": -66.47
       }
     ],
@@ -341,11 +341,11 @@
     },
     {
       "as_of": "2026-08-26",
-      "collected_at": "2026-09-03T13:43:32+09:00",
+      "collected_at": "2026-09-08T09:37:47+09:00",
       "rating": 4.0,
       "target_price": 68619.0,
       "eps": 3777.0,
-      "per": 11.57,
+      "per": 12.71,
       "institution_count": 21
     }
   ]

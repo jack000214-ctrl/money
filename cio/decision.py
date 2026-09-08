@@ -60,6 +60,9 @@ PRICE_KEYS = {
     "reask_events",
 }
 TOP_LEVEL_KEYS = {
+    "entry_plan",
+    "entry_plan_checks",
+    "assumption_review",
     "schema_version",
     "assessment_id",
     "context_id",
@@ -210,6 +213,7 @@ EVIDENCE_FAMILY_BY_PREFIX = (
     ("FUNDAMENTALS:", "FINANCIALS"),
     ("KR_INVENTORY:", "FINANCIALS"),
     ("KR_SEGMENTS:", "FINANCIALS"),
+    ("KR_EPC:", "FINANCIALS"),
     ("KR_FLOW:", "FLOW"),
     ("KR_LENDING:", "FLOW"),
     ("FILINGS:", "FILING_INDEX"),
@@ -1621,6 +1625,8 @@ def validate_decision(
         except ContractError as exc:
             errors.extend(exc.errors)
     if context:
+        from cio.assumptions import validate_review
+        errors.extend(validate_review(data, context))
         context_errors = validate_context_integrity(context)
         errors.extend(f"context: {error}" for error in context_errors)
         request = context.get("request") or {}
@@ -1643,6 +1649,8 @@ def validate_decision(
         # 받은 데이터를 다루지 않고 넘어가는 것을 허용하지 않는다. 이익 동인이
         # 아니라는 이유로 수급이 조용히 빠지는 실패가 실제로 있었다.
         packet_body = context.get("context") or {}
+        from cio.entry_plan import validate as validate_entry_plan
+        errors.extend(validate_entry_plan(data, context))
         optional = packet_body.get("structured_optional") or {}
         given = [name for name in ("kr_flow", "kr_lending") if optional.get(name)]
         if given and data.get("positioning") is None:

@@ -1,0 +1,163 @@
+{
+  "schema_version": "cio-assumption-spec/1.0.0",
+  "inputs": {
+    "method": "DCF",
+    "price": 100,
+    "currency": "USD",
+    "horizon_months": 12,
+    "win_return_threshold_pct": 10,
+    "scenarios": {
+      "bear": {
+        "probability_pct": 25,
+        "conditional_win_probability_pct": 5,
+        "growth_pct": -5
+      },
+      "base": {
+        "probability_pct": 50,
+        "conditional_win_probability_pct": 50,
+        "growth_pct": 0
+      },
+      "bull": {
+        "probability_pct": 25,
+        "conditional_win_probability_pct": 95,
+        "growth_pct": 5
+      }
+    },
+    "dcf": {
+      "fcf": 10,
+      "shares": 1,
+      "net_debt": 0,
+      "discount_rate_pct": 10,
+      "terminal_growth_pct": 2,
+      "years": 10
+    }
+  },
+  "comparison": {
+    "basis": "MODEL",
+    "total_return_pct": 10,
+    "rationale": "모델이 선택한 비교 수익률"
+  },
+  "bases": [
+    {
+      "id": "probability_pct",
+      "parameters": [
+        "scenarios.bear.probability_pct",
+        "scenarios.base.probability_pct",
+        "scenarios.bull.probability_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 probability_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "probability_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "conditional_win_probability_pct",
+      "parameters": [
+        "scenarios.bear.conditional_win_probability_pct",
+        "scenarios.base.conditional_win_probability_pct",
+        "scenarios.bull.conditional_win_probability_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 conditional_win_probability_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "conditional_win_probability_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "growth_pct",
+      "parameters": [
+        "scenarios.bear.growth_pct",
+        "scenarios.base.growth_pct",
+        "scenarios.bull.growth_pct"
+      ],
+      "origin": "MODEL_ESTIMATE",
+      "rationale": "설명용 growth_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [
+        "FUNDAMENTALS:ASSET"
+      ],
+      "revisit_when": "growth_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "fcf",
+      "parameters": [
+        "dcf.fcf"
+      ],
+      "origin": "MODEL_ESTIMATE",
+      "rationale": "설명용 fcf 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [
+        "FUNDAMENTALS:ASSET"
+      ],
+      "revisit_when": "fcf를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "shares",
+      "parameters": [
+        "dcf.shares"
+      ],
+      "origin": "OBSERVED",
+      "rationale": "설명용 shares 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [
+        "FUNDAMENTALS:ASSET"
+      ],
+      "revisit_when": "shares를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "net_debt",
+      "parameters": [
+        "dcf.net_debt"
+      ],
+      "origin": "OBSERVED",
+      "rationale": "설명용 net_debt 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [
+        "FUNDAMENTALS:ASSET"
+      ],
+      "revisit_when": "net_debt를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "discount_rate_pct",
+      "parameters": [
+        "dcf.discount_rate_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 discount_rate_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "discount_rate_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "terminal_growth_pct",
+      "parameters": [
+        "dcf.terminal_growth_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 terminal_growth_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "terminal_growth_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "years",
+      "parameters": [
+        "dcf.years"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 years 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "years를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    }
+  ],
+  "tests": [
+    {
+      "id": "higher_discount",
+      "changes": {
+        "dcf.discount_rate_pct": 12
+      },
+      "rationale": "설명용 대체값. 모델이 실제로 타당한 범위를 선택한다."
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "required_growth",
+      "parameter": "scenarios.base.growth_pct",
+      "low": -20,
+      "high": 20
+    }
+  ]
+}

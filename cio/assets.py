@@ -24,6 +24,7 @@ OPTIONAL_COLLECTORS_BY_ROUTE = {
         "KR_INVENTORY",
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS",
+        "KR_EPC",
     },
     # 미국에는 수급·대차·재고 수집기가 없다(공개 경로가 다르다). 정상화
     # 이익은 시장과 무관한 계산이며 EDGAR 분기 시계열로 같은 값을 낼 수

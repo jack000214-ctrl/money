@@ -1,0 +1,127 @@
+{
+  "schema_version": "cio-assumption-spec/1.0.0",
+  "inputs": {
+    "method": "EARNINGS_MULTIPLE",
+    "price": 100,
+    "currency": "USD",
+    "horizon_months": 12,
+    "win_return_threshold_pct": 10,
+    "scenarios": {
+      "bear": {
+        "eps": 10,
+        "multiple": 5,
+        "cash_distribution": 0,
+        "probability_pct": 25,
+        "conditional_win_probability_pct": 5
+      },
+      "base": {
+        "eps": 15,
+        "multiple": 8,
+        "cash_distribution": 0,
+        "probability_pct": 50,
+        "conditional_win_probability_pct": 50
+      },
+      "bull": {
+        "eps": 20,
+        "multiple": 10,
+        "cash_distribution": 0,
+        "probability_pct": 25,
+        "conditional_win_probability_pct": 95
+      }
+    }
+  },
+  "comparison": {
+    "basis": "MODEL",
+    "total_return_pct": 10,
+    "rationale": "모델이 선택한 비교 수익률"
+  },
+  "bases": [
+    {
+      "id": "eps",
+      "parameters": [
+        "scenarios.bear.eps",
+        "scenarios.base.eps",
+        "scenarios.bull.eps"
+      ],
+      "origin": "MODEL_ESTIMATE",
+      "rationale": "설명용 eps 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [
+        "FUNDAMENTALS:ASSET"
+      ],
+      "revisit_when": "eps를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "multiple",
+      "parameters": [
+        "scenarios.bear.multiple",
+        "scenarios.base.multiple",
+        "scenarios.bull.multiple"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 multiple 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "multiple를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "cash_distribution",
+      "parameters": [
+        "scenarios.bear.cash_distribution",
+        "scenarios.base.cash_distribution",
+        "scenarios.bull.cash_distribution"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 cash_distribution 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "cash_distribution를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "probability_pct",
+      "parameters": [
+        "scenarios.bear.probability_pct",
+        "scenarios.base.probability_pct",
+        "scenarios.bull.probability_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 probability_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "probability_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    },
+    {
+      "id": "conditional_win_probability_pct",
+      "parameters": [
+        "scenarios.bear.conditional_win_probability_pct",
+        "scenarios.base.conditional_win_probability_pct",
+        "scenarios.bull.conditional_win_probability_pct"
+      ],
+      "origin": "MODEL_CHOICE",
+      "rationale": "설명용 conditional_win_probability_pct 값이다. 실제 기준 기간·관측 자료·추정 조정 또는 선택 이유로 바꾼다.",
+      "evidence_refs": [],
+      "revisit_when": "conditional_win_probability_pct를 다시 정할 구체적인 관측 조건과 확인 경로로 바꾼다."
+    }
+  ],
+  "tests": [
+    {
+      "id": "lower_multiple",
+      "changes": {
+        "scenarios.base.multiple": 6
+      },
+      "rationale": "성장 프리미엄 축소"
+    },
+    {
+      "id": "risk_shift",
+      "changes": {
+        "scenarios.bear.probability_pct": 30,
+        "scenarios.base.probability_pct": 45
+      },
+      "rationale": "하방 불확실성 증가"
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "required_multiple",
+      "parameter": "scenarios.base.multiple",
+      "low": 1,
+      "high": 20
+    }
+  ]
+}

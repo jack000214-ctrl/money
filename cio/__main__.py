@@ -56,6 +56,23 @@ def cmd_assets(_args) -> int:
     return 0
 
 
+def cmd_assumptions(args) -> int:
+    from cio.assumptions import REPORT_ID, create_analysis, format_analysis, load_analysis, report_path
+    if REPORT_ID.fullmatch(args.input):
+        if not args.asset:
+            raise ValueError("저장된 가정 분석 조회에는 --asset이 필요하다")
+        header = load_json(report_path(args.asset, args.input))
+        context, _ = find_context(header["context_id"])
+        report = load_analysis(args.asset, args.input, context)
+    else:
+        if not args.context:
+            raise ValueError("가정 계산에는 --context CTX-...가 필요하다")
+        context, _ = find_context(args.context)
+        report = create_analysis(load_json(args.input), context)
+    print(json.dumps(report, ensure_ascii=False, indent=2) if args.json else format_analysis(report))
+    return 0
+
+
 def cmd_register(args) -> int:
     etf = None
     if args.asset_type == "ETF":
@@ -120,6 +137,8 @@ def cmd_prepare(args) -> int:
         intent=args.intent,
         review_quantity=args.quantity,
         target_quantity=args.target_quantity,
+        held_quantity=args.held_quantity,
+        average_cost=args.average_cost,
         verbatim=args.verbatim,
         claims=args.claim,
         save=not args.no_save,
@@ -129,6 +148,14 @@ def cmd_prepare(args) -> int:
     else:
         print(f"context_id: {packet['context_id']}")
         print(f"validation: {packet['validation']['status']}")
+        readiness = packet["validation"].get("readiness") or {}
+        position_ready = readiness.get("position_action") or {}
+        if position_ready:
+            print(f"position_action: {position_ready['status']}")
+            for problem in position_ready.get("problems") or []:
+                print(f"  - {problem}")
+        if (packet.get("request") or {}).get("position_input"):
+            print("position_basis: USER_INPUT (이번 질문의 조건이며 실제 잔고 확인이 아님)")
         for problem in packet["validation"]["problems"]:
             print(f"  - {problem}")
         if path:
@@ -361,6 +388,13 @@ def build_parser() -> argparse.ArgumentParser:
     assets = sub.add_parser("assets", help="등록된 자산 보기")
     assets.set_defaults(func=cmd_assets)
 
+    assumptions = sub.add_parser("assumptions", help="가정의 근거·대체 계산·수익률 경계값 저장과 조회")
+    assumptions.add_argument("input", help="가정 spec JSON 파일 또는 저장된 ASM-... ID")
+    assumptions.add_argument("--context", help="계산이 참조할 저장된 CTX-... ID")
+    assumptions.add_argument("--asset", help="저장된 가정 분석을 조회할 종목")
+    assumptions.add_argument("--json", action="store_true")
+    assumptions.set_defaults(func=cmd_assumptions)
+
     register = sub.add_parser("register", help="새 KR/US 주식 또는 ETF 등록")
     register.add_argument("asset_id")
     register.add_argument("--name", required=True)
@@ -417,6 +451,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-quantity",
         type=float,
         help="목표 잔여 수량. --quantity 대신 쓴다",
+    )
+    prepare.add_argument(
+        "--held-quantity", type=float,
+        help="이번 보유분 검토의 보유수량. 사용자 입력으로 보존하며 원장은 변경하지 않는다",
+    )
+    prepare.add_argument(
+        "--average-cost", type=float,
+        help="이번 질문의 평단(자산 통화). --held-quantity와 함께 준다",
     )
     prepare.add_argument(
         "--verbatim",

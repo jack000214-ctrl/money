@@ -10,6 +10,7 @@ import unittest
 from calculators.contracts import ContractError
 from cio.context import _reporting_lag
 from collectors.dart import (
+    DART_FILING_TYPES,
     classify_dart_form,
     dart_report_date,
     filing_rows_from_list,
@@ -37,6 +38,11 @@ def row(**overrides):
 
 
 class TestFormClassification(unittest.TestCase):
+    def test_issuance_disclosures_are_collected_and_material(self):
+        self.assertIn("C", [code for code, _ in DART_FILING_TYPES])
+        for name in ("[발행조건확정]증권신고서(지분증권)", "투자설명서"):
+            self.assertEqual(classify_dart_form(name), "MATERIAL_EVENT")
+
     def test_periodic_reports(self):
         self.assertEqual(classify_dart_form("사업보고서 (2025.12)"), "ANNUAL_REPORT")
         self.assertEqual(classify_dart_form("반기보고서 (2026.06)"), "HALF_REPORT")
