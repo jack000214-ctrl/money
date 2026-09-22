@@ -47,6 +47,75 @@ from cio.paths import KNOWLEDGE_DIR
 SCHEMA_VERSION = "position-math/1.0.0"
 COMPONENT = "position/ledger"
 
+
+def position_value_by_currency(
+    *, quantity: float, price: float, asset_currency: str,
+    average_cost: float | None, cost_currency: str,
+    fx_krw_per_usd: float | None, fx_as_of: str | None,
+) -> dict[str, Any]:
+    """Keep acquisition cost in its stated currency; FX only values today's holding.
+
+    A current FX rate cannot reconstruct the historical cost in the other currency.
+    A translated USD gain therefore is not the investor's historical KRW gain.
+    """
+    fx = fx_krw_per_usd
+    try:
+        dt.date.fromisoformat(fx_as_of or "")
+        dated_fx = fx is not None and math.isfinite(fx) and fx > 0
+    except (TypeError, ValueError):
+        dated_fx = False
+    if not dated_fx:
+        fx = None
+
+    value = quantity * price
+    value_krw = value if asset_currency == "KRW" else value * fx if fx else None
+    value_usd = value if asset_currency == "USD" else value / fx if fx else None
+    cost = quantity * average_cost if average_cost is not None else None
+    native_cost = cost if cost_currency == asset_currency else None
+    krw_cost = cost if cost_currency == "KRW" else None
+    native_pnl = value - native_cost if native_cost is not None else None
+    krw_pnl = value_krw - krw_cost if value_krw is not None and krw_cost is not None else None
+    cost_currency_value = value_krw if cost_currency == "KRW" else value_usd if cost_currency == "USD" else None
+    cost_currency_pnl = cost_currency_value - cost if cost_currency_value is not None and cost is not None else None
+    break_even = (
+        average_cost if cost_currency == asset_currency else
+        average_cost / fx if asset_currency == "USD" and cost_currency == "KRW" and fx else
+        average_cost * fx if asset_currency == "KRW" and cost_currency == "USD" and fx else None
+    ) if average_cost is not None else None
+
+    def rounded(value: float | None, digits: int = 2) -> float | None:
+        return round(value, digits) if value is not None else None
+
+    return {
+        "average_cost": average_cost,
+        "average_cost_currency": cost_currency,
+        "asset_currency": asset_currency,
+        "average_cost_asset_currency": average_cost if cost_currency == asset_currency else None,
+        "value_at_review_price": rounded(value),
+        "cost_basis": rounded(native_cost),
+        "unrealized_pnl": rounded(native_pnl),
+        "value_at_review_price_krw": rounded(value_krw),
+        "cost_basis_krw": rounded(krw_cost),
+        "unrealized_pnl_krw": rounded(krw_pnl),
+        "unrealized_pnl_pct": rounded(cost_currency_pnl / cost * 100)
+        if cost_currency_pnl is not None and cost and cost > 0 else None,
+        "unrealized_pnl_return_currency": cost_currency,
+        "usd_pnl_at_current_fx_krw": rounded(cost_currency_pnl * fx)
+        if cost_currency == "USD" and cost_currency_pnl is not None and fx else None,
+        "break_even_price_at_current_fx": rounded(break_even, 6),
+        "fx_krw_per_usd": fx,
+        "fx_as_of": fx_as_of if dated_fx else None,
+        "_currency_note": (
+            "평단·수익률은 average_cost_currency 기준이며 cost_basis·unrealized_pnl은 자산 통화다. "
+            "취득원가를 다른 통화로 복원할 과거 환율은 없다. 현재 환율은 평가액과 "
+            "현재 환율 유지 시 손익분기 가격에만 사용하며 달러 취득평단을 만들지 않는다. "
+            "fx_as_of는 환율 관측일이며 당일 현물환 값은 장중 변동할 수 있다. "
+            "usd_pnl_at_current_fx_krw는 달러 손익의 현재 환산액으로 실제 원화 손익이 아니다. "
+            "세금·수수료·환전 비용은 제외한다"
+        ),
+    }
+
+
 TRADES_DIR = KNOWLEDGE_DIR / "portfolio" / "trades"
 HOLDINGS = KNOWLEDGE_DIR / "portfolio" / "holdings.csv"
 

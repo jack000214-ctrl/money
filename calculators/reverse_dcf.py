@@ -23,6 +23,7 @@
 
 import argparse
 import json
+import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -189,9 +190,11 @@ def resolve_inputs(a):
     숫자가 손으로 친 값이면 뒤의 지문은 지어낸 값의 지문일 뿐이다. 그래서
     기본 경로는 원문 스냅샷이고, 손입력은 사유를 남겨야만 허용한다.
     """
+    shares_reason = (getattr(a, "shares_reason", None) or "").strip()
+    if shares_reason and a.shares is None:
+        fail("--shares-reason 은 --shares 와 함께 준다")
     if a.fundamentals:
-        for flag, value in (("--fcf", a.fcf), ("--shares", a.shares),
-                            ("--net-debt", a.net_debt)):
+        for flag, value in (("--fcf", a.fcf), ("--net-debt", a.net_debt)):
             if value is not None:
                 fail(f"--fundamentals 와 {flag} 를 함께 줄 수 없다. "
                      "스냅샷 값을 손으로 덮어쓰면 출처 고정이 무의미해진다")
@@ -205,10 +208,31 @@ def resolve_inputs(a):
             fail(f"스냅샷은 {snapshot['instrument_id']} 것인데 "
                  f"--instrument 는 {a.instrument} 다")
         values = snapshot["values"]
-        a.shares = values["shares_diluted"]
+        selected_shares = a.shares
+        share_basis = snapshot.get("share_count_basis") or {}
+        share_tag = (snapshot.get("tags") or {}).get("shares")
+        # EPS 분모와 가치평가 분모는 다르다. 공시값이라는 이유만으로 과거
+        # 가중평균을 현재/미래 주식수로 승격하지 않는다. 구버전 스냅샷에는
+        # basis가 없으므로 그 경우도 모델이 기준을 명시적으로 선택한다.
+        current_outstanding = (
+            share_basis.get("is_current_outstanding") is True
+            and not str(share_basis.get("kind", "")).startswith("WEIGHTED_AVERAGE")
+            and not str(share_tag or "").startswith("WeightedAverage")
+        )
+        if selected_shares is None:
+            if not current_outstanding:
+                fail("스냅샷 주식수는 EPS 분모이거나 현재 발행주식수인지 확인되지 "
+                     "않았다. 가치평가에 쓸 주식수를 --shares 로 명시하고 "
+                     "--shares-reason 에 출처·기준일·선택 이유를 남긴다")
+            a.shares = values["shares_diluted"]
+        elif not math.isfinite(selected_shares) or selected_shares <= 0:
+            fail("--shares 는 0보다 큰 유한한 숫자여야 한다")
+        elif not shares_reason:
+            fail("--fundamentals 와 --shares 를 함께 쓰면 --shares-reason 에 "
+                 "출처·기준일·가치평가 분모로 선택한 이유가 필요하다")
         a.net_debt = values["net_debt"]
         provenance = {
-            "verified": True,
+            "verified": selected_shares is None,
             # 출처를 스냅샷이 스스로 말하게 한다. 여기에 "edgar_fundamentals" 를
             # 박아두면 DART 원문에서 만든 스냅샷도 EDGAR 라고 기록돼, 나중에
             # 어느 원문에서 온 값인지 감사할 수 없다.
@@ -219,6 +243,16 @@ def resolve_inputs(a):
             "period_end": snapshot["period_end"],
             # 파일 해시까지 지문에 넣는다. 스냅샷이 바뀌면 계산 ID 가 바뀐다.
             "fundamentals_sha256": content_hash(a.fundamentals),
+            "share_count": {
+                "origin": "MODEL_CHOICE" if selected_shares is not None else "SNAPSHOT",
+                "selected_shares": a.shares,
+                "snapshot_shares": values["shares_diluted"],
+                "snapshot_basis": share_basis or None,
+                "snapshot_tag": share_tag,
+                "reason": shares_reason or None,
+                "_note": "공시 스냅샷의 FCF·순부채는 유지한다. 명시적으로 선택한 "
+                    "주식수의 출처와 적합성은 모델이 확인하며 PC가 인증하지 않는다",
+            },
         }
         return values["fcf_ttm"], provenance
 
@@ -244,6 +278,11 @@ def resolve_inputs(a):
              "않는다")
     provenance = {"verified": False, "source": "manual",
                   "reason": a.inputs_unverified_reason}
+    if shares_reason:
+        provenance["share_count"] = {
+            "origin": "MODEL_CHOICE", "selected_shares": a.shares,
+            "reason": shares_reason,
+        }
     return fcf, provenance
 
 
@@ -297,7 +336,7 @@ def implied_answer(a, fcf):
 
 
 def cmd_implied(a):
-    fcf, _ = resolve_inputs(a)
+    fcf, provenance = resolve_inputs(a)
     validate_common(a)
     check_fcf_sign(fcf)
     result = implied_answer(a, fcf)
@@ -307,7 +346,8 @@ def cmd_implied(a):
 
     if a.json:
         print(json.dumps({"solve_for": a.solve_for, "value": shown,
-                          "status": status}, ensure_ascii=False))
+                          "status": status,
+                          "inputs": build_inputs(a, fcf, provenance)}, ensure_ascii=False))
         return 0
 
     print("=" * 74)
@@ -316,6 +356,8 @@ def cmd_implied(a):
     print(f"현재가        {a.price:>16,.2f}")
     print(f"FCF           {fcf:>16,.0f}")
     print(f"주식수        {a.shares:>16,.0f}")
+    if (provenance.get("share_count") or {}).get("reason"):
+        print(f"주식수 근거   {provenance['share_count']['reason']}")
     print(f"순부채        {a.net_debt:>16,.0f}")
     print(f"할인율        {a.discount_rate:>16,.2f}%")
     print(f"영구성장      {a.terminal_growth:>16,.2f}%   1단계 {a.years}년")
@@ -411,6 +453,10 @@ def render_scenarios(a, fcf, calculation):
     print("=" * 74)
     print(f"현재가        {a.price:>16,.2f}")
     print(f"FCF           {fcf:>16,.0f}")
+    print(f"주식수        {a.shares:>16,.0f}")
+    share_count = calculation["inputs"]["input_provenance"].get("share_count") or {}
+    if share_count.get("reason"):
+        print(f"주식수 근거   {share_count['reason']}")
     print(f"할인율 {a.discount_rate:.2f}%   영구성장 {a.terminal_growth:.2f}%   "
           f"1단계 {a.years}년   수렴가정 {a.horizon_months}개월")
 
@@ -443,10 +489,13 @@ def main():
     def shared(sp):
         sp.add_argument("--instrument", required=True, help="종목 ID (TSLA / 214450)")
         sp.add_argument("--price", type=float, required=True, help="주당 현재가")
-        # 기본 경로. FCF·주식수·순부채를 원문 스냅샷에서 읽고 지문에 박는다.
+        # FCF·순부채는 스냅샷에 고정하고, 주식수의 기준은 별도로 확인한다.
         sp.add_argument("--fundamentals",
                         help="edgar_fetch fundamentals 가 만든 입력 스냅샷 경로")
-        sp.add_argument("--shares", type=float, help="희석 주식수 (손입력 경로)")
+        sp.add_argument("--shares", type=float, help="모델이 선택한 가치평가 주식수")
+        sp.add_argument("--shares-reason",
+                        help="주식수의 출처·기준일·선택 이유. --fundamentals 와 "
+                             "--shares 를 함께 쓰면 필수이며 PC 인증을 뜻하지 않는다")
         # 지수표기 음수(-30e9)는 argparse 가 옵션으로 읽는다. '=' 로 붙여야 한다.
         sp.add_argument("--net-debt", type=float,
                         help="순부채. 순현금이면 음수 (--net-debt=-30e9 처럼 = 로 붙인다)")

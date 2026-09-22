@@ -353,10 +353,12 @@ def _build_packet(
     *,
     intent,
     amount,
+    asset_id="214450",
     review_quantity=None,
     target_quantity=None,
     held_quantity=None,
     average_cost=None,
+    average_cost_currency=None,
     stale_ledger=False,
     portfolio=(),
     filings=None,
@@ -437,7 +439,7 @@ def _build_packet(
         patch("cio.context.inspect_plan", return_value=plan),
     ):
         packet, _path = build_context(
-            "214450",
+            asset_id,
             price=price_value,
             amount=amount,
             amount_currency=amount_currency,
@@ -446,6 +448,7 @@ def _build_packet(
             target_quantity=target_quantity,
             held_quantity=held_quantity,
             average_cost=average_cost,
+            average_cost_currency=average_cost_currency,
             save=False,
         )
     return packet

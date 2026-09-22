@@ -16,16 +16,19 @@
 
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from calculators.contracts import fundamentals_id_for, validate_fundamentals
 from cio.assets import OPTIONAL_COLLECTORS_BY_ROUTE, get_asset
-from cio.context import _data_coverage
+from cio.context import _data_coverage, _latest_fundamentals
 from test_fundamentals import valid_fundamentals
 
 
@@ -167,6 +170,31 @@ class TestCoverageIsStatedNotImplied(unittest.TestCase):
         self.assertEqual(row["state"], "AVAILABLE")
         self.assertEqual(row["basis"], "BASIC_NO_DILUTED_DISCLOSED")
         self.assertIn("추이", row["note"])
+
+    def test_us_packet_preserves_weighted_shares_and_lease_accounting_basis(self):
+        basis = {
+            "kind": "WEIGHTED_AVERAGE_DILUTED_EPS",
+            "period_start": "2026-04-01",
+            "period_end": "2026-06-30",
+            "is_current_outstanding": False,
+        }
+        data = valid_fundamentals(
+            eps_basis="DILUTED", share_count_basis=basis,
+            debt_by_category={"LEASE": 100.0},
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            knowledge = Path(tmp)
+            (knowledge / "fundamentals").mkdir()
+            (knowledge / "fundamentals" / "TSLA-2026-06-30.json").write_text(
+                json.dumps(data), encoding="utf-8"
+            )
+            with patch("cio.context.KNOWLEDGE_DIR", knowledge), patch("cio.context.ROOT", knowledge):
+                summary, _ = _latest_fundamentals(get_asset("TSLA"))
+        self.assertEqual(summary["share_count_basis"], basis)
+        self.assertIn("ASC842", summary["debt_by_category"]["_role"])
+        self.assertNotIn("IFRS16", summary["debt_by_category"]["_role"])
+        coverage = self._coverage("TSLA", structured_optional={}, fundamentals=summary)
+        self.assertFalse(coverage["dilution"]["share_count_basis"]["is_current_outstanding"])
 
     def test_peer_multiples_without_registered_peers(self):
         coverage = self._coverage("005930", structured_optional={}, fundamentals={})

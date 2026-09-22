@@ -60,6 +60,26 @@ proposed_trade: 40,000,000원 → 803주, 매수 후 비중 27.76%
 `position_action: PASS`는 **명시된 조건 안에서 수량을 대조할 수 있다**는 뜻이며
 실제 잔고 인증이 아니다. 원장 부재·낡음은 조건부 분석을 막지 않는다.
 
+`--average-cost-currency KRW|USD`는 평단의 실제 표시 통화이며 생략하면 자산 통화다.
+예를 들어 미국 주식 100주와 원화 평단 6,000원은 `--held-quantity 100
+--average-cost 6000 --average-cost-currency KRW`로 보존한다. `request.position_input`
+및 `existing_position.average_cost_currency`가 그 통화를 표시한다. 원장과 통화가
+다르면 `average_cost_comparable=false`, `average_cost_matches=null`이다.
+
+평가액은 날짜가 있는 환율로 환산할 수 있지만 **과거 취득원가는 현재 환율로 복원할
+수 없다.** 원화 평단만 있으면 `cost_basis_krw`와 원화 손익을 계산하고 달러
+`average_cost_asset_currency`·`cost_basis`·`unrealized_pnl`은 null이다. 달러 평단만
+있으면 달러 원가·손익을 계산하고 실제 `cost_basis_krw`·`unrealized_pnl_krw`는 null이다.
+`usd_pnl_at_current_fx_krw`는 달러 손익의 현재 환산액일 뿐 실제 원화 투자손익이 아니다.
+`unrealized_pnl_pct`는 `unrealized_pnl_return_currency` 기준이며,
+`break_even_price_at_current_fx`는 현재 환율이 유지된다는 조건의 자산 통화 가격이지
+달러 취득평단이나 투자 가치평가가 아니다. 환율이 없거나 날짜가 없으면 필요한 환산
+산술만 null로 두며 보유수량 대조 자체를 막지 않는다.
+
+로컬 보유 스냅샷의 `(value_krw - pnl_krw) / quantity`도 원화 평단이다. 미국 자산이라고
+현재 환율로 나누어 달러 취득평단으로 표시하지 않는다. 거래 원장의 달러 평단은
+별도 경로이며 두 통화의 평단을 합치지 않는다.
+
 원장·과거 거래·정책 파일은 바꾸지 않으며 원장의 실현손익을 시나리오에 붙이지 않는다.
 총자산·현금·계좌 비중은 null이다. 추가 보유분의 매수 자금이나 매도 이력을 모르는데
 계좌 분모를 추정하면 금액 제한 검사까지 잘못 통과하기 때문이다. 사용자 입력을

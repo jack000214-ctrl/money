@@ -335,10 +335,15 @@ def documents_for(asset_id: str) -> dict[str, Any]:
             available.append({
                 **entry,
                 "description": record.get("label"),
-                "filing_date": str(record.get("fetched_at") or "")[:10],
+                # 받은 날짜는 공개일이 아니다. 오래된 임상 발표를 오늘
+                # 보존했다고 오늘의 새 공시처럼 표시하면 촉매를 잘못 읽는다.
+                "filing_date": None,
                 "form": "WEB_SNAPSHOT",
             })
-    available.sort(key=lambda item: str(item.get("filing_date") or ""), reverse=True)
+    available.sort(
+        key=lambda item: str(item.get("filing_date") or item.get("fetched_at") or ""),
+        reverse=True,
+    )
     return {
         "asset_id": asset_id,
         "available": available,
@@ -400,6 +405,7 @@ def _run(
                 "doc_id": entry["doc_id"],
                 "title": entry.get("title") or entry.get("description"),
                 "filing_date": entry.get("filing_date"),
+                "fetched_at": entry.get("fetched_at"),
                 "form": entry.get("form"),
                 "offset": match.start(),
                 "matched": match.group(0)[:120],
@@ -524,6 +530,9 @@ def documents_for_context(asset_id: str) -> dict[str, Any] | None:
             "회사 구조에 관한 사실은 웹을 검색하기 전에 여기서 먼저 찾는다. "
             "not_fetched_total 은 공시 색인에는 있으나 아직 원문을 받지 않은 "
             "문서 수이며 `python3.13 -m cio docs <asset_id>` 로 목록을 본다"
+            ". filing_date는 공시 색인에서 확인한 제출일이고 fetched_at은 원문을 "
+            "받은 시각이다. filing_date가 null인 웹 원문의 공개일은 미확인이며 "
+            "수집일로 대체하지 않는다"
         ),
     }
 
@@ -538,12 +547,20 @@ def _context_entry(entry: dict[str, Any]) -> dict[str, Any]:
     row = {
         "doc_id": entry["doc_id"],
         "filing_date": entry.get("filing_date"),
+        "fetched_at": entry.get("fetched_at"),
         "description": entry.get("description") or entry.get("title"),
         "chars": entry["text_chars"],
     }
     if entry.get("url"):
         row["url"] = entry["url"]
     return row
+
+
+def _date_label(entry: dict[str, Any]) -> str:
+    if entry.get("filing_date"):
+        return f"공시 {entry['filing_date']}"
+    fetched = str(entry.get("fetched_at") or "")[:10]
+    return "공개일 미확인" + (f" · 수집 {fetched}" if fetched else "")
 
 
 def format_search(result: dict[str, Any]) -> str:
@@ -556,7 +573,7 @@ def format_search(result: dict[str, Any]) -> str:
         lines.append(f"※ {result['returned']}건만 표시했다. 검색어를 좁히면 더 정확해진다")
     lines.append("")
     for hit in result["hits"]:
-        head = f"{hit['doc_id']}  {hit.get('filing_date') or ''}  {hit.get('title') or ''}"
+        head = f"{hit['doc_id']}  {_date_label(hit)}  {hit.get('title') or ''}"
         lines.append(head.strip())
         lines.append(f"  …{hit['excerpt']}…")
         lines.append("")
@@ -577,7 +594,7 @@ def format_documents(catalog: dict[str, Any]) -> str:
     lines = [f"{catalog['asset_id']} 검색 가능한 원문 {len(catalog['available'])}건", ""]
     for entry in catalog["available"]:
         lines.append(
-            f"  {entry['doc_id']:<28} {entry.get('filing_date') or '':<12}"
+            f"  {entry['doc_id']:<28} {_date_label(entry)}  "
             f"{entry['text_chars']:>9,}자  {entry.get('description') or entry.get('title') or ''}"
         )
     if catalog["missing"]:

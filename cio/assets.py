@@ -5,6 +5,7 @@ import math
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from calculators.contracts import write_json
 from cio.paths import CONFIG_DIR
@@ -156,6 +157,18 @@ def validate_asset(asset_id: str, asset: Any) -> None:
     if len(peer_ids) != len(set(peer_ids)):
         raise AssetRegistryError(f"{asset_id}: peers에 중복이 있다")
 
+    ir_sources = asset.get("ir_sources", [])
+    if not isinstance(ir_sources, list) or len(ir_sources) > 8 or any(not isinstance(url, str) for url in ir_sources):
+        raise AssetRegistryError(f"{asset_id}: ir_sources는 최대8개의 공식 IR HTTPS URL 배열이어야 한다")
+    if len(ir_sources) != len(set(ir_sources)):
+        raise AssetRegistryError(f"{asset_id}: ir_sources에 중복이 있다")
+    for url in ir_sources:
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+            raise AssetRegistryError(f"{asset_id}: ir_sources는 인증정보 없는 HTTPS URL이어야 한다")
+    if ir_sources and (asset["market"], asset["asset_type"]) != ("US", "STOCK"):
+        raise AssetRegistryError(f"{asset_id}: ir_sources는 미국 주식 수집 경로에서만 지원한다")
+
     optional_collectors = asset.get("optional_collectors", [])
     if (
         not isinstance(optional_collectors, list)
@@ -268,6 +281,7 @@ def register_asset(
     valuation_family: list[str],
     benchmarks: list[str],
     filing_source: str | None = None,
+    ir_sources: list[str] | None = None,
     etf: dict[str, Any] | None = None,
     path: Path = REGISTRY_PATH,
 ) -> dict[str, Any]:
@@ -293,6 +307,8 @@ def register_asset(
             market
         )
         profile["filing_profile"] = FILING_PROFILE_BY_MARKET.get(market)
+    if ir_sources:
+        profile["ir_sources"] = ir_sources
     if asset_type == "ETF":
         profile["etf"] = etf or {
             "strategy": "UNKNOWN",

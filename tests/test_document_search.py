@@ -359,6 +359,27 @@ class TestUsFilingLinkage(unittest.TestCase):
         self.assertEqual(result["total_matches"], 1)
         self.assertIn("cio snapshot", result["_note"])
 
+    def test_unlinked_snapshot_never_promotes_retrieval_to_publication(self):
+        # 같은 SEC 호스트의 첨부자료도 제출 색인에 일치하지 않으면 공개일을
+        # 아직 확인한 것이 아니다. 오늘 받은 옛 자료를 오늘 공시로 만들지 않는다.
+        (documents_module.KNOWLEDGE_DIR / "filings" / "TSLA.json").unlink()
+        catalog = documents_module.documents_for("TSLA")
+        entry = catalog["available"][0]
+        self.assertIsNone(entry["filing_date"])
+        self.assertEqual(entry["fetched_at"], "2026-07-30T00:00:00+00:00")
+        context_row = documents_for_context("TSLA")["searchable"][0]
+        self.assertIsNone(context_row["filing_date"])
+        self.assertEqual(context_row["fetched_at"], entry["fetched_at"])
+        result = search_asset("TSLA", "Total revenues")
+        self.assertIsNone(result["hits"][0]["filing_date"])
+        for text in (
+            documents_module.format_documents(catalog),
+            documents_module.format_search(result),
+        ):
+            self.assertIn("공개일 미확인", text)
+            self.assertIn("수집 2026-07-30", text)
+            self.assertNotIn("공시 2026-07-30", text)
+
 
 class TestContextBlock(DocumentSearchTest):
     def test_block_names_documents_without_carrying_their_body(self):

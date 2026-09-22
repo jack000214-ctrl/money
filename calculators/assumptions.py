@@ -6,10 +6,10 @@ import re
 
 from calculators.reverse_dcf import equity_value_per_share
 
-VERSION = "1.0.0"
+VERSION = "1.2.0"
 SCHEMA = "cio-assumption-spec/1.0.0"
 NAMES = ("bear", "base", "bull")
-METHODS = {"EARNINGS_MULTIPLE", "DCF"}
+METHODS = {"EARNINGS_MULTIPLE", "DCF", "EQUITY_BRIDGE", "EVENT_PRICE"}
 ID = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 
 
@@ -77,17 +77,35 @@ def calculate(inputs):
         if not isinstance(dcf["years"], int):
             raise AssumptionError("DCF years: 정수여야 한다")
     elif "dcf" in inputs:
-        raise AssumptionError("EARNINGS_MULTIPLE에 dcf 입력을 섞을 수 없다")
+        raise AssumptionError("DCF 이외의 방법에 dcf 입력을 섞을 수 없다")
     output = {}
     for name in NAMES:
         row = inputs["scenarios"][name]
         fields = {"probability_pct", "conditional_win_probability_pct"}
-        fields |= {"eps", "multiple", "cash_distribution"} if dcf is None else {"growth_pct"}
+        if inputs["method"] == "EQUITY_BRIDGE":
+            fields |= {"enterprise_value", "cash", "debt", "shares"}
+        elif inputs["method"] == "EVENT_PRICE":
+            fields |= {"terminal_price", "cash_distribution"}
+        else:
+            fields |= {"eps", "multiple", "cash_distribution"} if dcf is None else {"growth_pct"}
         keys(row, fields, label=f"scenarios.{name}")
         number(row["probability_pct"], "probability_pct", positive=True, high=100)
         number(row["conditional_win_probability_pct"], "conditional_win_probability_pct", low=0, high=100)
         try:
-            if dcf is None:
+            if inputs["method"] == "EVENT_PRICE":
+                value = number(row["terminal_price"], "terminal_price", low=0)
+                terminal_wealth = value + number(row["cash_distribution"], "cash_distribution", low=0)
+            elif inputs["method"] == "EQUITY_BRIDGE":
+                # Model-selected horizon values, in one currency and share unit.
+                # Cash is AFTER burn/funding; financing must also change shares.
+                for field in ("enterprise_value", "cash", "debt"):
+                    number(row[field], field, low=0)
+                number(row["shares"], "shares", positive=True)
+                raw_value = (row["enterprise_value"] + row["cash"] - row["debt"]) / row["shares"]
+                number(raw_value, "raw_equity_value_per_share")
+                value = max(0, raw_value)
+                terminal_wealth = value
+            elif dcf is None:
                 number(row["eps"], "eps", positive=True)
                 number(row["multiple"], "multiple", positive=True)
                 number(row["cash_distribution"], "cash_distribution", low=0)
@@ -111,7 +129,7 @@ def calculate(inputs):
         except (OverflowError, ZeroDivisionError) as exc:
             raise AssumptionError("가정에서 유한한 계산 결과가 나오지 않는다") from exc
         output[name] = {"value_per_share": value, "total_return_pct": total, "annualized_return_pct": annual}
-        if dcf is not None:
+        if dcf is not None or inputs["method"] == "EQUITY_BRIDGE":
             output[name]["raw_equity_value_per_share"] = raw_value
     if not math.isclose(sum(row["probability_pct"] for row in inputs["scenarios"].values()), 100, abs_tol=1e-8):
         raise AssumptionError("시나리오 확률의 합은 100이어야 한다")

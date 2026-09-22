@@ -108,6 +108,7 @@ CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment",
 INCOME_QUARTERS = 8   # 전년 동기 비교에 필요한 최소 분기 수
 SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding",
                "WeightedAverageNumberOfDilutedSharesOutstandingBasic"]
+PERIODIC_FORMS = {"10-Q", "10-K", "10-Q/A", "10-K/A"}
 
 
 def resolve_us_debt(points_by_tag, period_end):
@@ -345,13 +346,13 @@ def resolve(ticker, ua, refresh=False):
     return m[t]
 
 
-def concept(cik, tags, ua, unit="USD"):
+def concept(cik, tags, ua, unit="USD", as_of=None):
     """회사별 태그 교체를 고려해 가장 최근 사실이 있는 후보를 고른다."""
     best_tag, best_points, best_end = None, [], ""
     for tag in tags:
         data = get(CONCEPT.format(cik=cik, tag=tag), ua, tolerate_404=True)
         time.sleep(0.12)  # SEC 권장 10 req/s 이하
-        points = (data or {}).get("units", {}).get(unit)
+        points = as_of_filter((data or {}).get("units", {}).get(unit) or [], as_of)
         if not points:
             continue
         latest = max((p.get("end") or "") for p in points)
@@ -371,12 +372,14 @@ def quarterly(points):
     """10-Q/10-K 중 3개월 구간만 골라 최신순으로 돌려준다."""
     out = {}
     for p in points:
-        if not p.get("start") or not p.get("end") or p.get("form") not in ("10-Q", "10-K"):
+        if not p.get("start") or not p.get("end") or p.get("form") not in PERIODIC_FORMS:
             continue
         days = (datetime.fromisoformat(p["end"]) - datetime.fromisoformat(p["start"])).days
         if not 80 <= days <= 100:  # 3개월 구간
             continue
-        out[p["end"]] = p  # 같은 종료일이면 나중 제출본이 이긴다
+        prior = out.get(p["end"])
+        if prior is None or _filing_order(p) > _filing_order(prior):
+            out[p["end"]] = p
     return sorted(out.values(), key=lambda p: p["end"], reverse=True)
 
 
@@ -385,8 +388,16 @@ def instant(points):
     for p in points:
         if p.get("start") or not p.get("end"):
             continue
-        out[p["end"]] = p
+        prior = out.get(p["end"])
+        if prior is None or _filing_order(p) > _filing_order(prior):
+            out[p["end"]] = p
     return sorted(out.values(), key=lambda p: p["end"], reverse=True)
+
+
+def _filing_order(point):
+    """원문 배열 순서가 아니라 제출 시점으로 개정 값을 고른다."""
+    return (point.get("filed") or "", point.get("accn") or "",
+            json.dumps(point, sort_keys=True, ensure_ascii=False))
 
 
 def fiscal_quarters(points):
@@ -395,15 +406,18 @@ def fiscal_quarters(points):
     현금흐름표의 10-Q 값은 대개 연초 누계다. 단순히 80~100일 구간 네 개를
     더하면 Q4가 빠지거나 서로 다른 연도의 Q1만 합칠 수 있다. FY/FP와
     제출일을 기준으로 최신 사실을 고른 뒤 누계 차감으로 Q1~Q4를 만든다.
+    SEC의 fy/fp는 **제출 서류** 기준이다. 전년 비교값도 다음 해 fy로 반복되므로
+    실제 start/end로 묶고 최신 비교표의 재작성 값까지 반영한다.
     """
-    selected = {}
+    candidates = []
+    latest_in_filing = {}
     for point in points:
         fy, fp = point.get("fy"), point.get("fp")
         if not fy or fp not in {"Q1", "Q2", "Q3", "FY"}:
             continue
         if not point.get("start") or not point.get("end"):
             continue
-        if point.get("form") not in ("10-Q", "10-K"):
+        if point.get("form") not in PERIODIC_FORMS:
             continue
         days = (datetime.fromisoformat(point["end"]) -
                 datetime.fromisoformat(point["start"])).days
@@ -415,9 +429,28 @@ def fiscal_quarters(points):
         )
         if not wanted:
             continue
-        key = (int(fy), fp)
-        filed = point.get("filed") or ""
-        if key not in selected or filed >= (selected[key].get("filed") or ""):
+        filing_key = (point.get("accn"), point.get("filed"), int(fy), fp)
+        latest_in_filing[filing_key] = max(
+            latest_in_filing.get(filing_key, ""), point["end"]
+        )
+        candidates.append((point, filing_key))
+
+    # 같은 서류의 최신 기간만 fy를 정하는 데 쓴다. 비교표는 기간을 새 해로
+    # 옮기지 않고 이미 식별한 실제 회계연도의 값을 개정할 때만 쓴다.
+    fiscal_year_by_start = {}
+    for point, filing_key in candidates:
+        if point["end"] != latest_in_filing[filing_key]:
+            continue
+        start, fy = point["start"], int(point["fy"])
+        fiscal_year_by_start[start] = min(fiscal_year_by_start.get(start, fy), fy)
+
+    selected = {}
+    for point, _ in candidates:
+        fy = fiscal_year_by_start.get(point["start"])
+        if fy is None:
+            continue
+        key = (fy, point["fp"])
+        if key not in selected or _filing_order(point) > _filing_order(selected[key]):
             selected[key] = point
 
     out = []
@@ -429,11 +462,11 @@ def fiscal_quarters(points):
         values = {}
         if q1:
             values[1] = q1["val"]
-        if q1 and q2:
+        if q1 and q2 and q1["start"] == q2["start"]:
             values[2] = q2["val"] - q1["val"]
-        if q2 and q3:
+        if q2 and q3 and q2["start"] == q3["start"]:
             values[3] = q3["val"] - q2["val"]
-        if q3 and annual:
+        if q3 and annual and q3["start"] == annual["start"]:
             values[4] = annual["val"] - q3["val"]
         sources = {1: q1, 2: q2, 3: q3, 4: annual}
         for quarter, value in values.items():
@@ -457,6 +490,10 @@ def trailing_four_quarters(points):
     latest = quarters[-4:]
     indices = [p["fy"] * 4 + p["quarter"] for p in latest]
     if indices[-1] - indices[0] != 3 or len(set(indices)) != 4:
+        return None, latest
+    ends = [datetime.fromisoformat(p["end"]) for p in latest]
+    if any(not 70 <= (later - earlier).days <= 110
+           for earlier, later in zip(ends, ends[1:])):
         return None, latest
     return sum(p["val"] for p in latest), latest
 
@@ -681,8 +718,7 @@ def cmd_fundamentals(a, ua):
     raw = {"_instrument": {"instrument_id": ticker, "cik": cik}}
 
     def flow(label, tags):
-        tag, pts = concept(cik, tags, ua)
-        pts = as_of_filter(pts, a.as_of)
+        tag, pts = concept(cik, tags, ua, as_of=a.as_of)
         raw[label] = {"tag": tag, "units": pts}
         if not pts:
             fail(f"{label}: 태그를 찾지 못했다 ({', '.join(tags)})")
@@ -706,8 +742,7 @@ def cmd_fundamentals(a, ua):
                       ("sgna", ["SellingGeneralAndAdministrativeExpense"]),
                       ("operating_income", OPINC_TAGS),
                       ("net_income", ["NetIncomeLoss"])):
-        tag, pts = concept(cik, tags, ua)
-        pts = as_of_filter(pts, a.as_of)
+        tag, pts = concept(cik, tags, ua, as_of=a.as_of)
         raw[f"손익_{key}"] = {"tag": tag, "units": pts}
 
         reason = None
@@ -746,8 +781,7 @@ def cmd_fundamentals(a, ua):
              "빼면 FCF 가 아니다")
 
     def point(label, tags, unit="USD"):
-        tag, pts = concept(cik, tags, ua, unit=unit)
-        pts = as_of_filter(pts, a.as_of)
+        tag, pts = concept(cik, tags, ua, unit=unit, as_of=a.as_of)
         raw[label] = {"tag": tag, "units": pts}
         if not pts:
             return None, None, None
@@ -763,8 +797,7 @@ def cmd_fundamentals(a, ua):
     cash_tag, cash, cash_at = point("현금성자산", CASH_TAGS)
     inv_tag, short_inv, inv_at = point("단기투자자산", SHORT_INV_TAGS)
 
-    shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares")
-    shares_pts = as_of_filter(shares_pts, a.as_of)
+    shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares", as_of=a.as_of)
     raw["희석주식수"] = {"tag": shares_tag, "units": shares_pts}
     shares_q = quarterly(shares_pts) if shares_pts else []
     if not shares_q:
@@ -857,6 +890,20 @@ def cmd_fundamentals(a, ua):
                  "long_term_debt": debt_tag},
         "as_of": {"cash": cash_at, "short_term_investments": inv_at,
                   "long_term_debt": debt_at, "shares": shares_at},
+        "eps_basis": "DILUTED",
+        "share_count_basis": {
+            "kind": "WEIGHTED_AVERAGE_DILUTED_EPS",
+            "period_start": shares_q[0].get("start"),
+            "period_end": shares_at,
+            "filed": shares_q[0].get("filed"),
+            "is_current_outstanding": False,
+            "_note": (
+                "values.shares_diluted는 해당 분기의 가중평균 희석 EPS 분모다. "
+                "현재 발행주식수나 미래 완전희석 주식수가 아니며 적자일 때 "
+                "반희석 증권은 EPS 분모에서 제외될 수 있다. 시가총액·현금/주·"
+                "미래 주당가치에는 공시 표지의 실제 주식수와 이후 발행을 별도 확인한다"
+            ),
+        },
         "quarters": {
             "ocf": [{k: q[k] for k in ("fy", "quarter", "end", "filed", "val",
                                        "derived")} for q in ocf_q],

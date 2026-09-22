@@ -321,6 +321,310 @@
             "scenarios"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "const": "EQUITY_BRIDGE"
+            },
+            "price": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "enum": [
+                "KRW",
+                "USD"
+              ]
+            },
+            "horizon_months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "win_return_threshold_pct": {
+              "type": "number",
+              "minimum": -100
+            },
+            "scenarios": {
+              "type": "object",
+              "properties": {
+                "bear": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "enterprise_value": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cash": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "debt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "shares": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "enterprise_value",
+                    "cash",
+                    "debt",
+                    "shares"
+                  ],
+                  "additionalProperties": false
+                },
+                "base": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "enterprise_value": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cash": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "debt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "shares": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "enterprise_value",
+                    "cash",
+                    "debt",
+                    "shares"
+                  ],
+                  "additionalProperties": false
+                },
+                "bull": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "enterprise_value": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cash": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "debt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "shares": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "enterprise_value",
+                    "cash",
+                    "debt",
+                    "shares"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "bear",
+                "base",
+                "bull"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "method",
+            "price",
+            "currency",
+            "horizon_months",
+            "win_return_threshold_pct",
+            "scenarios"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "const": "EVENT_PRICE"
+            },
+            "price": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "currency": {
+              "enum": [
+                "KRW",
+                "USD"
+              ]
+            },
+            "horizon_months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "win_return_threshold_pct": {
+              "type": "number",
+              "minimum": -100
+            },
+            "scenarios": {
+              "type": "object",
+              "properties": {
+                "bear": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "cash_distribution": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "terminal_price": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "cash_distribution",
+                    "terminal_price"
+                  ],
+                  "additionalProperties": false
+                },
+                "base": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "cash_distribution": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "terminal_price": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "cash_distribution",
+                    "terminal_price"
+                  ],
+                  "additionalProperties": false
+                },
+                "bull": {
+                  "type": "object",
+                  "properties": {
+                    "probability_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    "conditional_win_probability_pct": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "cash_distribution": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "terminal_price": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "probability_pct",
+                    "conditional_win_probability_pct",
+                    "cash_distribution",
+                    "terminal_price"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "bear",
+                "base",
+                "bull"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "method",
+            "price",
+            "currency",
+            "horizon_months",
+            "win_return_threshold_pct",
+            "scenarios"
+          ],
+          "additionalProperties": false
         }
       ]
     },

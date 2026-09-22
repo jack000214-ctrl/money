@@ -5,8 +5,9 @@
 """
 
 import unittest
+from unittest.mock import patch
 
-from collectors.web import _title, shell_page_warning
+from collectors.web import _title, fetch, shell_page_warning, snapshot
 
 DART_VIEWER = """<html><head><title>삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/2026.07.30</title>
 <script>var currentDocValues = {rcpNo: '20260730800077'};</script></head>
@@ -59,6 +60,54 @@ class TestTitle(unittest.TestCase):
 
     def test_missing_title_is_none(self):
         self.assertIsNone(_title("<html><body>없다</body></html>"))
+
+
+class TestLosslessTextSnapshots(unittest.TestCase):
+    class Response:
+        def __init__(self, raw, content_type):
+            self.raw = raw
+            self.status = 200
+            self.headers = {"Content-Type": content_type}
+            self.url = "https://example.invalid/document"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return self.raw
+
+    def test_text_bytes_roundtrip_with_declared_encoding(self):
+        for encoding in ("utf-8", "euc-kr", "iso-8859-1"):
+            text = "<title>원문 그대로</title>" if encoding != "iso-8859-1" else "<title>café</title>"
+            raw = text.encode(encoding)
+            with self.subTest(encoding=encoding), patch(
+                "collectors.web.urllib.request.urlopen",
+                return_value=self.Response(raw, f'text/html; charset="{encoding}"'),
+            ):
+                payload = fetch("https://example.invalid/document")
+            self.assertEqual(payload["body"], text)
+            self.assertEqual(payload["body"].encode(payload["body_encoding"]), raw)
+
+    def test_binary_and_lossy_decoding_fail_before_any_snapshot_is_saved(self):
+        cases = [
+            (b"%PDF-1.7\n\xff\xfe", "application/pdf"),
+            (b"%PDF-1.7\nplain ascii is still PDF", "text/plain"),
+            (b"PK\x03\x04archive", "application/octet-stream"),
+            (b"bad UTF-8: \xff", "text/html; charset=utf-8"),
+            (b"text", "text/plain; charset=unknown-encoding"),
+            (b"binary\x00body", ""),
+        ]
+        for raw, content_type in cases:
+            with self.subTest(content_type=content_type, raw=raw), patch(
+                "collectors.web.urllib.request.urlopen", return_value=self.Response(raw, content_type)
+            ), patch("collectors.web.save_snapshot") as save, patch("collectors.web.record_index") as index:
+                with self.assertRaises(SystemExit):
+                    snapshot("https://example.invalid/document", asset_id="TEST", label="bad-document")
+                save.assert_not_called()
+                index.assert_not_called()
 
 
 if __name__ == "__main__":

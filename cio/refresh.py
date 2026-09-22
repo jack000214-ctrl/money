@@ -344,9 +344,7 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     ],
                 )
             )
-            # 미국에는 발표 예고 공시가 없으므로 과거 (결산기말 → 제출) 간격
-            # 으로 추정한다. 방법은 다르지만 답하는 질문은 한국과 같다 —
-            # 다음 이벤트까지 며칠 남았나.
+            # 제출일 추정과 회사 IR의 실제 발표 안내는 별도 자료다.
             tasks.append(
                 RefreshTask(
                     name=f"calendar:{asset['asset_id']}",
@@ -364,6 +362,17 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     ],
                 )
             )
+            for name, capability, module, directory, dependencies in (
+                ("us_capital", "US_CAPITAL", "collectors.us_capital", "us_capital", [f"knowledge/filings/{asset['asset_id']}.json"]),
+                ("us_segments", "US_SEGMENTS", "collectors.us_segments", "us_segments", [f"knowledge/filings/{asset['asset_id']}.json"]),
+                ("earnings_announced", "US_EARNINGS", "collectors.us_earnings", "us_earnings", ["config/assets.json"]),
+            ):
+                tasks.append(RefreshTask(
+                    name=f"{name}:{asset['asset_id']}", capability=capability,
+                    artifact=f"knowledge/{directory}/{asset['asset_id']}.json",
+                    max_age_hours=24, required=False, dependencies=dependencies,
+                    command=[sys.executable, "-m", module, asset["asset_id"]],
+                ))
         else:
             raise ValueError(
                 f"{asset['asset_id']}: 지원하지 않는 filing_source {filing_source}"
@@ -765,6 +774,18 @@ def _latest_fundamentals_period(asset_id: str) -> str | None:
 
 
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
+    if task.capability in {"US_CAPITAL", "US_SEGMENTS", "US_EARNINGS"}:
+        import importlib
+        modules = {"US_CAPITAL": "collectors.us_capital", "US_SEGMENTS": "collectors.us_segments", "US_EARNINGS": "collectors.us_earnings"}
+        try:
+            data = load_json(path)
+            errors = importlib.import_module(modules[task.capability]).validate_artifact(data, task.name.split(":", 1)[1])
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            return f"미국 원문 산출물 검증 실패: {exc}"
+        if errors:
+            return "; ".join(errors[:3])
+        if data.get("status", data.get("state")) in {"NETWORK_ERROR", "PARSE_ERROR", "INVALID"}:
+            return data.get("reason") or "미국 원문 수집/추출이 실패했다"
     if task.capability == "PRICE":
         try:
             with path.open(encoding="utf-8-sig") as handle:
@@ -806,11 +827,12 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             return "가격 파일의 회수시각 메타데이터가 유효하지 않다"
         # 마지막 봉이 확정 종가인지가 파일에 남아 있어야 한다. 장중 수집분은
         # 진행 중인 봉을 확정 일봉과 같은 형태로 담는다.
-        if not re.fullmatch(
-            r"# last_bar \d{4}-\d{2}-\d{2} / session "
+        session_metadata = re.fullmatch(
+            r"# last_bar (\d{4}-\d{2}-\d{2}) / session "
             r"(SETTLED|UNSETTLED|UNKNOWN)",
             session_line,
-        ):
+        )
+        if not session_metadata:
             return "가격 파일에 마지막 봉의 세션 상태가 없다"
         required_fields = {
             "date",
@@ -822,6 +844,15 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         }
         if not required_fields.issubset(set(header)):
             return "가격 v2 필수 열이 없다"
+        if not dates:
+            return "가격 파일에 마지막 봉을 대조할 데이터 행이 없다"
+        try:
+            dt.date.fromisoformat(session_metadata.group(1))
+            dt.date.fromisoformat(dates[-1])
+        except ValueError:
+            return "가격 파일의 마지막 봉 날짜가 유효하지 않다"
+        if session_metadata.group(1) != dates[-1]:
+            return "가격 파일의 last_bar 날짜가 실제 마지막 행과 다르다 — 세션 상태를 적용할 수 없다"
         # 한 행 = 하루라는 것이 이 파일을 읽는 모든 계산의 전제다. 수집기가
         # 월봉 저장을 막지만 그것은 앞으로 저장될 파일에만 걸린다 — 이미
         # 디스크에 있는 파일은 여기서 걸러야 모델에 실려 나가지 않는다.

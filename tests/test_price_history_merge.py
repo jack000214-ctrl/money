@@ -17,6 +17,7 @@
 
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,20 +36,19 @@ def bar(day: str, close: float, *, factor: float = 1.0) -> dict:
     }
 
 
-SETTLED = {
-    "regularMarketTime": 1,
-    "currentTradingPeriod": {"regular": {"end": 0}},
-    "gmtoffset": 0,
-}
-UNSETTLED = {
-    "regularMarketTime": 0,
-    "currentTradingPeriod": {"regular": {"end": 1}},
-    "gmtoffset": 0,
-}
+SETTLED = "SETTLED"
+UNSETTLED = "UNSETTLED"
 
 
 class TestHistoryIsNotTruncated(unittest.TestCase):
-    def _save(self, tmp, rows, meta):
+    def _save(self, tmp, rows, state):
+        midnight = int(datetime.fromisoformat(rows[-1]["date"]).replace(tzinfo=timezone.utc).timestamp())
+        meta = {
+            "regularMarketTime": midnight + (16 if state == SETTLED else 14) * 3600,
+            "currentTradingPeriod": {"regular": {
+                "start": midnight + 9 * 3600, "end": midnight + 16 * 3600}},
+            "gmtoffset": 0,
+        }
         with patch("collectors.price.PRICE_DIR", Path(tmp)):
             return price.save("TEST", {"currency": "KRW", **meta}, rows)
 
@@ -99,6 +99,19 @@ class TestHistoryIsNotTruncated(unittest.TestCase):
             "2020-01-06",
             "분할 뒤에도 옛 기준을 붙이면 두 기준이 한 파일에 섞인다",
         )
+
+    def test_next_session_corrects_the_previously_unsettled_bar_without_truncation(self):
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        moved = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 12)]
+        moved[-2]["close"] = 999.0
+        moved[-2]["adjusted_close"] = 999.0
+        with tempfile.TemporaryDirectory() as tmp:
+            old_path = self._save(tmp, stored, UNSETTLED)
+            self.assertEqual(price._unsettled_date(old_path), "2020-01-10")
+            path = self._save(tmp, moved, SETTLED)
+            saved = price._existing_rows(path)
+        self.assertEqual(saved[0]["date"], "2020-01-01")
+        self.assertEqual(float(saved[-2]["close"]), 999.0)
 
     def test_disjoint_pull_does_not_stitch_across_a_gap(self):
         stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 6)]

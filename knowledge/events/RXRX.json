@@ -2,10 +2,10 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "RXRX",
   "symbol": "RXRX",
-  "collected_at": "2026-09-02T00:36:37-04:00",
+  "collected_at": "2026-09-22T08:54:14-04:00",
   "window": {
-    "since": "2026-06-02",
-    "until": "2026-08-31",
+    "since": "2026-06-23",
+    "until": "2026-09-21",
     "trading_days": 63
   },
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
@@ -13,26 +13,13 @@
     "symbol": "^IXIC",
     "available": true,
     "daily_relative_method": "asset_return_pct - benchmark_return_pct (beta=1 조사 우선순위용)",
-    "calendar_gaps": [
-      {
-        "date": "2026-08-28",
-        "asset_prev_trading_day": "2026-08-27",
-        "benchmark_prev_trading_day": null,
-        "reason": "벤치마크에 그 거래일이 없다"
-      },
-      {
-        "date": "2026-08-31",
-        "asset_prev_trading_day": "2026-08-28",
-        "benchmark_prev_trading_day": "2026-08-27",
-        "reason": "벤치마크의 직전 거래일이 종목과 다르다"
-      }
-    ]
+    "calendar_gaps": []
   },
   "last_bar": {
-    "date": "2026-08-31",
+    "date": "2026-09-21",
     "settled": true,
-    "excluded_unsettled_bar": "2026-09-01",
-    "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
+    "excluded_unsettled_bar": null,
+    "_note": "수집 시점에 마지막 봉이 확정 종가였다"
   },
   "benchmark_comparison": {
     "available": true,
@@ -40,64 +27,46 @@
     "method": "(1 + asset_return) / (1 + benchmark_return) - 1 (beta=1 단순 비교)",
     "legs": [
       {
+        "label": "구간 저점 → 고점",
+        "from": "2026-07-20",
+        "to": "2026-09-21",
+        "asset_return_pct": 37.4,
+        "benchmark_return_pct": 6.3,
+        "benchmark_relative_pct": 29.2
+      },
+      {
         "label": "구간 고점 → 현재",
-        "from": "2026-07-06",
-        "to": "2026-08-31",
-        "asset_return_pct": -14.1,
-        "benchmark_return_pct": 1.0,
-        "benchmark_relative_pct": -15.0
+        "from": "2026-09-21",
+        "to": "2026-09-21",
+        "asset_return_pct": 0.0,
+        "benchmark_return_pct": 0.0,
+        "benchmark_relative_pct": 0.0
       },
       {
         "label": "구간 저점 → 현재",
         "from": "2026-07-20",
-        "to": "2026-08-31",
-        "asset_return_pct": 17.6,
-        "benchmark_return_pct": 3.4,
-        "benchmark_relative_pct": 13.8
+        "to": "2026-09-21",
+        "asset_return_pct": 37.4,
+        "benchmark_return_pct": 6.3,
+        "benchmark_relative_pct": 29.2
       },
       {
         "label": "구간 전체",
-        "from": "2026-06-02",
-        "to": "2026-08-31",
-        "asset_return_pct": -5.8,
-        "benchmark_return_pct": -2.7,
-        "benchmark_relative_pct": -3.2
+        "from": "2026-06-23",
+        "to": "2026-09-21",
+        "asset_return_pct": 25.6,
+        "benchmark_return_pct": 6.0,
+        "benchmark_relative_pct": 18.5
       }
     ],
     "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
   "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
-    "date": "2026-08-31",
-    "close": 3.4000000953674316
+    "date": "2026-09-21",
+    "close": 3.9700000286102295
   },
   "moves": [
-    {
-      "date": "2026-06-04",
-      "close": 3.799999952316284,
-      "change_pct": 9.51,
-      "benchmark_pct": -0.09,
-      "excess_pct": 9.6,
-      "threshold_pct": 6.42,
-      "sigma_used": 3.21,
-      "direction": "up",
-      "volume": 38926300,
-      "volume_vs_avg": 1.96,
-      "candidate_filings": []
-    },
-    {
-      "date": "2026-06-05",
-      "close": 3.315000057220459,
-      "change_pct": -12.76,
-      "benchmark_pct": -4.18,
-      "excess_pct": -8.58,
-      "threshold_pct": 6.89,
-      "sigma_used": 3.44,
-      "direction": "down",
-      "volume": 26943900,
-      "volume_vs_avg": 1.36,
-      "candidate_filings": []
-    },
     {
       "date": "2026-08-19",
       "close": 3.5,
@@ -108,7 +77,7 @@
       "sigma_used": 3.57,
       "direction": "up",
       "volume": 30369700,
-      "volume_vs_avg": 1.53,
+      "volume_vs_avg": 1.56,
       "candidate_filings": []
     },
     {
@@ -121,22 +90,24 @@
       "sigma_used": 3.85,
       "direction": "up",
       "volume": 22516700,
-      "volume_vs_avg": 1.13,
+      "volume_vs_avg": 1.15,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-09-17",
+      "close": 3.5399999618530273,
+      "change_pct": 10.97,
+      "benchmark_pct": 1.69,
+      "excess_pct": 9.28,
+      "threshold_pct": 7.69,
+      "sigma_used": 3.85,
+      "direction": "up",
+      "volume": 28251200,
+      "volume_vs_avg": 1.45,
       "candidate_filings": []
     }
   ],
   "filings_in_window": [
-    {
-      "filed": "2026-06-18",
-      "name": "8-K — 5.07 주주총회 표결 결과",
-      "form": "8-K",
-      "accession_number": "0001601830-26-000080",
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000080/rxrx-20260617.htm",
-      "items": [
-        "5.07"
-      ],
-      "scheduled": false
-    },
     {
       "filed": "2026-08-05",
       "name": "10-Q",
@@ -158,12 +129,21 @@
         "9.01"
       ],
       "scheduled": false
+    },
+    {
+      "filed": "2026-09-21",
+      "name": "8-K — 1.01 중요 계약 체결",
+      "form": "8-K",
+      "accession_number": "0001601830-26-000112",
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000112/rxrx-20260915.htm",
+      "items": [
+        "1.01"
+      ],
+      "scheduled": false
     }
   ],
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
-    "근접 공시가 없는 급변 4건 (2026-06-04, 2026-06-05, 2026-08-19, 2026-08-25) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
-    "벤치마크 캘린더가 어긋난 거래일 2건 (2026-08-28, 2026-08-31) — 그 날의 상대변동은 계산하지 않고 null 로 뒀다. 상대수익률로 인용하지 말 것. 복구: python3.13 -m collectors.price history '^IXIC' --range 10y",
-    "2026-09-01 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
+    "근접 공시가 없는 급변 3건 (2026-08-19, 2026-08-25, 2026-09-17) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다."
   ]
 }

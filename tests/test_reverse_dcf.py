@@ -1,9 +1,12 @@
 """역산 DCF 산술과 계산 산출물 무결성."""
 
 import json
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from calculators.contracts import (
     ContractError,
@@ -12,11 +15,14 @@ from calculators.contracts import (
     save_validated_calculation,
     validate_calculation,
 )
+from test_fundamentals import valid_fundamentals
 from calculators.reverse_dcf import (
     MODEL,
     MODEL_VERSION,
     annualized_pct,
     equity_value_per_share,
+    cmd_implied,
+    resolve_inputs,
     solve,
 )
 
@@ -111,6 +117,100 @@ class TestCalculationContract(unittest.TestCase):
             self.assertEqual(
                 json.loads(path.read_text(encoding="utf-8"))["model"], MODEL
             )
+
+
+class TestValuationShareBasis(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "fundamentals.json"
+
+    def arguments(self, **overrides):
+        args = dict(
+            fundamentals=str(self.path), instrument="TSLA", shares=None,
+            shares_reason=None, fcf=None, net_debt=None, price=100,
+            revenue=None, fcf_margin=None, inputs_unverified_reason=None,
+            discount_rate=10, terminal_growth=2, years=10,
+            solve_for="growth", json=True,
+        )
+        args.update(overrides)
+        return SimpleNamespace(**args)
+
+    def write_snapshot(self, **overrides):
+        snapshot = valid_fundamentals(**overrides)
+        self.path.write_text(json.dumps(snapshot), encoding="utf-8")
+        return snapshot
+
+    def test_eps_or_unspecified_share_basis_requires_explicit_selection(self):
+        variants = (
+            {},  # Older snapshots remain readable, but their basis is not known.
+            {"tags": {"shares": "WeightedAverageNumberOfDilutedSharesOutstanding"}},
+            {"share_count_basis": {"kind": "WEIGHTED_AVERAGE_DILUTED_EPS",
+                                    "is_current_outstanding": False}},
+        )
+        for variant in variants:
+            with self.subTest(variant=variant):
+                self.write_snapshot(**variant)
+                with contextlib.redirect_stderr(io.StringIO()) as errors:
+                    with self.assertRaises(SystemExit):
+                        resolve_inputs(self.arguments())
+                self.assertIn("--shares-reason", errors.getvalue())
+
+    def test_explicit_choice_keeps_snapshot_financials_and_distinct_provenance(self):
+        snapshot = self.write_snapshot(share_count_basis={
+            "kind": "WEIGHTED_AVERAGE_DILUTED_EPS", "is_current_outstanding": False,
+        })
+        args = self.arguments(shares=4e9, shares_reason="모형 예시: 기준일 이후 발행을 반영")
+        fcf, provenance = resolve_inputs(args)
+        self.assertEqual(fcf, snapshot["values"]["fcf_ttm"])
+        self.assertEqual(args.net_debt, snapshot["values"]["net_debt"])
+        self.assertEqual(args.shares, 4e9)
+        self.assertEqual(provenance["fundamentals_id"], snapshot["fundamentals_id"])
+        self.assertFalse(provenance["verified"])
+        self.assertEqual(provenance["share_count"]["origin"], "MODEL_CHOICE")
+        self.assertEqual(provenance["share_count"]["snapshot_shares"], 3540e6)
+        self.assertEqual(provenance["share_count"]["selected_shares"], 4e9)
+
+    def test_explicit_choice_requires_reason_and_positive_finite_value(self):
+        self.write_snapshot()
+        for options in (
+            {"shares": 4e9}, {"shares": 4e9, "shares_reason": " "},
+            {"shares_reason": "reason without value"},
+            *({"shares": value, "shares_reason": "fixture"}
+              for value in (0, -1, float("nan"), float("inf"))),
+        ):
+            with self.subTest(options=options), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    resolve_inputs(self.arguments(**options))
+
+    def test_confirmed_current_share_basis_can_be_used_without_override(self):
+        self.write_snapshot(share_count_basis={
+            "kind": "CURRENT_OUTSTANDING", "is_current_outstanding": True,
+        })
+        args = self.arguments()
+        _, provenance = resolve_inputs(args)
+        self.assertEqual(args.shares, 3540e6)
+        self.assertTrue(provenance["verified"])
+        self.assertEqual(provenance["share_count"]["origin"], "SNAPSHOT")
+
+    def test_implied_json_carries_selected_basis_and_snapshot_identity(self):
+        snapshot = self.write_snapshot()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            cmd_implied(self.arguments(shares=4e9, shares_reason="fixture assumption"))
+        data = json.loads(output.getvalue())
+        self.assertEqual(data["inputs"]["shares"], 4e9)
+        provenance = data["inputs"]["input_provenance"]
+        self.assertEqual(provenance["fundamentals_id"], snapshot["fundamentals_id"])
+        self.assertEqual(provenance["share_count"]["reason"], "fixture assumption")
+
+    def test_snapshot_financials_cannot_be_overridden_with_share_choice(self):
+        self.write_snapshot()
+        for field in ("fcf", "net_debt"):
+            with self.subTest(field=field), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    resolve_inputs(self.arguments(shares=4e9, shares_reason="fixture",
+                                                  **{field: 100}))
 
 
 if __name__ == "__main__":

@@ -112,6 +112,149 @@ class TestPriceCollectorV2(unittest.TestCase):
         self.assertEqual(price.session_state({}, "2026-07-29"), "UNKNOWN")
 
 
+class TestSessionDateBoundaries(unittest.TestCase):
+    @staticmethod
+    def timestamp(iso):
+        return int(dt.datetime.fromisoformat(iso).timestamp())
+
+    def metadata(self, quote, start, end, **overrides):
+        meta = {
+            "exchangeTimezoneName": "America/New_York",
+            "gmtoffset": -14400,
+            "regularMarketTime": self.timestamp(quote),
+            "currentTradingPeriod": {"regular": {
+                "start": self.timestamp(start), "end": self.timestamp(end),
+            }},
+        }
+        meta.update(overrides)
+        return meta
+
+    def test_us_premarket_keeps_previous_close_settled(self):
+        # Sep 22 21:43 KST is still premarket in New York. The quote is the
+        # Sep 21 close while currentTradingPeriod already points at Sep 22.
+        meta = self.metadata("2026-09-21T16:00:00-04:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        self.assertEqual(price.session_state(meta, "2026-09-21"), "SETTLED")
+
+    def test_weekend_and_dst_boundary_use_exchange_session_dates(self):
+        # Friday closed in EDT; the next declared regular session is Monday EST.
+        meta = self.metadata("2026-10-30T16:00:00-04:00",
+                             "2026-11-02T09:30:00-05:00",
+                             "2026-11-02T16:00:00-05:00", gmtoffset=-18000)
+        self.assertEqual(price.session_state(meta, "2026-10-30"), "SETTLED")
+
+    def test_korean_calendar_date_does_not_close_a_live_us_bar(self):
+        # A Sep 22 US midday quote is Sep 23 in Korea, but its session is open.
+        meta = self.metadata("2026-09-23T01:00:00+09:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        self.assertEqual(price.session_state(meta, "2026-09-22"), "UNSETTLED")
+        meta["regularMarketTime"] = self.timestamp("2026-09-23T05:00:00+09:00")
+        self.assertEqual(price.session_state(meta, "2026-09-22"), "SETTLED")
+
+    def test_same_session_early_close_uses_declared_boundary(self):
+        meta = self.metadata("2026-11-27T13:00:00-05:00",
+                             "2026-11-27T09:30:00-05:00",
+                             "2026-11-27T13:00:00-05:00", gmtoffset=-18000)
+        self.assertEqual(price.session_state(meta, "2026-11-27"), "SETTLED")
+
+    def test_future_or_inconsistent_bar_is_unknown(self):
+        meta = self.metadata("2026-09-21T16:00:00-04:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        self.assertEqual(price.session_state(meta, "2026-09-23"), "UNKNOWN")
+        self.assertEqual(price.session_state(meta, "not-a-date"), "UNKNOWN")
+        self.assertEqual(price.session_state(meta, "2026-09-22"), "UNKNOWN")
+
+    def test_missing_start_does_not_compare_yesterday_with_todays_end(self):
+        meta = self.metadata("2026-09-21T16:00:00-04:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        del meta["currentTradingPeriod"]["regular"]["start"]
+        self.assertEqual(price.session_state(meta, "2026-09-21"), "UNKNOWN")
+
+    def test_missing_zone_uses_the_declared_period_offset(self):
+        meta = self.metadata("2026-09-21T16:00:00-04:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        del meta["exchangeTimezoneName"]
+        meta["currentTradingPeriod"]["regular"]["gmtoffset"] = -14400
+        del meta["gmtoffset"]
+        self.assertEqual(price.session_state(meta, "2026-09-21"), "SETTLED")
+
+    def test_fx_utc_date_label_does_not_close_the_london_midnight_session(self):
+        bar_timestamp = self.timestamp("2026-09-22T00:00:00+01:00")
+        payload = {"chart": {"result": [{
+            "meta": self.metadata("2026-09-22T00:30:00+01:00",
+                                  "2026-09-22T00:00:00+01:00",
+                                  "2026-09-22T23:59:00+01:00",
+                                  exchangeTimezoneName="Europe/London", gmtoffset=3600),
+            "timestamp": [bar_timestamp],
+            "indicators": {"quote": [{"close": [1400], "high": [1401], "low": [1399], "volume": [0]}]},
+        }]}}
+        with patch("collectors.price.urllib.request.urlopen", return_value=FakeResponse(payload)):
+            meta, rows = price.fetch("KRW=X", "5d")
+        self.assertEqual(rows[-1]["date"], "2026-09-21")
+        self.assertEqual(price.session_state(meta, rows[-1]["date"]), "UNSETTLED")
+        with tempfile.TemporaryDirectory() as tmp, patch("collectors.price.PRICE_DIR", Path(tmp)):
+            path = price.save("KRW=X", meta, rows)
+            self.assertIn(f"# last_bar_timestamp {bar_timestamp}", path.read_text())
+            self.assertIn("# last_bar 2026-09-21 / session UNSETTLED", path.read_text())
+
+    def test_refetch_corrects_saved_last_bar_header(self):
+        meta = self.metadata("2026-09-21T16:00:00-04:00",
+                             "2026-09-22T09:30:00-04:00",
+                             "2026-09-22T16:00:00-04:00")
+        row = {"date": "2026-09-21", "close": 3.97, "adjusted_close": 3.97,
+               "split_adjustment_factor": 1, "high": 4.015, "low": 3.83,
+               "volume": 37686400}
+        with tempfile.TemporaryDirectory() as tmp, patch("collectors.price.PRICE_DIR", Path(tmp)):
+            path = price.save("RXRX", meta, [row])
+            self.assertIn("# last_bar 2026-09-21 / session SETTLED", path.read_text())
+
+
+class TestPriceSessionHeaderIntegrity(unittest.TestCase):
+    def inspect(self, last_bar, state="SETTLED", last_row="2026-07-29"):
+        task = RefreshTask(name="price:TEST", capability="PRICE", artifact="prices/TEST.csv",
+                           max_age_hours=12, command=None)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "prices" / "TEST.csv"
+            path.parent.mkdir()
+            path.write_text(
+                "# schema_version price-series/2.1.0\n"
+                "# symbol TEST / currency USD\n"
+                "# retrieved_at 2026-07-29T20:00:00+00:00 / source Yahoo Finance chart API\n"
+                f"# last_bar {last_bar} / session {state}\n"
+                "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n"
+                + (f"{last_row},100,100,1,101,99,1\n" if last_row else ""),
+                encoding="utf-8",
+            )
+            with patch("cio.refresh.ROOT", root):
+                return inspect_task(task, now=dt.datetime(2026, 7, 29, 21, tzinfo=dt.timezone.utc))
+
+    def test_each_state_must_belong_to_the_actual_last_row(self):
+        for state in ("SETTLED", "UNSETTLED", "UNKNOWN"):
+            for header_date in ("2026-07-28", "2026-07-30"):
+                with self.subTest(state=state, header_date=header_date):
+                    checked = self.inspect(header_date, state)
+                    self.assertEqual(checked.state, "STALE")
+                    self.assertIn("last_bar 날짜", checked.reason)
+            with self.subTest(state=state, header_date="matching"):
+                self.assertEqual(self.inspect("2026-07-29", state).state, "FRESH")
+
+    def test_no_rows_cannot_validate_a_session_header(self):
+        checked = self.inspect("2026-07-29", last_row=None)
+        self.assertEqual(checked.state, "STALE")
+        self.assertIn("데이터 행", checked.reason)
+
+    def test_matching_but_impossible_dates_are_invalid(self):
+        checked = self.inspect("2026-07-99", last_row="2026-07-99")
+        self.assertEqual(checked.state, "STALE")
+        self.assertIn("날짜", checked.reason)
+
+
 class TestBenchmarkCalendarAlignment(unittest.TestCase):
     """벤치마크에 거래일 구멍이 나면 상대변동을 내지 않는다.
 

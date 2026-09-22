@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "RXRX",
   "cik": "0001601830",
-  "collected_at": "2026-09-02T04:36:37+00:00",
+  "collected_at": "2026-09-22T12:45:59+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",
@@ -19,9 +19,24 @@
     "S-3/A",
     "S-3ASR"
   ],
-  "raw_payload_sha256": "edb9caa0052b9d43d1212612f988b06a396a2a8eab1d8fd857ad61acfb8df963",
-  "raw_locator": "data/raw/edgar/objects/edb9caa0052b9d43d1212612f988b06a396a2a8eab1d8fd857ad61acfb8df963.json",
+  "raw_payload_sha256": "3e4841b9043726d529bfcb58fd72268a1227b6256e65ce69f8c086acdae1a119",
+  "raw_locator": "data/raw/edgar/objects/3e4841b9043726d529bfcb58fd72268a1227b6256e65ce69f8c086acdae1a119.json",
   "filings": [
+    {
+      "filing_date": "2026-09-21",
+      "report_date": "2026-09-15",
+      "form": "8-K",
+      "accession_number": "0001601830-26-000112",
+      "primary_document": "rxrx-20260915.htm",
+      "description": "8-K",
+      "items": [
+        "1.01"
+      ],
+      "item_labels": [
+        "1.01 중요 계약 체결"
+      ],
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000112/rxrx-20260915.htm"
+    },
     {
       "filing_date": "2026-08-05",
       "report_date": "2026-06-30",
@@ -804,17 +819,6 @@
         "8.01 기타 중요 사건"
       ],
       "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183024000110/rxrx-20240806.htm"
-    },
-    {
-      "filing_date": "2024-06-27",
-      "report_date": "",
-      "form": "424B5",
-      "accession_number": "0001601830-24-000093",
-      "primary_document": "rxrxfinalprospectussupplem.htm",
-      "description": "424B5",
-      "items": null,
-      "item_labels": null,
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183024000093/rxrxfinalprospectussupplem.htm"
     }
   ]
 }

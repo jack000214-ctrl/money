@@ -96,6 +96,7 @@ def cmd_register(args) -> int:
         valuation_family=args.valuation_family,
         benchmarks=args.benchmark,
         filing_source=args.filing_source,
+        ir_sources=args.ir_source,
         etf=etf,
     )
     print(json.dumps(asset, ensure_ascii=False, indent=2))
@@ -139,6 +140,7 @@ def cmd_prepare(args) -> int:
         target_quantity=args.target_quantity,
         held_quantity=args.held_quantity,
         average_cost=args.average_cost,
+        average_cost_currency=args.average_cost_currency,
         verbatim=args.verbatim,
         claims=args.claim,
         save=not args.no_save,
@@ -407,6 +409,8 @@ def build_parser() -> argparse.ArgumentParser:
     register.add_argument("--valuation-family", nargs="+", required=True)
     register.add_argument("--benchmark", action="append", required=True)
     register.add_argument("--filing-source", choices=["DART", "SEC_EDGAR"])
+    register.add_argument("--ir-source", action="append", default=[],
+                          help="미국 발행사의 공식 IR 일정/뉴스 HTTPS URL (반복 가능)")
     register.add_argument("--etf-strategy", default="UNKNOWN")
     register.add_argument("--underlying")
     register.add_argument("--derivative-use", action="store_true")
@@ -458,7 +462,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prepare.add_argument(
         "--average-cost", type=float,
-        help="이번 질문의 평단(자산 통화). --held-quantity와 함께 준다",
+        help="이번 질문의 평단. 통화 기본값은 자산 통화이며 --average-cost-currency로 지정한다",
+    )
+    prepare.add_argument(
+        "--average-cost-currency", choices=["KRW", "USD"],
+        help="평단의 실제 표시 통화. 원화 평단을 현재 환율로 달러 취득평단으로 바꾸지 않는다",
     )
     prepare.add_argument(
         "--verbatim",

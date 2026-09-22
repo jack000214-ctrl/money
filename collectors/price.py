@@ -12,8 +12,9 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parent.parent
 PRICE_DIR = ROOT / "knowledge" / "prices"
@@ -90,22 +91,58 @@ def session_state(meta: dict, last_date: str) -> str:
     """
     market_time = meta.get("regularMarketTime")
     period = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
+    session_start = period.get("start")
     session_end = period.get("end")
-    offset = meta.get("gmtoffset")
-    if not all(
-        isinstance(value, int)
-        for value in (market_time, session_end, offset)
-    ):
+    if not all(type(value) is int for value in (market_time, session_end)):
         return "UNKNOWN"
-    local_date = (
-        datetime.fromtimestamp(market_time + offset, timezone.utc)
-        .date()
-        .isoformat()
-    )
-    if local_date != last_date:
-        # 마지막 봉이 이전 세션이면 이미 닫힌 봉이다.
+
+    # Quote time and currentTradingPeriod need not belong to the same session.
+    # Before the US open, Yahoo keeps yesterday's closing quote but advances the
+    # period to today. Comparing that quote with today's end mislabels yesterday
+    # as an open bar. Use the declared session date, in the exchange timezone.
+    zone_name = meta.get("exchangeTimezoneName")
+    try:
+        exchange_zone = ZoneInfo(zone_name) if isinstance(zone_name, str) else None
+    except (ZoneInfoNotFoundError, ValueError):
+        exchange_zone = None
+    if exchange_zone is None:
+        offset = period.get("gmtoffset", meta.get("gmtoffset"))
+        if type(offset) is not int or not -86400 < offset < 86400:
+            return "UNKNOWN"
+        exchange_zone = timezone(timedelta(seconds=offset))
+    try:
+        bar_date = date.fromisoformat(last_date)
+        bar_timestamp = meta.get("_collector_last_bar_timestamp")
+        if type(bar_timestamp) is int:
+            # CSV dates are UTC labels. FX sessions can open before midnight UTC,
+            # so only the actual bar timestamp identifies their exchange date.
+            if datetime.fromtimestamp(bar_timestamp, timezone.utc).date() != bar_date:
+                return "UNKNOWN"
+            bar_date = datetime.fromtimestamp(bar_timestamp, exchange_zone).date()
+        quote_date = datetime.fromtimestamp(market_time, exchange_zone).date()
+        end_date = datetime.fromtimestamp(session_end, exchange_zone).date()
+        start_date = datetime.fromtimestamp(session_start, exchange_zone).date() \
+            if type(session_start) is int else None
+    except (ValueError, OverflowError, OSError):
+        return "UNKNOWN"
+    if quote_date < bar_date:
+        return "UNKNOWN"
+    if start_date is not None:
+        if session_start >= session_end:
+            return "UNKNOWN"
+        if bar_date < start_date:
+            return "SETTLED"
+        if bar_date > end_date:
+            return "UNKNOWN"
+        return "SETTLED" if market_time >= session_end else "UNSETTLED"
+
+    # Without a start, only an older bar or matching quote/end dates establishes
+    # which session the boundary refers to. A future-dated bar is not settled.
+    if bar_date < quote_date:
         return "SETTLED"
-    return "SETTLED" if market_time >= session_end else "UNSETTLED"
+    if bar_date == quote_date == end_date:
+        return "SETTLED" if market_time >= session_end else "UNSETTLED"
+    return "UNKNOWN"
 
 
 def fail(message: str) -> None:
@@ -157,6 +194,7 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         return values[index] if index < len(values) else None
 
     rows: list[dict] = []
+    last_bar_timestamp = None
     for index, timestamp in enumerate(timestamps):
         row_date = datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
         close = quote_value("close", index)
@@ -193,6 +231,7 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
                 "volume": quote_value("volume", index),
             }
         )
+        last_bar_timestamp = timestamp
     if not rows:
         fail(f"{symbol}: 유효한 가격 행이 없다")
 
@@ -201,7 +240,8 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
     # 파일이 320행짜리 월봉으로 덮이는데 헤더에는 그 사실이 남지 않는다.
     # 실제로 그랬고, 그 뒤의 변동성·이동평균·급변 판정은 전부 월봉 위에서
     # 조용히 계산된다. 저장 전에 여기서 멈춰야 파일이 오염되지 않는다.
-    meta = result.get("meta") or {}
+    meta = dict(result.get("meta") or {})
+    meta["_collector_last_bar_timestamp"] = last_bar_timestamp
     actual = granularity(meta, rows)
     if actual not in (DAILY_GRANULARITY, "UNKNOWN"):
         fail(
@@ -363,6 +403,10 @@ def save(
                 f"# last_bar {rows[-1]['date']} / "
                 f"session {session_state(meta, rows[-1]['date'])}\n"
             )
+            if type(meta.get("_collector_last_bar_timestamp")) is int:
+                temporary.write(
+                    f"# last_bar_timestamp {meta['_collector_last_bar_timestamp']} / source Yahoo timestamp\n"
+                )
             writer = csv.DictWriter(temporary, fieldnames=FIELDS)
             writer.writeheader()
             writer.writerows(rows)
@@ -405,8 +449,9 @@ def cmd_history(args) -> None:
         + (f" (이번 수집 {fetched}일)" if len(saved) != fetched else "")
     )
     if state != "SETTLED":
+        certainty = "확정 종가가 아니다" if state == "UNSETTLED" else "확정 여부를 확인할 수 없다"
         print(
-            f"※ 마지막 봉 {rows[-1]['date']} 은 {state} — 확정 종가가 아니다. "
+            f"※ 마지막 봉 {rows[-1]['date']} 은 {state} — {certainty}. "
             "거래량 배수와 급변 판정에서 제외된다"
         )
     print(f"저장: {path.relative_to(ROOT)}")

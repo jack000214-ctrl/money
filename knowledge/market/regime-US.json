@@ -1,6 +1,6 @@
 {
   "schema_version": "market-regime/2.0.0",
-  "collected_at": "2026-09-02T13:36:33+09:00",
+  "collected_at": "2026-09-22T21:54:14+09:00",
   "lookback_days": 500,
   "by_market": {
     "US": {
@@ -13,30 +13,30 @@
         {
           "symbol": "^GSPC",
           "name": "S&P 500",
-          "as_of": "2026-09-01",
-          "close": 7631.4702,
+          "as_of": "2026-09-21",
+          "close": 7764.7002,
           "high": 7798.9902,
-          "drawdown_pct": -2.15
+          "drawdown_pct": -0.44
         },
         {
           "symbol": "^IXIC",
           "name": "NASDAQ",
-          "as_of": "2026-09-01",
-          "close": 26099.7695,
-          "high": 27093.9004,
-          "drawdown_pct": -3.67
+          "as_of": "2026-09-21",
+          "close": 27122.0898,
+          "high": 27122.0898,
+          "drawdown_pct": 0.0
         }
       ],
       "volatility": {
         "symbol": "^VIX",
         "name": "VIX",
-        "as_of": "2026-09-01",
-        "value": 16.34,
-        "median": 17.28,
-        "percentile": 31.6,
+        "as_of": "2026-09-22",
+        "value": 14.68,
+        "median": 17.22,
+        "percentile": 7.2,
         "in_score": true
       },
-      "worst_drawdown_pct": -3.67
+      "worst_drawdown_pct": -0.44
     }
   },
   "macro": {
@@ -45,18 +45,18 @@
         {
           "symbol": "KRW=X",
           "name": "KRW/USD",
-          "as_of": "2026-09-02",
-          "value": 1369.48,
+          "as_of": "2026-09-22",
+          "value": 1358.42,
           "median": 1438.205,
-          "percentile": 8.0
+          "percentile": 4.0
         },
         {
           "symbol": "^TNX",
           "name": "US 10Y yield",
-          "as_of": "2026-09-01",
-          "value": 4.796,
-          "median": 4.293,
-          "percentile": 99.6
+          "as_of": "2026-09-22",
+          "value": 4.933,
+          "median": 4.3085,
+          "percentile": 98.2
         }
       ]
     }
@@ -65,27 +65,27 @@
     {
       "symbol": "^GSPC",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-09-01"
+      "data_as_of": "2026-09-21"
     },
     {
       "symbol": "^IXIC",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-09-01"
+      "data_as_of": "2026-09-21"
     },
     {
       "symbol": "^VIX",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-09-01"
+      "data_as_of": "2026-09-22"
     },
     {
       "symbol": "KRW=X",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-09-02"
+      "data_as_of": "2026-09-22"
     },
     {
       "symbol": "^TNX",
       "mode": "LOCAL_SNAPSHOT",
-      "data_as_of": "2026-09-01"
+      "data_as_of": "2026-09-22"
     }
   ],
   "_note": "측정값이며 투자 행동을 지시하지 않는다"

@@ -183,6 +183,23 @@ class TestAssumptionPersistence(unittest.TestCase):
         self.assertIn('counterfactual',evaluated)
         self.assertIn('fixed_horizons',evaluated)
 
+    def test_sell_action_and_future_narrative_survive_next_packet(self):
+        from cio.memory import record_decision_file
+        from cio.context import _memory_digest
+        report = create_analysis(self.spec, self.context)
+        decision = self.decision(report)
+        decision['action'].update(direction='TRIM', quantity=4, limit_price=110,
+                                  sell_reason='VALUATION',
+                                  rationale='4주 매도 체결 후 새 공시가 없으면 115달러에 3주, 120달러에 3주를 줄인다.')
+        for response in decision['assumption_review']['responses']:
+            response['action'] = 'TRIM'
+        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        record_decision_file(write_json(self.root / 'sell.json', decision))
+        carried = _memory_digest('TSLA')['live'][-1]['carried_forward']
+        self.assertEqual(carried['action'], decision['action'])
+        self.assertEqual(carried['action_execution']['status'], 'UNKNOWN')
+        self.assertEqual(carried['action_execution']['staged_sell_plan'], 'NARRATIVE_ONLY')
+
     def test_cli_calculate_then_load(self):
         from cio.__main__ import build_parser
         from contextlib import redirect_stdout

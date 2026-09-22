@@ -97,6 +97,10 @@
       ],
       "optional_collectors": [
         "NORMALIZED_EARNINGS"
+      ],
+      "ir_sources": [
+        "https://ir.tesla.com/",
+        "https://ir.tesla.com/press"
       ]
     },
     "IBM": {
@@ -121,6 +125,9 @@
       ],
       "optional_collectors": [
         "NORMALIZED_EARNINGS"
+      ],
+      "ir_sources": [
+        "https://www.ibm.com/investor/events"
       ]
     },
     "RXRX": {
@@ -142,7 +149,10 @@
         "^IXIC",
         "XBI"
       ],
-      "optional_collectors": []
+      "optional_collectors": [],
+      "ir_sources": [
+        "https://ir.recursion.com/news-events/events"
+      ]
     },
     "SCHD": {
       "name": "Schwab U.S. Dividend Equity ETF",

@@ -42,6 +42,60 @@ class TestFiscalCashFlow(unittest.TestCase):
         quarters = fiscal_quarters(points)
         self.assertEqual([p["val"] for p in quarters], [10, 17, 18, 25])
 
+    def test_comparative_restatement_keeps_its_actual_year(self):
+        # 2026 Q2에 함께 나온 2025 비교표는 fy=2026이지만 실제 기간은 2025다.
+        points = self.points + [
+            point(2026, "Q1", "2025-01-01", "2025-03-31", 12, "10-Q", "2026-05-01"),
+            point(2026, "Q1", "2026-01-01", "2026-03-31", 20, "10-Q", "2026-05-01"),
+            point(2026, "Q2", "2025-01-01", "2025-06-30", 30, "10-Q", "2026-08-01"),
+            point(2026, "Q2", "2026-01-01", "2026-06-30", 50, "10-Q", "2026-08-01"),
+        ]
+        expected = fiscal_quarters(points)
+        self.assertEqual([p["val"] for p in expected], [12, 18, 15, 25, 20, 30])
+        self.assertEqual(fiscal_quarters(list(reversed(points))), expected)
+        self.assertEqual(trailing_four_quarters(points)[0], 90)
+
+    def test_amended_form_updates_the_original_period(self):
+        points = self.points + [
+            point(2025, "Q2", "2025-01-01", "2025-06-30", 27, "10-Q/A", "2025-08-15")
+        ]
+        self.assertEqual([p["val"] for p in fiscal_quarters(points)], [10, 17, 18, 25])
+
+    def test_fiscal_year_does_not_have_to_end_in_december(self):
+        points = [
+            point(2025, "Q1", "2024-07-01", "2024-09-30", 10),
+            point(2025, "Q2", "2024-07-01", "2024-12-31", 25),
+            point(2025, "Q3", "2024-07-01", "2025-03-31", 45),
+            point(2025, "FY", "2024-07-01", "2025-06-30", 70, "10-K"),
+        ]
+        value, quarters = trailing_four_quarters(points)
+        self.assertEqual(value, 70)
+        self.assertEqual({p["fy"] for p in quarters}, {2025})
+
+    def test_mismatched_ytd_starts_cannot_be_subtracted(self):
+        points = self.points + [
+            point(2025, "Q2", "2025-01-02", "2025-06-30", 27, "10-Q/A", "2025-08-15")
+        ]
+        self.assertIsNone(trailing_four_quarters(points)[0])
+
+
+class TestFactSelection(unittest.TestCase):
+    def test_as_of_is_applied_before_choosing_a_replacement_tag(self):
+        responses = [
+            {"units": {"USD": [{"end": "2025-12-31", "filed": "2026-02-01", "val": 10}]}},
+            {"units": {"USD": [{"end": "2026-03-31", "filed": "2026-05-01", "val": 20}]}},
+        ]
+        with patch.object(edgar, "get", side_effect=responses), patch.object(edgar.time, "sleep"):
+            tag, points = edgar.concept("0001", ["Old", "New"], "test", as_of="2026-03-01")
+        self.assertEqual(tag, "Old")
+        self.assertEqual(points[0]["val"], 10)
+
+    def test_instant_and_quarterly_latest_filing_do_not_depend_on_array_order(self):
+        current = point(2025, "Q1", "2025-01-01", "2025-03-31", 12, filed="2025-05-10")
+        prior = {**current, "val": 10, "filed": "2025-05-01"}
+        self.assertEqual(edgar.quarterly([current, prior])[0]["val"], 12)
+        self.assertEqual(edgar.instant([{**current, "start": None}, {**prior, "start": None}])[0]["val"], 12)
+
 
 class TestTickerResolution(unittest.TestCase):
     def test_cache_miss_forces_one_registry_refresh(self):

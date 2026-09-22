@@ -11,7 +11,7 @@ from cio.paths import KNOWLEDGE_DIR, ROOT
 
 REPORT_SCHEMA = "cio-assumption-analysis/1.0.0"
 REPORT_ID = re.compile(r"^ASM-[0-9a-f]{20}$")
-SUPPORTED_FAMILIES = {"DCF", "PEER_MULTIPLE", "NORMALIZED_EARNINGS_MULTIPLE", "EARNINGS_MULTIPLE"}
+SUPPORTED_FAMILIES = {"DCF", "PEER_MULTIPLE", "NORMALIZED_EARNINGS_MULTIPLE", "EARNINGS_MULTIPLE", "EQUITY_BRIDGE", "EVENT_REPRICING"}
 
 
 def comparison(spec, context):
@@ -94,6 +94,8 @@ def validate_earnings_basis(spec, context):
         if required:
             raise AssumptionError("증자 공시가 있는 새 EPS 판단은 earnings_basis로 이익·주식수·가격 단위를 연결해야 한다")
         return
+    if inputs["method"] in {"EQUITY_BRIDGE", "EVENT_PRICE"}:
+        raise AssumptionError("이 방법은 시나리오별 bases를 사용하며 earnings_basis를 섞지 않는다")
     keys(basis, {"shares", "basis", "source_id", "net_income", "price_basis", "price_unit_multiplier", "rationale"}, label="earnings_basis")
     number(basis["shares"], "shares", positive=True)
     number(basis["price_unit_multiplier"], "price_unit_multiplier", positive=True)
@@ -151,7 +153,7 @@ def _check_basis_evidence(spec, evidence):
     from cio.decision import _evidence_family
     families = {r["source_id"]: _evidence_family(r["source_id"], r.get("kind")) for r in evidence}
     for basis in spec["bases"]:
-        financial = any(p.endswith((".eps", ".fcf", ".net_debt", ".shares")) for p in basis["parameters"])
+        financial = any(p.endswith((".eps", ".fcf", ".net_debt", ".shares", ".cash", ".debt", ".enterprise_value")) for p in basis["parameters"])
         if financial and basis["origin"] != "MODEL_CHOICE":
             if not any(families[ref] in {"FINANCIALS", "PRIMARY_DOCUMENT", "SECONDARY", "CALCULATION"} for ref in basis["evidence_refs"]):
                 raise AssumptionError("재무 가정의 근거로 가격·공시 색인만 사용할 수 없다")
@@ -197,7 +199,7 @@ def load_analysis(asset_id, identifier, context):
     report = load_json(report_path(asset_id, identifier))
     if report.get("analysis_id") != identifier or analysis_id(report) != identifier:
         raise AssumptionError("가정 분석 내용 지문이 다르다")
-    if report.get("schema_version") != REPORT_SCHEMA or report.get("engine_version") != VERSION:
+    if report.get("schema_version") != REPORT_SCHEMA or report.get("engine_version") not in {"1.0.0", "1.1.0", VERSION}:
         raise AssumptionError("지원하지 않는 가정 계산 계약")
     if report.get("asset_id") != asset_id or report.get("context_id") != context.get("context_id"):
         raise AssumptionError("다른 종목·context의 가정 분석을 인용했다")
@@ -245,7 +247,7 @@ def validate_review(decision, context):
             raise AssumptionError("context <= 가정 분석 <= 판단 시각이어야 한다")
         inputs, outputs = report["spec"]["inputs"], report["outputs"]
         family = (decision.get("method") or {}).get("valuation_family", "").upper()
-        expected_method = "DCF" if family == "DCF" else "EARNINGS_MULTIPLE"
+        expected_method = "EVENT_PRICE" if family == "EVENT_REPRICING" else family if family in {"DCF", "EQUITY_BRIDGE"} else "EARNINGS_MULTIPLE"
         if family in SUPPORTED_FAMILIES and inputs["method"] != expected_method:
             raise AssumptionError("판단의 가치평가 방법과 계산 방법이 다르다")
         if decision.get("horizon_months") != inputs["horizon_months"] or decision.get("win_return_threshold_pct") != inputs["win_return_threshold_pct"]:

@@ -57,14 +57,23 @@ evidence. Do not stage or commit changes.
    ```
 
    For a holding review, omit `--amount`/`--amount-currency`. When the user states a
-   holding, pass `--held-quantity HELD` and, if stated, `--average-cost COST` (asset
-   currency). These preserve this question's conditions without editing the ledger:
+   holding, pass `--held-quantity HELD` and, if stated, `--average-cost COST` plus
+   `--average-cost-currency KRW|USD` in the currency the user actually stated (the
+   default is asset currency). These preserve this question's conditions without
+   editing the ledger:
 
    ```bash
    python3.13 -m cio prepare ASSET --price PRICE --intent HOLD_REVIEW \
      --held-quantity HELD --average-cost COST --verbatim "user's exact question" \
      --claim "each factual assertion"
    ```
+
+   For example, a US holding of 100 shares with a KRW 6,000 average uses
+   `--held-quantity 100 --average-cost 6000 --average-cost-currency KRW`.
+   Never divide that average by current FX and label the result a historical USD
+   acquisition cost. The packet calculates KRW valuation/P&L with dated FX, leaves
+   unknown native cost/P&L null, and labels any current-FX break-even separately.
+   Conversely, a USD average alone does not establish historical KRW P&L.
 
    If the user chose a sell size, add `--quantity SELL`, or use
    `--target-quantity REMAINING`. Check `request.position_input`,

@@ -2,8 +2,8 @@
 """미국 자산의 다음 정기보고서 제출일을 추정해 실적 캘린더를 만든다.
 
 한국은 회사가 `결산실적공시예고`로 발표일을 미리 공시하므로 원문을 읽으면
-날짜가 나온다(`collectors/kr_calendar.py`). **미국에는 그런 예고 공시가 없다.**
-그래서 같은 질문에 다른 방법으로 답한다 — 과거 (결산기말 → 10-Q/10-K 제출)
+날짜가 나온다(`collectors/kr_calendar.py`). 미국 회사도 IR에서 발표일을 예고하지만
+SEC 제출 색인만으로는 그 일정을 알 수 없다. 과거 (결산기말 → 10-Q/10-K 제출)
 간격을 재고, 다음 결산기말에 그 간격을 더한다.
 
 법정 기한은 제출자 규모에 따라 다르고(대형가속제출자 10-Q 40일·10-K 60일,
@@ -22,6 +22,7 @@ import argparse
 import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,7 +45,7 @@ def _date(value: object) -> dt.date | None:
 
 
 def _quarter_end_after(period_end: dt.date) -> dt.date:
-    """다음 결산기말. 분기 경계는 3·6·9·12월 말이다."""
+    """월말 결산의 다음 분기말. 현재 결산월에서 세 달을 이동한다."""
     month = period_end.month + 3
     year = period_end.year + (month - 1) // 12
     month = (month - 1) % 12 + 1
@@ -56,6 +57,7 @@ def _quarter_end_after(period_end: dt.date) -> dt.date:
 def filing_lag(filings: list[dict]) -> dict[str, object]:
     """과거 (결산기말 → 제출) 간격을 부류별로 관측한다."""
     observations = []
+    seen = set()
     for row in sorted(filings, key=lambda item: str(item.get("filing_date") or "")):
         report_class = PERIODIC_CLASS.get(str(row.get("form")))
         period_end = _date(row.get("report_date"))
@@ -65,6 +67,11 @@ def filing_lag(filings: list[dict]) -> dict[str, object]:
         lag = (filed - period_end).days
         if lag <= 0 or lag > MAX_LAG_DAYS:
             continue
+        # 같은 결산기말의 중복 행은 별도 관측이 아니다. 최초 제출만 센다.
+        key = (row["form"], period_end)
+        if key in seen:
+            continue
+        seen.add(key)
         observations.append({
             "period_end": period_end.isoformat(),
             "filing_date": filed.isoformat(),
@@ -87,7 +94,7 @@ def filing_lag(filings: list[dict]) -> dict[str, object]:
             name: len(values) for name, values in sorted(by_class.items())
         },
         "_note": (
-            "미국에는 실적 발표 예고 공시가 없다. 과거 (결산기말 → 10-Q/10-K "
+            "회사 IR의 발표 예정일과 별개다. 과거 (결산기말 → 10-Q/10-K "
             "제출) 간격의 중앙값이며 추정이다. 10-Q(INTERIM)와 10-K(ANNUAL)는 "
             "법정 기한이 달라 따로 센다. 관측이 2건 미만인 부류는 내지 않는다"
         ),
@@ -95,7 +102,7 @@ def filing_lag(filings: list[dict]) -> dict[str, object]:
 
 
 def build(ticker: str, today: dt.date | None = None) -> dict:
-    today = today or dt.date.today()
+    today = today or dt.datetime.now(ZoneInfo("America/New_York")).date()
     index_path = FILING_DIR / f"{ticker}.json"
     if not index_path.exists():
         fail(
@@ -103,7 +110,8 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
             f"python3.13 -m collectors.edgar filings {ticker}"
         )
     index = json.loads(index_path.read_text(encoding="utf-8"))
-    filings = index.get("filings") or []
+    filings = [row for row in (index.get("filings") or [])
+               if (_date(row.get("filing_date")) or dt.date.max) <= today]
     lag = filing_lag(filings)
 
     reported = [
@@ -116,16 +124,30 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
     report_class = None
     median_lag = None
     next_period_end = None
+    missing_reason = None
     if latest_reported:
-        next_period_end = _quarter_end_after(latest_reported)
-        report_class = (
-            "ANNUAL" if next_period_end.month == 12 else "INTERIM"
+        annual_ends = sorted(
+            _date(row["report_date"]) for row in filings
+            if row.get("form") == "10-K" and _date(row.get("report_date"))
         )
-        median_lag = (lag["median_lag_days_by_class"] or {}).get(report_class)
-        if median_lag is not None:
-            expected_date = (
-                next_period_end + dt.timedelta(days=round(float(median_lag)))
-            ).isoformat()
+        month_end = (latest_reported + dt.timedelta(days=1)).month != latest_reported.month
+        annual_month_end = bool(annual_ends) and (
+            (annual_ends[-1] + dt.timedelta(days=1)).month != annual_ends[-1].month
+        )
+        if not annual_ends:
+            missing_reason = "10-K 결산기말이 없어 다음 보고서의 연간/분기 구분을 알 수 없다"
+        elif not month_end or not annual_month_end:
+            missing_reason = "월말 결산이 아닌 52/53주 등 회계달력은 자동 추정하지 않는다"
+        else:
+            next_period_end = _quarter_end_after(latest_reported)
+            report_class = (
+                "ANNUAL" if next_period_end.month == annual_ends[-1].month else "INTERIM"
+            )
+            median_lag = (lag["median_lag_days_by_class"] or {}).get(report_class)
+            if median_lag is not None:
+                expected_date = (
+                    next_period_end + dt.timedelta(days=round(float(median_lag)))
+                ).isoformat()
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -136,12 +158,11 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
         "as_of_date": today.isoformat(),
         "source": "SEC_EDGAR_SUBMISSIONS",
         "source_grade": "PRIMARY",
-        # 미국은 발표일을 미리 공시하지 않는다. "예고된 잠정실적"이라는 칸이
-        # 한국과 달리 존재하지 않으므로 비워 두고 그 이유를 남긴다.
+        # 제출 색인에는 회사 IR의 실적발표 일정이 없으므로 미확인으로 둔다.
         "next_provisional_result": None,
         "next_provisional_result_missing_reason": (
-            "미국에는 결산실적 공시예고에 해당하는 제도가 없다. 발표일은 "
-            "회사가 8-K(Item 2.02)로 당일 알리며 사전 공시되지 않는다"
+            "SEC 제출 색인만으로는 실적 발표 예정일을 확인할 수 없다. "
+            "회사가 IR 보도자료·이벤트 페이지에서 사전 공지했는지 별도 확인해야 한다"
         ),
         "expected_periodic_report": (
             {
@@ -172,7 +193,7 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
         "expected_periodic_report_missing_reason": (
             None
             if expected_date
-            else (
+            else missing_reason or (
                 f"{report_class or '알 수 없는'} 부류의 과거 관측이 2건 "
                 "미만이라 제출일을 추정하지 않는다"
             )

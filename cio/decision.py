@@ -261,7 +261,7 @@ def _evidence_family(source_id: str, kind: Any) -> str:
         return "PRICE"
     if kind == "FILING_DERIVED":
         return "FINANCIALS"
-    if kind in {"REGULATOR_FILING_INDEX", "FILING_EVENT_INDEX",
+    if kind in {"REGULATOR_FILING_INDEX", "FILING_EVENT_INDEX", "ISSUER_EVENT_CALENDAR",
                 "REGULATOR_FILING_DOCUMENT"}:
         return "FILING_INDEX"
     if kind in {"CALCULATION", "DERIVED"}:

@@ -6,7 +6,8 @@ URL만 남고, 며칠 뒤 그 페이지가 바뀌거나 사라지면 근거를 �
 프롬프트가 "전용 로컬 수집을 요청하라"고 말해도 그 요청은 사람을 거쳐야 했다.
 이 수집기는 그 사이를 메운다 — 모델이 자기 근거를 스스로 박아 넣는다.
 
-**원문을 손대지 않는다.** 광고를 걷어내거나 본문만 뽑지 않는다. 페이지 구조는
+**원문을 손대지 않는다.** 현재는 손실 없이 왕복할 수 있는 텍스트 응답만 받으며
+PDF·바이너리는 지원하지 않는다. 광고를 걷어내거나 본문만 뽑지 않는다. 페이지 구조는
 언제든 바뀌고 그때마다 파서가 깨지지만, 받은 그대로 저장한 바이트는 깨지지
 않는다. 무엇이 본문인지는 그 파일을 읽는 모델이 판단한다.
 
@@ -127,20 +128,31 @@ def fetch(url: str) -> dict[str, Any]:
     if len(raw) > MAX_BYTES:
         fail(f"본문이 {MAX_BYTES} bytes 제한을 넘는다")
     content_type = headers.get("Content-Type") or headers.get("content-type") or ""
+    media_type = content_type.split(";", 1)[0].strip().lower()
+    is_text_type = (not media_type or media_type.startswith("text/")
+                    or media_type in {"application/json", "application/xml", "application/javascript"}
+                    or media_type.endswith(("+json", "+xml")))
+    if raw.lstrip().startswith(b"%PDF-") or not is_text_type:
+        fail(f"PDF·바이너리 응답({media_type or 'unknown'})은 지원하지 않는다 — 원문을 저장하지 않았다")
     charset = "utf-8"
-    match = re.search(r"charset=([\w-]+)", content_type, re.IGNORECASE)
+    match = re.search(r"charset\s*=\s*[\"']?([\w.-]+)", content_type, re.IGNORECASE)
     if match:
         charset = match.group(1)
     try:
-        body = raw.decode(charset, errors="replace")
-    except LookupError:
-        body = raw.decode("utf-8", errors="replace")
+        body = raw.decode(charset, errors="strict")
+        if body.encode(charset, errors="strict") != raw:
+            fail("선언한 문자 인코딩으로 원문 바이트를 재현할 수 없다 — 저장하지 않았다")
+    except (LookupError, UnicodeError):
+        fail(f"본문을 {charset}로 손실 없이 읽을 수 없다 — 대체문자로 바꾸거나 저장하지 않았다")
+    if "\x00" in body:
+        fail("텍스트가 아닌 NUL 포함 응답은 지원하지 않는다 — 원문을 저장하지 않았다")
     return {
         "requested_url": url,
         "final_url": final_url,
         "http_status": status,
         "content_type": content_type or None,
         "content_length": len(raw),
+        "body_encoding": charset,
         "body": body,
     }
 

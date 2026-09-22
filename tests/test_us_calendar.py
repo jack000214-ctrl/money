@@ -90,12 +90,17 @@ class TestFilingLag(unittest.TestCase):
 
     def test_only_the_last_six_observations_are_carried(self):
         rows = [
-            filing("10-Q", f"2020-03-31", f"2020-05-{day:02d}")
-            for day in range(1, 12)
+            filing("10-Q", f"{year}-03-31", f"{year}-05-01")
+            for year in range(2015, 2026)
         ]
         lag = filing_lag(rows)
         self.assertEqual(lag["observation_count"], 11)
         self.assertEqual(len(lag["observations"]), 6)
+
+    def test_duplicate_periods_do_not_manufacture_a_sample(self):
+        row = filing("10-Q", "2026-03-31", "2026-05-10")
+        lag = filing_lag([row, dict(row)])
+        self.assertEqual(lag["sample_size_by_class"]["INTERIM"], 1)
 
 
 class TestBuild(unittest.TestCase):
@@ -110,15 +115,19 @@ class TestBuild(unittest.TestCase):
 
     def test_a_single_observation_refuses_to_estimate_and_says_why(self):
         """관측 1건으로 중앙값을 내면 그 하나가 곧 예측이 된다."""
-        packet = self.build_with([filing("10-Q", "2026-03-31", "2026-05-10")])
+        packet = self.build_with([
+            filing("10-K", "2025-12-31", "2026-03-01"),
+            filing("10-Q", "2026-03-31", "2026-05-10"),
+        ])
         self.assertIsNone(packet["expected_periodic_report"])
         self.assertIn("2건 미만", packet["expected_periodic_report_missing_reason"])
 
     def test_two_observations_produce_an_estimate_marked_as_estimated(self):
         packet = self.build_with([
-            filing("10-Q", "2025-12-31", "2026-02-09"),   # 40일
+            filing("10-K", "2025-12-31", "2026-03-01"),
+            filing("10-Q", "2025-09-30", "2025-11-09"),   # 40일
             filing("10-Q", "2026-03-31", "2026-05-10"),   # 40일
-        ])
+        ], today="2026-11-06")
         expected = packet["expected_periodic_report"]
         self.assertTrue(expected["estimated"])
         self.assertEqual(expected["report_class"], "INTERIM")
@@ -131,7 +140,7 @@ class TestBuild(unittest.TestCase):
             filing("10-K", "2024-12-31", "2025-03-01"),
             filing("10-K", "2025-12-31", "2026-03-01"),
             filing("10-Q", "2026-09-30", "2026-11-05"),
-        ])
+        ], today="2026-11-06")
         self.assertEqual(
             packet["expected_periodic_report"]["report_class"], "ANNUAL"
         )
@@ -140,7 +149,43 @@ class TestBuild(unittest.TestCase):
         """비어 있는 것과 '제도가 없다'는 다르다. 빈칸을 '해당 없음'으로 읽지 않는다."""
         packet = self.build_with([filing("10-Q", "2026-03-31", "2026-05-10")])
         self.assertIsNone(packet["next_provisional_result"])
-        self.assertIn("제도가 없다", packet["next_provisional_result_missing_reason"])
+        self.assertIn("별도 확인", packet["next_provisional_result_missing_reason"])
+
+    def test_june_fiscal_year_end_uses_annual_lag(self):
+        packet = self.build_with([
+            filing("10-K", "2024-06-30", "2024-08-29"),
+            filing("10-K", "2025-06-30", "2025-08-29"),
+            filing("10-Q", "2026-03-31", "2026-05-10"),
+        ])
+        expected = packet["expected_periodic_report"]
+        self.assertEqual(expected["report_class"], "ANNUAL")
+        self.assertEqual(expected["date"], "2026-08-29")
+
+    def test_unknown_fiscal_year_end_is_not_assumed_to_be_december(self):
+        packet = self.build_with([
+            filing("10-Q", "2025-09-30", "2025-11-09"),
+            filing("10-Q", "2025-12-31", "2026-02-09"),
+        ])
+        self.assertIsNone(packet["expected_periodic_report"])
+        self.assertIn("10-K", packet["expected_periodic_report_missing_reason"])
+
+    def test_week_based_calendar_does_not_create_a_month_end_date(self):
+        packet = self.build_with([
+            filing("10-K", "2025-01-26", "2025-03-01"),
+            filing("10-Q", "2025-04-27", "2025-05-28"),
+            filing("10-Q", "2025-07-27", "2025-08-27"),
+        ])
+        self.assertIsNone(packet["expected_periodic_report"])
+        self.assertIn("52/53주", packet["expected_periodic_report_missing_reason"])
+
+    def test_future_filing_does_not_move_the_reported_period(self):
+        packet = self.build_with([
+            filing("10-K", "2025-12-31", "2026-03-01"),
+            filing("10-Q", "2025-09-30", "2025-11-09"),
+            filing("10-Q", "2026-03-31", "2026-05-10"),
+            filing("10-Q", "2026-06-30", "2026-08-09"),
+        ], today="2026-08-08")
+        self.assertEqual(packet["expected_periodic_report"]["period_end"], "2026-06-30")
 
     def test_missing_filing_index_stops_with_a_recipe(self):
         """색인이 없으면 빈 캘린더를 만들지 않고 멈춘다.

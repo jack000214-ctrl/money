@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from typing import Any
+from decimal import Decimal
 
 from cio.display import display_width
 from calculators.contracts import ContractError, load_json
@@ -83,6 +84,21 @@ def _signed(value: Any) -> str:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         return "—"
     return f"{value:+,.1f}%"
+
+
+def _exact_num(value: Any, *, min_digits: int = 0) -> str:
+    """Do not round a recorded execution price or fractional share quantity."""
+    if value is None:
+        return "—"
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return str(value)
+    whole, dot, fraction = f"{Decimal(str(value)):,f}".partition(".")
+    fraction = fraction.rstrip("0").ljust(min_digits, "0")
+    return whole + ("." + fraction if fraction else "")
+
+
+def _money(value: Any, currency: str) -> str:
+    return _exact_num(value, min_digits=2 if currency == "USD" else 0)
 
 
 def _section(title: str, note: str | None = None) -> list[str]:
@@ -208,10 +224,10 @@ def format_assessment(
     if quantity is not None or limit_price is not None:
         parts = []
         if quantity is not None:
-            parts.append(f"{_num(quantity, digits=0)}주")
+            parts.append(f"{_exact_num(quantity)}주")
         if limit_price is not None:
             parts.append(
-                f"지정가 {_num(limit_price, digits=0)} {currency}".rstrip()
+                f"지정가 {_money(limit_price, currency)} {currency}".rstrip()
             )
         lines.append(f"            └ 주문: {' · '.join(parts)}")
     lines.append(
@@ -221,7 +237,7 @@ def format_assessment(
     )
     trade = data.get("proposed_trade") or {}
     lines.append(
-        f"  제안 집행액 {_num(trade.get('amount'), digits=0)} "
+        f"  제안 집행액 {_money(trade.get('amount'), trade.get('currency') or '')} "
         f"{trade.get('currency') or ''}"
     )
     if data.get("entry_plan"):
@@ -233,9 +249,9 @@ def format_assessment(
             lines.extend(_section("조건부 추가 배분 계획"))
             lines.extend(_wrap(data["entry_plan"]["reference_basis"]))
             for stage in calculation["stages"]:
-                lines.append(f"  {stage['stage_id']}: 예산 {_num(stage['budget'], digits=0)} · 해당 단위 가격 {_num(stage['quoted_price'], digits=2)} · {_num(stage['quantity'], digits=0)}주")
+                lines.append(f"  {stage['stage_id']}: 예산 {_money(stage['budget'], calculation['currency'])} · 해당 단위 가격 {_money(stage['quoted_price'], currency)} · {_exact_num(stage['quantity'])}주")
                 lines.extend(_wrap(f"조건: {stage['condition']} / 취소: {stage['cancel_if']} / 유효 {stage['valid_from']}~{stage['valid_until']}"))
-            lines.append(f"  추가 배분 후 남는 예산 {_num(calculation['total_unspent'], digits=0)} {calculation['currency']}")
+            lines.append(f"  추가 배분 후 남는 예산 {_money(calculation['total_unspent'], calculation['currency'])} {calculation['currency']}")
             lines.extend(_wrap("계산된 배분 제안이며 주문·체결 기록이 아니다."))
         except (ValueError, OSError, KeyError) as exc:
             lines.extend(_wrap(f"분할계획 계산을 확인할 수 없다: {exc}"))
@@ -353,7 +369,7 @@ def format_assessment(
         ("재질문 하단", "reask_below"),
         ("재질문 상단", "reask_above"),
     ):
-        lines.append(f"  {_pad(label, 22)}{_num(plan.get(key), digits=0):>12}")
+        lines.append(f"  {_pad(label, 22)}{_money(plan.get(key), currency):>12}")
     for event in plan.get("reask_events") or []:
         lines.extend(_wrap(f"· {event}", indent="  "))
 
@@ -472,7 +488,7 @@ def _format_evaluation(
     waited = counterfactual.get("waited_for_entry") or {}
     if waited and not evaluation.get("entry_plan"):
         filled = waited.get("filled")
-        entry = _num(waited.get("entry_price"), digits=0)
+        entry = _exact_num(waited.get("entry_price"))
         if filled:
             lines.append(
                 f"  진입가 {entry} 체결됨 ({(waited.get('fill') or {}).get('date')}) "
@@ -624,16 +640,16 @@ def format_evaluations(asset_id: str, *, with_plan: bool = False) -> str:
             f"  {_pad(created, 17)}"
             f"{_pad(str(row['assessment_id'])[4:12], 10)}"
             f"{_pad(row['source'], 9)}"
-            f"{_pad(_num(row.get('asked_price'), digits=0), 10)}"
+            f"{_pad(_exact_num(row.get('asked_price')), 10)}"
             f"{_pad(decision, 14)}"
             f"{_pad(_signed(row.get('return_to_latest_pct')), 8)}"
         )
         if with_plan:
             plan = row["price_plan"]
             line += (
-                f"{_pad(_num(plan.get('preferred_entry'), digits=0), 10)}"
-                f"{_pad(_num(plan.get('stop_price'), digits=0), 10)}"
-                f"{_pad(_num(plan.get('scale_out_start'), digits=0), 10)}"
+                f"{_pad(_exact_num(plan.get('preferred_entry')), 10)}"
+                f"{_pad(_exact_num(plan.get('stop_price')), 10)}"
+                f"{_pad(_exact_num(plan.get('scale_out_start')), 10)}"
             )
         lines.append(line)
         if row["triggered"]:

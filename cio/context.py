@@ -40,6 +40,7 @@ from calculators.position import (
     PositionError,
     build as build_position_math,
     multiples as position_multiples,
+    position_value_by_currency,
 )
 from cio.refresh import (
     DART_PRIMARY_REPORT_FORMS,
@@ -83,6 +84,16 @@ MAX_LIVE_ASSESSMENTS = 3
 
 class ContextError(ValueError):
     pass
+
+
+def _prompt_version(path: Path) -> str:
+    """The prompt owns its version; the packet must not carry a second copy."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header = lines[0] if lines else ""
+    match = re.fullmatch(r"# CIO prompt v(\d+(?:\.\d+)+)", header.strip())
+    if not match:
+        raise ContextError("CIO prompt 첫 줄에 버전이 없다")
+    return match.group(1)
 
 
 def _csv_rows(path: Path) -> list[dict[str, str]]:
@@ -262,6 +273,17 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     source["data_as_of"] = points[-1][0]
     closes = [point[1] for point in points]
     return_closes = [point[2] for point in points]
+    # Short-window claims ("the last two days") need exchange-session dates.
+    # Never let an unfinished/latest-unknown bar silently become a daily close.
+    settled_points = points if session_state == "SETTLED" else points[:-1]
+    session_returns = {}
+    for count in (1, 2, 3):
+        if len(settled_points) > count:
+            start, end = settled_points[-1 - count], settled_points[-1]
+            session_returns[str(count)] = {
+                "from_date": start[0], "through_date": end[0],
+                "return_pct": round((end[2] / start[2] - 1) * 100, 2),
+            }
 
     def change(days: int) -> float | None:
         if len(return_closes) <= days or return_closes[-1 - days] <= 0:
@@ -297,6 +319,11 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
                 if adjusted_complete
                 else "RAW_CLOSE_FALLBACK"
             ),
+            "settled_session_returns": {
+                "windows": session_returns,
+                "excluded_latest_bar": points[-1][0] if session_state != "SETTLED" else None,
+                "_note": "최근 1·2·3개 확정 거래 세션의 누적 수익률이다. 달력 일수가 아니다. 마지막 봉이 미확정·불명확하면 제외하며 위 returns_basis와 같은 가격 기준을 쓴다",
+            },
             "drawdown_from_12m_high_pct": round(
                 (closes[-1] / high - 1) * 100, 2
             ),
@@ -427,7 +454,7 @@ def _latest_fundamentals(
         "source": data.get("source") or observed_filing_source,
     }
     # This describes the historical EPS denominator, not today's capitalization.
-    for field in ("eps_basis", "share_count_cross_check"):
+    for field in ("eps_basis", "share_count_cross_check", "share_count_basis"):
         if field in data:
             summary[field] = data[field]
     # TTM 네 숫자만 실으면 분기 흐름이 packet 에서 사라진다. 수집기가 이미
@@ -456,9 +483,17 @@ def _latest_fundamentals(
         summary["debt_by_category"] = {
             **by_category,
             "_role": (
-                "총차입(values.long_term_debt)의 구성이다. LEASE 는 IFRS16 "
-                "리스부채이고 영업현금흐름도 같은 기준이라 기본은 포함이다. "
-                "리스를 뺀 순부채를 쓰려면 LEASE 를 덜어내고 다시 센다"
+                "총차입(values.long_term_debt)의 구성이다. "
+                + (
+                    "LEASE는 US GAAP ASC842 운용·금융리스 부채다. 운용리스 "
+                    "지급액은 영업현금흐름에 이미 반영되므로 해당 FCF로 가치평가하며 "
+                    "리스부채까지 차감하면 이중 반영될 수 있다. 리스 처리에 맞춰 "
+                    "현금흐름과 순부채를 함께 조정한다"
+                    if asset["market"] == "US"
+                    else "LEASE는 IFRS16 리스부채다. 현금흐름의 리스원금·이자 "
+                    "분류와 맞춰 포함 여부를 정한다"
+                )
+                + ". 리스를 뺀 순부채를 쓰려면 LEASE를 덜어내고 다시 센다"
             ),
         }
     fcf = _as_float(values.get("fcf_ttm"))
@@ -1673,6 +1708,8 @@ def _data_coverage(
             "state": "AVAILABLE",
             "shares_diluted": shares,
             "basis": fundamentals.get("eps_basis"),
+            **({"share_count_basis": fundamentals["share_count_basis"]}
+               if fundamentals.get("share_count_basis") else {}),
             "note": (
                 "재무 보고기간의 EPS 분모이며 현재 발행주식수·미래 완전희석주식수가 아니다. "
                 "**주식수 추이는 없다** — "
@@ -1692,6 +1729,17 @@ def _data_coverage(
             "note": "재무 스냅샷에 희석주식수가 없다",
         }
     )
+    if not is_kr and asset.get("asset_type") == "STOCK":
+        def us_coverage(key: str, note: str) -> dict[str, Any]:
+            section = optional.get(key) or {}
+            state = section.get("state", section.get("status", "NOT_COLLECTED"))
+            return {"state": "REGISTERED_NOT_COLLECTED" if state == "NOT_COLLECTED" else state,
+                    "freshness": section.get("freshness"), "source_id": f"{key.upper()}:{asset['asset_id']}",
+                    "note": note}
+        coverage["segment_revenue"] = us_coverage("us_segments", "SEC 원문의 부문·제품·지역 축별 실적이다. 기간·축이 다른 값을 합산하지 않는다. 단일부문과 추출 실패를 구분한다")
+        coverage["eps_denominator"] = coverage["dilution"]
+        coverage["dilution"] = us_coverage("us_capital", "표지 발행량·기말 총량·종류별 주식수·주식보상·발행 현금흐름을 자동 추출한다. 날짜/범위가 다른 값을 합치거나 ATM 한도를 발행 완료로 읽지 않는다. 미래 완전희석 분모는 모델이 고른다")
+        coverage["earnings_announcement"] = us_coverage("us_earnings", "회사 IR에서 수집한 실제 발표 안내이며 잠정/확정 여부를 보존한다. 다음 SEC 제출일 추정과 다르다")
     if asset.get("analysis_lens") == "EPC_BACKLOG" or "KR_EPC" in enabled:
         coverage["epc_contract_notes"] = row(
             "epc_contract_notes", registered="KR_EPC" in enabled,
@@ -2040,6 +2088,47 @@ def _fx_rate() -> tuple[float | None, str | None]:
     return float(summary["close"]), summary["as_of"]
 
 
+def _us_automated_summaries(asset: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Official US originals are collected once; only checked summaries enter the packet."""
+    if (asset["market"], asset["asset_type"]) != ("US", "STOCK"):
+        return {}, []
+    import importlib
+    summaries, sources = {}, []
+    for key, source_prefix in (("us_capital", "US_CAPITAL"), ("us_segments", "US_SEGMENTS"), ("us_earnings", "US_EARNINGS")):
+        path = KNOWLEDGE_DIR / key / f"{asset['asset_id']}.json"
+        if not path.exists():
+            summaries[key] = {"state": "NOT_COLLECTED", "available": False,
+                              "_note": "cio refresh --run이 공식 원문을 수집하고 추출한다"}
+            continue
+        module = importlib.import_module(f"collectors.{key}")
+        try:
+            data = load_json(path)
+            errors = module.validate_artifact(data, asset["asset_id"])
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            errors = [str(exc)]
+        if errors:
+            summaries[key] = {"state": "INVALID", "available": False, "problems": errors[:4]}
+            continue
+        summaries[key] = module.summary(data)
+        summaries[key].setdefault("state", data.get("status", data.get("state", "UNKNOWN")))
+        try:
+            collected = dt.datetime.fromisoformat(data.get("collected_at") or "")
+        except (ValueError, TypeError):
+            collected = None
+        if collected is not None and collected.tzinfo is not None and (dt.datetime.now(dt.timezone.utc) - collected).total_seconds() > 24 * 3600:
+            summaries[key]["freshness"] = "STALE"
+            summaries[key]["_freshness_note"] = "수집 후24시간이 지났다. 최신 공시·IR로 갱신한다"
+        sources.append({"source_id": f"{source_prefix}:{asset['asset_id']}",
+                        "kind": "ISSUER_EVENT_CALENDAR" if key == "us_earnings" else "FILING_DERIVED",
+                        "path": str(path.relative_to(ROOT)), "data_as_of": data.get("collected_at")})
+        for document in data.get("reports", data.get("sources", [])):
+            if isinstance(document, dict) and document.get("source_id") and document.get("path"):
+                sources.append({"source_id": document["source_id"], "path": document["path"],
+                                "kind": "REGULATOR_FILING_DOCUMENT" if key != "us_earnings" else "ISSUER_DOCUMENT",
+                                "data_as_of": document.get("filing_date") or document.get("fetched_at")})
+    return summaries, sources
+
+
 def _portfolio_as_of(path: Path) -> str | None:
     try:
         with path.open(encoding="utf-8-sig") as handle:
@@ -2268,13 +2357,21 @@ def _user_position_summary(
     asset: dict[str, Any], *, quantity: float, average_cost: float | None,
     price: float, review_quantity: float | None, target_quantity: float | None,
     local_portfolio: dict[str, Any],
+    average_cost_currency: str | None = None,
 ) -> dict[str, Any]:
     """이번 질문의 보유 입력만 계산한다. 거래·계좌 잔액을 추정하지 않는다."""
-    fx, fx_as_of = _fx_rate() if asset["market"] == "US" else (1.0, None)
-    value = quantity * price
-    cost = quantity * average_cost if average_cost is not None else None
-    pnl = value - cost if cost is not None else None
+    cost_currency = average_cost_currency or asset["currency"]
+    fx, fx_as_of = _fx_rate() if "USD" in (asset["currency"], cost_currency) else (None, None)
+    values = position_value_by_currency(
+        quantity=quantity, price=price, asset_currency=asset["currency"],
+        average_cost=average_cost, cost_currency=cost_currency,
+        fx_krw_per_usd=fx, fx_as_of=fx_as_of,
+    )
+    fx = values["fx_krw_per_usd"]
     local = local_portfolio.get("existing_position") or {}
+    local_cost_currency = local.get("average_cost_currency") or asset["currency"]
+    costs_comparable = (local_cost_currency == cost_currency
+                        and local.get("average_cost") is not None and average_cost is not None)
     return {
         "available": True,
         "scope": "USER_SUPPLIED_POSITION",
@@ -2283,31 +2380,22 @@ def _user_position_summary(
         "existing_position": {
             "held": quantity > 0,
             "quantity": quantity,
-            "average_cost": average_cost,
-            "average_cost_currency": asset["currency"],
+            **values,
             "authority": "USER_INPUT",
             "verified": False,
-            "value_at_review_price": round(value, 2),
-            "cost_basis": round(cost, 2) if cost is not None else None,
-            "unrealized_pnl": round(pnl, 2) if pnl is not None else None,
-            "value_at_review_price_krw": round(value * fx, 2) if fx is not None else None,
-            "cost_basis_krw": round(cost * fx, 2) if cost is not None and fx is not None else None,
-            "unrealized_pnl_krw": round(pnl * fx, 2) if pnl is not None and fx is not None else None,
-            "unrealized_pnl_pct": round((price / average_cost - 1) * 100, 2)
-            if average_cost else None,
             "weight_at_review_price_pct": None,
-            "fx_krw_per_usd": fx if asset["market"] == "US" else None,
-            "fx_as_of": fx_as_of,
         },
         "local_position_comparison": {
             "available": local_portfolio.get("available", False),
             "quantity": local.get("quantity"),
             "average_cost": local.get("average_cost"),
+            "average_cost_currency": local_cost_currency,
             "as_of": local.get("value_as_of"),
             "quantity_matches": local.get("quantity") == quantity
             if local.get("quantity") is not None else None,
             "average_cost_matches": math.isclose(local["average_cost"], average_cost, abs_tol=0.01)
-            if local.get("average_cost") is not None and average_cost is not None else None,
+            if costs_comparable else None,
+            "average_cost_comparable": costs_comparable,
         },
         "proposed_trade": _sell_block(
             held_quantity=quantity, review_quantity=review_quantity,
@@ -2423,8 +2511,8 @@ def _portfolio_summary(
         and held_quantity > 0
         else None
     )
-    if asset["market"] == "US":
-        average_cost = average_cost / fx if average_cost and fx else None
+    # The snapshot only supplies a KRW acquisition basis. Dividing it by today's
+    # FX rate would invent a historical USD average cost.
     value_at_review_krw = None
     if held_quantity is not None and price > 0:
         in_asset_currency = held_quantity * price
@@ -2518,7 +2606,9 @@ def _portfolio_summary(
                 "average_cost": round(average_cost, 4)
                 if average_cost is not None
                 else None,
-                "average_cost_currency": asset["currency"],
+                "average_cost_currency": "KRW",
+                "average_cost_asset_currency": round(average_cost, 4)
+                if average_cost is not None and asset["currency"] == "KRW" else None,
                 "cost_basis_krw": round(cost_basis_krw, 2)
                 if cost_basis_krw is not None
                 else None,
@@ -2535,6 +2625,11 @@ def _portfolio_summary(
                 and cost_basis_krw
                 and cost_basis_krw > 0
                 else None,
+                "unrealized_pnl_return_currency": "KRW",
+                "fx_krw_per_usd": fx if asset["market"] == "US" else None,
+                "fx_as_of": fx_as_of,
+                "_currency_note": "스냅샷 평단과 취득원가는 원화 기준이다. 과거 환율이 "
+                "없으므로 미국 자산의 달러 취득평단을 현재 환율로 역산하지 않는다",
                 "weight_at_review_price_pct": round(
                     value_at_review_krw / total_at_review * 100, 2
                 )
@@ -3217,6 +3312,18 @@ def _memory_digest(
             signals = data.get("invalidation_signals")
             drivers = data.get("drivers")
             row["carried_forward"] = {
+                "action": {
+                    **{key: value for key, value in (data.get("action") or {}).items()
+                       if key != "rationale"},
+                    "rationale": _clip((data.get("action") or {}).get("rationale"), 1600),
+                },
+                "action_execution": {
+                    "status": "UNKNOWN",
+                    "staged_sell_plan": "NARRATIVE_ONLY",
+                    "_note": "과거 매도 제안은 체결 내역이 아니다. action의 수량·지정가·"
+                    "이유를 함께 검토한다. 이유 안의 미래 분할매도는 아직 단계별 계약으로 "
+                    "검증·채점되지 않는다. 잘린 문장이 있으면 이 assessment 원문을 읽는다",
+                },
                 "drivers": (
                     [
                         {
@@ -3440,7 +3547,14 @@ def _research_requirements(
             {
                 "owner": "MODEL",
                 "topic": "pipeline_rnpv",
-                "instruction": "파이프라인 단계·성공확률·희석·현금 런웨이를 조사한다. DCF를 강제하지 않는다",
+                "known_local_gap": "임상단계와 현금은 적자 바이오의 기업가치를 확정하지 않는다. "
+                "허가 대상 환자·순약가·시장 침투·추가 개발비·특허 및 규제독점·로열티·"
+                "상업화 시점은 구조화되지 않아 원문 조사와 명시적 모델 가정이 필요하다",
+                "instruction": "파이프라인 단계·효능 표본·대조군·내약성·등록경로·경쟁·"
+                "희석·현금 런웨이를 조사한다. 10-K의 특허 만료와 인라이선스 대가도 "
+                "확인하고 orphan 지정을 승인이나 경쟁사 배제로 읽지 않는다. 환자 전체와 "
+                "실제 허가 대상, 회사 TAM과 달성 매출을 구분한다. 단계별 승인 빈도를 "
+                "해당 약의 성공확률이나 주식 승률로 그대로 쓰지 않는다. DCF를 강제하지 않는다",
             }
         ],
         "QUALITY_GROWTH": [
@@ -3609,12 +3723,15 @@ def build_context(
     target_quantity: float | None = None,
     held_quantity: float | None = None,
     average_cost: float | None = None,
+    average_cost_currency: str | None = None,
     verbatim: str | None = None,
     claims: list[str] | None = None,
     save: bool = True,
 ) -> tuple[dict[str, Any], Path | None]:
     asset = get_asset(asset_id)
     amount_currency = (amount_currency or "KRW").upper()
+    explicit_cost_currency = average_cost_currency is not None
+    average_cost_currency = (average_cost_currency or asset["currency"]).upper()
     problems = []
     position_problems: list[str] = []
     if intent is not None and intent not in INTENTS:
@@ -3632,6 +3749,10 @@ def build_context(
     assertions = _user_assertions(claims)
     if average_cost is not None and held_quantity is None:
         problems.append("--average-cost는 --held-quantity와 함께 준다")
+    if explicit_cost_currency and average_cost is None:
+        problems.append("--average-cost-currency는 --average-cost와 함께 준다")
+    if average_cost_currency not in {"KRW", "USD"}:
+        problems.append("average_cost_currency는 KRW 또는 USD만 지원한다")
     if held_quantity is not None and family != "EXISTING_POSITION":
         problems.append("--held-quantity는 보유분 검토에만 준다")
     for name, value in (("held_quantity", held_quantity), ("average_cost", average_cost)):
@@ -3803,6 +3924,16 @@ def build_context(
         sources.append(source)
     structured_optional, optional_sources = _optional_collection_summaries(asset, fundamentals=fundamentals)
     sources.extend(optional_sources)
+    us_summaries, us_sources = _us_automated_summaries(asset)
+    structured_optional.update(us_summaries)
+    sources.extend(us_sources)
+    if us_summaries:
+        earnings_calendar = earnings_calendar or {}
+        ir_calendar = us_summaries["us_earnings"]
+        earnings_calendar["announced_earnings"] = ir_calendar.get("next_earnings")
+        earnings_calendar["announcement_state"] = ir_calendar.get("state")
+        earnings_calendar["announcement_note"] = ir_calendar.get("reason") or ir_calendar.get("_note")
+        earnings_calendar["_announcement_role"] = "회사 IR의 실제 발표 안내다. ANNOUNCED_PRELIMINARY는 회사의 잠정 일정이며 확정이 아니다. expected_periodic_report는 별도의 SEC 제출일 추정이다"
     portfolio, source = _portfolio_summary(
         asset,
         amount=amount,
@@ -3820,6 +3951,7 @@ def build_context(
             asset, quantity=held_quantity, average_cost=average_cost, price=price,
             review_quantity=review_quantity, target_quantity=target_quantity,
             local_portfolio=portfolio,
+            average_cost_currency=average_cost_currency,
         )
         ledger_source = None
     else:
@@ -3828,7 +3960,7 @@ def build_context(
         )
     if ledger_source:
         sources.append(ledger_source)
-    if asset["market"] == "US":
+    if asset["market"] == "US" or (user_position and average_cost_currency == "USD"):
         _, fx_source = _price_summary("KRW=X")
         sources.append(fx_source)
 
@@ -3992,7 +4124,8 @@ def build_context(
     if held_quantity is not None or average_cost is not None:
         request["position_input"] = {
             "quantity": held_quantity, "average_cost": average_cost,
-            "currency": asset["currency"], "source": "USER_INPUT",
+            "currency": average_cost_currency, "source": "USER_INPUT",
+            "average_cost_currency": average_cost_currency,
             "as_of": created_at, "verified": False,
         }
     if verbatim:
@@ -4053,12 +4186,7 @@ def build_context(
     model_contract = {
         "decision_schema": "schemas/cio-decision.schema.json",
         "prompt": "prompts/cio-system.md",
-        # 2.1 positioning 강제 조건에 kr_lending 추가 / 2.2 필드 의미를 packet
-        # `_role` 로 옮기고 prompt 에는 규율만 남김 / 2.3 intent 갈래 분리,
-        # 준비상태 이분화, 주장-근거 결속(claim_kind·basis), 분기 브리지.
-        # 프롬프트 본문이 바뀌면 반드시 올린다 — 같은 버전이 다른 규칙을
-        # 가리키면 모델 비교가 깨진다.
-        "prompt_version": "2.9",
+        "prompt_version": _prompt_version(prompt_path),
         "assumption_review_required": True,
         "assumption_spec": "schemas/cio-assumptions.schema.json",
         "prompt_sha256": prompt_digest,

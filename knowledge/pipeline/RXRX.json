@@ -1,0 +1,78 @@
+{
+  "schema_version": "pipeline-ledger/1.0.0",
+  "asset_id": "RXRX",
+  "updated_at": "2026-09-22T21:55:06+09:00",
+  "programs": [
+    {
+      "name": "REC-4881",
+      "stage": "PHASE2",
+      "indication": "Familial adenomatous polyposis",
+      "next_milestone": "CGA-IGC 추가 Phase 2 안전성·효능 발표; FDA 허가 경로 논의 결과 2H2026 예정",
+      "expected_readout": "2026-11-02",
+      "source": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000097/exhibit991-q0226.htm",
+      "note": "WEBSNAP:fb85dc91c548, 2026-08-05 발표: Presidential Plenary I 2026-11-02 13:30–15:00 MST. 허가 승인일이 아님.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-102",
+      "stage": "PRECLINICAL",
+      "indication": "Hypophosphatasia",
+      "next_milestone": "후보물질 특성 평가; 임상 개시·readout 확정일 미확인",
+      "expected_readout": null,
+      "source": "https://www.recursion.com/pipeline",
+      "note": "WEBSNAP:ba8d3a3f3328, 2026-09-22 조회. Preclinical/Candidate profiling 상태.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-1245",
+      "stage": "PHASE1",
+      "indication": "Solid tumors and lymphoma",
+      "next_milestone": "추가 Phase 1 용량증량 데이터 2H2026 예정",
+      "expected_readout": null,
+      "source": "https://www.recursion.com/pipeline",
+      "note": "단계 WEBSNAP:ba8d3a3f3328; 일정 WEBSNAP:fb85dc91c548 (2026-08-05). 반기 안내를 임의의 날짜로 바꾸지 않음.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-3565",
+      "stage": "PHASE1",
+      "indication": "B-cell malignancies",
+      "next_milestone": "단독요법 초기 Phase 1 안전성·PK 데이터 1H2027 예정",
+      "expected_readout": null,
+      "source": "https://www.recursion.com/pipeline",
+      "note": "단계 WEBSNAP:ba8d3a3f3328; 일정 WEBSNAP:fb85dc91c548 (2026-08-05). 정확한 발표일 미확인.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-4539",
+      "stage": "PHASE1",
+      "indication": "Solid tumors and hematology oncology",
+      "next_milestone": "단독요법 초기 Phase 1 안전성·PK 데이터 2H2027 예정",
+      "expected_readout": null,
+      "source": "https://www.recursion.com/pipeline",
+      "note": "단계 WEBSNAP:ba8d3a3f3328; 일정 WEBSNAP:fb85dc91c548 (2026-08-05). 정확한 발표일 미확인.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-617",
+      "stage": "PHASE1_2",
+      "indication": "Advanced solid tumors",
+      "next_milestone": "병용 초기 Phase 1 안전성·PK 데이터 1H2027 예정",
+      "expected_readout": null,
+      "source": "https://www.recursion.com/pipeline",
+      "note": "단계 WEBSNAP:ba8d3a3f3328; 일정 WEBSNAP:fb85dc91c548 (2026-08-05). 정확한 발표일 미확인.",
+      "as_of": "2026-09-22"
+    },
+    {
+      "name": "REC-7735",
+      "stage": "PRECLINICAL",
+      "indication": "PIK3CA H1047R-mutant solid tumors",
+      "next_milestone": "IND 허용; Phase 1/2 ZINNIA 시작 2H2026 예정",
+      "expected_readout": null,
+      "source": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000097/exhibit991-q0226.htm",
+      "note": "WEBSNAP:fb85dc91c548. 2026-09-22 웹사이트 WEBSNAP:ba8d3a3f3328는 Preclinical/Candidate profiling. 임상 개시 완료 근거는 미확인.",
+      "as_of": "2026-09-22"
+    }
+  ],
+  "_role": "모델이 조사해 남긴 파이프라인 사실이다. 수집기가 만든 것이 아니라 판단 과정의 산출물이므로, 인용하기 전에 as_of 와 source 를 본다"
+}
