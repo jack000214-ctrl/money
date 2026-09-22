@@ -2,13 +2,14 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "214450",
   "corp_code": "00970453",
-  "collected_at": "2026-09-02T04:33:19+00:00",
+  "collected_at": "2026-09-10T00:55:36+00:00",
   "source": "DART_LIST",
-  "since": "20250729",
-  "until": "20260902",
+  "since": "20250806",
+  "until": "20260910",
   "pblntf_types": [
     "A",
     "B",
+    "C",
     "I",
     "F"
   ],
@@ -25,10 +26,15 @@
       "empty": true
     },
     {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "empty": true
+    },
+    {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "5c602df8ec7f8ea5e318e6ef41f97c971c76357d9f74814011d1976bbf408364",
-      "raw_locator": "data/raw/dart/objects/5c602df8ec7f8ea5e318e6ef41f97c971c76357d9f74814011d1976bbf408364.json"
+      "raw_payload_sha256": "8d2b7c240ac65cf4eb2b2aa0f7fa20b5a2e891f9d77218d3a68906f692750b42",
+      "raw_locator": "data/raw/dart/objects/8d2b7c240ac65cf4eb2b2aa0f7fa20b5a2e891f9d77218d3a68906f692750b42.json"
     },
     {
       "pblntf_ty": "F",
@@ -366,26 +372,6 @@
       "filer": "파마리서치",
       "remark": "코",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250808900097"
-    },
-    {
-      "filing_date": "2025-08-01",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250801900499",
-      "description": "결산실적공시예고",
-      "filer": "파마리서치",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250801900499"
-    },
-    {
-      "filing_date": "2025-07-31",
-      "report_date": null,
-      "form": "OTHER",
-      "accession_number": "20250731900707",
-      "description": "불성실공시법인지정예고              (공시번복)",
-      "filer": "코스닥시장본부",
-      "remark": "코",
-      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250731900707"
     }
   ]
 }

@@ -2,11 +2,11 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "214450",
   "symbol": "214450.KQ",
-  "collected_at": "2026-09-02T13:33:31+09:00",
+  "collected_at": "2026-09-10T10:49:31+09:00",
   "window": {
-    "since": "2026-06-03",
-    "until": "2026-09-01",
-    "trading_days": 62
+    "since": "2026-06-11",
+    "until": "2026-09-09",
+    "trading_days": 63
   },
   "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
   "benchmark": {
@@ -16,9 +16,9 @@
     "calendar_gaps": []
   },
   "last_bar": {
-    "date": "2026-09-01",
+    "date": "2026-09-09",
     "settled": true,
-    "excluded_unsettled_bar": "2026-09-02",
+    "excluded_unsettled_bar": "2026-09-10",
     "_note": "장중 수집분의 미확정 봉을 판정에서 제외했다"
   },
   "benchmark_comparison": {
@@ -28,43 +28,43 @@
     "legs": [
       {
         "label": "구간 저점 → 고점",
-        "from": "2026-06-08",
+        "from": "2026-06-23",
         "to": "2026-08-28",
-        "asset_return_pct": 78.2,
-        "benchmark_return_pct": -8.0,
-        "benchmark_relative_pct": 93.7
+        "asset_return_pct": 64.8,
+        "benchmark_return_pct": -6.0,
+        "benchmark_relative_pct": 75.3
       },
       {
         "label": "구간 고점 → 현재",
         "from": "2026-08-28",
-        "to": "2026-09-01",
-        "asset_return_pct": -10.3,
-        "benchmark_return_pct": -2.0,
-        "benchmark_relative_pct": -8.4
+        "to": "2026-09-09",
+        "asset_return_pct": -20.7,
+        "benchmark_return_pct": -1.0,
+        "benchmark_relative_pct": -19.9
       },
       {
         "label": "구간 저점 → 현재",
-        "from": "2026-06-08",
-        "to": "2026-09-01",
-        "asset_return_pct": 59.8,
-        "benchmark_return_pct": -9.9,
-        "benchmark_relative_pct": 77.4
+        "from": "2026-06-23",
+        "to": "2026-09-09",
+        "asset_return_pct": 30.7,
+        "benchmark_return_pct": -6.9,
+        "benchmark_relative_pct": 40.3
       },
       {
         "label": "구간 전체",
-        "from": "2026-06-04",
-        "to": "2026-09-01",
-        "asset_return_pct": 39.6,
-        "benchmark_return_pct": -21.8,
-        "benchmark_relative_pct": 78.5
+        "from": "2026-06-11",
+        "to": "2026-09-09",
+        "asset_return_pct": 26.9,
+        "benchmark_return_pct": -16.7,
+        "benchmark_relative_pct": 52.3
       }
     ],
     "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
   },
   "judged_on": "벤치마크 대비 beta=1 상대변동",
   "latest": {
-    "date": "2026-09-01",
-    "close": 414000.0
+    "date": "2026-09-09",
+    "close": 366000.0
   },
   "moves": [
     {
@@ -77,7 +77,7 @@
       "sigma_used": 2.57,
       "direction": "up",
       "volume": 139561,
-      "volume_vs_avg": 0.79,
+      "volume_vs_avg": 0.78,
       "candidate_filings": []
     },
     {
@@ -90,7 +90,7 @@
       "sigma_used": 2.69,
       "direction": "up",
       "volume": 198880,
-      "volume_vs_avg": 1.12,
+      "volume_vs_avg": 1.11,
       "candidate_filings": []
     },
     {
@@ -103,7 +103,7 @@
       "sigma_used": 3.18,
       "direction": "up",
       "volume": 298787,
-      "volume_vs_avg": 1.68,
+      "volume_vs_avg": 1.67,
       "candidate_filings": []
     },
     {
@@ -116,7 +116,7 @@
       "sigma_used": 3.53,
       "direction": "up",
       "volume": 145435,
-      "volume_vs_avg": 0.82,
+      "volume_vs_avg": 0.81,
       "candidate_filings": []
     },
     {
@@ -129,7 +129,7 @@
       "sigma_used": 3.91,
       "direction": "up",
       "volume": 369146,
-      "volume_vs_avg": 2.08,
+      "volume_vs_avg": 2.07,
       "candidate_filings": []
     },
     {
@@ -142,7 +142,7 @@
       "sigma_used": 4.04,
       "direction": "up",
       "volume": 452461,
-      "volume_vs_avg": 2.55,
+      "volume_vs_avg": 2.53,
       "candidate_filings": []
     },
     {
@@ -155,7 +155,7 @@
       "sigma_used": 4.37,
       "direction": "down",
       "volume": 257179,
-      "volume_vs_avg": 1.45,
+      "volume_vs_avg": 1.44,
       "candidate_filings": []
     }
   ],
@@ -201,17 +201,11 @@
       "name": "지속가능경영보고서등관련사항(자율공시)              ",
       "rcept_no": "20260612900306",
       "scheduled": false
-    },
-    {
-      "filed": "2026-06-09",
-      "name": "기업설명회(IR)개최              ",
-      "rcept_no": "20260609900404",
-      "scheduled": false
     }
   ],
   "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
   "_gaps": [
     "근접 공시가 없는 급변 7건 (2026-06-24, 2026-06-25, 2026-07-07, 2026-07-13, 2026-07-28, 2026-07-29 외) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다.",
-    "2026-09-02 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
+    "2026-09-10 은 장중 미확정 봉이라 판정에서 제외했다 — 이 패킷의 마지막 거래일은 그 전날이다"
   ]
 }
