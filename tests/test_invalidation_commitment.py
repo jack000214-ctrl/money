@@ -306,6 +306,8 @@ class TestPaceIsMeasured(unittest.TestCase):
             "close_date": "2026-08-05",
             "close_is_settled": False,
             "target_annual_return_pct": 12,
+            "return_currency": "KRW",
+            "objective_currency": "KRW",
         }
         kwargs.update(overrides)
         return _pace_since_decision(**kwargs)
@@ -322,6 +324,20 @@ class TestPaceIsMeasured(unittest.TestCase):
         """앵커는 모델 자기 출력이 아니라 사용자가 정한 연 목표수익률이다."""
         pace = self._pace()
         self.assertAlmostEqual(pace["objective_annual_return_pct"], 12)
+        self.assertGreater(pace["realized_over_objective_x"], 50)
+        self.assertEqual(pace["objective_comparison_state"], "COMPARABLE")
+
+    def test_usd_stock_is_not_compared_with_krw_policy_objective(self):
+        pace = self._pace(return_currency="USD", objective_currency="KRW")
+        self.assertGreater(pace["return_since_decision_pct"], 0)
+        self.assertGreater(pace["objective_return_to_date_pct"], 0)
+        self.assertIsNone(pace["realized_over_objective_x"])
+        self.assertEqual(pace["objective_comparison_state"], "CURRENCY_MISMATCH")
+        self.assertIn("환율", pace["_objective_comparison_note"])
+
+    def test_usd_stock_can_be_compared_with_usd_policy_objective(self):
+        pace = self._pace(return_currency="USD", objective_currency="USD")
+        self.assertEqual(pace["objective_comparison_state"], "COMPARABLE")
         self.assertGreater(pace["realized_over_objective_x"], 50)
 
     def test_annualising_is_not_used(self):

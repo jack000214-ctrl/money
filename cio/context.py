@@ -12,6 +12,7 @@ import statistics
 import tempfile
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from calculators.contracts import (
     ContractError,
@@ -2088,13 +2089,23 @@ def _fx_rate() -> tuple[float | None, str | None]:
     return float(summary["close"]), summary["as_of"]
 
 
-def _us_automated_summaries(asset: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _us_automated_summaries(
+    asset: dict[str, Any], *, refresh_tasks: list[Any] | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Official US originals are collected once; only checked summaries enter the packet."""
     if (asset["market"], asset["asset_type"]) != ("US", "STOCK"):
         return {}, []
     import importlib
+    if refresh_tasks is None:
+        refresh_tasks = inspect_plan(asset["asset_id"], include_optional=True)
+    task_states = {capability: task for task in refresh_tasks
+                   if (capability := getattr(task, "capability", None))}
     summaries, sources = {}, []
     for key, source_prefix in (("us_capital", "US_CAPITAL"), ("us_segments", "US_SEGMENTS"), ("us_earnings", "US_EARNINGS")):
+        if key == "us_earnings" and not asset.get("ir_sources"):
+            summaries[key] = {"state": "NOT_REGISTERED", "available": False,
+                              "_note": "config/assets.json에 공식 IR URL(ir_sources)을 등록해야 실적 발표일을 수집할 수 있다"}
+            continue
         path = KNOWLEDGE_DIR / key / f"{asset['asset_id']}.json"
         if not path.exists():
             summaries[key] = {"state": "NOT_COLLECTED", "available": False,
@@ -2111,13 +2122,14 @@ def _us_automated_summaries(asset: dict[str, Any]) -> tuple[dict[str, Any], list
             continue
         summaries[key] = module.summary(data)
         summaries[key].setdefault("state", data.get("status", data.get("state", "UNKNOWN")))
-        try:
-            collected = dt.datetime.fromisoformat(data.get("collected_at") or "")
-        except (ValueError, TypeError):
-            collected = None
-        if collected is not None and collected.tzinfo is not None and (dt.datetime.now(dt.timezone.utc) - collected).total_seconds() > 24 * 3600:
-            summaries[key]["freshness"] = "STALE"
-            summaries[key]["_freshness_note"] = "수집 후24시간이 지났다. 최신 공시·IR로 갱신한다"
+        task = task_states.get(source_prefix)
+        if task and task.state != "FRESH":
+            summaries[key]["freshness"] = task.state
+            summaries[key]["_freshness_note"] = task.reason or "수집 산출물이 오래됐거나 입력 공시보다 먼저 생성됐다. 갱신한다"
+            if summaries[key]["state"] in {"AVAILABLE", "PARTIAL", "NO_ANNOUNCEMENT"}:
+                summaries[key]["source_state"] = summaries[key]["state"]
+                summaries[key]["state"] = task.state
+                summaries[key]["available"] = False
         sources.append({"source_id": f"{source_prefix}:{asset['asset_id']}",
                         "kind": "ISSUER_EVENT_CALENDAR" if key == "us_earnings" else "FILING_DERIVED",
                         "path": str(path.relative_to(ROOT)), "data_as_of": data.get("collected_at")})
@@ -2672,6 +2684,8 @@ def _pace_since_decision(
     close_date: str | None,
     close_is_settled: bool | None,
     target_annual_return_pct: Any,
+    return_currency: str | None = None,
+    objective_currency: str | None = None,
     split_factor: float | None = None,
 ) -> dict[str, Any] | None:
     """수익이 **얼마나 빨리** 왔는지 잰다.
@@ -2683,8 +2697,8 @@ def _pace_since_decision(
 
     연율 환산은 쓰지 않는다. 2거래일 +10%를 연율화하면 천문학적 숫자가 나와
     아무 의미가 없다. 대신 두 개의 비율을 낸다 — **승리 문턱까지의 진도**를
-    **평가 기간의 경과**로 나눈 값, 그리고 실현 수익을 사용자가 정한 연
-    목표수익률이 같은 기간에 냈을 값으로 나눈 값이다.
+    **평가 기간의 경과**로 나눈 값, 그리고 수익 통화가 같을 때만 실현 수익을
+    사용자가 정한 연 목표수익률이 같은 기간에 냈을 값으로 나눈 값이다.
 
     문턱이 아니다. 몇 배부터 팔아야 하는지 여기서 정하지 않으며 그 판단은
     전부 모델이 한다. 이 블록은 지금까지 packet 에 존재하지 않던 사실 하나를
@@ -2732,6 +2746,7 @@ def _pace_since_decision(
 
     objective_pct = None
     objective_x = None
+    objective_comparison_state = "NO_POSITIVE_OBJECTIVE"
     if (
         isinstance(target_annual_return_pct, (int, float))
         and target_annual_return_pct > -100
@@ -2743,7 +2758,13 @@ def _pace_since_decision(
             4,
         )
         if objective_pct > 0:
-            objective_x = round(realized_pct / objective_pct, 2)
+            if return_currency not in {"KRW", "USD"} or objective_currency not in {"KRW", "USD"}:
+                objective_comparison_state = "CURRENCY_UNKNOWN"
+            elif return_currency != objective_currency:
+                objective_comparison_state = "CURRENCY_MISMATCH"
+            else:
+                objective_x = round(realized_pct / objective_pct, 2)
+                objective_comparison_state = "COMPARABLE"
 
     result: dict[str, Any] = {
         "decided_on": decided.isoformat(),
@@ -2761,6 +2782,16 @@ def _pace_since_decision(
         "objective_annual_return_pct": target_annual_return_pct,
         "objective_return_to_date_pct": objective_pct,
         "realized_over_objective_x": objective_x,
+        "return_currency": return_currency,
+        "objective_currency": objective_currency,
+        "objective_comparison_state": objective_comparison_state,
+        "_objective_comparison_note": (
+            "자산 통화의 가격 수익률과 정책 기본통화의 목표수익률이 달라 "
+            "기준일별 환율 없이 비교하지 않는다"
+            if objective_comparison_state == "CURRENCY_MISMATCH" else
+            "수익률 또는 목표수익률의 통화를 확인할 수 없어 비교하지 않는다"
+            if objective_comparison_state == "CURRENCY_UNKNOWN" else None
+        ),
         "_note": (
             "판단 시점의 검토 가격 대비 실현 수익과, 그것이 평가 기간의 어느 "
             "지점에서 나왔는지다. pace_progress_over_elapsed_x 가 1보다 크면 "
@@ -3118,6 +3149,17 @@ def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> 
             trimmed.append("prior_assessments.carried_forward.entry_plan (use entry_plan_ref)")
             if fits():
                 return
+    if carried.get("exit_plan") and not fits():
+        identifier = next((r.get("assessment_id") for r in rows if r.get("carried_forward") is carried), None)
+        plan_path = KNOWLEDGE_DIR / "assessments" / packet["request"]["asset_id"] / f"{identifier}.json"
+        if identifier and plan_path.is_file():
+            if seal_plans:
+                plan_path = _snapshot_evidence(plan_path, content_hash(plan_path))
+            carried["exit_plan_ref"] = {"assessment_id": identifier, "path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)}
+            carried.pop("exit_plan")
+            trimmed.append("prior_assessments.carried_forward.exit_plan (use exit_plan_ref)")
+            if fits():
+                return
     open_requests = packet["context"].get("open_research_requests") or []
     while len(open_requests) > 2 and not fits():
         open_requests.pop(-2)
@@ -3150,6 +3192,11 @@ def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> 
         )
 
 
+def _assessment_market_date(created_at: str, market: str) -> str:
+    zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
+    return dt.datetime.fromisoformat(created_at).astimezone(zone).date().isoformat()
+
+
 def _memory_digest(
     asset_id: str,
     *,
@@ -3157,6 +3204,8 @@ def _memory_digest(
     close_date: str | None = None,
     close_is_settled: bool | None = None,
     target_annual_return_pct: Any = None,
+    return_currency: str | None = None,
+    objective_currency: str | None = None,
     daily_ranges: list[tuple[str, float, float, float]] | None = None,
 ) -> dict[str, Any]:
     directory = KNOWLEDGE_DIR / "assessments" / asset_id
@@ -3307,6 +3356,8 @@ def _memory_digest(
         if index == len(selected) - 1:
             if evaluation and evaluation.get("entry_plan") and row.get("latest_evaluation"):
                 row["latest_evaluation"]["entry_plan"] = evaluation["entry_plan"]
+            if evaluation and evaluation.get("exit_plan") and row.get("latest_evaluation"):
+                row["latest_evaluation"]["exit_plan"] = evaluation["exit_plan"]
             plan = data.get("price_plan")
             counter = data.get("strongest_counter_thesis") or {}
             signals = data.get("invalidation_signals")
@@ -3319,10 +3370,15 @@ def _memory_digest(
                 },
                 "action_execution": {
                     "status": "UNKNOWN",
-                    "staged_sell_plan": "NARRATIVE_ONLY",
-                    "_note": "과거 매도 제안은 체결 내역이 아니다. action의 수량·지정가·"
-                    "이유를 함께 검토한다. 이유 안의 미래 분할매도는 아직 단계별 계약으로 "
-                    "검증·채점되지 않는다. 잘린 문장이 있으면 이 assessment 원문을 읽는다",
+                    "staged_sell_plan": "STRUCTURED" if data.get("exit_plan") else "NARRATIVE_ONLY",
+                    "_note": (
+                        "과거 매도 제안과 미래 단계의 가격 접촉은 실제 체결 내역이 아니다. "
+                        "각 단계의 조건·취소 사유·선행 체결 여부를 다시 확인한다"
+                        if data.get("exit_plan") else
+                        "과거 매도 제안은 체결 내역이 아니다. action의 수량·지정가·"
+                        "이유를 함께 검토한다. 이유 안의 미래 분할매도는 단계별 계약으로 "
+                        "검증되지 않았다. 잘린 문장이 있으면 이 assessment 원문을 읽는다"
+                    ),
                 },
                 "drivers": (
                     [
@@ -3393,6 +3449,8 @@ def _memory_digest(
                 row["carried_forward"]["assumption_review"] = carried_review(data)
             if data.get("entry_plan"):
                 row["carried_forward"]["entry_plan"] = data["entry_plan"]
+            if data.get("exit_plan"):
+                row["carried_forward"]["exit_plan"] = data["exit_plan"]
             # 판단 시점 호가(문턱·질문가)를 저장된 시계열 기준으로 옮기는
             # 계수. 분할이 없었으면 1.0 이라 아무것도 달라지지 않는다.
             split_factor = _split_factor_since(
@@ -3415,6 +3473,8 @@ def _memory_digest(
                 close_date=close_date,
                 close_is_settled=close_is_settled,
                 target_annual_return_pct=target_annual_return_pct,
+                return_currency=return_currency,
+                objective_currency=objective_currency,
                 split_factor=split_factor,
             )
         result.append(row)
@@ -3431,6 +3491,35 @@ def _memory_digest(
         digest["latest_entry_plan"] = {"assessment_id": latest_with_plan["assessment_id"],
             "entry_plan_ref": {"path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)},
             "_role": "가장 최근의 유효한 분할 제안 기록이다. 이후 판단에 계획이 생략됐다고 잃지 않는다. 현재 실행 지시가 아니며 조건·취소 기록을 재검토한다."}
+    latest_exit_plan = next((a for a, _ in reversed(assessments) if a.get("exit_plan")), None)
+    if latest_exit_plan and (not result or latest_exit_plan["assessment_id"] != result[-1]["assessment_id"]):
+        plan_path = directory / f"{latest_exit_plan['assessment_id']}.json"
+        market = get_asset(asset_id)["market"]
+        stage_ids = {stage["stage_id"] for stage in latest_exit_plan["exit_plan"]["stages"]}
+        stage_reviews: dict[str, dict[str, Any]] = {}
+        plan_created = dt.datetime.fromisoformat(latest_exit_plan["created_at"]).astimezone(dt.timezone.utc)
+        for review, _ in sorted(assessments, key=lambda pair: dt.datetime.fromisoformat(pair[0]["created_at"]).astimezone(dt.timezone.utc)):
+            if dt.datetime.fromisoformat(review["created_at"]).astimezone(dt.timezone.utc) <= plan_created:
+                continue
+            for check in review.get("exit_plan_checks") or []:
+                if check["assessment_id"] != latest_exit_plan["assessment_id"] or check["stage_id"] not in stage_ids:
+                    continue
+                # Cancellation is terminal for this plan. A later review cannot
+                # silently revive a cancelled stage; the model must make a new plan.
+                if (stage_reviews.get(check["stage_id"]) or {}).get("state") == "CANCELLED":
+                    continue
+                stage_reviews[check["stage_id"]] = {
+                    "stage_id": check["stage_id"], "state": check["state"],
+                    "review_assessment_id": review["assessment_id"],
+                    "reviewed_at": review["created_at"],
+                    "review_date": _assessment_market_date(review["created_at"], market),
+                    "note": _clip(check["note"], 160),
+                }
+        digest["latest_exit_plan"] = {"assessment_id": latest_exit_plan["assessment_id"],
+            "exit_plan_ref": {"path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)},
+            "execution": "UNKNOWN", "status": "HISTORICAL_REFERENCE",
+            "stage_reviews": [stage_reviews[stage["stage_id"]] for stage in latest_exit_plan["exit_plan"]["stages"] if stage["stage_id"] in stage_reviews],
+            "_role": "가장 최근의 미래 분할매도 제안과 단계별 최종 검토 기록이다. CANCELLED는 이 계획에서 되살릴 수 없고 새 계획이 필요하다. 주문이 살아 있거나 체결됐다는 뜻은 아니다."}
     if unusable:
         digest["not_carried"] = {
             "count": len(unusable),
@@ -3922,15 +4011,17 @@ def build_context(
     etf, source = _etf_summary(asset)
     if source:
         sources.append(source)
+    plan = inspect_plan(asset["asset_id"], include_optional=True)
     structured_optional, optional_sources = _optional_collection_summaries(asset, fundamentals=fundamentals)
     sources.extend(optional_sources)
-    us_summaries, us_sources = _us_automated_summaries(asset)
+    us_summaries, us_sources = _us_automated_summaries(asset, refresh_tasks=plan)
     structured_optional.update(us_summaries)
     sources.extend(us_sources)
     if us_summaries:
         earnings_calendar = earnings_calendar or {}
         ir_calendar = us_summaries["us_earnings"]
-        earnings_calendar["announced_earnings"] = ir_calendar.get("next_earnings")
+        earnings_calendar["announced_earnings"] = (ir_calendar.get("next_earnings")
+                                                    if ir_calendar.get("state") in {"AVAILABLE", "PARTIAL"} else None)
         earnings_calendar["announcement_state"] = ir_calendar.get("state")
         earnings_calendar["announcement_note"] = ir_calendar.get("reason") or ir_calendar.get("_note")
         earnings_calendar["_announcement_role"] = "회사 IR의 실제 발표 안내다. ANNOUNCED_PRELIMINARY는 회사의 잠정 일정이며 확정이 아니다. expected_periodic_report는 별도의 SEC 제출일 추정이다"
@@ -4012,7 +4103,6 @@ def build_context(
             }
         )
 
-    plan = inspect_plan(asset["asset_id"], include_optional=True)
     for task in plan:
         if task.required and task.state != "FRESH":
             problems.append(f"{task.name}: {task.state}")
@@ -4280,6 +4370,8 @@ def build_context(
                         "target_annual_return_pct"
                     )
                 ),
+                return_currency=asset["currency"],
+                objective_currency=(investor_policy or {}).get("base_currency"),
                 daily_ranges=_daily_ranges(asset["price_symbol"]),
             ),
             "research_requirements": _research_requirements(asset, filings),
@@ -4298,10 +4390,12 @@ def build_context(
         packet["model_contract"]["earnings_basis_required"] = capital.get("state") == "ANNOUNCED"
     if save:
         prior = packet["context"].get("prior_assessments") or {}
-        ref = ((prior.get("latest_entry_plan") or {}).get("entry_plan_ref") if isinstance(prior, dict) else None)
-        if ref:
-            original = ROOT / ref["path"]
-            ref["path"] = str(_snapshot_evidence(original, ref["content_sha256"]).relative_to(ROOT))
+        if isinstance(prior, dict):
+            for key, field in (("latest_entry_plan", "entry_plan_ref"), ("latest_exit_plan", "exit_plan_ref")):
+                ref = (prior.get(key) or {}).get(field)
+                if ref:
+                    original = ROOT / ref["path"]
+                    ref["path"] = str(_snapshot_evidence(original, ref["content_sha256"]).relative_to(ROOT))
     _fit_context_budget(packet, seal_plans=save)
     packet["context_id"] = stable_hash(
         {key: value for key, value in packet.items() if key != "context_id"},

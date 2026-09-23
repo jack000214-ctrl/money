@@ -17,7 +17,7 @@ import json
 import re
 from urllib.parse import urljoin, urlsplit, urldefrag
 import xml.etree.ElementTree as ET
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from calculators.contracts import canonical_payload_hash, content_hash, load_json, write_json
 from cio.assets import get_asset
@@ -46,6 +46,44 @@ def _date(value):
     try:
         return dt.date.fromisoformat(str(value)[:10])
     except (ValueError, TypeError):
+        return None
+
+
+def _event_date(value):
+    """Return an explicit event's US market date without guessing a missing zone."""
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return _date(value) if re.fullmatch(r"20\d{2}-\d{2}-\d{2}", value) else None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(ZoneInfo("America/New_York"))
+    return parsed.date()
+
+
+def _ics_event_date(field, raw):
+    """Use the US market calendar date when an ICS timestamp names a timezone."""
+    if re.fullmatch(r"20\d{6}", raw):
+        try:
+            return dt.datetime.strptime(raw, "%Y%m%d").date()
+        except ValueError:
+            return None
+    if not re.fullmatch(r"20\d{6}T\d{6}Z?", raw):
+        return None
+    try:
+        value = dt.datetime.strptime(raw[:15], "%Y%m%dT%H%M%S")
+        if raw.endswith("Z"):
+            value = value.replace(tzinfo=dt.timezone.utc)
+        else:
+            params = field.split(";")[1:]
+            tzid = next((part.split("=", 1)[1].strip('"') for part in params
+                         if part.upper().startswith("TZID=")), None)
+            if not tzid:
+                return value.date()  # Floating local time: preserve its stated date.
+            value = value.replace(tzinfo=ZoneInfo(tzid))
+        return value.astimezone(ZoneInfo("America/New_York")).date()
+    except (ValueError, ZoneInfoNotFoundError):
         return None
 
 
@@ -110,8 +148,17 @@ class _HTML(HTMLParser):
 
 def _candidate(date, title, method, excerpt):
     return {"date": date, "title": _clean(title)[:240], "method": method,
+            "event_kind": _event_kind(title),
             "date_status": "ANNOUNCED_PRELIMINARY" if PRELIMINARY_RE.search(excerpt) else "ANNOUNCED",
             "excerpt": _clean(excerpt)[:800]}
+
+
+def _event_kind(title):
+    if re.search(r"\b(?:call|webcast)\b", title, re.I):
+        return "CALL"
+    if re.search(r"\b(?:release|results|announcement)\b", title, re.I):
+        return "RESULTS"
+    return "UNKNOWN"
 
 
 def _prose(text):
@@ -152,24 +199,30 @@ def _json_events(value):
 
 def extract(body, url, content_type=""):
     """Pure extraction, replayed by validate_artifact against preserved originals."""
-    observations, issues, links = [], [], []
+    observations, cancellations, issues, links = [], [], [], []
     interpretable = False
     if body.lstrip().startswith("BEGIN:VCALENDAR"):
         interpretable = True
         unfolded = re.sub(r"\r?\n[ \t]", "", body)
         for event in re.findall(r"BEGIN:VEVENT\s*(.*?)END:VEVENT", unfolded, re.S):
             fields = {}
+            field_names = {}
             for line in event.splitlines():
                 key, sep, value = line.partition(":")
                 if sep:
-                    fields[key.split(";", 1)[0].upper()] = value
+                    name = key.split(";", 1)[0].upper()
+                    fields[name] = value
+                    field_names[name] = key
             title = fields.get("SUMMARY", "")
             if not EARNINGS_RE.search(title):
                 continue
             raw = fields.get("DTSTART", "")
-            date = _date(f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}") if re.match(r"20\d{6}(?:T|$)", raw) else None
+            date = _ics_event_date(field_names.get("DTSTART", ""), raw)
             if fields.get("STATUS") == "CANCELLED":
                 issues.append("An earnings event is explicitly cancelled")
+                if date:
+                    cancellations.append({"date": date.isoformat(), "title": _clean(title)[:240],
+                                          "event_kind": _event_kind(title), "method": "ICS_DTSTART"})
             elif date:
                 observations.append(_candidate(date.isoformat(), title, "ICS_DTSTART", title + " " + raw))
             else:
@@ -209,10 +262,13 @@ def extract(body, url, content_type=""):
                 if not EARNINGS_RE.search(title):
                     continue
                 interpretable = True
+                date = _event_date(event.get("startDate"))
                 if str(event.get("eventStatus", "")).endswith("EventCancelled"):
                     issues.append("An earnings event is explicitly cancelled")
+                    if date:
+                        cancellations.append({"date": date.isoformat(), "title": _clean(title)[:240],
+                                              "event_kind": _event_kind(title), "method": "JSON_LD_START_DATE"})
                     continue
-                date = _date(event.get("startDate"))
                 if date:
                     observations.append(_candidate(date.isoformat(), title, "JSON_LD_START_DATE", title + " " + str(event["startDate"])))
                 else:
@@ -261,7 +317,10 @@ def extract(body, url, content_type=""):
                             if len(dates) == 1:
                                 observations.append(_candidate(dates[0][0], "Quarterly earnings: " + row.text(), "EARNINGS_DATE_COLUMN", row.text()))
     unique = {(row["date"], row["title"], row["method"], row["date_status"]): row for row in observations}
+    cancellations = sorted({(row["date"], row["title"], row["event_kind"], row["method"]) for row in cancellations})
     return {"interpretable": interpretable, "observations": sorted(unique.values(), key=lambda r: (r["date"], r["title"], r["method"])),
+            "cancellations": [{"date": date, "title": title, "event_kind": kind, "method": method}
+                              for date, title, kind, method in cancellations],
             "issues": sorted(set(issues)), "links": list(dict.fromkeys(link for link in links if link))}
 
 
@@ -272,12 +331,21 @@ def _allowed(url, hosts):
 
 def _derive(sources, errors, today):
     future = []
+    cancellations = [row for source in sources for row in source["extraction"].get("cancellations", [])
+                     if _date(row["date"]) >= today]
+    cancelled_dates = sorted({row["date"] for row in cancellations})
+    suppressed = False
     for source in sources:
         for row in source["extraction"]["observations"]:
             if _date(row["date"]) >= today:
-                future.append({**row, "source_id": source["source_id"], "url": source["url"]})
+                if any(cancel["date"] == row["date"] and
+                       cancel["event_kind"] in {"UNKNOWN", row.get("event_kind", "UNKNOWN")}
+                       for cancel in cancellations):
+                    suppressed = True
+                else:
+                    future.append({**row, "source_id": source["source_id"], "url": source["url"]})
     dates = sorted({row["date"] for row in future})
-    partial = bool(errors or any(source["extraction"]["issues"] for source in sources))
+    partial = bool(errors or cancelled_dates or any(source["extraction"]["issues"] for source in sources))
     interpretable = any(source["extraction"]["interpretable"] for source in sources)
     next_event = None
     if len(dates) > 1:
@@ -285,10 +353,19 @@ def _derive(sources, errors, today):
     elif dates:
         selected = [row for row in future if row["date"] == dates[0]]
         preliminary = any(row["date_status"] == "ANNOUNCED_PRELIMINARY" for row in selected)
+        event_kinds = sorted({row.get("event_kind", "UNKNOWN") for row in selected})
         next_event = {"date": dates[0], "date_status": "ANNOUNCED_PRELIMINARY" if preliminary else "ANNOUNCED", "estimated": False,
+                      "event_kind": event_kinds[0] if len(event_kinds) == 1 else "MULTIPLE",
+                      "event_kinds": event_kinds,
                       "title": selected[0]["title"], "source_ids": sorted({row["source_id"] for row in selected}),
                       "source_urls": sorted({row["url"] for row in selected}), "calendar_days_remaining": (_date(dates[0]) - today).days}
-        status, reason = ("PARTIAL" if partial else "AVAILABLE"), "Issuer-published earnings date; preliminary qualifiers are preserved"
+        status = "PARTIAL" if partial else "AVAILABLE"
+        reason = ("An issuer-published date remains, but another same-day earnings event was cancelled; verify that the date still applies"
+                  if dates[0] in cancelled_dates else "Issuer-published earnings date; preliminary qualifiers are preserved")
+    elif cancelled_dates:
+        status = "PARTIAL"
+        reason = ("An official cancellation conflicts with an announced future earnings date; no date selected"
+                  if suppressed else "An official earnings event was cancelled; no active date established")
     elif interpretable:
         status = "PARTIAL" if partial else "NO_ANNOUNCEMENT"
         reason = "No upcoming earnings date extracted from the checked official sources; bounded coverage is not proof that no announcement exists elsewhere"
@@ -296,7 +373,7 @@ def _derive(sources, errors, today):
         status = "NETWORK_ERROR" if errors and not sources and all(e["kind"] == "NETWORK_ERROR" for e in errors) else "PARSE_ERROR"
         reason = "Official sources could not be fetched or interpreted; absence of an announcement is not established"
     return {"status": status, "reason": reason, "next_earnings": next_event,
-            "conflicting_dates": dates if len(dates) > 1 else []}
+            "conflicting_dates": dates if len(dates) > 1 else [], "cancelled_dates": cancelled_dates}
 
 
 def _read_source(ref, requested_url, fetched_at, hosts):
@@ -355,7 +432,7 @@ def build(asset_id, today=None):
     return {"schema_version": SCHEMA_VERSION, "asset_id": asset_id, "source_id": f"US_EARNINGS:{asset_id}",
             "source_grade": "PRIMARY", "collected_at": collected_at, "as_of_date": today.isoformat(),
             "configured_sources": configured, "sources": sources, "errors": errors,
-            **_derive(sources, errors, today), "_note": "Official announced earnings dates only. SEC report-filing estimates are a separate observation. Calendar days use the America/New_York collection date; event timezone is not inferred."}
+            **_derive(sources, errors, today), "_note": "Official announced earnings dates only. SEC report-filing estimates are a separate observation. Calendar days use the America/New_York collection date. Explicit event timestamp zones are converted to that calendar; floating zones are not inferred."}
 
 
 def validate_artifact(data, asset_id):
@@ -392,7 +469,7 @@ def validate_artifact(data, asset_id):
 
 
 def summary(data):
-    return {key: data.get(key) for key in ("source_id", "as_of_date", "status", "reason", "next_earnings", "conflicting_dates")} | {
+    return {key: data.get(key) for key in ("source_id", "as_of_date", "status", "reason", "next_earnings", "conflicting_dates", "cancelled_dates")} | {
         "source_count": len(data.get("sources") or []), "errors": data.get("errors") or [],
         "issues": sorted({issue for source in data.get("sources", []) for issue in source["extraction"]["issues"]})}
 

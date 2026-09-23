@@ -774,6 +774,8 @@ class TestMemoryDigest(unittest.TestCase):
                     latest_close=75.0,
                     close_date="2026-07-27",
                     target_annual_return_pct=12,
+                    return_currency="USD",
+                    objective_currency="USD",
                 )
             live = digest["live"]
             self.assertEqual(digest["state"], "CARRIED_FORWARD")

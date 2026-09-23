@@ -106,6 +106,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         for module in ("cio.assumptions", "cio.context", "cio.decision", "cio.memory"):
             self.stack.enter_context(patch(f"{module}.ROOT", self.root))
             self.stack.enter_context(patch(f"{module}.KNOWLEDGE_DIR", self.knowledge))
+        self.stack.enter_context(patch("cio.exit_plan.ROOT", self.root))
         source = self.root / "source.json"; source.write_text('{"eps": [10, 15, 20]}')
         self.context = valid_context()
         self.context["context"] = {"portfolio": {"existing_position": {"held": True, "quantity": 10}}}
@@ -199,6 +200,154 @@ class TestAssumptionPersistence(unittest.TestCase):
         self.assertEqual(carried['action'], decision['action'])
         self.assertEqual(carried['action_execution']['status'], 'UNKNOWN')
         self.assertEqual(carried['action_execution']['staged_sell_plan'], 'NARRATIVE_ONLY')
+
+    def test_structured_future_sell_plan_survives_record_and_later_reference(self):
+        from cio.memory import record_decision_file
+        from cio.context import _memory_digest
+        from cio.exit_plan import carried_plans
+        report = create_analysis(self.spec, self.context)
+        decision = self.decision(report)
+        decision['action'].update(direction='TRIM', quantity=4, limit_price=110,
+                                  sell_reason='VALUATION', rationale='현재 4주 축소 후 새 근거에 따라 나머지를 검토한다.')
+        for response in decision['assumption_review']['responses']:
+            response['action'] = 'TRIM'
+        start = dt.datetime.fromisoformat(decision['created_at']).date()
+        decision['exit_plan'] = {
+            'currency': 'USD', 'reference_date': self.context['request']['as_of'][:10],
+            'reference_basis': '질문 시점 보통주 1주 기준',
+            'stages': [
+                {'stage_id': 'next_sale', 'name': '다음 축소', 'quantity': 3, 'limit_price': 115,
+                 'requires_review': True, 'depends_on': 'CURRENT_ACTION',
+                 'condition': '다음 실적 원문을 확인한다', 'cancel_if': '논지가 깨지면 취소',
+                 'valid_from': start.isoformat(), 'valid_until': (start + dt.timedelta(days=90)).isoformat()},
+                {'stage_id': 'last_sale', 'name': '마지막 축소', 'quantity': 3, 'limit_price': 120,
+                 'requires_review': True, 'depends_on': 'next_sale',
+                 'condition': '추가 상승과 사업 근거를 다시 확인한다', 'cancel_if': '가격 계획을 바꾸면 취소',
+                 'valid_from': start.isoformat(), 'valid_until': (start + dt.timedelta(days=90)).isoformat()},
+            ],
+        }
+        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        saved_path = record_decision_file(write_json(self.root / 'exit.json', decision))
+        saved = json.loads(saved_path.read_text())
+        self.assertEqual(saved['exit_plan'], decision['exit_plan'])
+        carried = _memory_digest('TSLA')['live'][-1]['carried_forward']
+        self.assertEqual(carried['exit_plan'], decision['exit_plan'])
+        self.assertEqual(carried['action_execution']['staged_sell_plan'], 'STRUCTURED')
+        self.assertEqual(carried['action_execution']['status'], 'UNKNOWN')
+
+        followup = deepcopy(decision)
+        followup.pop('exit_plan')
+        followup['created_at'] = (dt.datetime.fromisoformat(decision['created_at']) + dt.timedelta(seconds=1)).isoformat()
+        record_decision_file(write_json(self.root / 'exit-followup.json', followup))
+        memory = _memory_digest('TSLA')
+        self.assertEqual(memory['latest_exit_plan']['assessment_id'], saved['assessment_id'])
+        self.assertEqual(memory['latest_exit_plan']['execution'], 'UNKNOWN')
+        self.assertEqual(memory['latest_exit_plan']['status'], 'HISTORICAL_REFERENCE')
+        with patch('cio.exit_plan.ROOT', self.root):
+            recovered = carried_plans({'request': {'asset_id': 'TSLA'}, 'context': {'prior_assessments': memory}})
+        self.assertEqual(recovered[(saved['assessment_id'], 'next_sale')]['quantity'], 3)
+
+    def test_large_future_sell_plan_becomes_a_reference_before_signals_are_dropped(self):
+        from cio.context import _fit_context_budget, _compact_size
+        plan = {'stages': [{'stage_id': 'later', 'condition': 'x' * 1800, 'cancel_if': 'y' * 1800}]}
+        identifier = 'CIO-' + 'a' * 20
+        path = self.knowledge / 'assessments' / 'TSLA' / f'{identifier}.json'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({'exit_plan': plan}), encoding='utf-8')
+        carried = {'exit_plan': plan, 'invalidation_signals': [{'signal': 'risk', 'action': 'EXIT'}]}
+        packet = {'request': {'asset_id': 'TSLA'}, 'validation': {'optional_gaps': []},
+                  'context': {'prior_assessments': {'live': [{'assessment_id': identifier,
+                                                              'carried_forward': carried}]}}}
+        with patch('cio.context.MAX_CONTEXT_JSON_BYTES', 2000):
+            _fit_context_budget(packet)
+        self.assertNotIn('exit_plan', carried)
+        self.assertEqual(carried['exit_plan_ref']['content_sha256'], content_hash(path))
+        self.assertEqual(carried['invalidation_signals'][0]['action'], 'EXIT')
+        self.assertLess(_compact_size(packet), 2000)
+
+    def test_cancelled_exit_stage_stays_cancelled_after_an_intervening_judgment(self):
+        from cio.context import _assessment_market_date, _memory_digest
+        from cio.exit_plan import validate as validate_exit_plan
+        from cio.memory import record_decision_file
+
+        def next_context(prior):
+            context = deepcopy(self.context)
+            context['context']['prior_assessments'] = prior
+            context['context_id'] = context_id_for(context)
+            write_json(self.knowledge / 'contexts' / 'TSLA' / f"{context['context_id']}.json", context)
+            return context
+
+        def next_decision(context, prior_created_at):
+            analysis = create_analysis(self.spec, context)
+            decision = self.decision(analysis)
+            decision['context_id'] = context['context_id']
+            after_analysis = dt.datetime.fromisoformat(analysis['created_at']) + dt.timedelta(seconds=1)
+            after_prior = dt.datetime.fromisoformat(prior_created_at) + dt.timedelta(seconds=1)
+            decision['created_at'] = max(after_analysis, after_prior).isoformat()
+            live = ((context['context'].get('prior_assessments') or {}).get('live') or [])
+            carried = (live[-1].get('carried_forward') or {}) if live else {}
+            decision['prior_signal_checks'] = [
+                {'signal_index': signal['index'], 'signal': signal['signal'],
+                 'state': 'UNVERIFIABLE', 'committed_action': signal['action'],
+                 'taken_action': None, 'override_reason': None,
+                 'note': '이 테스트 판단에서는 해당 신호의 발생 여부를 확인하지 않았다'}
+                for signal in (carried.get('invalidation_signals') or [])
+            ]
+            return decision
+
+        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        first = next_decision(self.context, self.context['created_at'])
+        first['action'].update(direction='TRIM', quantity=4, limit_price=110,
+                               sell_reason='VALUATION', rationale='4주를 먼저 줄인다')
+        for response in first['assumption_review']['responses']:
+            response['action'] = 'TRIM'
+        first['exit_plan'] = {
+            'currency': 'USD', 'reference_date': self.context['request']['as_of'][:10],
+            'reference_basis': '질문 시점 보통주 1주',
+            'stages': [{'stage_id': 'later', 'name': '추가 축소', 'quantity': 3, 'limit_price': 115,
+                        'requires_review': True, 'depends_on': 'CURRENT_ACTION',
+                        'condition': '실적 원문을 확인한다', 'cancel_if': '논지가 바뀌면 취소',
+                        'valid_from': first['created_at'][:10],
+                        'valid_until': (dt.date.fromisoformat(first['created_at'][:10]) + dt.timedelta(days=90)).isoformat()}],
+        }
+        plan = json.loads(record_decision_file(write_json(self.root / 'sell-plan.json', first)).read_text())
+
+        second_context = next_context(_memory_digest('TSLA'))
+        second = next_decision(second_context, first['created_at'])
+        second['exit_plan_checks'] = [{
+            'assessment_id': plan['assessment_id'], 'stage_id': 'later',
+            'condition': first['exit_plan']['stages'][0]['condition'], 'state': 'CANCELLED',
+            'note': '새 근거로 이전 가격 계획을 취소했다', 'evidence_refs': ['PRICE:TSLA'],
+        }]
+        cancelled = json.loads(record_decision_file(write_json(self.root / 'sell-cancel.json', second)).read_text())
+
+        third_context = next_context(_memory_digest('TSLA'))
+        third = next_decision(third_context, second['created_at'])
+        record_decision_file(write_json(self.root / 'sell-later.json', third))
+        memory = _memory_digest('TSLA')
+        reference = memory['latest_exit_plan']
+        self.assertEqual(reference['status'], 'HISTORICAL_REFERENCE')
+        self.assertEqual(reference['execution'], 'UNKNOWN')
+        review = reference['stage_reviews'][0]
+        self.assertEqual((review['stage_id'], review['state']), ('later', 'CANCELLED'))
+        self.assertEqual(review['review_assessment_id'], cancelled['assessment_id'])
+        self.assertEqual(review['review_date'], _assessment_market_date(cancelled['created_at'], 'US'))
+        self.assertEqual(review['reviewed_at'], cancelled['created_at'])
+
+        fourth_context = next_context(memory)
+        attempted_revival = next_decision(fourth_context, third['created_at'])
+        attempted_revival['exit_plan_checks'] = [{
+            'assessment_id': plan['assessment_id'], 'stage_id': 'later',
+            'condition': first['exit_plan']['stages'][0]['condition'], 'state': 'SATISFIED',
+            'note': '옛 계획을 다시 쓰려 한다', 'evidence_refs': ['PRICE:TSLA'],
+        }]
+        self.assertTrue(validate_exit_plan(attempted_revival, fourth_context))
+
+    def test_exit_review_date_uses_market_timezone(self):
+        from cio.context import _assessment_market_date
+        timestamp = '2026-09-24T00:30:00+09:00'
+        self.assertEqual(_assessment_market_date(timestamp, 'US'), '2026-09-23')
+        self.assertEqual(_assessment_market_date(timestamp, 'KR'), '2026-09-24')
 
     def test_cli_calculate_then_load(self):
         from cio.__main__ import build_parser

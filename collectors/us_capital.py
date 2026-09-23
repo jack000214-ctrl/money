@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+from decimal import Decimal, InvalidOperation
 import html
 import json
 import re
@@ -59,8 +60,11 @@ NOTES = [
     "Cover-page shares can describe one listed class even without a class dimension; they are not automatically the all-class valuation denominator.",
     "Only an explicitly reported dimensionless period-end common share total is treated as a reported total. Class components are reconciled only at that same date and never added to an already reported total.",
     "Weighted-average EPS shares are period denominators, not current outstanding shares. Issued shares, unvested awards and options are separate observations; no automatic fully diluted total is constructed.",
-    "Missing observations mean NOT_EXTRACTED, never zero. Issuance capacity is not actual issuance; ATM capacity, usage and remaining capacity require review of retained original excerpts.",
+    "Missing observations mean NOT_EXTRACTED, never zero. ATM remaining capacity is reported only when an explicit amount and the report date occur together; capacity is not actual issuance or a current-day balance.",
 ]
+PACKET_UNDIMENSIONED_FIRST = {
+    "authorized_issued_treasury_shares", "stock_compensation_expense", "issued_during_period",
+}
 
 
 def _local(concept):
@@ -111,8 +115,58 @@ def _single(facts):
     return {"state": "CONFLICTING_VALUES" if len(values) > 1 else "NOT_EXTRACTED", "value": None, "unit": "shares", "facts": facts}
 
 
-def _disclosures(body):
-    """Retain bounded original text around capital terms; no amount inference."""
+_ATM_REMAINING_RE = re.compile(
+    r"\bAs of\s+(?P<month>January|February|March|April|May|June|July|August|September|October|November|December)"
+    r"\s+(?P<day>\d{1,2}),?\s+(?P<year>20\d{2}),?\s+"
+    r"(?:an amount of\s+)?\$\s*(?P<amount>[\d,]+(?:\.\d+)?)\s*"
+    r"(?P<scale>thousand|million|billion)?\s+remained\s+available\s+for\s+(?:future\s+)?sales",
+    re.I,
+)
+_ATM_SALES_TAIL_RE = re.compile(
+    r"\s+under\s+the\s+(?:[\w-]+\s+){0,6}(?:Sales Agreement|ATM Program|ATM Offering)\b"
+    r"|\s+of\s+(?:its\s+)?(?:Class [A-C]\s+)?common stock\b",
+    re.I,
+)
+
+
+def _explicit_atm_remaining(excerpts, report_date):
+    """Keep only a stated remaining amount at this filing's balance date."""
+    candidates = []
+    for index, excerpt in enumerate(excerpts):
+        for match in _ATM_REMAINING_RE.finditer(excerpt["text"]):
+            # The excerpt can include adjacent customer-contract prose. The
+            # remaining amount must identify an equity sales agreement itself.
+            preceding = excerpt["text"][max(0, match.start() - 700):match.start()]
+            if (not re.search(r"\b(?:at.the.market|ATM offering|ATM program)\b", preceding, re.I)
+                    or not re.search(r"\b(?:common stock|shares|equity securities)\b", preceding, re.I)):
+                continue
+            if not _ATM_SALES_TAIL_RE.match(excerpt["text"][match.end():match.end() + 100]):
+                continue
+            try:
+                as_of = dt.datetime.strptime(
+                    f"{match['month'].title()} {match['day']} {match['year']}", "%B %d %Y"
+                ).date().isoformat()
+                amount = Decimal(match["amount"].replace(",", "")) * {
+                    None: 1, "thousand": 1000, "million": 1_000_000, "billion": 1_000_000_000,
+                }[match["scale"].lower() if match["scale"] else None]
+            except (ValueError, InvalidOperation):
+                continue
+            if as_of == report_date:
+                candidates.append((int(amount) if amount == amount.to_integral_value() else float(amount), index))
+    values = sorted({amount for amount, _ in candidates})
+    if not values:
+        return None
+    if len(values) > 1:
+        return {"state": "MULTIPLE_AMOUNTS_UNRESOLVED", "amount": None, "currency": "USD",
+                "as_of": report_date, "scope": "REPORTED_AGREEMENT_NOT_ISSUER_TOTAL",
+                "candidate_amounts": values}
+    return {"state": "AVAILABLE", "amount": values[0], "currency": "USD",
+            "as_of": report_date, "scope": "REPORTED_AGREEMENT_NOT_ISSUER_TOTAL",
+            "excerpt_indices": sorted({index for _, index in candidates})}
+
+
+def _disclosures(body, report_date):
+    """Retain bounded original text and explicitly dated ATM remaining amounts."""
     # Hidden XBRL contexts are machine metadata, not prose disclosures.
     visible = re.sub(r"<ix:header\b.*?</ix:header>", " ", body, flags=re.I | re.S)
     text = _clean(visible)
@@ -133,8 +187,9 @@ def _disclosures(body):
             if len(excerpts) == 4:
                 break
         result[label] = {"state": "REVIEW_ORIGINAL" if excerpts else "NOT_EXTRACTED", "excerpts": excerpts}
-    result["atm"].update(capacity=None, used=None, remaining=None,
-                         _note="Amounts are deliberately unknown until the agreement/date/currency and actual issuance are resolved from the original; absence of a tag is not absence of an ATM program.")
+    result["atm"].update(capacity=None, used=None,
+                         remaining=_explicit_atm_remaining(result["atm"]["excerpts"], report_date),
+                         _note="Only an explicitly stated report-date remaining amount is extracted. It is not current-day capacity or issued proceeds; other amounts need original review.")
     return result
 
 
@@ -146,8 +201,12 @@ def extract(body, report_date):
     cover_facts = [f for f in shares if f["concept"].startswith("dei:") and f.get("instant")]
     cover_date = max((f["instant"] for f in cover_facts), default=None)
     # An undimensioned DEI cover fact may still be Class A only; do not call it a total.
-    cover = {"as_of": cover_date, "state": "AVAILABLE" if any(_numeric(f, "shares") for f in cover_facts) else "NOT_EXTRACTED",
-             "facts": _deduplicate([f for f in cover_facts if f["instant"] == cover_date]),
+    latest_cover_facts = _deduplicate([f for f in cover_facts if f["instant"] == cover_date])
+    cover_state = ("CONFLICTING_VALUES" if _conflicts(latest_cover_facts) else
+                   "AVAILABLE" if latest_cover_facts and all(_numeric(f, "shares") and f["value"] >= 0 for f in latest_cover_facts)
+                   else "NOT_EXTRACTED")
+    cover = {"as_of": cover_date, "state": cover_state,
+             "facts": latest_cover_facts,
              "scope": "AS_DESCRIBED_ON_COVER_NOT_ASSUMED_ALL_CLASSES"}
     balance_facts = [f for f in shares if f["concept"] == "us-gaap:CommonStockSharesOutstanding"
                      and f.get("instant") == report_date and not f.get("dimensions")]
@@ -177,7 +236,7 @@ def extract(body, report_date):
     return {"cover_shares": cover, "period_end_shares": balance, "share_classes": classes,
             "class_reconciliation": reconciliation, "share_observations": _deduplicate(shares),
             "metrics": groups, "issuer_extension_candidates": custom,
-            "disclosures": _disclosures(body), "parse_errors": parsed.get("errors", [])}
+            "disclosures": _disclosures(body, report_date), "parse_errors": parsed.get("errors", [])}
 
 
 def _share_history(reports):
@@ -228,7 +287,8 @@ def collect(asset_id, limit=3, *, fetch=True):
 
 
 def validate_artifact(data, asset_id):
-    from collectors.sec_inline import read_document, validate_document_sources
+    from collectors.sec_inline import (load_filings_index, read_document,
+                                       select_reports, validate_document_sources)
     try:
         if data.get("schema_version") != SCHEMA or data.get("asset_id") != asset_id:
             return ["US capital schema or asset mismatch"]
@@ -238,6 +298,15 @@ def validate_artifact(data, asset_id):
         errors = validate_document_sources(reports, asset_id)
         if errors:
             return errors
+        selected = {row["accession_number"] for row in select_reports(load_filings_index(asset_id), data["report_limit"])}
+        reported = {report["accession_number"] for report in reports}
+        collection_errors = data.get("collection_errors")
+        if not isinstance(collection_errors, list) or any(not isinstance(error, dict) or not error.get("accession_number") for error in collection_errors):
+            return ["US capital collection errors must identify selected filings"]
+        failed = [error["accession_number"] for error in collection_errors]
+        if (len(failed) != len(set(failed)) or reported & set(failed)
+                or reported | set(failed) != selected):
+            return ["US capital selected filing coverage is incomplete or inconsistent"]
         documents = []
         for report in reports:
             read = read_document(report)
@@ -266,7 +335,18 @@ def summary(data):
         # Keep dimensional facts in the retained artifact; they may overlap totals.
         preferred = [f for f in current if not f.get("dimensions")]
         scoped = [f for f in current if f.get("dimensions")]
-        selected = (preferred + scoped)[:8]
+        # These scoped facts can repeat the same concept/period as a reported
+        # company-wide total. Omit only those duplicates from the packet: scoped
+        # share-count concepts without a dimensionless equivalent still matter.
+        if name in PACKET_UNDIMENSIONED_FIRST and preferred:
+            total_keys = {(f["concept"], f.get("unit"), f.get("start"), f.get("end"), f.get("instant"))
+                          for f in preferred}
+            distinct_scoped = [f for f in scoped
+                               if (f["concept"], f.get("unit"), f.get("start"), f.get("end"), f.get("instant"))
+                               not in total_keys]
+            selected = (preferred + distinct_scoped)[:8]
+        else:
+            selected = (preferred + scoped)[:8]
         metrics[name] = {"state": "CONFLICTING_VALUES" if _conflicts(current) else "AVAILABLE" if any(_numeric(f) for f in current) else "NOT_EXTRACTED",
                          "facts": [{k: f.get(k) for k in ("concept", "value", "unit", "start", "end", "instant", "dimensions", "state")} for f in selected],
                          "scoped_observation_count": len(scoped), "omitted_current_observations": len(current)-len(selected)}
@@ -277,7 +357,8 @@ def summary(data):
     return {"state": data["state"], "report_date": latest["report_date"], "filing_date": latest["filing_date"], "source_id": latest["source_id"],
             "cover_shares": cover, "period_end_shares": period_end, "share_classes": share_classes,
             "class_reconciliation": latest["class_reconciliation"], "share_history": data["share_history"][-6:], "metrics": metrics,
-            "atm": {"state": latest["disclosures"]["atm"]["state"], "capacity": None, "used": None, "remaining": None,
+            "atm": {"state": latest["disclosures"]["atm"]["state"], "capacity": None, "used": None,
+                    "remaining": latest["disclosures"]["atm"]["remaining"],
                     "excerpt_count": len(latest["disclosures"]["atm"]["excerpts"])},
             "collection_errors": data.get("collection_errors", []), "_notes": NOTES}
 

@@ -158,14 +158,20 @@ def validate_asset(asset_id: str, asset: Any) -> None:
         raise AssetRegistryError(f"{asset_id}: peers에 중복이 있다")
 
     ir_sources = asset.get("ir_sources", [])
-    if not isinstance(ir_sources, list) or len(ir_sources) > 8 or any(not isinstance(url, str) for url in ir_sources):
-        raise AssetRegistryError(f"{asset_id}: ir_sources는 최대8개의 공식 IR HTTPS URL 배열이어야 한다")
+    if not isinstance(ir_sources, list) or len(ir_sources) > 6 or any(not isinstance(url, str) for url in ir_sources):
+        raise AssetRegistryError(f"{asset_id}: ir_sources는 최대6개의 공식 IR HTTPS URL 배열이어야 한다")
     if len(ir_sources) != len(set(ir_sources)):
         raise AssetRegistryError(f"{asset_id}: ir_sources에 중복이 있다")
     for url in ir_sources:
-        parsed = urlsplit(url)
-        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
-            raise AssetRegistryError(f"{asset_id}: ir_sources는 인증정보 없는 HTTPS URL이어야 한다")
+        try:
+            parsed = urlsplit(url)
+            valid = (parsed.scheme == "https" and bool(parsed.hostname)
+                     and not parsed.username and not parsed.password
+                     and parsed.port in (None, 443) and not parsed.fragment)
+        except ValueError:
+            valid = False
+        if not valid:
+            raise AssetRegistryError(f"{asset_id}: ir_sources는 인증정보·사용자 지정 포트 없는 HTTPS URL이어야 한다")
     if ir_sources and (asset["market"], asset["asset_type"]) != ("US", "STOCK"):
         raise AssetRegistryError(f"{asset_id}: ir_sources는 미국 주식 수집 경로에서만 지원한다")
 

@@ -4,6 +4,7 @@ import csv
 import datetime as dt
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -293,6 +294,105 @@ def _first_trigger(
                 "split_adjustment_applied": round(start_factor, 10),
             }
     return None
+
+
+def _exit_plan_observations(
+    assessment: dict[str, Any],
+    price_rows: list[dict[str, Any]],
+    *,
+    start_factor: float,
+    decision_date: str,
+    reviews: list[dict[str, Any]] | tuple[()] = (),
+) -> dict[str, Any]:
+    """Observe sell limits without inferring a condition, fill, or sale return."""
+    plan = assessment["exit_plan"]
+    stages = []
+    for stage in plan["stages"]:
+        window = [
+            row for row in price_rows
+            # The plan reference date is the user's calendar date; for a US
+            # security that can be one day ahead of the exchange session.
+            if decision_date < row["date"]
+            and stage["valid_from"] <= row["date"] <= stage["valid_until"]
+        ]
+        adjusted_limit = float(stage["limit_price"]) * start_factor
+        touched = next((row for row in window if float(row["high"]) >= adjusted_limit), None)
+        checks = sorted(
+            (check for check in reviews
+             if check["assessment_id"] == assessment["assessment_id"]
+             and check["stage_id"] == stage["stage_id"]
+             and check["recorded_at"][:10] <= stage["valid_until"]),
+            key=lambda check: dt.datetime.fromisoformat(check["recorded_at"]).astimezone(dt.timezone.utc),
+        )
+        cancellations = [check for check in checks if check["state"] == "CANCELLED"]
+        first_cancellation_day = cancellations[0]["recorded_at"][:10] if cancellations else None
+        reviewed_touch = None
+        for row in window:
+            # A cancelled plan cannot be revived by a later check. On the
+            # cancellation day the intraday order is unknown, so do not call
+            # that day's high a reviewed opportunity either.
+            if first_cancellation_day and first_cancellation_day <= row["date"]:
+                break
+            prior_checks = [check for check in checks if check["recorded_at"][:10] < row["date"]]
+            if (prior_checks and prior_checks[-1]["state"] == "SATISFIED"
+                    and float(row["high"]) >= adjusted_limit):
+                reviewed_touch = row
+                break
+        latest_check = checks[-1] if checks else None
+        stages.append({
+            "stage_id": stage["stage_id"],
+            "name": stage["name"],
+            "quantity": stage["quantity"],
+            "limit_price": stage["limit_price"],
+            "currency": plan["currency"],
+            "depends_on": stage["depends_on"],
+            "requires_review": stage["requires_review"],
+            "valid_from": stage["valid_from"],
+            "valid_until": stage["valid_until"],
+            "split_adjusted_limit_price": round(adjusted_limit, 8),
+            "split_adjustment_applied": round(start_factor, 10),
+            "observed_from": window[0]["date"] if window else None,
+            "observed_through": window[-1]["date"] if window else None,
+            "price_touch_date": touched["date"] if touched else None,
+            "price_touch_high": float(touched["high"]) if touched else None,
+            "reviewed_price_touch_date": reviewed_touch["date"] if reviewed_touch else None,
+            "latest_condition_check": (
+                {"state": latest_check["state"], "recorded_at": latest_check["recorded_at"],
+                 "review_assessment_id": latest_check["review_assessment_id"]}
+                if latest_check else None
+            ),
+            "condition_review": (
+                "CANCELLED" if first_cancellation_day else
+                latest_check["state"] if latest_check else
+                "UNREVIEWED" if stage["requires_review"] else "NOT_REQUIRED"
+            ),
+            "cancellation_recorded_on": first_cancellation_day,
+            "share_basis_changed_at_touch": (
+                not math.isclose(float(touched.get("split_adjustment_factor") or 1.0),
+                                 start_factor, rel_tol=1e-8)
+                if touched else None
+            ),
+            "price_observation": (
+                "PRICE_TOUCHED" if touched else
+                "NO_TOUCH_IN_OBSERVED_WINDOW" if window else
+                "NO_PRICE_ROWS_IN_VALIDITY" if price_rows and price_rows[-1]["date"] > stage["valid_until"] else
+                "NOT_YET_OBSERVED"
+            ),
+            "dependency_execution": "UNKNOWN" if stage["depends_on"] is not None else "NOT_APPLICABLE",
+            "execution_eligibility": "UNKNOWN",
+            "actual_execution": "UNKNOWN",
+        })
+    return {
+        "stages": stages,
+        "actual_execution": "UNKNOWN",
+        "strategy_return_pct": None,
+        "_note": (
+            "유효기간 안에서 판단일 다음 거래일부터 일봉 고가가 분할 보정한 지정가에 닿았는지만 본다. "
+            "조건 확인은 기록 다음 날부터 대조하지만 앞 단계·현재 매도의 실제 체결과 이번 단계의 "
+            "집행 가능 여부는 알 수 없다. 분할 뒤 수량·지정가를 자동 환산하지 않으며, "
+            "실제 매도와 전략 수익률을 계산하지 않는다."
+        ),
+    }
 
 
 def _action_legs(
@@ -599,9 +699,14 @@ def evaluate_assessment(
     ]
     context, _ = find_context(assessment["context_id"])
     request = context["request"]
-    start = dt.datetime.fromisoformat(
-        str(request["as_of"]).replace("Z", "+00:00")
-    ).date()
+    requested_at = dt.datetime.fromisoformat(str(request["as_of"]).replace("Z", "+00:00"))
+    market = asset.get("market")
+    if market in {"KR", "US"} and requested_at.tzinfo is not None:
+        from zoneinfo import ZoneInfo
+        zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
+        start = requested_at.astimezone(zone).date()
+    else:
+        start = requested_at.date()
     horizon = _add_months(start, int(assessment["horizon_months"]))
     # 일봉에는 장중 시각이 없다. 판단일의 고가·저가는 판단 전에 이미 발생했을
     # 수 있으므로 다음 거래일부터만 사후 경로로 인정한다.
@@ -793,25 +898,39 @@ def evaluate_assessment(
             "여러 평가를 모아 모델·프롬프트별로 회고한다"
         ),
     }
-    if assessment.get("entry_plan"):
-        from cio.entry_plan import observations
+    if assessment.get("entry_plan") or assessment.get("exit_plan"):
         from zoneinfo import ZoneInfo
-        review_rows = []
+        review_rows: dict[str, list[dict[str, Any]]] = {
+            "entry_plan_checks": [], "exit_plan_checks": [],
+        }
         zone = ZoneInfo("Asia/Seoul" if asset["market"] == "KR" else "America/New_York")
         for path in (KNOWLEDGE_DIR / "assessments" / assessment["asset_id"]).glob("CIO-*.json"):
             try:
                 candidate = load_json(path)
-                if not candidate.get("entry_plan_checks"):
+                if not candidate.get("entry_plan_checks") and not candidate.get("exit_plan_checks"):
                     continue
                 require_valid_decision(candidate)
                 recorded = dt.datetime.fromisoformat(candidate["created_at"]).astimezone(zone).isoformat()
-                review_rows.extend({**check, "recorded_at": recorded, "review_assessment_id": candidate["assessment_id"]} for check in candidate["entry_plan_checks"])
+                for field in review_rows:
+                    review_rows[field].extend(
+                        {**check, "recorded_at": recorded,
+                         "review_assessment_id": candidate["assessment_id"]}
+                        for check in candidate.get(field) or []
+                    )
             except (ContractError, ValueError, OSError, KeyError):
                 continue
+        decision_date = dt.datetime.fromisoformat(assessment["created_at"]).astimezone(zone).date().isoformat()
+    if assessment.get("entry_plan"):
+        from cio.entry_plan import observations
         evaluation["entry_plan"] = observations(assessment, path_until_horizon,
-            start_factor=start_split_factor, adjustment_factor=adjustment_factor, end=end, reviews=review_rows,
-            decision_date=dt.datetime.fromisoformat(assessment["created_at"]).astimezone(zone).date().isoformat())
+            start_factor=start_split_factor, adjustment_factor=adjustment_factor, end=end,
+            reviews=review_rows["entry_plan_checks"], decision_date=decision_date)
         evaluation["counterfactual"]["waited_for_entry"]["_note"] += " 조건부 분할계획의 실행 평가는 entry_plan에 별도로 표시한다. 이 단일 가격 비교를 전체 계획의 성과로 읽지 않는다."
+    if assessment.get("exit_plan"):
+        evaluation["exit_plan"] = _exit_plan_observations(
+            assessment, usable, start_factor=start_split_factor,
+            decision_date=decision_date, reviews=review_rows["exit_plan_checks"],
+        )
     evaluation["evaluation_id"] = stable_hash(
         {
             key: value

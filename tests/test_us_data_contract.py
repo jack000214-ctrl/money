@@ -194,7 +194,8 @@ class TestCoverageIsStatedNotImplied(unittest.TestCase):
         self.assertIn("ASC842", summary["debt_by_category"]["_role"])
         self.assertNotIn("IFRS16", summary["debt_by_category"]["_role"])
         coverage = self._coverage("TSLA", structured_optional={}, fundamentals=summary)
-        self.assertFalse(coverage["dilution"]["share_count_basis"]["is_current_outstanding"])
+        self.assertFalse(coverage["eps_denominator"]["share_count_basis"]["is_current_outstanding"])
+        self.assertEqual(coverage["dilution"]["source_id"], "US_CAPITAL:TSLA")
 
     def test_peer_multiples_without_registered_peers(self):
         coverage = self._coverage("005930", structured_optional={}, fundamentals={})

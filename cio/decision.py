@@ -62,6 +62,8 @@ PRICE_KEYS = {
 TOP_LEVEL_KEYS = {
     "entry_plan",
     "entry_plan_checks",
+    "exit_plan",
+    "exit_plan_checks",
     "assumption_review",
     "schema_version",
     "assessment_id",
@@ -1651,6 +1653,8 @@ def validate_decision(
         packet_body = context.get("context") or {}
         from cio.entry_plan import validate as validate_entry_plan
         errors.extend(validate_entry_plan(data, context))
+        from cio.exit_plan import validate as validate_exit_plan
+        errors.extend(validate_exit_plan(data, context))
         optional = packet_body.get("structured_optional") or {}
         given = [name for name in ("kr_flow", "kr_lending") if optional.get(name)]
         if given and data.get("positioning") is None:

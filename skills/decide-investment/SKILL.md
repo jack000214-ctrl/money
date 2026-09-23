@@ -116,6 +116,10 @@ evidence. Do not stage or commit changes.
    For a staged-buy proposal, include `entry_plan`; its budget is checked against
    the saved request and its arithmetic is rendered by `show`. Read
    `docs/advisory-plans.md` for the small plan and condition-review contract.
+   For a future staged-sell proposal, include `exit_plan` with future quantities,
+   limit prices, dependencies and cancellation conditions; keep the current sell
+   solely in `action`. Review prior stage conditions with `exit_plan_checks` and
+   do not infer that a touched limit price was filled.
    If `capital_changes` is missing or invalid, run `collectors.kr_capital` for
    supported Korean issuance forms before using its figures. An EPS assumption
    with `earnings_basis_required` must include the bridge in `docs/assumptions.md`.

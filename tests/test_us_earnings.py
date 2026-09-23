@@ -67,13 +67,43 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(result["observations"], [])
         self.assertTrue(result["issues"])
 
+    def test_json_ld_utc_start_date_uses_us_market_date(self):
+        event = {"@type": "Event", "name": "Third quarter earnings call", "startDate": "2026-10-22T00:00:00Z"}
+        body = '<script type="application/ld+json">' + json.dumps(event) + '</script>'
+        self.assertEqual(ue.extract(body, URL)["observations"][0]["date"], "2026-10-21")
+
     def test_ics_unfolding_and_cancelled_events(self):
-        body = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=America/New_York:20261021T170000\nSUMMARY:Third quarter earnings\n call\nEND:VEVENT\nEND:VCALENDAR"
+        body = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=America/New_York:20261021T170000\nSUMMARY:Third quarter earnings \n call\nEND:VEVENT\nEND:VCALENDAR"
         result = ue.extract(body, URL)
         self.assertEqual(result["observations"][0]["date"], "2026-10-21")
         result = ue.extract(body.replace("SUMMARY:", "STATUS:CANCELLED\nSUMMARY:"), URL)
         self.assertEqual(result["observations"], [])
         self.assertTrue(result["issues"])
+
+    def test_ics_explicit_utc_and_local_zones_use_us_market_date(self):
+        template = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART{params}:{value}\nSUMMARY:Third quarter earnings call\nEND:VEVENT\nEND:VCALENDAR"
+        utc = ue.extract(template.format(params="", value="20261022T000000Z"), URL)
+        self.assertEqual(utc["observations"][0]["date"], "2026-10-21")
+        pacific = ue.extract(template.format(params=";TZID=America/Los_Angeles", value="20261021T210000"), URL)
+        self.assertEqual(pacific["observations"][0]["date"], "2026-10-22")
+        unsupported = ue.extract(template.format(params=";TZID=Unknown/Zone", value="20261021T170000"), URL)
+        self.assertEqual(unsupported["observations"], [])
+        self.assertTrue(unsupported["issues"])
+
+    def test_official_cancellation_suppresses_stale_announced_date(self):
+        cancelled = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20261021T170000Z\nSUMMARY:Third quarter earnings call\nSTATUS:CANCELLED\nEND:VEVENT\nEND:VCALENDAR"
+        result = ue._derive([source(card(name="Third quarter earnings call")), source(cancelled)], [], TODAY)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertIsNone(result["next_earnings"])
+        self.assertEqual(result["cancelled_dates"], ["2026-10-21"])
+
+    def test_cancelled_call_does_not_erase_same_day_results_release(self):
+        cancelled = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20261021T170000Z\nSUMMARY:Third quarter earnings call\nSTATUS:CANCELLED\nEND:VEVENT\nEND:VCALENDAR"
+        release = card(name="Company Q3 Financial Results Announcement")
+        result = ue._derive([source(release), source(cancelled)], [], TODAY)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["next_earnings"]["date"], "2026-10-21")
+        self.assertEqual(result["next_earnings"]["event_kind"], "RESULTS")
 
     def test_rss_pubdate_never_becomes_earnings_date(self):
         body = '<rss><channel><item><title>Third quarter earnings call</title><pubDate>Wed, 21 Oct 2026 17:00:00 GMT</pubDate><link>https://ir.example.com/earnings</link></item></channel></rss>'

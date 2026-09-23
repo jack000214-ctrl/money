@@ -914,6 +914,124 @@
       "additionalProperties": false,
       "description": "새 context가 요구하면 필수. PC 계산 ID에 결속하고 모든 대체 가정·경계값에 모델이 답한다. 구버전 판단에는 소급 강제하지 않는다."
     },
+    "exit_plan": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "enum": ["KRW", "USD"]
+        },
+        "reference_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "reference_basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,47}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "quantity": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "limit_price": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "requires_review": {
+                "type": "boolean"
+              },
+              "depends_on": {
+                "type": ["string", "null"],
+                "pattern": "^(?:CURRENT_ACTION|[a-z][a-z0-9_]{0,47})$"
+              },
+              "condition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "cancel_if": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "valid_from": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "valid_until": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              }
+            },
+            "required": ["stage_id", "name", "quantity", "limit_price", "requires_review",
+              "depends_on", "condition", "cancel_if", "valid_from", "valid_until"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["currency", "reference_date", "reference_basis", "stages"],
+      "additionalProperties": false,
+      "description": "현재 action과 분리한 미래 조건부 매도 단계. 보유수량과 합계를 대조하지만 주문·체결을 뜻하지 않는다."
+    },
+    "exit_plan_checks": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "properties": {
+          "assessment_id": {
+            "type": "string",
+            "pattern": "^CIO-[0-9a-f]{20}$"
+          },
+          "stage_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,47}$"
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "state": {
+            "enum": ["SATISFIED", "NOT_SATISFIED", "UNVERIFIABLE", "CANCELLED"]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        },
+        "required": ["assessment_id", "stage_id", "condition", "state", "note", "evidence_refs"],
+        "additionalProperties": false
+      }
+    },
     "entry_plan": {
       "type": "object",
       "properties": {

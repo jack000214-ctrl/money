@@ -1,7 +1,7 @@
 {
   "schema_version": "us-capital/1.0.0",
   "asset_id": "RXRX",
-  "collected_at": "2026-09-22T13:47:03+00:00",
+  "collected_at": "2026-09-23T01:25:42+00:00",
   "report_limit": 3,
   "state": "AVAILABLE",
   "reports": [
@@ -120,8 +120,8 @@
         {
           "class_member": "us-gaap:CommonClassBMember",
           "as_of": "2026-06-30",
-          "state": "NOT_EXTRACTED",
-          "value": null,
+          "state": "AVAILABLE",
+          "value": 0,
           "unit": "shares",
           "facts": [
             {
@@ -141,33 +141,15 @@
               "sign": null,
               "state": "AVAILABLE",
               "nil": false
-            },
-            {
-              "concept": "us-gaap:CommonStockSharesOutstanding",
-              "value": null,
-              "unit": "shares",
-              "context_id": "c-7",
-              "start": null,
-              "end": null,
-              "instant": "2026-06-30",
-              "dimensions": {
-                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
-              },
-              "raw_text": "no",
-              "decimals": "INF",
-              "scale": "0",
-              "sign": null,
-              "state": "UNRESOLVED",
-              "nil": false
             }
           ]
         }
       ],
       "class_reconciliation": {
-        "state": "NOT_COMPARABLE",
-        "component_sum": null,
+        "state": "MATCH",
+        "component_sum": 534120235,
         "reported_total": 534120235,
-        "difference": null,
+        "difference": 0,
         "_note": "The sum of observed classes alone does not establish completeness or equal economic rights."
       },
       "share_observations": [
@@ -387,24 +369,6 @@
         },
         {
           "concept": "us-gaap:CommonStockSharesOutstanding",
-          "value": null,
-          "unit": "shares",
-          "context_id": "c-7",
-          "start": null,
-          "end": null,
-          "instant": "2026-06-30",
-          "dimensions": {
-            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
-          },
-          "raw_text": "no",
-          "decimals": "INF",
-          "scale": "0",
-          "sign": null,
-          "state": "UNRESOLVED",
-          "nil": false
-        },
-        {
-          "concept": "us-gaap:CommonStockSharesOutstanding",
           "value": 534287685,
           "unit": "shares",
           "context_id": "c-31",
@@ -455,6 +419,256 @@
         }
       ],
       "metrics": {
+        "authorized_issued_treasury_shares": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-4",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 804313,
+              "unit": "shares",
+              "context_id": "c-10",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "804,313",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 521831046,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "521,831,046",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 5547334,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "5,547,334",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 528182693,
+              "unit": "shares",
+              "context_id": "c-4",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "528,182,693",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-3",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 928917,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "928,917",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 533191318,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "533,191,318",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 0,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "—",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 534120235,
+              "unit": "shares",
+              "context_id": "c-3",
+              "start": null,
+              "end": null,
+              "instant": "2026-06-30",
+              "dimensions": {},
+              "raw_text": "534,120,235",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
         "weighted_average_shares": {
           "state": "AVAILABLE",
           "facts": [
@@ -586,7 +800,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "stock_compensation_expense": {
           "state": "AVAILABLE",
@@ -903,7 +1118,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "issuance_proceeds": {
           "state": "AVAILABLE",
@@ -940,7 +1156,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "issued_during_period": {
           "state": "AVAILABLE",
@@ -1311,7 +1528,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "potential_awards": {
           "state": "AVAILABLE",
@@ -1614,15 +1832,18 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "convertible_debt": {
           "state": "NOT_EXTRACTED",
-          "facts": []
+          "facts": [],
+          "conflicts": []
         },
         "repurchases": {
           "state": "NOT_EXTRACTED",
-          "facts": []
+          "facts": [],
+          "conflicts": []
         }
       },
       "issuer_extension_candidates": [
@@ -1674,8 +1895,17 @@
           ],
           "capacity": null,
           "used": null,
-          "remaining": null,
-          "_note": "Amounts are deliberately unknown until the agreement/date/currency and actual issuance are resolved from the original; absence of a tag is not absence of an ATM program."
+          "remaining": {
+            "state": "AVAILABLE",
+            "amount": 300000000,
+            "currency": "USD",
+            "as_of": "2026-06-30",
+            "scope": "REPORTED_AGREEMENT_NOT_ISSUER_TOTAL",
+            "excerpt_indices": [
+              0
+            ]
+          },
+          "_note": "Only an explicitly stated report-date remaining amount is extracted. It is not current-day capacity or issued proceeds; other amounts need original review."
         },
         "convertible": {
           "state": "REVIEW_ORIGINAL",
@@ -1704,6 +1934,1467 @@
             {
               "text": "22.0 million and $ 42.0 million, up to $ 160.0 million in aggregate, to Tempus in cash or equity at the Company’s option. The equity value is determined by using the seven -trading day period dollar volume-weighted average price (VWAP) for Recursion Class A common stock ending on the day immediately preceding the date that is five business days prior to the payment date. Recursion is expensing the record purchases based on a contractually agreed price as “Research and Development” expenses in the Condensed Consolidated Statements of Operations as the records are downloaded. To the extent that the Recursion payments to Tempus are greater than or less than the records purchased amount, Recursion records the applicable amount to “Prepaid data assets” or “Accrued data liability” on the Condensed Consolidated Balance Sheet, respectively. For the three and six months ended June 30, 2026, record purchases were $ 3.1 million. For the three and six months ended June 30, 2025, record purchases were $ 22.7 million and $ 49.9 million, respectively. 8 Table of Contents Accrued Expenses and Other Liabilities June 30, December 31, (in thousands) 2026 2025 Accrued compensation $ 17,962 $ 31,771 Accrued compute liabil",
               "text_offset": 30462
+            }
+          ]
+        }
+      },
+      "parse_errors": []
+    },
+    {
+      "source_id": "WEBSNAP:4ccc756498f8",
+      "path": "data/raw/web/objects/4ccc756498f894d4f9373372c9be11a920a1f893e7eb6f076d740c959827f18e.json",
+      "content_sha256": "4ccc756498f894d4f9373372c9be11a920a1f893e7eb6f076d740c959827f18e",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000078/rxrx-20260331.htm",
+      "filing_date": "2026-05-06",
+      "report_date": "2026-03-31",
+      "form": "10-Q",
+      "accession_number": "0001601830-26-000078",
+      "cover_shares": {
+        "as_of": "2026-05-01",
+        "state": "AVAILABLE",
+        "facts": [
+          {
+            "concept": "dei:EntityCommonStockSharesOutstanding",
+            "value": 524677865,
+            "unit": "shares",
+            "context_id": "c-2",
+            "start": null,
+            "end": null,
+            "instant": "2026-05-01",
+            "dimensions": {
+              "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+            },
+            "raw_text": "524,677,865",
+            "decimals": "INF",
+            "scale": "0",
+            "sign": null,
+            "state": "AVAILABLE",
+            "nil": false
+          },
+          {
+            "concept": "dei:EntityCommonStockSharesOutstanding",
+            "value": 5227334,
+            "unit": "shares",
+            "context_id": "c-3",
+            "start": null,
+            "end": null,
+            "instant": "2026-05-01",
+            "dimensions": {
+              "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+            },
+            "raw_text": "5,227,334",
+            "decimals": "INF",
+            "scale": "0",
+            "sign": null,
+            "state": "AVAILABLE",
+            "nil": false
+          }
+        ],
+        "scope": "AS_DESCRIBED_ON_COVER_NOT_ASSUMED_ALL_CLASSES"
+      },
+      "period_end_shares": {
+        "as_of": "2026-03-31",
+        "state": "AVAILABLE",
+        "value": 530628653,
+        "unit": "shares",
+        "facts": [
+          {
+            "concept": "us-gaap:CommonStockSharesOutstanding",
+            "value": 530628653,
+            "unit": "shares",
+            "context_id": "c-4",
+            "start": null,
+            "end": null,
+            "instant": "2026-03-31",
+            "dimensions": {},
+            "raw_text": "530,628,653",
+            "decimals": "INF",
+            "scale": "0",
+            "sign": null,
+            "state": "AVAILABLE",
+            "nil": false
+          }
+        ],
+        "scope": "REPORTED_DIMENSIONLESS_COMMON_STOCK_TOTAL"
+      },
+      "share_classes": [
+        {
+          "class_member": "rxrx:ExchangeableStockMember",
+          "as_of": "2026-03-31",
+          "state": "AVAILABLE",
+          "value": 856999,
+          "unit": "shares",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesOutstanding",
+              "value": 856999,
+              "unit": "shares",
+              "context_id": "c-10",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "856,999",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ]
+        },
+        {
+          "class_member": "us-gaap:CommonClassAMember",
+          "as_of": "2026-03-31",
+          "state": "AVAILABLE",
+          "value": 524464320,
+          "unit": "shares",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesOutstanding",
+              "value": 524464320,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "524,464,320",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ]
+        },
+        {
+          "class_member": "us-gaap:CommonClassBMember",
+          "as_of": "2026-03-31",
+          "state": "AVAILABLE",
+          "value": 5307334,
+          "unit": "shares",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesOutstanding",
+              "value": 5307334,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "5,307,334",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ]
+        }
+      ],
+      "class_reconciliation": {
+        "state": "MATCH",
+        "component_sum": 530628653,
+        "reported_total": 530628653,
+        "difference": 0,
+        "_note": "The sum of observed classes alone does not establish completeness or equal economic rights."
+      },
+      "share_observations": [
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 396802394,
+          "unit": "shares",
+          "context_id": "c-29",
+          "start": null,
+          "end": null,
+          "instant": "2024-12-31",
+          "dimensions": {
+            "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+          },
+          "raw_text": "396,802,394",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 406410733,
+          "unit": "shares",
+          "context_id": "c-38",
+          "start": null,
+          "end": null,
+          "instant": "2025-03-31",
+          "dimensions": {
+            "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+          },
+          "raw_text": "406,410,733",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 804313,
+          "unit": "shares",
+          "context_id": "c-11",
+          "start": null,
+          "end": null,
+          "instant": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+          },
+          "raw_text": "804,313",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 521831046,
+          "unit": "shares",
+          "context_id": "c-7",
+          "start": null,
+          "end": null,
+          "instant": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+          },
+          "raw_text": "521,831,046",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 5547334,
+          "unit": "shares",
+          "context_id": "c-8",
+          "start": null,
+          "end": null,
+          "instant": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+          },
+          "raw_text": "5,547,334",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 528182693,
+          "unit": "shares",
+          "context_id": "c-17",
+          "start": null,
+          "end": null,
+          "instant": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+          },
+          "raw_text": "528,182,693",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 528182693,
+          "unit": "shares",
+          "context_id": "c-5",
+          "start": null,
+          "end": null,
+          "instant": "2025-12-31",
+          "dimensions": {},
+          "raw_text": "528,182,693",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 856999,
+          "unit": "shares",
+          "context_id": "c-10",
+          "start": null,
+          "end": null,
+          "instant": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+          },
+          "raw_text": "856,999",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 524464320,
+          "unit": "shares",
+          "context_id": "c-6",
+          "start": null,
+          "end": null,
+          "instant": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+          },
+          "raw_text": "524,464,320",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 5307334,
+          "unit": "shares",
+          "context_id": "c-9",
+          "start": null,
+          "end": null,
+          "instant": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+          },
+          "raw_text": "5,307,334",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 530796103,
+          "unit": "shares",
+          "context_id": "c-25",
+          "start": null,
+          "end": null,
+          "instant": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+          },
+          "raw_text": "530,796,103",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "us-gaap:CommonStockSharesOutstanding",
+          "value": 530628653,
+          "unit": "shares",
+          "context_id": "c-4",
+          "start": null,
+          "end": null,
+          "instant": "2026-03-31",
+          "dimensions": {},
+          "raw_text": "530,628,653",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "dei:EntityCommonStockSharesOutstanding",
+          "value": 524677865,
+          "unit": "shares",
+          "context_id": "c-2",
+          "start": null,
+          "end": null,
+          "instant": "2026-05-01",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+          },
+          "raw_text": "524,677,865",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "dei:EntityCommonStockSharesOutstanding",
+          "value": 5227334,
+          "unit": "shares",
+          "context_id": "c-3",
+          "start": null,
+          "end": null,
+          "instant": "2026-05-01",
+          "dimensions": {
+            "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+          },
+          "raw_text": "5,227,334",
+          "decimals": "INF",
+          "scale": "0",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        }
+      ],
+      "metrics": {
+        "authorized_issued_treasury_shares": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 804313,
+              "unit": "shares",
+              "context_id": "c-11",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "804,313",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 521831046,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "521,831,046",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 5547334,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "5,547,334",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 528182693,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "528,182,693",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-4",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 856999,
+              "unit": "shares",
+              "context_id": "c-10",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "856,999",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 524464320,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "524,464,320",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 5307334,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "5,307,334",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 530628653,
+              "unit": "shares",
+              "context_id": "c-4",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {},
+              "raw_text": "530,628,653",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "weighted_average_shares": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding",
+              "value": 402771972,
+              "unit": "shares",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "402,771,972",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:WeightedAverageNumberOfSharesOutstandingBasic",
+              "value": 402771972,
+              "unit": "shares",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "402,771,972",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding",
+              "value": 529303984,
+              "unit": "shares",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "529,303,984",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:WeightedAverageNumberOfSharesOutstandingBasic",
+              "value": 529303984,
+              "unit": "shares",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "529,303,984",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "stock_compensation_expense": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 2950000,
+              "unit": "USD",
+              "context_id": "c-85",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:CostOfSalesMember"
+              },
+              "raw_text": "2,950",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 14839000,
+              "unit": "USD",
+              "context_id": "c-89",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:GeneralAndAdministrativeExpenseMember"
+              },
+              "raw_text": "14,839",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 17800000,
+              "unit": "USD",
+              "context_id": "c-87",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:ResearchAndDevelopmentExpenseMember"
+              },
+              "raw_text": "17,800",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 35589000,
+              "unit": "USD",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "35,589",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensation",
+              "value": 36058000,
+              "unit": "USD",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "36,058",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 900000,
+              "unit": "USD",
+              "context_id": "c-84",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:CostOfSalesMember"
+              },
+              "raw_text": "900",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 9219000,
+              "unit": "USD",
+              "context_id": "c-88",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:GeneralAndAdministrativeExpenseMember"
+              },
+              "raw_text": "9,219",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 11876000,
+              "unit": "USD",
+              "context_id": "c-86",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:IncomeStatementLocationAxis": "us-gaap:ResearchAndDevelopmentExpenseMember"
+              },
+              "raw_text": "11,876",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AllocatedShareBasedCompensationExpense",
+              "value": 21995000,
+              "unit": "USD",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "21,995",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensation",
+              "value": 22215000,
+              "unit": "USD",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "22,215",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "issuance_proceeds": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:ProceedsFromIssuanceOfCommonStock",
+              "value": 41024000,
+              "unit": "USD",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "41,024",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ProceedsFromIssuanceOfCommonStock",
+              "value": 0,
+              "unit": "USD",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "—",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "issued_during_period": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodSharesNewIssues",
+              "value": 5499680,
+              "unit": "shares",
+              "context_id": "c-36",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+              },
+              "raw_text": "5,499,680",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodSharesShareBasedCompensation",
+              "value": 4108659,
+              "unit": "shares",
+              "context_id": "c-36",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+              },
+              "raw_text": "4,108,659",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueNewIssues",
+              "value": 41024000,
+              "unit": "USD",
+              "context_id": "c-37",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:AdditionalPaidInCapitalMember"
+              },
+              "raw_text": "41,024",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueNewIssues",
+              "value": 41024000,
+              "unit": "USD",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "41,024",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueShareBasedCompensation",
+              "value": 2712000,
+              "unit": "USD",
+              "context_id": "c-37",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:AdditionalPaidInCapitalMember"
+              },
+              "raw_text": "2,712",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueShareBasedCompensation",
+              "value": 76000,
+              "unit": "USD",
+              "context_id": "c-34",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:RetainedEarningsMember"
+              },
+              "raw_text": "76",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueShareBasedCompensation",
+              "value": 2788000,
+              "unit": "USD",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "2,788",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodSharesConversionOfConvertibleSecurities",
+              "value": 4900000,
+              "unit": "shares",
+              "context_id": "c-62",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "4.9",
+              "decimals": "-5",
+              "scale": "6",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodSharesShareBasedCompensation",
+              "value": 2613410,
+              "unit": "shares",
+              "context_id": "c-23",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:CommonStockMember"
+              },
+              "raw_text": "2,613,410",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueShareBasedCompensation",
+              "value": -752000,
+              "unit": "USD",
+              "context_id": "c-24",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:StatementEquityComponentsAxis": "us-gaap:AdditionalPaidInCapitalMember"
+              },
+              "raw_text": "752",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": "-",
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:StockIssuedDuringPeriodValueShareBasedCompensation",
+              "value": -752000,
+              "unit": "USD",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "752",
+              "decimals": "-3",
+              "scale": "3",
+              "sign": "-",
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "potential_awards": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 5369128,
+              "unit": "shares",
+              "context_id": "c-96",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareByAntidilutiveSecuritiesAxis": "rxrx:TempusAgreementMember"
+              },
+              "raw_text": "5,369,128",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 11896288,
+              "unit": "shares",
+              "context_id": "c-94",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareByAntidilutiveSecuritiesAxis": "us-gaap:StockCompensationPlanMember"
+              },
+              "raw_text": "11,896,288",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 17265416,
+              "unit": "shares",
+              "context_id": "c-16",
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "17,265,416",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardEquityInstrumentsOtherThanOptionsNonvestedNumber",
+              "value": 27489925,
+              "unit": "shares",
+              "context_id": "c-91",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:AwardTypeAxis": "us-gaap:RestrictedStockUnitsRSUMember"
+              },
+              "raw_text": "27,489,925",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognizedShareBasedAwardsOtherThanOptions",
+              "value": 159100000,
+              "unit": "USD",
+              "context_id": "c-92",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:AwardTypeAxis": "us-gaap:RestrictedStockUnitsRSUMember"
+              },
+              "raw_text": "159.1",
+              "decimals": "-5",
+              "scale": "6",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardEquityInstrumentsOtherThanOptionsNonvestedNumber",
+              "value": 28565398,
+              "unit": "shares",
+              "context_id": "c-92",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:AwardTypeAxis": "us-gaap:RestrictedStockUnitsRSUMember"
+              },
+              "raw_text": "28,565,398",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardNumberOfSharesAvailableForGrant",
+              "value": 27100000,
+              "unit": "shares",
+              "context_id": "c-82",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:PlanNameAxis": "rxrx:A2021EquityIncentivePlanMember"
+              },
+              "raw_text": "27.1",
+              "decimals": "-5",
+              "scale": "6",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardNumberOfSharesAvailableForGrant",
+              "value": 11300000,
+              "unit": "shares",
+              "context_id": "c-83",
+              "start": null,
+              "end": null,
+              "instant": "2026-03-31",
+              "dimensions": {
+                "us-gaap:PlanNameAxis": "rxrx:A2024InducementEquityIncentivePlanMember"
+              },
+              "raw_text": "11.3",
+              "decimals": "-5",
+              "scale": "6",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 0,
+              "unit": "shares",
+              "context_id": "c-95",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareByAntidilutiveSecuritiesAxis": "rxrx:TempusAgreementMember"
+              },
+              "raw_text": "—",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 5504219,
+              "unit": "shares",
+              "context_id": "c-93",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {
+                "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareByAntidilutiveSecuritiesAxis": "us-gaap:StockCompensationPlanMember"
+              },
+              "raw_text": "5,504,219",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+              "value": 5504219,
+              "unit": "shares",
+              "context_id": "c-1",
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "instant": null,
+              "dimensions": {},
+              "raw_text": "5,504,219",
+              "decimals": "0",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
+        "convertible_debt": {
+          "state": "NOT_EXTRACTED",
+          "facts": [],
+          "conflicts": []
+        },
+        "repurchases": {
+          "state": "NOT_EXTRACTED",
+          "facts": [],
+          "conflicts": []
+        }
+      },
+      "issuer_extension_candidates": [
+        {
+          "concept": "rxrx:ProceedsFromPaymentForShareBasedPaymentArrangement",
+          "value": 1550000,
+          "unit": "USD",
+          "context_id": "c-16",
+          "start": "2025-01-01",
+          "end": "2025-03-31",
+          "instant": null,
+          "dimensions": {},
+          "raw_text": "1,550",
+          "decimals": "-3",
+          "scale": "3",
+          "sign": null,
+          "state": "AVAILABLE",
+          "nil": false
+        },
+        {
+          "concept": "rxrx:ProceedsFromPaymentForShareBasedPaymentArrangement",
+          "value": -1262000,
+          "unit": "USD",
+          "context_id": "c-1",
+          "start": "2026-01-01",
+          "end": "2026-03-31",
+          "instant": null,
+          "dimensions": {},
+          "raw_text": "1,262",
+          "decimals": "-3",
+          "scale": "3",
+          "sign": "-",
+          "state": "AVAILABLE",
+          "nil": false
+        }
+      ],
+      "disclosures": {
+        "atm": {
+          "state": "REVIEW_ORIGINAL",
+          "excerpts": [
+            {
+              "text": "all matters submitted to a vote of the Company’s stockholders. Common stockholders are entitled to receive dividends, as may be declared by the Company’s Board of Directors. As of March 31, 2026 and December 31, 2025, no dividends had been declared. At-The-Market Offerings In February 2026 , the Company entered into a Sales Agreement (the TD Cowen Sales Agreement) with TD Securities (USA), LLC (the TD Cowen Sales Agent), to provide for the offering, issuance and sale of up to an aggregate amount of $ 300 million of its Class A common stock from time to time in at-the-market offerings (the TD Cowen ATM Offering). The TD Cowen ATM Offering was made under a prospectus supplement dated February 24, 2026 and related prospectus filed with the Securities and Exchange Commission pursuant to the Company’s automatically effective shelf registration statement on Form S-3 (Registration No. 333-284878). For the three months ended March 31, 2026, the Company sold no shares. As of March 31, 2026, an amount of $ 300.0 million remained available for future sales under the Sales Agreement. Prior to February 2026, Recursion had entered into sales agreements with Citigroup Capital Markets Inc. and Jefferies LLC. S",
+              "text_offset": 38947
+            },
+            {
+              "text": "d received net proceeds of $216.4 million , after deducting transaction costs of $13.6 million. In September 2024, we received a Phenomap acceptance fee of $30.0 million from our collaboration with Roche. In February 2025, the Company terminated the Sales Agreement with Jefferies LLC and entered into a Sales Agreement with Citigroup Capital Markets Inc., to provide for the offering, issuance and sale of up to an aggregate amount of $500.0 million of its Class A common stock. In 2025 , the Company sold 99.9 million shares and received net proceeds of $491.7 million under the agreement. Pursuant to its terms, the Sales Agreement was completed and no amount remained available for future sales. In 2025 , we received multiple milestone payments related to our collaborative development contracts totaling $37.0 million, with aggregate milestone inflows in 2026 of $4.0 million. In February 2026, the Company entered into a Sales Agreement with TD Securities (USA) LLC (TD Cowan), to provide for the offering, issuance and sale of up to an aggregate amount of $300.0 million of its Class A common stock. As of March 31, 2026 , no amounts have been sold under the Sales Agreement with TD Cowan. We use the capita",
+              "text_offset": 74598
+            },
+            {
+              "text": "ecursion Canada Inc., and certain shareholders of Cyclica Inc. 8-K 001-40323 4.1 June 9, 2023 29 Table of Contents 4.6 Registration Rights Agreement, dated July 11, 2023, by and among the Registrant and NVIDIA. 8-K 001-40323 10.2 July 12. 2023 10.1^ Sales Agreement dated February 25, 2026 by and between the Registrant and TD Securities (USA), LLC . 10-K 001-40323 10.35 February 25, 2026 31.1 Certification of Principal Executive Officer Pursuant to Rules 13a-14(a) and 15d-14(a) under the Securities Exchange Act of 1934, as Adopted Pursuant to Section 302 of the Sarbanes-Oxley Act of 2002. X 31.2 Certification of Principal Financial Officer Pursuant to Rules 13a-14(a) and 15d-14(a) under the Securities Exchange Act of 1934, as Adopted Pursuant to Section 302 of the Sarbanes-Oxley Act of 2002. X 32.1** Certification of Principal Executive Officer and Principal Financial Officer Pursuant to 18 U.S.C. Section 1350, as Adopted Pursuant to Section 906 of the Sarbanes-Oxley Act of 2002. X 101.INS XBRL Instance Document X 101.SCH XBRL Taxonomy Extension Schema Document X 101.CAL XBRL Taxonomy Extension Calculation Linkbase Document X 101.DEF XBRL Taxonomy Extension Definition Linkbase Document X 101.LAB X",
+              "text_offset": 99263
+            }
+          ],
+          "capacity": null,
+          "used": null,
+          "remaining": {
+            "state": "AVAILABLE",
+            "amount": 300000000,
+            "currency": "USD",
+            "as_of": "2026-03-31",
+            "scope": "REPORTED_AGREEMENT_NOT_ISSUER_TOTAL",
+            "excerpt_indices": [
+              0
+            ]
+          },
+          "_note": "Only an explicitly stated report-date remaining amount is extracted. It is not current-day capacity or issued proceeds; other amounts need original review."
+        },
+        "convertible": {
+          "state": "REVIEW_ORIGINAL",
+          "excerpts": [
+            {
+              "text": "r to February 2026, Recursion had entered into sales agreements with Citigroup Capital Markets Inc. and Jefferies LLC. See Note 8, “Common Stock,” in the Company’s Annual Report on Form 10-K for the year ended December 31, 2025 . Valence Acquisition Exchangeable Shares In May 2023 , in connection with the acquisition of Valence Discovery Inc. (Valence), the Company entered into an agreement to issue up to 5.9 million shares of Class A common stock (the Exchangeable Shares), that may be issued upon exchange of exchangeable shares of a subsidiary of Recursion. The Exchangeable Shares are substantially the economic equivalent of the Class A shares and classified as common stock within the Company’s stockholders’ equity. The Company’s calculation of weighted-average shares outstanding includes the exchangeable shares. As of March 31, 2026, 4.9 million Exchangeable Shares have been redeemed for Class A shares. Registration Rights Agreements Tempus agreement In November 2023 , in connection with the Tempus Agreement, the Company filed a registration statement for resale of the shares of Class A common stock issued or issuable under the Tempus Agreement. A new registration 11 Table of Contents statement (33",
+              "text_offset": 40040
+            }
+          ]
+        },
+        "share_class": {
+          "state": "REVIEW_ORIGINAL",
+          "excerpts": [
+            {
+              "text": "incipal executive offices) (Zip code) ( 385 ) 269 - 0203 (Registrant’s telephone number, including area code) Securities registered pursuant to Section 12(b) of the Act: Title of each class Trading symbol(s) Name of each exchange on which registered Class A Common Stock, par value $0.00001 RXRX Nasdaq Global Select Market Indicate by check mark whether the registrant (1) has filed all reports required to be filed by Section 13 or 15(d) of the Securities Exchange Act of 1934 during the preceding 12 months (or for such shorter period that the registrant was required to file such reports), and (2) has been subject to such filing requirements for the past 90 days. Yes x No ☐ Indicate by check mark whether the registrant has submitted electronically every Interactive Data File required to be submitted pursuant to Rule 405 of Regulation S-T (§232.405 of this chapter) during the preceding 12 months (or for such shorter period that the registrant was required to submit such files). Yes x No ☐ Indicate by check mark whether the registrant is a large accelerated filer, an accelerated filer, a non-accelerated filer, a smaller reporting company, or an emerging growth company. See the definitions of “large acceler",
+              "text_offset": 674
+            },
+            {
+              "text": "the same size within the biotechnology industry, such as the uncertainty of clinical trial outcomes, uncertainty of additional funding and a history of operating losses. The Company has funded its operations to date primarily through the issuance of Class A common stock (see Note 8, “Common Stock” for additional details). Additionally, the Company has received payments from its strategic partnerships (see Note 9, “Collaborative Development Contracts” for additional details). Recursion will likely be required to raise additional capital. As of March 31, 2026, the Company did not have any unconditional outstanding commitments for additional funding. If the Company is unable to access additional funds when needed, it may not be able to continue the development of its products or the Company could be required to delay, scale back or abandon some or all of its development programs and other operations. The Company’s ability to access capital when needed is not assured and, if not achieved on a timely basis, could materially harm its business, financial condition and results of operations. Recursion believes that the Company’s existing cash and cash equivalents will be sufficient to fund the Company’s opera",
+              "text_offset": 22686
+            },
+            {
+              "text": "22.0 million and $ 42.0 million, up to $ 160.0 million in aggregate, to Tempus in cash or equity at the Company’s option. The equity value is determined by using the seven -trading day period dollar volume-weighted average price (VWAP) for Recursion Class A common stock ending on the day immediately preceding the date that is five business days prior to the payment date. Recursion is expensing the record purchases based on a contractually agreed price as “Research and Development” expenses in the Condensed Consolidated Statements of Operations as the records are downloaded. To the extent that the Recursion payments to Tempus are greater than or less than the records purchased amount, Recursion records the applicable amount to “Prepaid data assets” or “Accrued data liability” on the Condensed Consolidated Balance Sheet, respectively. Recursion did not purchase any records for the three months ended March 31, 2026. For the three months ended March 31, 2025, record purchases were $ 27.1 million. 7 Table of Contents Accrued Expenses and Other Liabilities March 31, December 31, (in thousands) 2026 2025 Accrued compensation $ 14,566 $ 31,771 Accrued compute liabilities 7,535 8,278 Accrued development expens",
+              "text_offset": 28558
+            },
+            {
+              "text": "lateral pledged under the lease agreement may only be operated by the Company within the continental United States and must maintain a good title. The assets cannot be sold, disposed of or repledged by the Company. Note 8. Common Stock Each share of Class A common stock entitles the holder to one vote per share and each share of Class B common stock entitles the holder to 10 votes per share on all matters submitted to a vote of the Company’s stockholders. Common stockholders are entitled to receive dividends, as may be declared by the Company’s Board of Directors. As of March 31, 2026 and December 31, 2025, no dividends had been declared. At-The-Market Offerings In February 2026 , the Company entered into a Sales Agreement (the TD Cowen Sales Agreement) with TD Securities (USA), LLC (the TD Cowen Sales Agent), to provide for the offering, issuance and sale of up to an aggregate amount of $ 300 million of its Class A common stock from time to time in at-the-market offerings (the TD Cowen ATM Offering). The TD Cowen ATM Offering was made under a prospectus supplement dated February 24, 2026 and related prospectus filed with the Securities and Exchange Commission pursuant to the Company’s automatically e",
+              "text_offset": 38550
             }
           ]
         }
@@ -2128,6 +3819,256 @@
         }
       ],
       "metrics": {
+        "authorized_issued_treasury_shares": {
+          "state": "AVAILABLE",
+          "facts": [
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 296596,
+              "unit": "shares",
+              "context_id": "c-12",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "296,596",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 389547223,
+              "unit": "shares",
+              "context_id": "c-7",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "389,547,223",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 6958575,
+              "unit": "shares",
+              "context_id": "c-9",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "6,958,575",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 396802394,
+              "unit": "shares",
+              "context_id": "c-6",
+              "start": null,
+              "end": null,
+              "instant": "2024-12-31",
+              "dimensions": {},
+              "raw_text": "396,802,394",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 1989032117,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "1,989,032,117",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 10967883,
+              "unit": "shares",
+              "context_id": "c-10",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "10,967,883",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesAuthorized",
+              "value": 2000000000,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "2,000,000,000",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 804313,
+              "unit": "shares",
+              "context_id": "c-11",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "rxrx:ExchangeableStockMember"
+              },
+              "raw_text": "804,313",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 521831046,
+              "unit": "shares",
+              "context_id": "c-8",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassAMember"
+              },
+              "raw_text": "521,831,046",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 5547334,
+              "unit": "shares",
+              "context_id": "c-10",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {
+                "us-gaap:StatementClassOfStockAxis": "us-gaap:CommonClassBMember"
+              },
+              "raw_text": "5,547,334",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            },
+            {
+              "concept": "us-gaap:CommonStockSharesIssued",
+              "value": 528182693,
+              "unit": "shares",
+              "context_id": "c-5",
+              "start": null,
+              "end": null,
+              "instant": "2025-12-31",
+              "dimensions": {},
+              "raw_text": "528,182,693",
+              "decimals": "INF",
+              "scale": "0",
+              "sign": null,
+              "state": "AVAILABLE",
+              "nil": false
+            }
+          ],
+          "conflicts": []
+        },
         "weighted_average_shares": {
           "state": "AVAILABLE",
           "facts": [
@@ -2227,7 +4168,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "stock_compensation_expense": {
           "state": "AVAILABLE",
@@ -2508,7 +4450,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "issuance_proceeds": {
           "state": "AVAILABLE",
@@ -2609,7 +4552,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "issued_during_period": {
           "state": "AVAILABLE",
@@ -3062,7 +5006,8 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "potential_awards": {
           "state": "AVAILABLE",
@@ -3431,15 +5376,18 @@
               "state": "AVAILABLE",
               "nil": false
             }
-          ]
+          ],
+          "conflicts": []
         },
         "convertible_debt": {
           "state": "NOT_EXTRACTED",
-          "facts": []
+          "facts": [],
+          "conflicts": []
         },
         "repurchases": {
           "state": "NOT_EXTRACTED",
-          "facts": []
+          "facts": [],
+          "conflicts": []
         }
       },
       "issuer_extension_candidates": [],
@@ -3467,7 +5415,7 @@
           "capacity": null,
           "used": null,
           "remaining": null,
-          "_note": "Amounts are deliberately unknown until the agreement/date/currency and actual issuance are resolved from the original; absence of a tag is not absence of an ATM program."
+          "_note": "Only an explicitly stated report-date remaining amount is extracted. It is not current-day capacity or issued proceeds; other amounts need original review."
         },
         "convertible": {
           "state": "REVIEW_ORIGINAL",
@@ -3530,30 +5478,37 @@
       }
     },
     {
+      "as_of": "2026-03-31",
+      "value": 530628653,
+      "state": "AVAILABLE",
+      "source_id": "WEBSNAP:4ccc756498f8",
+      "unit": "shares",
+      "change_from_previous": {
+        "from": "2025-12-31",
+        "shares": 2445960,
+        "pct": 0.46308976655544676,
+        "_note": "Net change in reported outstanding shares, not gross issuance or a split-adjusted dilution rate."
+      }
+    },
+    {
       "as_of": "2026-06-30",
       "value": 534120235,
       "state": "AVAILABLE",
       "source_id": "WEBSNAP:f5cc2bc8d005",
       "unit": "shares",
       "change_from_previous": {
-        "from": "2025-12-31",
-        "shares": 5937542,
-        "pct": 1.1241455047070303,
+        "from": "2026-03-31",
+        "shares": 3491582,
+        "pct": 0.6580085678109748,
         "_note": "Net change in reported outstanding shares, not gross issuance or a split-adjusted dilution rate."
       }
     }
   ],
-  "collection_errors": [
-    {
-      "accession_number": "0001601830-26-000078",
-      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000078/rxrx-20260331.htm",
-      "error": "ORIGINAL_NOT_COLLECTED"
-    }
-  ],
+  "collection_errors": [],
   "_notes": [
     "Cover-page shares can describe one listed class even without a class dimension; they are not automatically the all-class valuation denominator.",
     "Only an explicitly reported dimensionless period-end common share total is treated as a reported total. Class components are reconciled only at that same date and never added to an already reported total.",
     "Weighted-average EPS shares are period denominators, not current outstanding shares. Issued shares, unvested awards and options are separate observations; no automatic fully diluted total is constructed.",
-    "Missing observations mean NOT_EXTRACTED, never zero. Issuance capacity is not actual issuance; ATM capacity, usage and remaining capacity require review of retained original excerpts."
+    "Missing observations mean NOT_EXTRACTED, never zero. ATM remaining capacity is reported only when an explicit amount and the report date occur together; capacity is not actual issuance or a current-day balance."
   ]
 }

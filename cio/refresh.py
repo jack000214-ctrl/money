@@ -11,6 +11,7 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from calculators.contracts import (
     load_json,
@@ -68,6 +69,7 @@ SEC_PRIMARY_REPORT_FORMS = {
 }
 SEC_FILING_INDEX_LIMIT = 50
 DART_FILING_LOOKBACK_DAYS = 400
+US_EARNINGS_FAILURE_RETRY_HOURS = 1
 
 
 def safe_symbol(symbol: str) -> str:
@@ -367,11 +369,14 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                 ("us_segments", "US_SEGMENTS", "collectors.us_segments", "us_segments", [f"knowledge/filings/{asset['asset_id']}.json"]),
                 ("earnings_announced", "US_EARNINGS", "collectors.us_earnings", "us_earnings", ["config/assets.json"]),
             ):
+                command = None if capability == "US_EARNINGS" and not asset.get("ir_sources") else [
+                    sys.executable, "-m", module, asset["asset_id"]
+                ]
                 tasks.append(RefreshTask(
                     name=f"{name}:{asset['asset_id']}", capability=capability,
                     artifact=f"knowledge/{directory}/{asset['asset_id']}.json",
                     max_age_hours=24, required=False, dependencies=dependencies,
-                    command=[sys.executable, "-m", module, asset["asset_id"]],
+                    command=command,
                 ))
         else:
             raise ValueError(
@@ -1252,6 +1257,10 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
 
 def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> RefreshTask:
     now = now or dt.datetime.now(dt.timezone.utc)
+    if task.capability == "US_EARNINGS" and task.command is None:
+        task.state = "NOT_REGISTERED"
+        task.reason = "config/assets.json에 공식 IR URL(ir_sources)을 등록해야 실적 발표일을 수집할 수 있다"
+        return task
     dependency_matches: dict[str, list[Path]] = {
         pattern: [
             Path(path) for path in glob.glob(str(ROOT / pattern))
@@ -1401,6 +1410,41 @@ def _collection_time(path: Path) -> dt.datetime | None:
     return None
 
 
+def _recent_us_earnings_failure(
+    task: RefreshTask, *, now: dt.datetime,
+) -> dt.datetime | None:
+    """Delay repeated failed IR requests while keeping their failure visible."""
+    if (task.capability != "US_EARNINGS" or task.state != "STALE"
+            or task.command is None or not task.resolved_path):
+        return None
+    try:
+        path = (ROOT / task.resolved_path).resolve()
+        if not path.is_relative_to(ROOT.resolve()):
+            return None
+        data = load_json(path)
+        asset_id = task.name.split(":", 1)[1]
+        if (data.get("status") not in {"NETWORK_ERROR", "PARSE_ERROR"}
+                or data.get("asset_id") != asset_id
+                or data.get("configured_sources") != (get_asset(asset_id).get("ir_sources") or [])):
+            return None
+        from collectors.us_earnings import validate_artifact
+        if validate_artifact(data, asset_id):
+            return None
+        collected_at = dt.datetime.fromisoformat(data["collected_at"])
+        as_of_date = dt.date.fromisoformat(data["as_of_date"])
+        if collected_at.tzinfo is None:
+            return None
+        market_zone = ZoneInfo("America/New_York")
+        if (as_of_date != collected_at.astimezone(market_zone).date()
+                or as_of_date != now.astimezone(market_zone).date()):
+            return None
+        age = (now - collected_at).total_seconds()
+        retry_after = collected_at + dt.timedelta(hours=US_EARNINGS_FAILURE_RETRY_HOURS)
+        return retry_after if 0 <= age < US_EARNINGS_FAILURE_RETRY_HOURS * 3600 else None
+    except (AttributeError, KeyError, OSError, TypeError, ValueError):
+        return None
+
+
 def run_refresh(
     asset_id: str,
     *,
@@ -1417,6 +1461,13 @@ def run_refresh(
         if not force and task.state == "FRESH":
             results.append({"task": task.name, "status": "SKIPPED_FRESH"})
             continue
+        retry_after = None if force else _recent_us_earnings_failure(
+            task, now=dt.datetime.now(dt.timezone.utc),
+        )
+        if retry_after is not None:
+            results.append({"task": task.name, "status": "SKIPPED_RECENT_FAILURE",
+                            "reason": task.reason, "retry_after": retry_after.isoformat()})
+            continue
         if task.state == "BLOCKED":
             results.append(
                 {
@@ -1429,7 +1480,8 @@ def run_refresh(
                 failures += 1
             continue
         if task.command is None:
-            status = "MANUAL_REQUIRED" if task.required else "OPTIONAL_MISSING"
+            status = ("NOT_REGISTERED" if task.state == "NOT_REGISTERED" else
+                      "MANUAL_REQUIRED" if task.required else "OPTIONAL_MISSING")
             results.append(
                 {"task": task.name, "status": status, "reason": task.reason}
             )

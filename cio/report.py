@@ -255,8 +255,39 @@ def format_assessment(
             lines.extend(_wrap("계산된 배분 제안이며 주문·체결 기록이 아니다."))
         except (ValueError, OSError, KeyError) as exc:
             lines.extend(_wrap(f"분할계획 계산을 확인할 수 없다: {exc}"))
+    if data.get("exit_plan"):
+        from cio.exit_plan import plan_summary
+        from cio.decision import find_context
+        try:
+            plan_context, _ = find_context(data["context_id"])
+            summary = plan_summary(data["exit_plan"], data, plan_context)
+            lines.extend(_section("조건부 미래 매도 계획"))
+            lines.extend(_wrap(data["exit_plan"]["reference_basis"]))
+            lines.append(
+                f"  보유 {_exact_num(summary['held_quantity'])}주 · 이번 매도 {_exact_num(summary['current_sale_quantity'])}주"
+                f" · 미래 제안 {_exact_num(summary['future_sale_quantity'])}주"
+            )
+            for stage in summary["stages"]:
+                dependency = ("독립" if stage["depends_on"] is None else
+                              "이번 매도 뒤" if stage["depends_on"] == "CURRENT_ACTION" else
+                              f"{stage['depends_on']} 단계 뒤")
+                lines.append(
+                    f"  {stage['stage_id']} ({stage['name']}): {_exact_num(stage['quantity'])}주 · "
+                    f"지정가 {_money(stage['limit_price'], summary['currency'])} {summary['currency']} · {dependency}"
+                )
+                lines.extend(_wrap(
+                    f"조건: {stage['condition']} / 취소: {stage['cancel_if']} / "
+                    f"유효 {stage['valid_from']}~{stage['valid_until']}"
+                    + (" / 재확인 필요" if stage["requires_review"] else "")
+                ))
+            lines.append(f"  모든 단계 제안 수량 제외 후 {_exact_num(summary['remaining_after_all'])}주")
+            lines.extend(_wrap("가격·수량 제안이며 앞 단계와 이번 매도의 체결은 확인되지 않았다. 실제 주문·매도 내역이 아니다."))
+        except (ValueError, OSError, KeyError, TypeError) as exc:
+            lines.extend(_wrap(f"미래 매도 계획을 확인할 수 없다: {exc}"))
     for check in data.get("entry_plan_checks") or []:
         lines.extend(_wrap(f"과거 단계 {check['stage_id']}: {check['state']} — {check['note']}"))
+    for check in data.get("exit_plan_checks") or []:
+        lines.extend(_wrap(f"과거 매도 단계 {check['stage_id']}: {check['state']} — {check['note']}"))
 
     lines.extend(_section("논지"))
     lines.extend(_wrap(data.get("thesis") or "—"))
@@ -485,17 +516,32 @@ def _format_evaluation(
         lines.append("  조건부 단계 관측 (실제 체결 미확인):")
         for stage in evaluation["entry_plan"]["stages"]:
             lines.append(f"    {stage['stage_id']}: 가격 {stage['price_touch_date'] or '—'} · 조건 확인 후 가격 {stage['eligible_price_touch_date'] or '—'} · {stage['observation']}")
+    if evaluation.get("exit_plan"):
+        lines.append("  미래 매도 단계 관측 (일봉 고가 접촉만; 실제 체결 미확인):")
+        for stage in evaluation["exit_plan"]["stages"]:
+            lines.append(
+                f"    {stage['stage_id']} ({stage['name']}): 지정가 {_money(stage['limit_price'], stage['currency'])} {stage['currency']} "
+                f"· 가격 {stage['price_touch_date'] or '—'} · 조건 확인 후 가격 "
+                f"{stage['reviewed_price_touch_date'] or '—'}"
+            )
+            lines.append(
+                f"      조건 {stage['condition_review']} · 선행 매도 {stage['dependency_execution']} "
+                f"· 집행 가능 {stage['execution_eligibility']} · 실제 집행 {stage['actual_execution']}"
+            )
+            if stage.get("share_basis_changed_at_touch"):
+                lines.append("      분할로 주식 단위가 바뀌었다. 지정가·수량 재검토가 필요하다")
     waited = counterfactual.get("waited_for_entry") or {}
     if waited and not evaluation.get("entry_plan"):
         filled = waited.get("filled")
         entry = _exact_num(waited.get("entry_price"))
         if filled:
             lines.append(
-                f"  진입가 {entry} 체결됨 ({(waited.get('fill') or {}).get('date')}) "
+                f"  별도 매수 반사실: 진입가 {entry} 가격 접촉 "
+                f"(실제 체결 미확인, {(waited.get('fill') or {}).get('date')}) "
                 f"→ {_signed(waited.get('return_to_end_pct'))}"
             )
         elif filled is False:
-            lines.append(f"  진입가 {entry} 미체결 — 포지션이 없었다")
+            lines.append(f"  별도 매수 반사실: 진입가 {entry} 미체결 — 포지션이 없었다")
         if waited.get("advantage_pct") is not None:
             lines.append(
                 f"  기다린 것의 차이 {_signed(waited.get('advantage_pct'))} "
@@ -503,6 +549,8 @@ def _format_evaluation(
             )
     if evaluation.get("entry_plan"):
         lines.append("  실제 집행이 확인되지 않아 분할전략 수익률은 산출하지 않았다")
+    if evaluation.get("exit_plan"):
+        lines.append("  실제 매도는 확인되지 않았고, 미래 매도 계획의 수익률은 산출하지 않았다")
     elif verdict in {"WAIT", "AVOID"}:
         lines.append(
             "  ※ WAIT·AVOID 는 질문가 수익률이 아니라 위 반사실이 본 채점이다"
@@ -565,6 +613,12 @@ def evaluations_for(asset_id: str) -> dict[str, Any]:
         window = (evaluation or {}).get("window") or {}
         thresholds = (evaluation or {}).get("thresholds") or {}
         triggers = (evaluation or {}).get("triggers") or {}
+        exit_plan = data.get("exit_plan") or {}
+        exit_observations = {
+            stage.get("stage_id"): stage
+            for stage in ((evaluation or {}).get("exit_plan") or {}).get("stages", [])
+            if isinstance(stage, dict)
+        }
         rows.append(
             {
                 "assessment_id": assessment_id,
@@ -589,6 +643,16 @@ def evaluations_for(asset_id: str) -> dict[str, Any]:
                     "stop_price": plan.get("stop_price"),
                     "scale_out_start": plan.get("scale_out_start"),
                 },
+                "exit_plan": (
+                    {"currency": exit_plan.get("currency"), "stages": [
+                        {"stage_id": stage.get("stage_id"), "name": stage.get("name"),
+                         "quantity": stage.get("quantity"), "limit_price": stage.get("limit_price"),
+                         "price_touch_date": (exit_observations.get(stage.get("stage_id")) or {}).get("price_touch_date"),
+                         "reviewed_price_touch_date": (exit_observations.get(stage.get("stage_id")) or {}).get("reviewed_price_touch_date")}
+                        for stage in exit_plan.get("stages", [])
+                    ], "actual_execution": ((evaluation or {}).get("exit_plan") or {}).get("actual_execution", "UNKNOWN")}
+                    if exit_plan else None
+                ),
                 "triggered": sorted(
                     name
                     for name, value in triggers.items()
@@ -654,6 +718,16 @@ def format_evaluations(asset_id: str, *, with_plan: bool = False) -> str:
         lines.append(line)
         if row["triggered"]:
             lines.append(f"      발동: {', '.join(row['triggered'])}")
+        if with_plan and row.get("exit_plan"):
+            sell_plan = row["exit_plan"]
+            lines.append("      미래 매도 계획 (고가 접촉만 관측, 실제 집행 미확인):")
+            for stage in sell_plan["stages"]:
+                lines.append(
+                    f"        {stage['stage_id']} ({stage['name']}): {_exact_num(stage['quantity'])}주 "
+                    f"@ {_money(stage['limit_price'], sell_plan['currency'])} {sell_plan['currency']} "
+                    f"· 가격 {stage['price_touch_date'] or '—'} · 조건 확인 후 "
+                    f"{stage['reviewed_price_touch_date'] or '—'}"
+                )
 
     lines += [
         "",

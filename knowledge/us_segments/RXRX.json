@@ -1,0 +1,1163 @@
+{
+  "schema_version": "us-segments/1.0.0",
+  "asset_id": "RXRX",
+  "collected_at": "2026-09-23T00:50:48+00:00",
+  "state": "AVAILABLE",
+  "report_limit": 3,
+  "filings_source_sha256": "3e4841b9043726d529bfcb58fd72268a1227b6256e65ce69f8c086acdae1a119",
+  "selected_accessions": [
+    "0001601830-26-000098",
+    "0001601830-26-000078",
+    "0001601830-26-000039"
+  ],
+  "reports": [
+    {
+      "source_id": "WEBSNAP:f5cc2bc8d005",
+      "path": "data/raw/web/objects/f5cc2bc8d00594943e0f733d34b6af1103fd85009ea4802ca36b17d60d7adf6f.json",
+      "content_sha256": "f5cc2bc8d00594943e0f733d34b6af1103fd85009ea4802ca36b17d60d7adf6f",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000098/rxrx-20260630.htm",
+      "filing_date": "2026-08-05",
+      "report_date": "2026-06-30",
+      "form": "10-Q",
+      "accession_number": "0001601830-26-000098",
+      "state": "AVAILABLE",
+      "observations": [
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 7670000,
+          "currency": "USD",
+          "period_start": "2026-04-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-157"
+          ],
+          "raw_texts": [
+            "7,670"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 7303000,
+          "currency": "USD",
+          "period_start": "2026-04-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-11"
+          ],
+          "raw_texts": [
+            "7,303"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 367000,
+          "currency": "USD",
+          "period_start": "2026-04-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-15"
+          ],
+          "raw_texts": [
+            "367"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -134968000,
+          "currency": "USD",
+          "period_start": "2026-04-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-157"
+          ],
+          "raw_texts": [
+            "134,968"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 14143000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-159"
+          ],
+          "raw_texts": [
+            "14,143"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 13605000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-13"
+          ],
+          "raw_texts": [
+            "13,605"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 538000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-17"
+          ],
+          "raw_texts": [
+            "538"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -263472000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-159"
+          ],
+          "raw_texts": [
+            "263,472"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 19223000,
+          "currency": "USD",
+          "period_start": "2025-04-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-158"
+          ],
+          "raw_texts": [
+            "19,223"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 19103000,
+          "currency": "USD",
+          "period_start": "2025-04-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-12"
+          ],
+          "raw_texts": [
+            "19,103"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 120000,
+          "currency": "USD",
+          "period_start": "2025-04-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-16"
+          ],
+          "raw_texts": [
+            "120"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -176227000,
+          "currency": "USD",
+          "period_start": "2025-04-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-158"
+          ],
+          "raw_texts": [
+            "176,227"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 33968000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-160"
+          ],
+          "raw_texts": [
+            "33,968"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 33921000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-14"
+          ],
+          "raw_texts": [
+            "33,921"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 47000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-18"
+          ],
+          "raw_texts": [
+            "47"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -367595000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-06-30",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-160"
+          ],
+          "raw_texts": [
+            "367,595"
+          ],
+          "issue": null
+        }
+      ],
+      "segment_count_observations": [
+        {
+          "concept": "us-gaap:NumberOfReportableSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2026-01-01",
+          "end": "2026-06-30",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        },
+        {
+          "concept": "us-gaap:NumberOfOperatingSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2026-01-01",
+          "end": "2026-06-30",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        }
+      ],
+      "parser_errors": [],
+      "fact_count": 712
+    },
+    {
+      "source_id": "WEBSNAP:4ccc756498f8",
+      "path": "data/raw/web/objects/4ccc756498f894d4f9373372c9be11a920a1f893e7eb6f076d740c959827f18e.json",
+      "content_sha256": "4ccc756498f894d4f9373372c9be11a920a1f893e7eb6f076d740c959827f18e",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000078/rxrx-20260331.htm",
+      "filing_date": "2026-05-06",
+      "report_date": "2026-03-31",
+      "form": "10-Q",
+      "accession_number": "0001601830-26-000078",
+      "state": "AVAILABLE",
+      "observations": [
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 6472000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-127"
+          ],
+          "raw_texts": [
+            "6,472"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 6301000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-03-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-12"
+          ],
+          "raw_texts": [
+            "6,301"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 171000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-03-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-14"
+          ],
+          "raw_texts": [
+            "171"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -128505000,
+          "currency": "USD",
+          "period_start": "2026-01-01",
+          "period_end": "2026-03-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-127"
+          ],
+          "raw_texts": [
+            "128,505"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 14745000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-03-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-128"
+          ],
+          "raw_texts": [
+            "14,745"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 14818000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-03-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-13"
+          ],
+          "raw_texts": [
+            "14,818"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -73000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-03-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-15"
+          ],
+          "raw_texts": [
+            "73"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -191368000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-03-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-128"
+          ],
+          "raw_texts": [
+            "191,368"
+          ],
+          "issue": null
+        }
+      ],
+      "segment_count_observations": [
+        {
+          "concept": "us-gaap:NumberOfReportableSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2026-01-01",
+          "end": "2026-03-31",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        },
+        {
+          "concept": "us-gaap:NumberOfOperatingSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2026-01-01",
+          "end": "2026-03-31",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        }
+      ],
+      "parser_errors": [],
+      "fact_count": 559
+    },
+    {
+      "source_id": "WEBSNAP:ae6069a664d1",
+      "path": "data/raw/web/objects/ae6069a664d12121ffc95b6f1b60880e9407cb4547e01280795dc747c37d11cb.json",
+      "content_sha256": "ae6069a664d12121ffc95b6f1b60880e9407cb4547e01280795dc747c37d11cb",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000039/rxrx-20251231.htm",
+      "filing_date": "2026-02-25",
+      "report_date": "2025-12-31",
+      "form": "10-K",
+      "accession_number": "0001601830-26-000039",
+      "state": "AVAILABLE",
+      "observations": [
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 74681000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-214"
+          ],
+          "raw_texts": [
+            "74,681"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 0,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "rxrx:OtherCountriesMember"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-223"
+          ],
+          "raw_texts": [
+            "—"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 39344000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:US"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-217"
+          ],
+          "raw_texts": [
+            "39,344"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 35337000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:GB"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-220"
+          ],
+          "raw_texts": [
+            "35,337"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 74256000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-13"
+          ],
+          "raw_texts": [
+            "74,256"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 425000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-16"
+          ],
+          "raw_texts": [
+            "425"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -648132000,
+          "currency": "USD",
+          "period_start": "2025-01-01",
+          "period_end": "2025-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-214"
+          ],
+          "raw_texts": [
+            "648,132"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 58839000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-215"
+          ],
+          "raw_texts": [
+            "58,839"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 327000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "rxrx:OtherCountriesMember"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-224"
+          ],
+          "raw_texts": [
+            "327"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 57377000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:US"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-218"
+          ],
+          "raw_texts": [
+            "57,377"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 1135000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:GB"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-221"
+          ],
+          "raw_texts": [
+            "1,135"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 58488000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-14"
+          ],
+          "raw_texts": [
+            "58,488"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 351000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-17"
+          ],
+          "raw_texts": [
+            "351"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -479004000,
+          "currency": "USD",
+          "period_start": "2024-01-01",
+          "period_end": "2024-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-215"
+          ],
+          "raw_texts": [
+            "479,004"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 44575000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-216"
+          ],
+          "raw_texts": [
+            "44,575"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 769000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "rxrx:OtherCountriesMember"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-225"
+          ],
+          "raw_texts": [
+            "769"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 43806000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:US"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-219"
+          ],
+          "raw_texts": [
+            "43,806"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 0,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "srt:StatementGeographicalAxis": "country:GB"
+          },
+          "axes": {
+            "srt:StatementGeographicalAxis": "GEOGRAPHY"
+          },
+          "context_ids": [
+            "c-222"
+          ],
+          "raw_texts": [
+            "—"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 43876000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:LicenseAndServiceMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-15"
+          ],
+          "raw_texts": [
+            "43,876"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "revenue",
+          "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": 699000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "srt:ProductOrServiceAxis": "us-gaap:GrantMember"
+          },
+          "axes": {
+            "srt:ProductOrServiceAxis": "PRODUCT_SERVICE"
+          },
+          "context_ids": [
+            "c-18"
+          ],
+          "raw_texts": [
+            "699"
+          ],
+          "issue": null
+        },
+        {
+          "metric": "operating_income",
+          "concept": "us-gaap:OperatingIncomeLoss",
+          "concept_mapping": "STANDARD_CONCEPT",
+          "state": "AVAILABLE",
+          "amount": -350060000,
+          "currency": "USD",
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "dimensions": {
+            "us-gaap:StatementBusinessSegmentsAxis": "rxrx:ReportableSegmentMember"
+          },
+          "axes": {
+            "us-gaap:StatementBusinessSegmentsAxis": "BUSINESS"
+          },
+          "context_ids": [
+            "c-216"
+          ],
+          "raw_texts": [
+            "350,060"
+          ],
+          "issue": null
+        }
+      ],
+      "segment_count_observations": [
+        {
+          "concept": "us-gaap:NumberOfOperatingSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2025-01-01",
+          "end": "2025-12-31",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        },
+        {
+          "concept": "us-gaap:NumberOfReportableSegments",
+          "state": "AVAILABLE",
+          "value": 1,
+          "start": "2025-01-01",
+          "end": "2025-12-31",
+          "instant": null,
+          "context_id": "c-1",
+          "raw_text": "one"
+        }
+      ],
+      "parser_errors": [],
+      "fact_count": 1168
+    }
+  ],
+  "collection_errors": [],
+  "_note": "Reported dimensional facts, not additive segments. Product, business and geographic slices overlap; do not add them or equate revenue with profit contribution. Periods are reported quarter/YTD/year, never silently subtracted. Custom QNames and segment profit measures need model interpretation. Missing tags, dimensions and unsupported transforms remain unknown; untagged tables require original review."
+}
