@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import json
 import re
 import sys
 import time
@@ -33,16 +34,21 @@ MARKET_CODE = {"KOSPI": "01", "KOSDAQ": "02"}
 INDEX_URL = ("https://finance.naver.com/sise/investorDealTrendDay.naver"
              "?bizdate={bizdate}&sosok={sosok}")
 STOCK_URL = "https://finance.naver.com/item/frgn.naver?code={code}&page={page}"
+STOCK_API_URL = ("https://m.stock.naver.com/api/stock/{code}/trend"
+                 "?pageSize=60&page={page}")
 
 # 네이버 지수 수급 표의 열 순서. 헤더가 2행으로 쪼개져 있어 위치로 읽는다.
 MARKET_FIELDS = ("date", "individual", "foreign", "institution_total",
                  "fin_invest", "insurance", "trust", "bank", "other_fin",
                  "pension", "other_corp")
 STOCK_FIELDS = ("date", "close", "change_pct", "volume",
-                "institution_net", "foreign_net", "foreign_shares", "foreign_pct")
+                "institution_net", "foreign_net", "foreign_shares", "foreign_pct",
+                "individual_net")
 
 SOURCE_NOTE = ("네이버 금융(KRX 집계 재배포) · 2차 출처이므로 EXPLORATORY 등급이다. "
-               "KRX 원문 재확인 전에는 매매 근거로 승격하지 않는다")
+               "KRX 원문 재확인 전에는 매매 근거로 승격하지 않는다. "
+               "종가·등락률은 거래소 원문과 다를 수 있으므로 수급 자료의 가격을 "
+               "평가가격으로 쓰지 않는다. 기타법인 수급은 제공하지 않는다")
 
 
 def fail(msg: str) -> None:
@@ -51,16 +57,17 @@ def fail(msg: str) -> None:
 
 
 def get(url: str) -> str:
-    """네이버 금융은 EUC-KR 이다. UTF-8 로 읽으면 조용히 깨진 문자열이 나온다."""
+    """구 금융 화면은 EUC-KR, 새 화면은 응답에 명시한 UTF-8로 읽는다."""
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             raw = r.read()
+            encoding = r.headers.get_content_charset() or "euc-kr"
     except urllib.error.HTTPError as e:
         fail(f"HTTP {e.code} — {url}")
     except urllib.error.URLError as e:
         fail(f"연결 실패 — {e.reason}")
-    return raw.decode("euc-kr", errors="replace")
+    return raw.decode(encoding, errors="replace")
 
 
 def keep_raw(html: str, name: str) -> Path:
@@ -171,7 +178,65 @@ def fetch_stock(code: str, days: int) -> list[dict]:
         keep_raw(html, f"flow_{code}_p{page}")
         rows = parse_stock_page(html)
         if not rows:
+            # 구 HTML 주소가 새 UTF-8 화면으로 이동하면 표가 없다. 숫자를
+            # 추측하거나 낡은 자료를 최신으로 재저장하지 않고 공개 API로 받는다.
+            if not seen:
+                return fetch_stock_api(code, days)
             break
+        before = len(seen)
+        for row in rows:
+            seen.setdefault(row["date"], row)
+        if len(seen) == before or len(seen) >= days:
+            break
+        time.sleep(0.4)
+    return sorted(seen.values(), key=lambda r: r["date"])[-days:]
+
+
+def parse_stock_api(payload: list[dict], code: str) -> list[dict]:
+    """순매매 주수만 읽는다. 미제공 보유주수·기타법인은 역산하지 않는다."""
+    out = []
+    for item in payload:
+        date = str(item.get("bizdate", ""))
+        if str(item.get("itemCode")) != code or not re.fullmatch(r"\d{8}", date):
+            continue
+        try:
+            date = dt.datetime.strptime(date, "%Y%m%d").date().isoformat()
+        except ValueError:
+            continue
+        close = num(str(item.get("closePrice", "")))
+        change = num(str(item.get("compareToPreviousClosePrice", "")))
+        previous = close - change if close is not None and change is not None else None
+        out.append({
+            "date": date, "close": close,
+            "change_pct": change / previous * 100 if previous and change is not None else None,
+            "volume": num(str(item.get("accumulatedTradingVolume", ""))),
+            "institution_net": num(str(item.get("organPureBuyQuant", ""))),
+            "foreign_net": num(str(item.get("foreignerPureBuyQuant", ""))),
+            "individual_net": num(str(item.get("individualPureBuyQuant", ""))),
+            "foreign_shares": None,
+            "foreign_pct": num(str(item.get("foreignerHoldRatio", "")).replace("%", "")),
+        })
+    return out
+
+
+def fetch_stock_api(code: str, days: int) -> list[dict]:
+    seen: dict[str, dict] = {}
+    for page in range(1, days // 60 + 3):
+        url = STOCK_API_URL.format(code=code, page=page)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}),
+                                        timeout=30) as response:
+                body = response.read().decode("utf-8")
+        except (urllib.error.URLError, UnicodeDecodeError) as error:
+            fail(f"{code}: 수급 API 수집 실패 — {error}")
+        keep_raw(body, f"flow_{code}_api_p{page}")
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            fail(f"{code}: 수급 API 응답이 JSON이 아니다")
+        if not isinstance(payload, list):
+            fail(f"{code}: 수급 API 응답이 목록이 아니다")
+        rows = parse_stock_api(payload, code)
         before = len(seen)
         for row in rows:
             seen.setdefault(row["date"], row)

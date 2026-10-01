@@ -1,5 +1,5 @@
 # 214450 파마리서치 재고자산 시계열 / 단위 원 / CFS
-# 수집일 2026-08-20 / 출처 OpenDART fnlttSinglAcntAll 재무상태표·손익계산서
+# 수집일 2026-10-01 / 출처 OpenDART fnlttSinglAcntAll 재무상태표·손익계산서
 # 재고자산은 분기말 잔액이다. 4분기 매출원가는 연간 − 3분기누계 역산이므로 cogs_derived 로 표시한다
 period_end,fy,quarter,inventories,inventories_source,cogs_quarter,dio_days,qoq_pct,yoy_pct,cogs_derived
 2023-03-31,2023,1,26946451747.0,report,15011623149.0,163.8,10.2,,False

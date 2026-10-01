@@ -1,8 +1,8 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "214450",
-  "collected_at": "2026-09-10T09:55:59+09:00",
-  "as_of": "2026-09-09",
+  "collected_at": "2026-10-01T16:43:37+09:00",
+  "as_of": "2026-09-22",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
   "components": {
@@ -25,10 +25,10 @@
   "source_grade": "EXPLORATORY",
   "summary": {
     "rating": 4.0,
-    "target_price": 518750.0,
-    "eps": 19182.0,
-    "per": 19.08,
-    "institution_count": 16
+    "target_price": 524667.0,
+    "eps": 19274.0,
+    "per": 16.11,
+    "institution_count": 15
   },
   "estimates": {
     "annual": [
@@ -81,31 +81,31 @@
         "period": "2026-12",
         "fiscal_year": 2026,
         "actual": false,
-        "revenue_100m": 6976.0,
-        "revenue_yoy_pct": 30.08,
-        "operating_income_100m": 2717.0,
-        "net_income_100m": 2218.0,
-        "eps": 19182.0,
-        "per": 19.08,
-        "pbr": 4.91,
-        "roe_pct": 28.59,
-        "ev_ebitda": 11.49,
-        "net_debt_ratio_pct": -54.68
+        "revenue_100m": 6997.0,
+        "revenue_yoy_pct": 30.47,
+        "operating_income_100m": 2727.0,
+        "net_income_100m": 2229.0,
+        "eps": 19274.0,
+        "per": 16.11,
+        "pbr": 4.15,
+        "roe_pct": 28.66,
+        "ev_ebitda": 9.45,
+        "net_debt_ratio_pct": -55.01
       },
       {
         "period": "2027-12",
         "fiscal_year": 2027,
         "actual": false,
-        "revenue_100m": 8506.0,
-        "revenue_yoy_pct": 21.93,
-        "operating_income_100m": 3383.0,
-        "net_income_100m": 2716.0,
-        "eps": 23484.0,
-        "per": 15.59,
-        "pbr": 3.89,
-        "roe_pct": 27.83,
-        "ev_ebitda": 8.79,
-        "net_debt_ratio_pct": -58.84
+        "revenue_100m": 8539.0,
+        "revenue_yoy_pct": 22.03,
+        "operating_income_100m": 3411.0,
+        "net_income_100m": 2740.0,
+        "eps": 23694.0,
+        "per": 13.1,
+        "pbr": 3.28,
+        "roe_pct": 27.93,
+        "ev_ebitda": 7.1,
+        "net_debt_ratio_pct": -60.0
       }
     ],
     "per_band_actual": {
@@ -120,34 +120,34 @@
   "dispersion": {
     "consensus_window": {
       "window_days": 90,
-      "count": 16,
-      "min": 430000.0,
+      "count": 15,
+      "min": 450000.0,
       "max": 620000.0,
-      "median": 515000.0,
-      "mean": 518750.0,
-      "spread_pct": 44.19,
-      "oldest": "2026-06-19",
-      "newest": "2026-09-09"
+      "median": 520000.0,
+      "mean": 524667.0,
+      "spread_pct": 37.78,
+      "oldest": "2026-07-16",
+      "newest": "2026-09-22"
     },
     "recent": {
       "window_days": 30,
-      "count": 14,
-      "min": 450000.0,
-      "max": 620000.0,
-      "median": 525000.0,
-      "mean": 527857.0,
-      "spread_pct": 37.78,
-      "oldest": "2026-08-10",
-      "newest": "2026-09-09"
+      "count": 4,
+      "min": 470000.0,
+      "max": 610000.0,
+      "median": 545000.0,
+      "mean": 542500.0,
+      "spread_pct": 29.79,
+      "oldest": "2026-08-27",
+      "newest": "2026-09-22"
     },
     "_note": "목표가가 넓게 갈릴수록 평균은 합의가 아니라 평균일 뿐이다. 두 창의 최대·최소가 다르면 오래된 목표가가 평균을 끌고 있다는 신호이며, 그 목표가는 지금과 다른 주가 수준에서 잡힌 값이다"
   },
   "revisions": {
     "window_days": 90,
-    "observed": 14,
+    "observed": 15,
     "raised": 5,
     "lowered": 0,
-    "unchanged": 9,
+    "unchanged": 10,
     "largest_raise": {
       "broker": "삼성",
       "date": "2026-08-10",
@@ -161,8 +161,16 @@
   },
   "brokers": [
     {
+      "broker": "한국투자",
+      "date": "2026-09-22",
+      "target_price": 470000.0,
+      "prior_target_price": 470000.0,
+      "change_pct": 0.0,
+      "rating": "매수"
+    },
+    {
       "broker": "다올투자",
-      "date": "2026-09-09",
+      "date": "2026-09-18",
       "target_price": 550000.0,
       "prior_target_price": 550000.0,
       "change_pct": 0.0,
@@ -170,10 +178,10 @@
     },
     {
       "broker": "유진투자",
-      "date": "2026-09-01",
+      "date": "2026-09-15",
       "target_price": 540000.0,
-      "prior_target_price": null,
-      "change_pct": null,
+      "prior_target_price": 540000.0,
+      "change_pct": 0.0,
       "rating": "BUY"
     },
     {
@@ -225,14 +233,6 @@
       "rating": "Buy"
     },
     {
-      "broker": "한국투자",
-      "date": "2026-08-10",
-      "target_price": 470000.0,
-      "prior_target_price": 470000.0,
-      "change_pct": 0.0,
-      "rating": "매수"
-    },
-    {
       "broker": "삼성",
       "date": "2026-08-10",
       "target_price": 500000.0,
@@ -279,21 +279,13 @@
       "prior_target_price": 480000.0,
       "change_pct": 0.0,
       "rating": "BUY"
-    },
-    {
-      "broker": "KB",
-      "date": "2026-06-19",
-      "target_price": 430000.0,
-      "prior_target_price": null,
-      "change_pct": null,
-      "rating": "BUY"
     }
   ],
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data/raw/naver/consensus_214450_20260910_095537.html",
-    "estimates": "data/raw/naver/estimates_214450_20260910_095537.html"
+    "summary": "data/raw/naver/consensus_214450_20261001_164334.html",
+    "estimates": "data/raw/naver/estimates_214450_20261001_164334.html"
   },
   "history": [
     {
@@ -340,6 +332,15 @@
       "eps": 19182.0,
       "per": 19.08,
       "institution_count": 16
+    },
+    {
+      "as_of": "2026-09-22",
+      "collected_at": "2026-10-01T16:43:37+09:00",
+      "rating": 4.0,
+      "target_price": 524667.0,
+      "eps": 19274.0,
+      "per": 16.11,
+      "institution_count": 15
     }
   ]
 }
