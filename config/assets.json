@@ -58,7 +58,8 @@
       "optional_collectors": [
         "KR_FLOW",
         "KR_LENDING",
-        "KR_INVENTORY"
+        "KR_INVENTORY",
+        "KR_PRODUCT_SALES"
       ],
       "peers": [
         {

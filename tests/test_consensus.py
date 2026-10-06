@@ -139,6 +139,25 @@ class TestHistory(unittest.TestCase):
             self.assertEqual(status['state'],'NETWORK_ERROR')
             self.assertEqual(status['components']['estimates']['state'],'NETWORK_ERROR')
 
+    def test_declared_peer_reaches_collection_without_its_own_registration(self):
+        # 동종은 registry 의 peers 로만 선언되고 자기 항목이 없다. 2026-09-08 에 경로
+        # 검증용 get_asset 이 들어오면서 동종 수집이 전부 '등록되지 않은 자산'으로
+        # 죽었고, packet 은 5주 동안 낡은 동종 배수를 실었다.
+        registry={'214450':{'name':'파마리서치','peers':[{'asset_id':'145020','name':'휴젤'}]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);out=root/'knowledge'/'consensus'
+            with patch('cio.assets.all_assets',return_value=registry), patch.object(consensus,'ROOT',root), patch.object(consensus,'OUT_DIR',out), patch.object(consensus,'RAW_DIR',root/'raw'), patch.object(consensus,'fetch',side_effect=SystemExit(1)), patch('sys.argv',['consensus','145020']), redirect_stderr(io.StringIO()):
+                self.assertEqual(consensus.main(),1)
+            status=json.loads((root/'knowledge'/'collection_status'/'consensus-145020.json').read_text())
+            self.assertEqual(status['state'],'NETWORK_ERROR')
+
+    def test_id_neither_registered_nor_declared_as_peer_is_refused(self):
+        from cio.assets import AssetRegistryError
+        registry={'214450':{'name':'파마리서치','peers':[{'asset_id':'145020','name':'휴젤'}]}}
+        with patch('cio.assets.all_assets',return_value=registry), patch.object(consensus,'fetch',side_effect=AssertionError('수집 전에 거부해야 한다')), patch('sys.argv',['consensus','999999']):
+            with self.assertRaises(AssetRegistryError):
+                consensus.main()
+
     def test_failure_status_reaches_packet_without_a_success_file(self):
         from cio.context import _optional_collection_summaries, _data_coverage
         with tempfile.TemporaryDirectory() as tmp:

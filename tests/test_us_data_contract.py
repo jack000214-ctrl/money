@@ -150,8 +150,10 @@ class TestCoverageIsStatedNotImplied(unittest.TestCase):
             ]["state"],
             "REGISTERED_NOT_COLLECTED",
         )
+        # 214450 은 2026-10-06 부터 KR_PRODUCT_SALES(잠정실적 품목군별 매출)로 부문별
+        # 매출이 등록돼 있다. 등록하지 않은 한국 종목의 예로 290650 을 쓴다.
         self.assertEqual(
-            self._coverage("214450", structured_optional={}, fundamentals={})[
+            self._coverage("290650", structured_optional={}, fundamentals={})[
                 "segment_revenue"
             ]["state"],
             "NOT_REGISTERED",

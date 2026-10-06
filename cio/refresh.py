@@ -608,6 +608,28 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
                 ],
             )
         )
+    if "KR_PRODUCT_SALES" in enabled:
+        # 정기보고서에 부문표가 없고 잠정실적 본문에만 품목군별 매출을 적는 회사용.
+        # 네트워크를 타지 않는다 — filing_documents 가 받아 둔 원문을 읽으므로
+        # 그 작업이 새 원문을 받으면(표식 파일이 갱신되면) 다시 돈다.
+        tasks.append(
+            RefreshTask(
+                name=f"product_sales:{asset['asset_id']}",
+                capability="KR_PRODUCT_SALES",
+                artifact=f"knowledge/product_sales/{asset['asset_id']}.json",
+                max_age_hours=720,
+                required=False,
+                dependencies=[
+                    f"knowledge/filings/_documents/{asset['asset_id']}.json"
+                ],
+                command=[
+                    sys.executable,
+                    "-m",
+                    "collectors.kr_product_sales",
+                    asset["asset_id"],
+                ],
+            )
+        )
 
     if "KR_EPC" in enabled:
         tasks.append(RefreshTask(

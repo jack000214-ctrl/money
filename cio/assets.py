@@ -25,6 +25,7 @@ OPTIONAL_COLLECTORS_BY_ROUTE = {
         "KR_INVENTORY",
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS",
+        "KR_PRODUCT_SALES",
         "KR_EPC",
     },
     # 미국에는 수급·대차·재고 수집기가 없다(공개 경로가 다르다). 정상화
@@ -272,6 +273,34 @@ def get_asset(asset_id: str, path: Path = REGISTRY_PATH) -> dict[str, Any]:
             "`python3.13 -m cio register`를 사용한다"
         )
     return {"asset_id": key, **assets[key]}
+
+
+def get_asset_or_declared_peer(
+    asset_id: str, path: Path = REGISTRY_PATH
+) -> dict[str, Any]:
+    """등록 자산, 또는 등록 자산의 ``peers``에 선언된 동종.
+
+    동종은 비교 배수용 컨센서스만 모으므로 공시원·렌즈·벤치마크를 갖춘 자기 항목이
+    없다. ``get_asset``만 받으면 동종 수집이 전부 죽는다(2026-09-08~10-06 실제로
+    그랬다). 반대로 아무 ID나 받으면 경로 검증이 풀리므로, registry 어딘가에
+    선언되어 ``ASSET_ID_RE`` 검사를 통과한 ID만 받는다.
+    """
+    key = asset_id.upper() if not asset_id.isdigit() else asset_id
+    assets = all_assets(path)
+    if key in assets:
+        return {"asset_id": key, **assets[key]}
+    for owner_id, owner in assets.items():
+        for peer in owner.get("peers") or []:
+            if peer.get("asset_id") == key:
+                return {
+                    "asset_id": key,
+                    "name": peer.get("name"),
+                    "declared_peer_of": owner_id,
+                }
+    raise AssetRegistryError(
+        f"{asset_id}: 등록된 자산도, 등록 자산의 peers에 선언된 동종도 아니다. "
+        "먼저 `python3.13 -m cio register`를 사용하거나 비교 대상 자산의 peers에 넣는다"
+    )
 
 
 def register_asset(

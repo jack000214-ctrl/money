@@ -1,7 +1,7 @@
 {
   "schema_version": "research-ledger/1.0.0",
   "asset_id": "214450",
-  "updated_at": "2026-07-31T10:32:35+09:00",
+  "updated_at": "2026-10-06T16:20:09+09:00",
   "resolutions": [
     {
       "request_id": "REQ-1a8d49f66703",
@@ -66,6 +66,22 @@
       "note": "총자산 분모는 판단을 바꾸지 않는다 (사용자 확정 2026-07-31). 비중은 노출 측정치이고 목표는 수익이지 분모 정밀도가 아니다. 슬리브 기준은 이미 나오며 _staleness 로 낡음을 명시한다",
       "resolved_by": "USER",
       "resolved_at": "2026-07-31T10:32:35+09:00"
+    },
+    {
+      "request_id": "REQ-de382a2ba534",
+      "text": "consensus_peer 수집이 145020·214150·278470에서 'AssetRegistryError: 등록되지 않은 자산'으로 실패한다(data/logs/consensus_peer-145020.log). 동종 비교용 수집은 자산 등록 없이 동작하게 하거나 동종을 최소 등록해 달라 — 지금은 동종 배수가 5주째 낡은 채 packet에 실린다.",
+      "state": "DONE",
+      "note": "get_asset_or_declared_peer",
+      "resolved_by": "USER",
+      "resolved_at": "2026-10-06T16:20:06+09:00"
+    },
+    {
+      "request_id": "REQ-459e31e4aab7",
+      "text": "부문별(품목군별) 분기 매출 시계열 수집기 — 잠정실적 공정공시 '기타 투자판단에 참고할 사항'의 품목군별 매출(의료기기·화장품·의약품 × 내수·수출)을 파싱해 knowledge에 남겨 달라. 이번 판단도 3건의 원문을 손으로 다시 읽었다(기존 REQ-c0f26d146a89와 같은 공백).",
+      "state": "DONE",
+      "note": "collectors.kr_product_sales",
+      "resolved_by": "USER",
+      "resolved_at": "2026-10-06T16:20:09+09:00"
     }
   ]
 }

@@ -222,6 +222,30 @@ class TestMemoryDigest(TempKnowledge):
             "구버전", digest["retired"]["batches"][0]["reason"]
         )
 
+    def test_long_retirement_reason_is_clipped_in_the_packet_only(self):
+        # 폐기 사유에 옛 판단의 지정가·논지를 길게 적는 관행이 생겼다. 12건이 쌓이자
+        # 사유만 17.5KB — packet 예산의 22% — 가 되어 살아 있는 판단의 논지를 밀어냈고,
+        # '인용하지 않는다'는 폐기의 뜻과 달리 인용할 수 있는 가격을 실어 보냈다.
+        reason = "2026-08-10 CIO-b 로 대체됨. " + "이 판단의 TRIM 30주 지정가 405,000원은 집행됐다. " * 20
+        write(
+            self.knowledge / "retired" / "214450" / "CIO-b.json",
+            {
+                "assessment_id": "CIO-b",
+                "created_at": "2026-08-09T10:00:00+09:00",
+                "_retired": {
+                    "retired_at": "2026-08-10T09:00:00+09:00",
+                    "class": retire_module.USER_DECLARED,
+                    "reason": reason,
+                },
+            },
+        )
+        packet_reason = context_module._memory_digest("214450")["retired"]["batches"][0]["reason"]
+        self.assertTrue(packet_reason.startswith("2026-08-10 CIO-b 로 대체됨"))
+        self.assertLess(len(packet_reason), 200)
+        self.assertIn("cio retire", packet_reason)
+        # 사람이 보는 화면에는 전문이 그대로 남는다.
+        self.assertEqual(retire_module.retired_summary("214450")["batches"][0]["reason"], reason)
+
 
 if __name__ == "__main__":
     unittest.main()

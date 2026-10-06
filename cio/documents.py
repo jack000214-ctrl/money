@@ -131,6 +131,11 @@ def _cached_text(digest: str, locator: str) -> str:
     return text
 
 
+def document_text(entry: dict[str, Any]) -> str:
+    """색인 항목의 검색용 사본. 수집기도 같은 사본을 읽어 추출 규칙이 한 곳에 있다."""
+    return _cached_text(entry["digest"], entry["locator"])
+
+
 # ------------------------------------------------------------------- 색인
 
 

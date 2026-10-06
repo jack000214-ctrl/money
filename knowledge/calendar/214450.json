@@ -1,8 +1,8 @@
 {
   "schema_version": "earnings-calendar/1.0.0",
   "asset_id": "214450",
-  "collected_at": "2026-10-01T16:43:34+09:00",
-  "as_of_date": "2026-10-01",
+  "collected_at": "2026-10-06T16:00:38+09:00",
+  "as_of_date": "2026-10-06",
   "source": "DART_DOCUMENT",
   "source_grade": "PRIMARY",
   "next_provisional_result": {
@@ -16,7 +16,7 @@
     "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260714900293",
     "evidence_ref": "DARTDOC:20260714900293",
     "business_days_remaining": null,
-    "_content": "잠정실적 공정공시다. 매출·영업이익·순이익 요약만 담고 재고자산·부문별 매출은 담지 않는다"
+    "_content": "잠정실적 공정공시다. 매출·영업이익·순이익 요약이 중심이고 재고자산·현금흐름은 담지 않는다. 일부 회사는 본문에 품목군별 매출을 적는다(kr_product_sales)"
   },
   "expected_periodic_report": {
     "date": "2026-08-14",
@@ -25,7 +25,7 @@
     "basis": "과거 INTERIM 정기보고서의 (잠정실적 → 제출) 간격 중앙값 7.0일",
     "sample_size": 3,
     "business_days_remaining": null,
-    "_content": "재고자산·부문별 매출·주요 매출처가 여기 나온다. 잠정실적 공정공시에는 이 항목들이 없다"
+    "_content": "재고자산·현금흐름·주요 매출처가 여기 나온다. 사업부문표가 있는 회사는 부문별 매출도 여기 있다(segments). 잠정실적 공정공시에는 재고자산·현금흐름이 없다"
   },
   "expected_periodic_report_missing_reason": null,
   "periodic_report_lag": {

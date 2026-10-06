@@ -849,8 +849,9 @@ def _earnings_calendar_section(
     살 것인가는 매수 판단의 1차 분기점이므로 색인과 따로 실어 눈에 띄게 한다.
 
     잠정실적과 정기보고서를 나눠 싣는 이유는 담는 내용이 다르기 때문이다.
-    재고자산·부문별 매출은 잠정실적에 없다. 이 구분이 없으면 잠정실적만 보고
-    "확인했다"고 결론 낼 수 있다.
+    재고자산·현금흐름은 잠정실적에 없다. 이 구분이 없으면 잠정실적만 보고
+    "확인했다"고 결론 낼 수 있다. 부문별 매출은 회사마다 자리가 다르다 —
+    파마리서치는 잠정실적 본문에만 품목군별 매출을 적는다(KR_PRODUCT_SALES).
     """
     if asset["asset_type"] != "STOCK":
         return None, None
@@ -958,6 +959,13 @@ def _earnings_calendar_section(
             f"packet 조립 시점({today.isoformat()}) 기준으로 다시 셌다. "
             "수집 파일의 값은 수집일 기준이라 그대로 실으면 낡는다"
         )
+        if "KR_PRODUCT_SALES" in (asset.get("optional_collectors") or []):
+            # _content 는 회사 공통 문구다. 이 회사는 반대로 품목군별 매출을 잠정실적
+            # 본문에만 싣는다 — 그대로 두면 품목군 문턱의 확인을 정기보고서에 걸어 둔다.
+            summary["next_provisional_result"]["_product_sales_note"] = (
+                "이 회사는 품목군별 매출을 잠정실적 본문에 싣고 정기보고서에는 이 분해가 "
+                "없다. 품목군 문턱은 이 공시로 확인한다(structured_optional.kr_product_sales)"
+            )
     if isinstance(report, dict):
         summary["expected_periodic_report"] = {
             key: report.get(key)
@@ -1666,10 +1674,14 @@ def _data_coverage(
             available_when=optional.get("peer_multiples"),
             market_supported=is_kr,
         ),
+        # 정기보고서 부문표(KR_SEGMENTS)와 잠정실적 품목군별 매출(KR_PRODUCT_SALES)
+        # 둘 중 하나면 부문별 매출이 있는 것이다. 회사마다 공시하는 자리가 다르다.
         "segment_revenue": row(
             "segment_revenue",
-            registered="KR_SEGMENTS" in enabled,
-            available_when=optional.get("segments"),
+            registered=bool({"KR_SEGMENTS", "KR_PRODUCT_SALES"} & enabled),
+            available_when=(
+                optional.get("kr_product_sales") or optional.get("segments")
+            ),
             market_supported=is_kr,
         ),
         "flow_and_lending": row(
@@ -2033,6 +2045,43 @@ def _optional_collection_summaries(
                     "kind": "FILING_DERIVED",
                     "path": str(path.relative_to(ROOT)),
                     "data_as_of": data.get("filing_date"),
+                }
+            )
+
+    if "KR_PRODUCT_SALES" in enabled:
+        from collectors.kr_product_sales import packet_summary
+        path = KNOWLEDGE_DIR / "product_sales" / f"{asset_id}.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        summary = packet_summary(data) if isinstance(data, dict) else None
+        if isinstance(data, dict) and summary is None:
+            summaries["kr_product_sales"] = {
+                "available": False,
+                "_reason": "로컬 잠정실적 원문에서 품목군별 매출 문장을 찾지 못했다",
+            }
+        elif summary:
+            summaries["kr_product_sales"] = {
+                **summary,
+                "_role": (
+                    "잠정실적 공시 본문의 품목군별 분기 매출이다(정기보고서에는 이 분해가 "
+                    "없다). quarters 의 values 는 items 순서와 같다. latest 의 비중·전분기·"
+                    "전년동기 변화율은 산술이며 추세 판정은 모델이 한다. drivers 비중과 "
+                    "품목군 문턱의 무효화 신호는 여기서 대조한다"
+                ),
+                "_warning": (
+                    "외부감사 전 잠정치다. reconciliation 은 여덟 줄의 합과 같은 공시 매출액"
+                    "(4분기는 연간 − 3분기 누계)의 대조이고, MISMATCH 행은 변화율 계산에서 "
+                    "뺐다. 매출만 있고 품목군별 이익은 공시되지 않는다"
+                ),
+            }
+            sources.append(
+                {
+                    "source_id": f"KR_PRODUCT_SALES:{asset_id}",
+                    "kind": "FILING_DERIVED",
+                    "path": str(path.relative_to(ROOT)),
+                    "data_as_of": data["quarters"][-1].get("period_end"),
                 }
             )
 
@@ -2658,6 +2707,23 @@ def _portfolio_summary(
             "_role": "제약과 노출 계산일 뿐 투자 매력도 판정이 아니다",
         },
         source,
+    )
+
+
+RETIRED_REASON_CHARS = 80
+
+
+def _clip_retired_reason(text: Any) -> str | None:
+    """폐기 사유의 첫머리. 대체한 판단 ID 와 사유의 성격까지만 남긴다."""
+    if not isinstance(text, str):
+        return None
+    stripped = text.strip()
+    if len(stripped) <= RETIRED_REASON_CHARS:
+        return stripped
+    return (
+        stripped[:RETIRED_REASON_CHARS].rstrip()
+        + f"…〔{len(stripped)}자 중 {RETIRED_REASON_CHARS}자. 전문은 "
+        "`cio retire <asset_id>`. 폐기된 판단은 인용하지 않는다〕"
     )
 
 
@@ -3533,6 +3599,17 @@ def _memory_digest(
             ),
         }
     if retired.get("count"):
+        # 폐기 사유는 사람이 쓰는 기록이라 옛 판단의 지정가·논지까지 길게 담기 쉽다.
+        # 12건이 쌓이자 사유만 17.5KB(예산의 22%)가 되어 살아 있는 판단의 논지를
+        # 밀어냈고, '있었다는 사실만'이라는 폐기의 뜻과 달리 인용할 수 있는 값을
+        # 실었다. packet 에는 첫머리만 싣고 전문은 `cio retire` 화면에 둔다.
+        retired = {
+            **retired,
+            "batches": [
+                {**batch, "reason": _clip_retired_reason(batch.get("reason"))}
+                for batch in retired.get("batches") or []
+            ],
+        }
         digest["retired"] = {
             **retired,
             "_note": (

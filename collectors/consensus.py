@@ -473,8 +473,10 @@ def main() -> int:
     parser.add_argument("asset_id")
     parser.add_argument("--show", action="store_true", help="저장본만 출력")
     args = parser.parse_args()
-    from cio.assets import get_asset
-    get_asset(args.asset_id)  # Resolve the registered ID before constructing paths.
+    from cio.assets import get_asset_or_declared_peer
+    # Resolve the ID before constructing paths. Peers have no registry entry of
+    # their own, only a declaration under the asset they are compared with.
+    get_asset_or_declared_peer(args.asset_id)
 
     path = OUT_DIR / f"{args.asset_id}.json"
     if args.show:
