@@ -604,12 +604,29 @@ def _return_at(
     )
 
 
+def _price_currency(symbol: str) -> str | None:
+    """가격 파일 머리말의 통화. 못 읽으면 None."""
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.startswith("#"):
+                    break
+                match = re.search(r"/ currency ([A-Z]{3})\b", line)
+                if match:
+                    return match.group(1)
+    except OSError:
+        return None
+    return None
+
+
 def _fixed_horizon_returns(
     *,
     rows: list[dict[str, Any]],
     start: dt.date,
     adjusted_cost: float,
     benchmarks: list[str],
+    asset_currency: str | None = None,
 ) -> dict[str, Any]:
     """모델의 자기 선언과 무관한 고정 기간 수익률과 기준지수 대비 초과수익.
 
@@ -661,9 +678,28 @@ def _fixed_horizon_returns(
                     else None
                 ),
             }
+    # 원화로 거래되는 해외 ETF 를 위안·홍콩달러 지수와 견주면 차감값에 환율이
+    # 통째로 들어간다. 초과수익처럼 보이는 것의 일부가 원화 강세·약세다.
+    currencies = {symbol: _price_currency(symbol) for symbol in benchmark_rows}
+    mismatched = sorted(
+        symbol for symbol, currency in currencies.items()
+        if asset_currency and currency and currency != asset_currency
+    )
     return {
         "months": horizons,
         "vs_benchmark": benchmark_rows,
+        **(
+            {
+                "benchmark_currency": currencies,
+                "_currency_warning": (
+                    f"자산은 {asset_currency} 인데 {', '.join(mismatched)} 는 다른 "
+                    "통화의 지수다. excess_pct 에 환율 변동이 그대로 들어 있어 "
+                    "종목 선택의 성과로 읽으면 안 된다"
+                ),
+            }
+            if mismatched
+            else {}
+        ),
         "_role": (
             "모델이 스스로 정한 기간·문턱과 무관하게 항상 같은 자로 잰 값이다. "
             "모델마다 다른 사건을 예측하면 Brier score 를 나란히 놓을 수 없고, "
@@ -760,6 +796,7 @@ def evaluate_assessment(
         start=start,
         adjusted_cost=adjusted_cost,
         benchmarks=asset.get("benchmarks") or [],
+        asset_currency=asset.get("currency"),
     )
     evaluation = {
         "schema_version": EVALUATION_SCHEMA,

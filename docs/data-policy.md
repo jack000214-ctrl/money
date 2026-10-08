@@ -41,6 +41,32 @@ python3.13 -m cio register NVDA \
 ETF는 `--asset-type ETF`와 함께 전략·기초자산·파생 여부·분배 정책을 등록한다.
 등록 후 반드시 refresh plan을 확인해 실제로 필요한 수집기가 있는지 검토한다.
 
+한국 상장 ETF 예시 (해외 종목을 담는 테마형):
+
+```bash
+python3.13 -m cio register 0053L0 \
+  --name "TIGER 차이나휴머노이드로봇" \
+  --market KR --exchange KOSPI --asset-type ETF \
+  --price-symbol 0053L0.KS \
+  --sector-code THEMATIC_CHINA_HUMANOID_ROBOTICS \
+  --analysis-lens THEMATIC_EQUITY_ETF \
+  --valuation-family ETF_LOOKTHROUGH \
+  --benchmark 399001.SZ --benchmark '^HSI' --benchmark '^KS11' \
+  --etf-strategy PASSIVE_THEMATIC --distribution-policy DIVIDEND_QUARTERLY \
+  --issuer MIRAE_TIGER --isin KR70053L0005 \
+  --currency-hedged no --total-fee-pct 0.49 \
+  --optional-collector ETF_CONSTITUENTS
+```
+
+- `--issuer`·`--isin`이 있고 그 운용사 경로가 확인돼 있으면 구성종목을 자동으로
+  받는다. 지금 확인된 경로는 `MIRAE_TIGER` 하나다. 없으면 구성종목은 수동이다.
+- `--currency-hedged`는 모르면 생략한다. 생략은 "모름"이고 `no`와 다르다.
+- 벤치마크는 **가격 이력이 있는 심볼**로 고른다. 야후가 이력을 한 행만 주는
+  지수(`000300.SS`, `399006.SZ`)가 있고, 그런 심볼은 수집은 통과하지만 수익률이
+  전부 null이다. packet이 `THIN_HISTORY`로 알리며 그때 바꾼다.
+- 해외 지수를 벤치마크로 두면 통화가 다르다. 사후 평가의 `excess_pct`에 환율이
+  그대로 들어가고 `_currency_warning`이 붙는다.
+
 ## 기본 수집 계획
 
 `python3.13 -m cio refresh <asset_id>`는 쓰기 없이 현재 상태와 필요한 작업을 보여준다.
@@ -71,10 +97,96 @@ ETF:
 - registry에 명시된 출처의 구성 스냅샷과 운용사 구조 정보
 - 단일 기초자산형이면 기초자산 가격
 
-ETF holdings는 현재 자동 수집 명령이 없는 필수 작업이다. 최신 운용사 원문을
-우선 확인하되 2차 출처를 썼다면 registry와 컨텍스트에 그 등급을 드러낸다.
-`knowledge/etfs/<asset_id>/holdings-*.csv`로 저장하기 전에는 refresh가
-`MANUAL_REQUIRED`를 반환하며, ID·중복·비중·기준일 계약을 통과해야 한다.
+ETF holdings는 필수 작업이다. 운용사 수집 경로가 확인된 ETF는
+`collectors.kr_etf_holdings`가 운용사 원문에서 받고, 그 밖의 ETF는 수동이다.
+수동일 때는 최신 운용사 원문을 우선 확인하되 2차 출처를 썼다면 registry와
+컨텍스트에 그 등급을 드러낸다. `knowledge/etfs/<asset_id>/holdings-*.csv`로
+저장하기 전에는 refresh가 `MANUAL_REQUIRED`를 반환하며, ID·중복·비중·기준일
+계약을 통과해야 한다.
+
+### ETF 구성종목을 받는 방법
+
+```bash
+python3.13 -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → holdings CSV
+python3.13 -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
+python3.13 -m calculators.etf_lookthrough 0053L0    # 가중 배수와 수익률 분해
+```
+
+`refresh --run`이 첫째를, `refresh --run --optional`이 둘째까지 돌린다(둘째는
+`optional_collectors`에 `ETF_CONSTITUENTS`가 있을 때).
+
+**구성종목 (`kr_etf_holdings`).** 받은 표가 운용사가 선언한 행수와 다르면
+저장하지 않는다 — 기본 행수가 10이라 주소를 잘못 만들면 상위 10종목만 오고, 그
+파일은 형식이 정상이라 전체처럼 읽힌다. 기준일은 운용사가 말한 날짜를 쓰며 못
+읽으면 조회일로 대신하지 않고 멈춘다. 원화예금 같은 현금성 행은 구성종목에서
+빼고 뺀 사실을 CSV 머리말과 `issuer.json`에 남긴다. 종목코드는 아는 표기만
+바꾼다(`300124 C2 EQUITY` → `300124.SZ`). 모르는 표기는 원문 그대로 두고 시장을
+비우며, 그 종목은 가격·배수를 받지 않는다. 기준가·총보수·환헤지 문구도 같은
+페이지에서 읽어 `knowledge/etfs/<asset_id>/issuer.json`에 둔다. 환헤지는 운용사
+문구 그대로 싣고 참·거짓으로 접지 않는다.
+
+자동 수집본은 조회시각으로 신선도를 잰다. 기준일로 재면 긴 연휴 뒤에는 방금
+받은 최신 구성도 낡은 것이 되어 packet이 멈춘다. 대신 기준일이 조회일보다 14일
+넘게 뒤처지면 계약 위반이다 — 운용사가 갱신을 멈췄거나 다른 펀드를 받은 것이다.
+손으로 적은 파일은 조회시각을 믿을 근거가 없어 예전처럼 기준일로 잰다.
+
+**구성종목 재료 (`etf_constituents`).** 종목마다 세 가지를 받는다.
+
+| 재료 | 출처 | 등급 |
+|---|---|---|
+| 창 수익률·12개월 고점 대비 낙폭 | Yahoo chart API (조정종가) | 구조화 시장 데이터 |
+| forward·trailing PER, PS, PB, 순이익률 | stockanalysis.com 통계 페이지 | **2차 출처** |
+| 종목 통화 → ETF 통화 환율 | Yahoo, 달러를 거친 교차환율 | 구조화 시장 데이터 |
+
+배수는 2차 출처다. forward 추정의 기준연도와 표본 수를 그 페이지가 밝히지
+않는다. 원문 페이지는 `cio snapshot`과 같은 저장소에 보존하고 받은 페이지의
+제목이 그 종목의 것인지 확인한 뒤에만 값을 쓴다. 종목별 일봉은 저장하지 않는다
+— 구성종목 수십 개의 일봉을 쌓으면 판단에 쓰이지 않는 행이 대부분이 된다.
+환율을 교차환율 하나로 통일한 것은 야후의 직접 교차쌍(`CNYKRW=X` 등) 중 이력이
+한 행뿐인 것이 있어서다.
+
+확인한 거래소만 받는다 — 홍콩, 상하이, 선전, 도쿄, 한국, 미국. 그 밖의 종목은
+`unresolved`에 남고 가중 계산에서 빠지며, 빠진 만큼 `*_weight_pct`가 줄어든다.
+
+**들여다보기 산술 (`etf_lookthrough`).** packet의 `etf.lookthrough`에 실린다.
+
+- 묶음 PER은 비중 가중 **조화평균**이다. 묶음의 PER은 시가총액 합÷이익 합이고
+  비중이 시가총액 몫이므로 이익 몫은 비중÷PER이다. 산술평균을 쓰면 PER 200배짜리
+  한 종목이 묶음 전체를 끌어올린다.
+- forward PER이 없는 종목은 묶음 배수에 들어가지 않는다. 그 종목의 이익수익률은
+  `순이익률÷PS`로 낸다. 순이익÷시가총액으로 내면 홍콩 상장 본토 기업처럼 실적
+  통화와 시가총액 통화가 다른 종목에서 통화가 섞인다.
+- 수익률 분해는 **현재 비중을 과거에 적용한 근사**다. 비중 변화·정기변경·보수·장
+  마감 시차가 `unexplained_pp`에 남으며 0으로 맞추지 않는다.
+- 창은 달력 일수(30·91·182·365일)다. 거래일 수로 재면 시장마다 휴장일이 달라
+  같은 "3개월"이 종목마다 다른 기간이 된다. 그래서 `price.returns_pct`의 거래일
+  창과 값이 다를 수 있다.
+
+모델이 정한 문턱을 가격으로 옮기거나 이전 재료와 견줄 때는 직접 부른다.
+
+```bash
+python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
+python3.13 -m calculators.etf_lookthrough 0053L0 \
+  --compare knowledge/etfs/0053L0/constituents-2026-10-09.json
+```
+
+`--compare`는 기준 재료의 비중·주가를 고정하고 종목별 내재 forward EPS(종가÷
+forward PER)만 새 값으로 바꾼 묶음 PER을 낸다. "주가가 내려서 PER이 낮아진 것"과
+"추정이익이 깎인 것"을 가르는 산술이다. 추정 기준연도가 넘어가면 이익이 늘어난
+것처럼 보이므로 변화의 원인은 원문에서 확인한다.
+
+**아직 없는 것.** 기준가·괴리율·추적오차 시계열, 기초지수 방법론(편입 기준·비중
+상한·정기변경 일정), 기초시장 휴장 달력, 테마 매출 비중. packet의
+`data_coverage`와 `research_requirements`가 이 공백을 말한다. TIGER 외 운용사의
+구성종목 자동 수집도 없다.
+
+### 해외 종목을 담은 한국 상장 ETF의 가격
+
+`price.last_bar.is_settled_close`는 한국 세션만 본다. 한국 장은 15:30에 닫히고
+중국 본토는 한국 시각 16:00, 홍콩은 17:00에 닫히며 휴장일도 다르다. 그래서 확정
+종가라도 기초시장의 그날 마감과 한국 휴장일 동안의 움직임은 들어 있지 않다.
+같은 이유로 그날의 `issuer_facts.price_vs_nav_pct`는 싸고 비쌈이 아니라 시차다.
+`etf.lookthrough.constituent_price_as_of`와 ETF 가격 기준일을 대조한다.
 
 포트폴리오 스냅샷은 보유 노출을 계산하는 보조 입력이다. 사용자가 종목·가격·금액을
 직접 제시했으면 포트폴리오 파일이 없거나 오래됐다는 이유만으로 핵심 구매 질문을
@@ -94,7 +206,8 @@ ETF holdings는 현재 자동 수집 명령이 없는 필수 작업이다. 최�
 | 재무 스냅샷 | 720시간 |
 | 미국 제출 문서 색인 | 24시간 |
 | 한국 중요 이벤트 | 24시간 |
-| ETF holdings | 168시간 |
+| ETF holdings | 168시간 (자동 수집본은 조회시각, 수동 파일은 기준일 기준) |
+| ETF 구성종목 재료 | 168시간, 구성이 새로 수집되면 다시 |
 | 계산된 시장 국면 | 24시간 |
 
 산출물이 없거나 오래됐거나 의존 입력보다 먼저 만들어졌으면 `prepare`의

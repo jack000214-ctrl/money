@@ -58,6 +58,8 @@ PER·DCF 등의 계산을 재사용하며, 관행에서 가져온 값은 모델�
 | `cio/documents.py` | 보존한 원문을 색인하고 물어본 자리만 잘라 돌려줌 |
 | `cio/requests.py` | 모델의 수집 요청을 미해결/해결로 추적하고 다음 컨텍스트에 환류 |
 | `calculators/` | 재무 계약, 시장 국면, 포트폴리오, 비교·밸류에이션 계산 |
+| `collectors/kr_etf_holdings.py`, `collectors/etf_constituents.py` | 운용사 원문의 ETF 구성종목과, 종목별 가격·배수·환율 |
+| `calculators/etf_lookthrough.py` | ETF 구성종목의 가중 배수와 종목·환율 수익률 분해 |
 | `calculators/assumptions.py` | 모델이 정한 EPS 배수·DCF 가정, 대체 계산과 수익률 경계값의 산술 |
 | `cio/assumptions.py` | 가정과 근거 파일을 context에 결속해 보존하고 모델 응답을 검증 |
 | `cio/refresh.py` | 자산에 필요한 작업만 계획하고 신선도를 검사·갱신 |

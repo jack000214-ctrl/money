@@ -355,6 +355,7 @@ class TestRoutingContracts(unittest.TestCase):
             "RXRX": "pipeline_rnpv",
             "SCHD": "etf_structure",
             "MSTY": "derivative_payoff",
+            "0053L0": "theme_purity",
         }
         for asset_id, topic in expected.items():
             with self.subTest(asset_id=asset_id):

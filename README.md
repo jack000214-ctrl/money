@@ -308,6 +308,22 @@ python3.13 -m calculators.peer_kr 214450 145020 214150 278470   # 한국 동종 
 python3.13 -m calculators.sector_strength --highlight 헬스케어    # 미국 섹터 상대강도
 ```
 
+ETF는 구성종목을 들여다본다. 가격만 보면 "3개월에 34% 내렸다"까지만 보이고,
+그것이 종목이 내린 것인지 환율이 내린 것인지, 내려온 뒤의 가격표가 구성종목
+이익의 몇 배인지는 보이지 않는다. 실제로 그 둘이 결론을 정했다.
+
+```bash
+python3.13 -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → 구성종목
+python3.13 -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
+python3.13 -m calculators.etf_lookthrough 0053L0    # 가중 PER·적자 비중·종목/환율 분해
+python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
+```
+
+앞의 둘은 `refresh --run --optional`이 돌리고 결과는 packet의 `etf.lookthrough`에
+실린다. 배수는 2차 출처이고 분해는 현재 비중을 과거에 적용한 근사다.
+`--at-forward-pe`는 **모델이 정한** 배수 문턱을 ETF 가격으로 옮길 뿐이며 몇 배가
+적정한지는 정하지 않는다. [수집 범위와 한계](docs/data-policy.md#etf-구성종목을-받는-방법)
+
 `sector_strength`는 미국 섹터 ETF 11종의 SPY 대비 상대강도이며 **한국 종목의 섹터
 대리가 아니다.** 상대강도는 밸류에이션 지표도 아니다 — 자금이 어디로 갔는지에 대한
 관측일 뿐이고, 이 값으로 비중을 정하지 않는다. 두 계산기의 산술 경계는

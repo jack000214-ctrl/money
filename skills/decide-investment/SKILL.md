@@ -37,7 +37,9 @@ evidence. Do not stage or commit changes.
    the entire holding into `--quantity` (that flag means the proposed sell size).
 2. `python3.13 -m cio assets`. If absent, register it with the correct `KR|US`,
    `STOCK|ETF`, exchange, price symbol, filing source or ETF structure, benchmarks,
-   analysis lens, and valuation families.
+   analysis lens, and valuation families. For an ETF also pass `--issuer`/`--isin`
+   when that issuer's route exists, `--currency-hedged`, `--total-fee-pct` and
+   `--optional-collector ETF_CONSTITUENTS`; pick benchmarks that have price history.
 3. `python3.13 -m cio refresh ASSET`. Add `--run` when required artifacts are stale or
    missing; add `--optional` when the asset's lens makes those inputs useful.
 

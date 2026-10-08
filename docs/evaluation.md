@@ -172,6 +172,11 @@ context·verdict·기간·승패 문턱·기대수익·가격계획. `drivers`�
 
 기준점은 **판단일 시점의 지수**다. 판단일 이후 첫 봉을 쓰면 그날의 지수 움직임이
 통째로 빠진다. `excess_pct`는 beta=1 가정의 단순 차감이며 위험조정 수익이 아니다.
+
+자산과 기준지수의 통화가 다르면 그 차감에 환율이 그대로 들어간다. 원화로 거래되는
+해외 ETF를 위안·홍콩달러 지수와 견줄 때가 그렇다. 이 경우 `benchmark_currency`와
+`_currency_warning`이 붙으며, 그 `excess_pct`를 종목 선택의 성과로 읽지 않는다.
+환율을 뺀 비교가 필요하면 packet의 `etf.lookthrough.return_attribution`을 쓴다.
 `complete: false`인 값을 완료된 것과 같은 통에 넣지 않는다.
 
 모델 승격 비교는 자기 선언 문턱이 아니라 이쪽을 쓴다.

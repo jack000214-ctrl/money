@@ -288,6 +288,39 @@
       "optional_collectors": [],
       "filing_source": "DART",
       "filing_profile": "DART_KIFRS"
+    },
+    "0053L0": {
+      "name": "TIGER 차이나휴머노이드로봇",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "ETF",
+      "currency": "KRW",
+      "price_symbol": "0053L0.KS",
+      "sector_code": "THEMATIC_CHINA_HUMANOID_ROBOTICS",
+      "industry": "중국 휴머노이드 로봇 테마 ETF",
+      "analysis_lens": "THEMATIC_EQUITY_ETF",
+      "valuation_family": [
+        "ETF_LOOKTHROUGH"
+      ],
+      "benchmarks": [
+        "399001.SZ",
+        "^HSI",
+        "^KS11"
+      ],
+      "optional_collectors": [
+        "ETF_CONSTITUENTS"
+      ],
+      "etf": {
+        "strategy": "PASSIVE_THEMATIC",
+        "derivative_use": false,
+        "leverage": 1.0,
+        "holdings_source": "ISSUER",
+        "distribution_policy": "DIVIDEND_QUARTERLY",
+        "issuer": "MIRAE_TIGER",
+        "isin": "KR70053L0005",
+        "currency_hedged": false,
+        "total_fee_pct": 0.49
+      }
     }
   }
 }

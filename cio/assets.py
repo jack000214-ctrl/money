@@ -33,10 +33,14 @@ OPTIONAL_COLLECTORS_BY_ROUTE = {
     # 있으므로 여기서 빠져 있을 이유가 없었다 — 그 공백 때문에 미국 종목은
     # 사이클 위치를 볼 수단 없이 단일 TTM 으로만 판단됐다.
     ("US", "STOCK"): {"NORMALIZED_EARNINGS"},
-    ("KR", "ETF"): set(),
-    ("US", "ETF"): set(),
+    # ETF 의 선택 입력은 구성종목 들여다보기 하나다 — 종목별 배수와 수익률을
+    # 받아 look-through 배수와 종목·환율 수익률 분해를 낸다. 구성종목마다
+    # 요청이 나가므로(수십 건) 기본이 아니라 등록한 ETF 에서만 돈다.
+    ("KR", "ETF"): {"ETF_CONSTITUENTS"},
+    ("US", "ETF"): {"ETF_CONSTITUENTS"},
 }
 ETF_HOLDINGS_SOURCES = {"ISSUER", "SECONDARY", "MANUAL"}
+ETF_ISIN_RE = re.compile(r"^[A-Z]{2}[0-9A-Z]{10}$")
 ASSET_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 MARKET_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.^=_-]{1,64}$")
 
@@ -258,6 +262,33 @@ def validate_asset(asset_id: str, asset: Any) -> None:
         raise AssetRegistryError(
             f"{asset_id}: ETF에 기업가치 평가법을 직접 적용할 수 없다"
         )
+    # 아래는 선택 필드다. 없으면 '모른다'이고, 있으면 형식이 맞아야 한다 —
+    # 틀린 ISIN 은 다른 펀드의 구성종목을 조용히 받아 온다.
+    issuer = etf.get("issuer")
+    if issuer is not None and (not isinstance(issuer, str) or not issuer.strip()):
+        raise AssetRegistryError(f"{asset_id}: etf.issuer는 비어 있지 않은 문자열이어야 한다")
+    isin = etf.get("isin")
+    if isin is not None and (
+        not isinstance(isin, str) or not ETF_ISIN_RE.fullmatch(isin)
+    ):
+        raise AssetRegistryError(
+            f"{asset_id}: etf.isin은 국가코드 2자리와 10자리 영숫자여야 한다"
+        )
+    hedged = etf.get("currency_hedged")
+    if hedged is not None and not isinstance(hedged, bool):
+        raise AssetRegistryError(
+            f"{asset_id}: etf.currency_hedged는 true·false 또는 생략(모름)이어야 한다"
+        )
+    fee = etf.get("total_fee_pct")
+    if fee is not None and (
+        isinstance(fee, bool)
+        or not isinstance(fee, (int, float))
+        or not math.isfinite(fee)
+        or not 0 <= fee < 10
+    ):
+        raise AssetRegistryError(
+            f"{asset_id}: etf.total_fee_pct는 0 이상 10 미만의 연 보수(%)여야 한다"
+        )
 
 
 def all_assets(path: Path = REGISTRY_PATH) -> dict[str, dict[str, Any]]:
@@ -318,6 +349,8 @@ def register_asset(
     filing_source: str | None = None,
     ir_sources: list[str] | None = None,
     etf: dict[str, Any] | None = None,
+    industry: str = "",
+    optional_collectors: list[str] | None = None,
     path: Path = REGISTRY_PATH,
 ) -> dict[str, Any]:
     market = market.upper()
@@ -331,11 +364,11 @@ def register_asset(
         "currency": "KRW" if market == "KR" else "USD",
         "price_symbol": price_symbol,
         "sector_code": sector_code,
-        "industry": "",
+        "industry": industry,
         "analysis_lens": analysis_lens,
         "valuation_family": valuation_family,
         "benchmarks": benchmarks,
-        "optional_collectors": [],
+        "optional_collectors": list(optional_collectors or []),
     }
     if asset_type == "STOCK":
         profile["filing_source"] = filing_source or FILING_SOURCE_BY_MARKET.get(

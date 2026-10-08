@@ -225,6 +225,10 @@ EVIDENCE_FAMILY_BY_PREFIX = (
     ("CONSENSUS:", "SECONDARY"),
     ("CONSENSUS_PEER:", "SECONDARY"),
     ("ETF_HOLDINGS:", "ETF_HOLDINGS"),
+    ("ETF_ISSUER:", "ETF_HOLDINGS"),
+    # 구성종목별 가격과 2차 출처 배수. 가격 주장과 밸류에이션 주장을 닫을 수
+    # 있지만 1차 재무는 아니다.
+    ("ETF_CONSTITUENTS:", "SECONDARY"),
     ("MARKET_STATE:", "MARKET_STATE"),
     ("PORTFOLIO:", "USER_DATA"),
     ("POLICY:", "USER_DATA"),

@@ -78,12 +78,22 @@ def cmd_register(args) -> int:
     if args.asset_type == "ETF":
         etf = {
             "strategy": args.etf_strategy,
-            "underlying": args.underlying,
             "derivative_use": args.derivative_use,
             "leverage": args.leverage,
-            "holdings_source": "ISSUER",
+            "holdings_source": args.holdings_source,
             "distribution_policy": args.distribution_policy,
         }
+        # 모르는 값은 null 로 적지 않고 아예 뺀다. `"underlying": null` 은
+        # '기초자산이 없다'와 '안 적었다'를 구분하지 못한다.
+        for key, value in (
+            ("underlying", args.underlying),
+            ("issuer", args.issuer),
+            ("isin", args.isin),
+            ("currency_hedged", {"yes": True, "no": False}.get(args.currency_hedged)),
+            ("total_fee_pct", args.total_fee_pct),
+        ):
+            if value is not None:
+                etf[key] = value
     asset = register_asset(
         args.asset_id,
         name=args.name,
@@ -98,6 +108,8 @@ def cmd_register(args) -> int:
         filing_source=args.filing_source,
         ir_sources=args.ir_source,
         etf=etf,
+        industry=args.industry,
+        optional_collectors=args.optional_collector,
     )
     print(json.dumps(asset, ensure_ascii=False, indent=2))
     return 0
@@ -416,6 +428,19 @@ def build_parser() -> argparse.ArgumentParser:
     register.add_argument("--derivative-use", action="store_true")
     register.add_argument("--leverage", type=float, default=1.0)
     register.add_argument("--distribution-policy", default="UNKNOWN")
+    register.add_argument("--holdings-source", default="ISSUER",
+                          choices=["ISSUER", "SECONDARY", "MANUAL"],
+                          help="ETF 구성종목 스냅샷의 출처 등급")
+    register.add_argument("--issuer",
+                          help="ETF 운용사 수집 경로 (예: MIRAE_TIGER). 있으면 구성종목을 자동 수집한다")
+    register.add_argument("--isin", help="ETF 표준코드 (예: KR70053L0005)")
+    register.add_argument("--currency-hedged", choices=["yes", "no"],
+                          help="환헤지 여부. 모르면 생략한다")
+    register.add_argument("--total-fee-pct", type=float,
+                          help="ETF 연 총보수(퍼센트). 운용사 원문 값")
+    register.add_argument("--industry", default="", help="사람이 읽는 산업·테마 설명")
+    register.add_argument("--optional-collector", action="append", default=[],
+                          help="선택 수집기 (반복 가능). ETF 는 ETF_CONSTITUENTS")
     register.set_defaults(func=cmd_register)
 
     refresh = sub.add_parser("refresh", help="선택 자산에 필요한 수집만 계획/실행")

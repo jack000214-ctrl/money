@@ -81,6 +81,8 @@ MAX_CONTEXT_JSON_BYTES = 80_000
 # 자기가 무엇을 건드리는지 모른다 — 늘린 순간 트리머가 처음으로 돌고, 그
 # 경로는 무효화 신호를 버린다.
 MAX_LIVE_ASSESSMENTS = 3
+# 1개월 수익률(21거래일 전 대비)을 내려면 이만큼은 있어야 한다.
+MIN_BARS_FOR_RETURNS = 22
 
 
 class ContextError(ValueError):
@@ -297,6 +299,20 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     recent = closes[-252:]
     high = max(recent)
     low = min(recent)
+    # 이력이 창보다 짧으면 그 사실을 값 옆에 둔다. 한 행짜리 파일은 수익률이
+    # 전부 null 이고 낙폭이 0.0 으로 나와 "고점에 있다"로 읽힌다 — 실제로
+    # 그런 벤치마크(야후가 이력을 한 행만 주는 지수)가 경고 없이 실렸다.
+    history_note = None
+    if len(points) < MIN_BARS_FOR_RETURNS:
+        history_note = (
+            f"가격 이력이 {len(points)}행뿐이다 — 수익률·낙폭·변동성을 낼 수 "
+            "없다. 벤치마크라면 비교가 성립하지 않으므로 다른 심볼로 바꾼다"
+        )
+    elif len(points) < 252:
+        history_note = (
+            f"가격 이력이 {len(points)}거래일이라 12개월 창보다 짧다 — 12개월 "
+            "수익률은 없고 고점·저점·낙폭은 그 기간 안의 값이다"
+        )
     returns = [
         return_closes[index] / return_closes[index - 1] - 1
         for index in range(
@@ -325,9 +341,12 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
                 "excluded_latest_bar": points[-1][0] if session_state != "SETTLED" else None,
                 "_note": "최근 1·2·3개 확정 거래 세션의 누적 수익률이다. 달력 일수가 아니다. 마지막 봉이 미확정·불명확하면 제외하며 위 returns_basis와 같은 가격 기준을 쓴다",
             },
+            # 한 행뿐이면 고점이 곧 현재가라 0.0 이 나온다. 관측이 아니다.
             "drawdown_from_12m_high_pct": round(
                 (closes[-1] / high - 1) * 100, 2
-            ),
+            )
+            if len(points) >= 2
+            else None,
             # 고가와 저가가 같으면(거래 정지·상장 직후) 위치라는 것이 없다.
             # 예전에는 50 을 넣었다. 0·100 을 피하려던 것인데 50 도 똑같이
             # 지어낸 값이고, 이 자리는 화면이 아니라 **packet** 이라 모델이
@@ -370,6 +389,11 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
                     else None
                 ),
             },
+            **(
+                {"history_bars": len(points), "_history_warning": history_note}
+                if history_note
+                else {}
+            ),
         },
         source,
     )
@@ -1287,6 +1311,7 @@ def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
     errors = []
     holding_ids: list[str] = []
     as_of_values: set[str] = set()
+    by_market: dict[str, float] = {}
     for index, row in enumerate(rows):
         if row.get("etf_id") != asset["asset_id"]:
             errors.append(f"{index + 2}행 etf_id가 요청 자산과 다르다")
@@ -1312,6 +1337,8 @@ def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
                 "sector": row.get("sector") or None,
             }
         )
+        market = (row.get("market") or "").strip() or "UNKNOWN"
+        by_market[market] = by_market.get(market, 0.0) + weight
     if len(holding_ids) != len(set(holding_ids)):
         errors.append("holding_id가 중복됐다")
     if len(as_of_values) != 1:
@@ -1334,6 +1361,13 @@ def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
         {
             "as_of": as_of,
             "known_coverage_pct": coverage,
+            "holdings_count": len(weighted),
+            # 어느 시장의 종목을 담았는가. 상장 시장과 다르면 환율과 장 마감
+            # 시차가 가격에 섞인다.
+            "by_market_pct": {
+                market: round(value, 2)
+                for market, value in sorted(by_market.items(), key=lambda pair: -pair[1])
+            },
             "top_holdings": weighted[:8],
             "structure": asset.get("etf"),
             "warnings": warnings,
@@ -1341,6 +1375,108 @@ def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
         },
         source,
     )
+
+
+def _kst_date(value: Any) -> str | None:
+    """수집시각(UTC)을 한국 날짜로. 파일명과 화면이 같은 날짜를 말하게 한다."""
+    try:
+        return dt.datetime.fromisoformat(str(value)).astimezone(KST).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _etf_issuer_facts(
+    asset: dict[str, Any], price_summary: dict[str, Any] | None
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """운용사 상품 페이지에서 읽은 기준가·총보수·환헤지 문구."""
+    path = KNOWLEDGE_DIR / "etfs" / asset["asset_id"] / "issuer.json"
+    if not path.exists():
+        return None, None
+    try:
+        data = load_json(path)
+    except (OSError, ValueError):
+        return None, None
+    if (
+        data.get("schema_version") != "etf-issuer/1.0.0"
+        or data.get("asset_id") != asset["asset_id"]
+    ):
+        return None, None
+    source = {
+        "source_id": f"ETF_ISSUER:{asset['asset_id']}",
+        "kind": "ISSUER_FACTS",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": data.get("as_of"),
+    }
+    nav = _as_float(data.get("nav"))
+    last_bar = (price_summary or {}).get("last_bar") or {}
+    same_day = (
+        nav
+        and (price_summary or {}).get("as_of") == data.get("as_of")
+        and last_bar.get("is_settled_close") is True
+    )
+    return (
+        {
+            "as_of": data.get("as_of"),
+            "nav": nav,
+            "nav_currency": data.get("nav_currency"),
+            "price_vs_nav_pct": (
+                round((price_summary["close"] / nav - 1) * 100, 2)
+                if same_day
+                else None
+            ),
+            "total_fee_pct": data.get("total_fee_pct"),
+            "hedge_statement": data.get("hedge_statement"),
+            "unresolved": data.get("unresolved") or [],
+            "_role": (
+                "운용사 상품 페이지에서 읽은 값이다. hedge_statement 는 운용사 "
+                "문구 그대로이며 참·거짓으로 접지 않았다. price_vs_nav_pct 는 "
+                "같은 기준일의 확정 종가÷기준가-1 이고 기준일이 다르면 내지 "
+                "않는다. 기초시장이 휴장이거나 한국 장 마감 뒤에 닫히면 기준가 "
+                "자체가 직전 종가로 평가된 값이라, 그날의 괴리는 싸고 비쌈이 "
+                "아니라 시차다"
+            ),
+        },
+        source,
+    )
+
+
+def _etf_lookthrough(
+    asset: dict[str, Any], *, holdings_as_of: str | None
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """구성종목 들여다보기. 재료가 없으면 None 이고 그 사실은 data_coverage 가 말한다."""
+    from calculators.etf_lookthrough import summarize
+    from collectors.etf_constituents import validate_artifact
+
+    paths = sorted(
+        (KNOWLEDGE_DIR / "etfs" / asset["asset_id"]).glob("constituents-*.json")
+    )
+    if not paths:
+        return None, None
+    path = paths[-1]
+    source = {
+        "source_id": f"ETF_CONSTITUENTS:{asset['asset_id']}",
+        "kind": "SECONDARY_MARKET_DATA",
+        "path": str(path.relative_to(ROOT)),
+        "data_as_of": None,
+    }
+    try:
+        data = load_json(path)
+    except (OSError, ValueError):
+        return {"contract_errors": ["구성종목 재료 JSON을 읽을 수 없다"]}, source
+    errors = validate_artifact(data, asset["asset_id"])
+    if errors:
+        return {"contract_errors": errors[:3]}, source
+    source["data_as_of"] = _kst_date(data.get("collected_at"))
+    block = summarize(data)
+    # 시장별 비중은 etf.by_market_pct 에 이미 있다. 같은 표를 두 번 싣지 않는다.
+    block["exposure"].pop("by_market_pct", None)
+    if holdings_as_of and data.get("holdings_as_of") != holdings_as_of:
+        block["_warning"] = (
+            f"이 재료는 {data.get('holdings_as_of')} 구성 위에서 만들어졌고 "
+            f"지금 구성은 {holdings_as_of} 이다. 빠지거나 들어온 종목이 있으면 "
+            "배수와 분해가 지금 ETF 의 것이 아니다 — 다시 받는다"
+        )
+    return block, source
 
 
 def _as_float(value: Any) -> float | None:
@@ -1591,13 +1727,118 @@ COVERAGE_NO_COLLECTOR = {
 }
 
 
+def _etf_data_coverage(
+    asset: dict[str, Any], etf: dict[str, Any] | None
+) -> dict[str, Any]:
+    """ETF 에서 받을 수 있는 입력의 가용성.
+
+    주식용 표를 그대로 쓰면 ETF 에 "컨센서스를 refresh 로 받으라", "재무
+    스냅샷에 희석주식수가 없다"가 실린다. 둘 다 영원히 채워지지 않는 요청이고,
+    정작 ETF 에서 결론을 바꾸는 입력(구성종목 배수, 종목·환율 분해)이 있는지
+    없는지는 어디에도 없었다.
+    """
+    etf = etf or {}
+    structure = asset.get("etf") or {}
+    enabled = set(asset.get("optional_collectors") or [])
+    lookthrough = etf.get("lookthrough") or {}
+
+    def constituents(covered: Any) -> dict[str, Any]:
+        if "ETF_CONSTITUENTS" not in enabled:
+            return {
+                "state": "NOT_REGISTERED",
+                "note": (
+                    "config/assets.json 의 optional_collectors 에 "
+                    "ETF_CONSTITUENTS 를 넣고 `cio refresh <asset_id> --run "
+                    "--optional` 로 받는다"
+                ),
+            }
+        if lookthrough.get("contract_errors"):
+            return {"state": "INVALID", "note": "; ".join(lookthrough["contract_errors"])}
+        if not lookthrough:
+            return {
+                "state": "REGISTERED_NOT_COLLECTED",
+                "note": "`cio refresh <asset_id> --run --optional` 로 받는다",
+            }
+        entry = {
+            "state": "AVAILABLE",
+            "as_of": _kst_date(lookthrough.get("collected_at")),
+            "covered_weight_pct": covered,
+        }
+        if lookthrough.get("_warning"):
+            entry["state"] = "STALE_HOLDINGS"
+        return entry
+
+    valuation = lookthrough.get("valuation") or {}
+    attribution = (lookthrough.get("return_attribution") or {}).get("3m") or {}
+    from collectors.kr_etf_holdings import ISSUERS as ETF_ISSUERS
+
+    return {
+        "holdings": (
+            {
+                "state": "AVAILABLE",
+                "as_of": etf.get("as_of"),
+                "source_grade": structure.get("holdings_source"),
+                "known_coverage_pct": etf.get("known_coverage_pct"),
+            }
+            if etf.get("as_of")
+            else {"state": "MISSING", "note": "구성종목 스냅샷이 없다"}
+        ),
+        "lookthrough_valuation": constituents(
+            valuation.get("earnings_yield_weight_pct")
+        ),
+        "return_attribution": constituents(
+            attribution.get("covered_weight_pct")
+        ),
+        "issuer_facts": (
+            {"state": "AVAILABLE", "as_of": etf["issuer_facts"].get("as_of")}
+            if etf.get("issuer_facts")
+            else {
+                "state": (
+                    "REGISTERED_NOT_COLLECTED"
+                    if structure.get("issuer") in ETF_ISSUERS
+                    else "NO_COLLECTOR_FOR_ISSUER"
+                ),
+                "note": (
+                    "기준가·총보수·환헤지 문구는 운용사 원문에서 직접 확인한다. "
+                    "자동 수집은 etf.issuer 경로가 확인된 운용사만 된다"
+                ),
+            }
+        ),
+        "nav_history": {
+            "state": "NO_COLLECTOR",
+            "note": (
+                "기준가·괴리율·추적오차 시계열은 수집 경로가 없다. issuer_facts "
+                "의 기준가는 한 시점 값이다"
+            ),
+        },
+        "index_methodology": {
+            "state": "NO_COLLECTOR",
+            "note": (
+                "기초지수의 편입 기준·비중 상한·정기변경 일정은 운용사·지수사 "
+                "원문에만 있다"
+            ),
+        },
+        "_role": (
+            "ETF 에서 받을 수 있는 입력의 가용성이다. 회사 재무·컨센서스·희석 "
+            "항목은 ETF 에 없고 그 자리를 구성종목 들여다보기가 대신한다. "
+            "NOT_REGISTERED 는 등록하면 받을 수 있다는 뜻, NO_COLLECTOR 는 "
+            "만들기 전에는 못 받는다는 뜻이다. covered_weight_pct 가 100 에 "
+            "못 미치면 나머지 비중은 계산에 없다. **빈칸을 '해당 없음'으로 읽지 "
+            "말라** — 없는 입력이 결론을 바꿀 수 있으면 unknowns 에 적는다"
+        ),
+    }
+
+
 def _data_coverage(
     asset: dict[str, Any],
     *,
     structured_optional: dict[str, Any] | None = None,
     fundamentals: dict[str, Any] | None = None,
+    etf: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """무엇이 있고 무엇이 왜 없는지. 판정하지 않고 가용성만 센다."""
+    if asset.get("asset_type") == "ETF":
+        return _etf_data_coverage(asset, etf)
     optional = structured_optional or {}
     fundamentals = fundamentals or {}
     enabled = set(asset.get("optional_collectors") or [])
@@ -3628,8 +3869,53 @@ def _memory_digest(
     return digest
 
 
+def _etf_requirements(
+    asset: dict[str, Any], etf: dict[str, Any] | None
+) -> list[dict[str, str]]:
+    """다른 시장의 종목을 담은 ETF 에만 붙는 항목.
+
+    렌즈가 아니라 구성으로 가른다 — 테마형이든 광역이든 해외 종목을 담으면
+    환율과 장 마감 시차가 가격에 섞이고, 국내 종목만 담으면 둘 다 없다.
+    """
+    if asset.get("asset_type") != "ETF":
+        return []
+    markets = set((etf or {}).get("by_market_pct") or {}) - {"UNKNOWN"}
+    if not markets - {asset.get("market")}:
+        return []
+    hedged = (asset.get("etf") or {}).get("currency_hedged")
+    hedge_text = (
+        "registry 에 환헤지 여부가 없다"
+        if hedged is None
+        else "registry 상 환헤지형이다"
+        if hedged
+        else "registry 상 환헤지를 하지 않는다"
+    )
+    return [
+        {
+            "owner": "MODEL",
+            "topic": "fx_and_underlying_market_hours",
+            "known_local_gap": (
+                "이 ETF 는 상장 시장과 다른 시장의 종목을 담는다 — "
+                f"{hedge_text}. price.last_bar 의 확정 종가는 상장 시장의 "
+                "세션만 본 것이라, 기초시장이 그 뒤에 닫혔거나 휴장 일정이 "
+                "다르면 그 종가에 없는 정보가 이미 있다. 기초시장 휴장 달력은 "
+                "로컬에 없다"
+            ),
+            "instruction": (
+                "etf.lookthrough.return_attribution 으로 ETF 수익률을 종목 몫과 "
+                "환율 몫으로 먼저 가른다. 환율로 내린 것을 종목이 싸진 것으로 "
+                "읽지 않는다. constituent_price_as_of 와 ETF 가격 기준일을 대조해 "
+                "기초시장의 최신 거래일이 이 종가에 반영됐는지 확인하고, 다음 "
+                "개장 전까지 기초시장이 며칠 열리는지 조사한다. 재료가 없으면 "
+                "data_coverage 의 안내대로 먼저 받는다"
+            ),
+        }
+    ]
+
+
 def _research_requirements(
     asset: dict[str, Any], filings: dict[str, Any] | None = None,
+    etf: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     common = [
         {
@@ -3758,8 +4044,55 @@ def _research_requirements(
                 "instruction": "기초자산·상승 캡·옵션 프리미엄·NAV 침식·분배 원천을 분석한다. 회사 DCF를 ETF에 적용하지 않는다",
             }
         ],
+        "THEMATIC_EQUITY_ETF": [
+            {
+                "owner": "MODEL",
+                "topic": "etf_structure",
+                "instruction": "보수·추적오차·구성·분배의 지속성과 대안을 비교한다",
+            },
+            {
+                "owner": "MODEL",
+                "topic": "theme_purity",
+                "known_local_gap": (
+                    "구성종목의 배수는 그 회사 전체 이익 기준이다. 이 ETF 가 "
+                    "내세우는 테마에서 나오는 매출·이익의 비중은 로컬에 없다"
+                ),
+                "instruction": (
+                    "비중 상위 종목의 이익이 테마에서 나오는지 본업에서 나오는지 "
+                    "확인한다. etf.lookthrough 의 forward PER 을 테마의 가격표로 "
+                    "읽지 않는다. 적자 종목은 비중과 자금 사정을 따로 본다. "
+                    "기초지수의 편입 기준·비중 상한·정기변경 일정을 운용사 "
+                    "원문에서 확인한다"
+                ),
+            },
+        ],
     }
-    return common + _market_requirements(asset) + additions.get(lens, [])
+    lens_items = additions.get(lens)
+    if lens_items is None:
+        # 등록만 되고 조사 항목이 없는 렌즈는 조용히 빈손으로 나갔다. 새 렌즈
+        # 이름을 지어 등록하면 그 자산만 렌즈가 없는 것과 같아지는데, packet
+        # 에는 그 사실이 보이지 않았다.
+        lens_items = [
+            {
+                "owner": "MODEL",
+                "topic": "lens_without_requirements",
+                "known_local_gap": (
+                    f"analysis_lens {lens} 에는 등록된 조사 항목이 없다. 이 "
+                    "자산군에서 무엇을 먼저 봐야 하는지를 packet 이 말해 주지 "
+                    "못한다"
+                ),
+                "instruction": (
+                    "이 자산군의 이익·가격 결정 요인을 스스로 정해 drivers 에 "
+                    "남기고, 반복해서 필요한 항목은 research_requests 로 요청한다"
+                ),
+            }
+        ]
+    return (
+        common
+        + _market_requirements(asset)
+        + lens_items
+        + _etf_requirements(asset, etf)
+    )
 
 
 # 렌즈만으로는 안 되는 이유 — 결측은 종목의 성격이 아니라 **시장**을 따라 갈린다.
@@ -3999,6 +4332,21 @@ def build_context(
         summary, benchmark_source = _price_summary(symbol)
         benchmarks[symbol] = summary
         sources.append(benchmark_source)
+        if summary and summary.get("history_bars", MIN_BARS_FOR_RETURNS) < MIN_BARS_FOR_RETURNS:
+            # 필수 입력으로 올려 판단을 막지는 않는다. 다만 이 벤치마크로는
+            # 상대수익도 사후 평가의 초과수익도 나오지 않는다는 것을 알린다.
+            optional_gaps.append(
+                {
+                    "task": f"price:{symbol}",
+                    "state": "THIN_HISTORY",
+                    "reason": (
+                        f"벤치마크 {symbol} 의 가격 이력이 "
+                        f"{summary['history_bars']}행뿐이다. 수익률 비교와 "
+                        "초과수익 평가가 성립하지 않는다 — registry 의 "
+                        "benchmarks 를 이력이 있는 심볼로 바꾼다"
+                    ),
+                }
+            )
     fundamentals = None
     filings = None
     earnings_calendar = None
@@ -4088,6 +4436,15 @@ def build_context(
     etf, source = _etf_summary(asset)
     if source:
         sources.append(source)
+    if etf:
+        for key, (block, block_source) in (
+            ("issuer_facts", _etf_issuer_facts(asset, price_summary)),
+            ("lookthrough", _etf_lookthrough(asset, holdings_as_of=etf.get("as_of"))),
+        ):
+            if block:
+                etf[key] = block
+            if block_source:
+                sources.append(block_source)
     plan = inspect_plan(asset["asset_id"], include_optional=True)
     structured_optional, optional_sources = _optional_collection_summaries(asset, fundamentals=fundamentals)
     sources.extend(optional_sources)
@@ -4218,7 +4575,14 @@ def build_context(
         and proposed_trade.get("amount_krw") is None
     ):
         problems.append("미국 자산 매수금액 환산에 필요한 KRW/USD 환율이 없다")
-    if proposed_trade and proposed_trade.get("sufficient_cash") is False:
+    # 예산이 아예 없으면(매수 질문에 --amount 누락) 넘고 말고가 없다. 그때는
+    # 위의 "매수 예산이 필요하다"가 답이고, 여기서 현금 초과를 말하면 없는
+    # 금액을 저장된 현금과 비교한 것이 된다.
+    if (
+        proposed_trade
+        and proposed_trade.get("amount_krw") is not None
+        and proposed_trade.get("sufficient_cash") is False
+    ):
         optional_gaps.append(
             {
                 "task": "portfolio:cash",
@@ -4430,6 +4794,7 @@ def build_context(
                 asset,
                 structured_optional=structured_optional,
                 fundamentals=fundamentals,
+                etf=etf,
             ),
             "portfolio": portfolio,
             "investor_policy": investor_policy,
@@ -4451,7 +4816,7 @@ def build_context(
                 objective_currency=(investor_policy or {}).get("base_currency"),
                 daily_ranges=_daily_ranges(asset["price_symbol"]),
             ),
-            "research_requirements": _research_requirements(asset, filings),
+            "research_requirements": _research_requirements(asset, filings, etf),
             "open_research_requests": open_requests_for_context(
                 asset["asset_id"]
             ),

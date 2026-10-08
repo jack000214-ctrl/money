@@ -469,16 +469,35 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
         )
     else:
         holdings_source = asset["etf"]["holdings_source"]
+        # 운용사 수집 경로가 확인된 ETF 는 구성종목을 자동으로 받는다. 경로가
+        # 없으면 예전처럼 사람이 원문을 확인해 저장해야 한다 — 그 사실을
+        # 숨기지 않고 MANUAL_REQUIRED 로 남긴다.
+        from collectors.kr_etf_holdings import ISSUERS as ETF_ISSUERS
+
+        issuer = asset["etf"].get("issuer")
+        automated = issuer in ETF_ISSUERS and bool(asset["etf"].get("isin"))
         tasks.append(
             RefreshTask(
                 name=f"holdings:{asset['asset_id']}",
                 capability="ETF_HOLDINGS",
                 artifact=f"knowledge/etfs/{asset['asset_id']}/holdings-*.csv",
                 max_age_hours=168,
-                command=None,
+                command=(
+                    [
+                        sys.executable,
+                        "-m",
+                        "collectors.kr_etf_holdings",
+                        asset["asset_id"],
+                    ]
+                    if automated
+                    else None
+                ),
                 reason=(
-                    f"{holdings_source} 등급의 최신 구성종목 스냅샷을 "
-                    "확인해 저장해야 한다"
+                    None
+                    if automated
+                    else f"{holdings_source} 등급의 최신 구성종목 스냅샷을 "
+                    "확인해 저장해야 한다. 자동 수집은 registry 의 etf.issuer·"
+                    "etf.isin 이 있고 그 운용사 경로가 확인된 ETF 만 된다"
                 ),
             )
         )
@@ -638,6 +657,27 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
             required=False, dependencies=[f"knowledge/filings/{asset_id}.json"],
             command=[sys.executable, "-m", "collectors.kr_epc", asset_id],
         ))
+
+    if "ETF_CONSTITUENTS" in enabled:
+        # 구성종목별 가격·배수·환율. look-through 배수와 수익률 분해의 재료다.
+        # 구성이 바뀌면(holdings 가 새로 수집되면) 다시 받는다. 가격 파일에는
+        # 의존을 걸지 않는다 — 걸면 12시간마다 종목 수십 개를 다시 요청한다.
+        tasks.append(
+            RefreshTask(
+                name=f"constituents:{asset_id}",
+                capability="ETF_CONSTITUENTS",
+                artifact=f"knowledge/etfs/{asset_id}/constituents-*.json",
+                max_age_hours=168,
+                required=False,
+                dependencies=[f"knowledge/etfs/{asset_id}/holdings-*.csv"],
+                command=[
+                    sys.executable,
+                    "-m",
+                    "collectors.etf_constituents",
+                    asset_id,
+                ],
+            )
+        )
 
     if "NORMALIZED_EARNINGS" in enabled:
         year = dt.date.today().year
@@ -1274,6 +1314,62 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             or sum(weights) <= 0
         ):
             return "ETF weight_pct가 유효하지 않다"
+        # 자동 수집본은 기준일이 아니라 조회시각으로 신선도를 잰다(아래
+        # inspect_task). 그러면 운용사가 갱신을 멈춘 구성도 조회만 하면 계속
+        # 신선해 보이므로, 기준일이 조회일보다 한참 뒤처지면 여기서 막는다.
+        retrieved = _holdings_retrieved_at(path)
+        as_of = _parse_artifact_time(next(iter(as_of_values)))
+        if (
+            retrieved is not None
+            and as_of is not None
+            and (retrieved - as_of).days > MAX_HOLDINGS_LAG_DAYS
+        ):
+            return (
+                f"운용사 구성 기준일이 조회일보다 {(retrieved - as_of).days}일 "
+                "뒤처졌다 — 운용사가 갱신을 멈췄거나 다른 펀드를 받았다"
+            )
+    if task.capability == "ETF_CONSTITUENTS":
+        from collectors.etf_constituents import validate_artifact
+
+        asset_id = task.name.split(":", 1)[-1]
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "구성종목 재료 JSON을 읽을 수 없다"
+        errors = validate_artifact(data, asset_id)
+        if errors:
+            return errors[0]
+        # 재료가 어느 구성 위에서 만들어졌는지. 구성 기준일이 바뀌었는데 옛
+        # 재료를 실으면 빠진 종목의 배수가 지금 ETF 의 것처럼 읽힌다.
+        holdings = sorted(
+            (ROOT / "knowledge" / "etfs" / asset_id).glob("holdings-*.csv")
+        )
+        if holdings:
+            current = holdings[-1].stem.removeprefix("holdings-")
+            if data.get("holdings_as_of") != current:
+                return (
+                    f"구성종목 재료는 {data.get('holdings_as_of')} 구성 위에서 "
+                    f"만들어졌는데 지금 구성은 {current} 이다"
+                )
+    return None
+
+
+# 한국 영업일 기준으로 가장 긴 연휴(추석+주말)도 열흘을 넘지 않는다.
+MAX_HOLDINGS_LAG_DAYS = 14
+
+
+def _holdings_retrieved_at(path: Path) -> dt.datetime | None:
+    """수집기가 쓴 구성 파일의 조회시각. 손으로 적은 파일에는 없다."""
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.lstrip().startswith("#"):
+                    break
+                match = re.search(r"retrieved_at\s+([^/]+?)(?:\s+/|$)", line)
+                if match:
+                    return _parse_artifact_time(match.group(1).strip())
+    except OSError:
+        return None
     return None
 
 
@@ -1310,7 +1406,16 @@ def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> Refres
     task.resolved_path = str(path.relative_to(ROOT))
     task.data_as_of = _data_as_of(path)
     freshness_time = None
-    if task.capability in {"ETF_HOLDINGS", "PORTFOLIO"} and task.data_as_of:
+    if task.capability == "ETF_HOLDINGS":
+        # 수집기가 받은 파일은 조회시각이 신선도다. 기준일로 재면 연휴 뒤에는
+        # 방금 받은 최신 구성도 낡은 것이 되어, 필수 입력이라 packet 이 멈춘다.
+        # 손으로 적은 파일은 조회시각을 믿을 근거가 없어 예전처럼 기준일로 잰다.
+        freshness_time = _holdings_retrieved_at(path)
+    if (
+        freshness_time is None
+        and task.capability in {"ETF_HOLDINGS", "PORTFOLIO"}
+        and task.data_as_of
+    ):
         freshness_time = _parse_artifact_time(task.data_as_of)
     if freshness_time is None:
         freshness_time = _collection_time(path)
