@@ -1,0 +1,27 @@
+{
+  "schema_version": "etf-issuer/1.0.0",
+  "asset_id": "0053L0",
+  "issuer": "MIRAE_TIGER",
+  "isin": "KR70053L0005",
+  "collected_at": "2026-10-08T18:04:24+00:00",
+  "as_of": "2026-10-08",
+  "nav": 8251.92,
+  "nav_currency": "KRW",
+  "total_fee_pct": 0.49,
+  "hedge_statement": "환헤지를 하지 아니함",
+  "holdings_path": "knowledge/etfs/0053L0/holdings-2026-10-08.csv",
+  "holdings_count": 20,
+  "excluded_rows": [
+    {
+      "issuer_code": "KRD010010001",
+      "holding_name": "원화예금",
+      "weight_pct": -0.16,
+      "reason": "CASH"
+    }
+  ],
+  "unresolved": [],
+  "sources": {
+    "product_page": "WEBSNAP:6563b08254bc",
+    "holdings": "WEBSNAP:c2cd8b34a5ef"
+  }
+}
