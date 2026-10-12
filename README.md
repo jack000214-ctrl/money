@@ -45,7 +45,91 @@ python3.13 skills/decide-investment/scripts/install.py
 `scripts/run.py`가 프로젝트 루트에서 CIO 명령을 실행한다.
 
 기준 런타임은 Python 3.13.12다. 프로젝트 실행에는 외부 Python 패키지가 필요하지
-않는다. 저장소 루트에서 등록 자산과 필요한 수집 작업을 확인한다.
+않는다.
+
+### API 키와 SEC 연락처 설정
+
+처음 설치할 때 저장소 루트에서 [`.env.example`](.env.example)을 `.env`로 복사하고
+필요한 항목을 채운다. 이미 `.env`가 있으면 기존 파일을 편집한다.
+
+```bash
+cp -n .env.example .env
+```
+
+네 항목 중 **발급받는 API 키는 3개**이고, `SEC_USER_AGENT`는 본인의 이름과
+연락 가능한 이메일이다. 사용하는 수집 경로에 필요한 항목만 설정하면 된다.
+
+| 항목 | 사용하는 곳 | 준비할 값 |
+|---|---|---|
+| `DART_API_KEY` | 한국 주식 재무·공시 수집 | OpenDART 인증키 |
+| `SEC_USER_AGENT` | 미국 주식 SEC EDGAR 재무·공시 수집 | 이름과 이메일 |
+| `KRX_API_KEY` | 한국 종목 시세 대조·벤치마크 누락 거래일 보완 | KRX 인증키와 서비스별 이용 승인 |
+| `DATA_GO_KR_API_KEY` | 한국 주식 대차잔고 보조 수집 | 공공데이터포털 인증키와 해당 API 활용신청 |
+
+`.env`에는 다음 형식으로 넣는다. 아래 키 자리와 이름·이메일을 실제 값으로 바꾼다.
+**값에 따옴표를 붙이지 않고**, 항목 이름과 `=` 사이에도 공백을 넣지 않는다.
+현재 수집기는 따옴표를 제거하지 않아 따옴표까지 인증값으로 전송한다.
+
+```dotenv
+DART_API_KEY=발급받은_OpenDART_인증키
+SEC_USER_AGENT=Your Name you@example.com
+KRX_API_KEY=발급받은_KRX_인증키
+DATA_GO_KR_API_KEY=발급받은_공공데이터포털_인증키
+```
+
+수집기는 저장소 루트의 `.env`를 직접 읽으므로 별도 로딩 명령은 필요 없다.
+같은 이름의 환경변수가 설정돼 있으면 그 값이 우선한다. `.env`는 Git 제외 대상이다.
+실제 키는 `.env`에만 두고 `.env.example`에는 넣지 않는다.
+
+#### OpenDART — `DART_API_KEY`
+
+[OpenDART 인증키 신청](https://opendart.fss.or.kr/uss/umt/EgovMberInsertView.do)에서
+개인 사용자로 이메일·비밀번호·API 사용환경·사용용도를 입력하고 신청한다.
+사용용도는 실제 목적에 맞게 적는다(예: 개인 투자 분석용 공시·재무정보 수집).
+개인회원은 계정신청 완료 후 즉시 발급되며, 신청 결과는 이메일로도 안내된다.
+로그인 후 **인증키 신청/관리 → 인증키 관리**에서 인증키를 복사해 넣는다.
+
+#### KRX Open API — `KRX_API_KEY`
+
+[KRX 이용방법](https://openapi.krx.co.kr/contents/OPP/INFO/OPPINFO003.jsp)에 따라
+회원가입·로그인 후 **마이페이지 → API 인증키 신청**에서 신청하고 승인을 기다린다.
+발급된 인증키를 넣은 뒤, [서비스 목록](https://openapi.krx.co.kr/contents/OPP/INFO/service/OPPINFO004.cmd)에서
+사용할 API마다 **활용신청과 관리자 승인**을 받는다. 키 발급만으로 끝나지 않는다.
+
+현재 수집기에서 사용하는 서비스는 다음과 같다.
+
+| 서비스명 | 사용하는 작업 |
+|---|---|
+| 유가증권 일별매매정보 | KOSPI 종목 시세 대조·수집 |
+| 코스닥 일별매매정보 | KOSDAQ 종목 시세 대조·수집 |
+| KOSPI 시리즈 일별시세정보 | KOSPI 벤치마크 대조·누락 거래일 보완 |
+| KOSDAQ 시리즈 일별시세정보 | KOSDAQ 벤치마크 대조·누락 거래일 보완 |
+| ETF 일별매매정보 | ETF 시세를 KRX 원문으로 대조·수집할 때 추가 신청 |
+
+`401 Unauthorized Key`는 인증키·승인 상태·유효기간을 확인한다.
+`401 Unauthorized API Call`은 호출한 서비스의 활용신청·승인 상태를 확인한다.
+
+#### 공공데이터포털 — `DATA_GO_KR_API_KEY`
+
+[금융위원회_주식대차거래정보](https://www.data.go.kr/data/15124865/openapi.do)에
+회원가입·로그인 후 **활용신청**한다. 개발계정은 자동승인 대상이다.
+마이페이지에서 신청한 API의 승인 상태를 확인하고 인증키를 복사해 넣는다.
+일반 인증키가 Encoding·Decoding으로 표시되면 **Decoding 값을 권장**한다.
+현재 수집기는 Encoding 값도 한 번 디코딩한 뒤 처리한다.
+다른 API의 키를 이미 갖고 있어도 이 서비스의 활용신청은 별도로 필요하다.
+이 항목은 `KR_LENDING` 보조 수집을 사용할 때 필요하다.
+
+#### SEC EDGAR — `SEC_USER_AGENT`
+
+별도 계정이나 키 발급 없이 **영문 이름과 연락 가능한 이메일**을 공백으로 구분해
+입력한다(예: `Your Name you@example.com`). 이메일은 본인 주소로 바꾼다.
+SEC 로그인 아이디를 넣는 칸이 아니라, 요청자를 식별할 User-Agent다.
+[SEC 접근 안내](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data)의
+요청 헤더 예시에 따라 사용한다.
+
+### 수집과 판단
+
+저장소 루트에서 등록 자산과 필요한 수집 작업을 확인한다.
 
 ```bash
 python3.13 -m cio assets
