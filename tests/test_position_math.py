@@ -7,7 +7,9 @@
 """
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
+import io
 import json
 import sys
 import tempfile
@@ -163,6 +165,47 @@ class TestAtPrice(unittest.TestCase):
             at_price(self.LEDGER, 100000, "KRW")["price_vs_average_cost"],
             "AT_AVERAGE_COST",
         )
+
+
+class TestFullySoldLedger(TempPortfolio):
+    """전량 매도된 원장. 수량이 0 이면 평단도 수익률도 없다 — 0 이 아니라 없는 것이다."""
+
+    LEDGER = """settle_date,side,quantity,price_krw,fee_krw,tax_krw,note
+2026-08-05,BUY,30,44500,200,0,
+2026-08-31,SELL,30,50900,229,3053,
+"""
+
+    def setUp(self):
+        super().setUp()
+        (position_module.TRADES_DIR / "SOLD.csv").write_text(
+            self.LEDGER, encoding="utf-8"
+        )
+
+    def test_missing_ratios_stay_missing(self):
+        result = position_module.build("SOLD", 45750.0, currency="KRW")
+        self.assertEqual(result["ledger"]["quantity"], 0.0)
+        self.assertIsNone(result["ledger"]["average_cost"])
+        self.assertIsNone(result["at_review_price"]["unrealized_pnl_pct"])
+        self.assertIsNone(result["at_review_price"]["price_vs_average_cost"])
+        # 실현손익은 남는다: 30 × (50,900 − 44,500) − 200 − 229 − 3,053
+        self.assertEqual(result["ledger"]["realized_pnl"], 188518.0)
+
+    def test_screen_renders_instead_of_crashing(self):
+        """실제로 죽었다. 삼성E&A 를 전량 매도한 원장에서 None 을 % 로 찍으려다."""
+        result = position_module.build("SOLD", 45750.0, currency="KRW")
+        screen = io.StringIO()
+        with contextlib.redirect_stdout(screen):
+            position_module.render(result)
+        self.assertIn("실현손익", screen.getvalue())
+        self.assertNotIn("0.00%)", screen.getvalue().split("검토가 평가")[1].split("비중")[0])
+
+    def test_dollar_review_price_keeps_its_cents(self):
+        (position_module.TRADES_DIR / "USD1.csv").write_text(LEDGER_US, encoding="utf-8")
+        result = position_module.build("USD1", 4.5, currency="USD")
+        screen = io.StringIO()
+        with contextlib.redirect_stdout(screen):
+            position_module.render(result)
+        self.assertIn("검토가 4.50달러", screen.getvalue())
 
 
 class TestJudgmentBoundary(TempPortfolio):

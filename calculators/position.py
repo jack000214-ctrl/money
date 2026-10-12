@@ -707,13 +707,17 @@ def _fmt(value: float | None, currency: str, *, signed: bool = False) -> str:
     return f"{value:{sign},.{digits}f}"
 
 
+def _pct(value: float | None) -> str:
+    return "-" if value is None else f"{value:+.2f}%"
+
+
 def render(result: dict[str, Any]) -> None:
     ledger = result["ledger"]
     currency = result["currency"]
     unit = "원" if currency == "KRW" else "달러"
     print("=" * 76)
     print(f"포지션 산술 — {result['asset_id']}   검토가 "
-          f"{result['at_review_price']['review_price']:,.0f}{unit}")
+          f"{_fmt(result['at_review_price']['review_price'], currency)}{unit}")
     print("=" * 76)
     print(f"원장 {ledger['trade_count']}건 "
           f"({ledger['first_settle_date']} ~ {ledger['last_settle_date']}, "
@@ -756,10 +760,12 @@ def render(result: dict[str, Any]) -> None:
     at = result["at_review_price"]
     print(f"\n검토가 평가")
     print(f"  평가액         {_fmt(at['market_value'], currency):>18}{unit}")
+    # 전량 매도된 원장은 수량·원가가 0 이라 수익률과 평단 대비가 None 이다.
+    # 없는 값을 0% 로 찍지 않는다 — 실현손익을 보려고 연 화면이 여기서 죽었다.
     print(f"  평가손익       {_fmt(at['unrealized_pnl'], currency, signed=True):>18}{unit} "
-          f"({at['unrealized_pnl_pct']:+.2f}%)")
-    print(f"  평단 대비      {at['price_vs_average_cost']} "
-          f"({at['price_vs_average_cost_pct']:+.2f}%)")
+          f"({_pct(at['unrealized_pnl_pct'])})")
+    print(f"  평단 대비      {at['price_vs_average_cost'] or '-'} "
+          f"({_pct(at['price_vs_average_cost_pct'])})")
 
     mult = result.get("multiples")
     if mult:
