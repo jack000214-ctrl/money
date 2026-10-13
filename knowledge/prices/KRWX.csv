@@ -1,8 +1,8 @@
 # schema_version price-series/2.1.0
 # symbol KRW=X / currency KRW
-# retrieved_at 2026-10-13T03:39:46+00:00 / source Yahoo Finance chart API
+# retrieved_at 2026-10-13T08:46:41+00:00 / source Yahoo Finance chart API
 # last_bar 2026-10-13 / session UNSETTLED
-# last_bar_timestamp 1791862782 / source Yahoo timestamp
+# last_bar_timestamp 1791881198 / source Yahoo timestamp
 # missing_sessions 2026-10-12 / 봉이 저장됐다가 응답에서 사라졌고 확정값으로 재확인되지 않았다
 date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2021-08-05,1143.1199951171875,1143.12,1,1147.0999755859375,1139.72998046875,0
@@ -1351,4 +1351,4 @@ date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2026-10-06,1339.739990234375,1339.74,1,1341.1300048828125,1335.260009765625,0
 2026-10-07,1339.0799560546875,1339.08,1,1345.300048828125,1335.3900146484375,0
 2026-10-08,1342.989990234375,1342.99,1,1345.9000244140625,1338.5799560546875,0
-2026-10-13,1343.43994140625,1343.44,1,1345.47998046875,1333.1800537109375,0
+2026-10-13,1340.6800537109375,1340.68,1,1345.5799560546875,1333.1800537109375,0
