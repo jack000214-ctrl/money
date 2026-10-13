@@ -4,7 +4,12 @@ import argparse
 import json
 import sys
 
-from calculators.contracts import ContractError, load_json
+from calculators.contracts import (
+    PACKET_LAYOUT,
+    ContractError,
+    dumps_wrapped,
+    load_json,
+)
 from collectors.web import snapshot
 from cio.assets import all_assets, get_asset, register_asset
 from cio.context import INTENTS, build_context
@@ -158,7 +163,8 @@ def cmd_prepare(args) -> int:
         save=not args.no_save,
     )
     if args.json:
-        print(json.dumps(packet, ensure_ascii=False, indent=2))
+        # 저장되는 packet 과 같은 배치로 낸다. 이 출력도 모델이 통째로 읽는다.
+        print(dumps_wrapped(packet, **PACKET_LAYOUT), end="")
     else:
         print(f"context_id: {packet['context_id']}")
         print(f"validation: {packet['validation']['status']}")

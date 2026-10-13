@@ -546,18 +546,130 @@ def save_validated_calculation(
     )
 
 
-def write_json(path: str | Path, data: dict[str, Any]) -> Path:
+# 모델이 판단마다 통째로 읽는 JSON 의 배치. 사람이 읽기 좋은 들여쓰기는 값 하나를
+# 한 줄에 놓고 깊이만큼 공백을 붙인다 — 내용이 아닌 줄바꿈·공백이 packet 파일의
+# 25%, 스키마의 45% 였다. 더 나쁜 것은 줄 수다. 예산은 압축 크기로 80KB 를 재는데
+# 저장된 파일은 2,100줄을 넘었고, 파일을 2,000줄씩 읽는 도구에서는 뒤쪽(근거 색인·
+# 모델 계약)이 잘린 채 읽혔다.
+#
+# 한 줄로 다 붙이지는 않는다. 긴 줄을 자르는 도구가 있어서(2,000자) 그러면 앞부분만
+# 읽힌다. 그래서 줄 길이 상한 안에서 채워 쓴다.
+#
+#   width        한 줄의 글자 수 상한. 문자열 하나가 그보다 길면 그 줄만 넘는다
+#   indent       깊이마다 붙이는 공백. 0 이면 괄호도 앞뒤 줄에 붙인다
+#   break_depth  이 깊이보다 얕은 곳의 항목은 한 줄에 여럿을 채우지 않는다 —
+#                packet 의 최상위 키와 context 의 섹션이 언제나 줄 머리에서 시작한다
+PACKET_LAYOUT = {"width": 1000, "indent": 0, "break_depth": 2}
+# 스키마는 사람이 고치는 원본이라 구조가 보이게 들여쓰기를 한 칸 남긴다.
+SCHEMA_LAYOUT = {"width": 120, "indent": 1, "break_depth": 0}
+SCHEMA_FILES = ("schemas/cio-decision.schema.json", "schemas/cio-assumptions.schema.json")
+
+
+def dumps_wrapped(
+    data: Any, *, width: int, indent: int = 0, break_depth: int = 0
+) -> str:
+    """줄 길이 상한 안에서 채워 쓴 JSON. 공백만 다르고 내용은 같다.
+
+    한 줄에 들어가는 값은 압축해서 한 줄에 쓰고, 넘치는 객체·배열만 풀어서 그
+    항목들을 줄이 찰 때까지 이어 붙인다. `json.loads` 로 읽으면 원래 값이 그대로
+    나온다.
+    """
+
+    def compact(value: Any) -> str:
+        return json.dumps(
+            value, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+        )
+
+    def render(value: Any, depth: int) -> list[str]:
+        room = width - depth * indent
+        text = compact(value)
+        if not isinstance(value, (dict, list)) or not value or len(text) <= room:
+            return [text]
+        if isinstance(value, dict):
+            opener, closer = "{", "}"
+            children = [
+                (json.dumps(key, ensure_ascii=False) + ":", child)
+                for key, child in value.items()
+            ]
+        else:
+            opener, closer = "[", "]"
+            children = [("", child) for child in value]
+        inner = room - indent
+        body: list[str] = []
+        current = ""
+        for index, (prefix, child) in enumerate(children):
+            comma = "," if index < len(children) - 1 else ""
+            lines = render(child, depth + 1)
+            if len(lines) == 1:
+                piece = prefix + lines[0] + comma
+                if current and (
+                    depth < break_depth or len(current) + len(piece) > inner
+                ):
+                    body.append(current)
+                    current = ""
+                current += piece
+                continue
+            if current:
+                body.append(current)
+                current = ""
+            body.append(prefix + lines[0])
+            body.extend(lines[1:-1])
+            body.append(lines[-1] + comma)
+        if current:
+            body.append(current)
+        if indent:
+            pad = " " * indent
+            return [opener, *(pad + line for line in body), closer]
+        if depth < break_depth:
+            # 첫 항목도 줄 머리에서 시작하게 여는 괄호를 따로 둔다.
+            body.insert(0, opener)
+        else:
+            body[0] = opener + body[0]
+        body[-1] += closer
+        return body
+
+    return "\n".join(render(data, 0)) + "\n"
+
+
+def reformat_schemas(root: str | Path | None = None) -> list[Path]:
+    """스키마 원본을 정해진 배치로 다시 쓴다. 내용은 건드리지 않는다.
+
+    편집기가 스키마를 다시 들여쓰면 판단마다 읽는 분량이 조용히 두 배가 된다.
+    `tests/test_json_layout.py` 가 그것을 잡고, 고칠 때는 이것을 부른다:
+
+        python3.13 -c "from calculators.contracts import reformat_schemas; reformat_schemas()"
+    """
+    base = Path(root) if root is not None else Path(__file__).resolve().parent.parent
+    changed = []
+    for name in SCHEMA_FILES:
+        path = base / name
+        text = path.read_text(encoding="utf-8")
+        wanted = dumps_wrapped(json.loads(text), **SCHEMA_LAYOUT)
+        if text != wanted:
+            path.write_text(wanted, encoding="utf-8")
+            changed.append(path)
+    return changed
+
+
+def write_json(
+    path: str | Path, data: dict[str, Any], *, layout: dict[str, int] | None = None
+) -> Path:
     """JSON 을 원자적으로 쓴다. 쓰기가 끊겨도 반쪽 파일이 남지 않는다.
 
     저장소 전체가 이 하나를 쓴다. 같은 로직이 모듈마다 복사돼 있으면 한쪽만
     NaN 을 막거나 한쪽만 부모 디렉터리를 만드는 식으로 조용히 갈라진다.
+
+    `layout` 을 주면 그 배치(`dumps_wrapped`)로 쓴다. 모델이 통째로 읽는 packet
+    이 그렇다. 주지 않으면 사람이 열어 보는 산출물이라 들여쓰기로 쓴다.
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        payload = json.dumps(
-            data, ensure_ascii=False, indent=2, allow_nan=False
-        ) + "\n"
+        payload = (
+            dumps_wrapped(data, **layout)
+            if layout
+            else json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+        )
     except (TypeError, ValueError) as exc:
         raise ContractError([f"표준 JSON으로 직렬화할 수 없다: {exc}"]) from exc
     temporary_name: str | None = None

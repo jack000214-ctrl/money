@@ -1,1438 +1,431 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "cio-decision/1.0.0",
-  "title": "Provider-neutral CIO decision",
-  "type": "object",
-  "required": [
-    "schema_version",
-    "context_id",
-    "asset_id",
-    "created_at",
-    "model",
-    "verdict",
-    "outcome_metric",
-    "horizon_months",
-    "win_definition",
-    "failure_definition",
-    "win_return_threshold_pct",
-    "failure_return_threshold_pct",
-    "win_probability_pct",
-    "confidence_pct",
-    "expected_return_pct",
-    "scenario_probability_pct",
-    "price_plan",
-    "proposed_trade",
-    "action",
-    "drivers",
-    "method",
-    "thesis",
-    "strongest_counter_thesis",
-    "invalidation_signals",
-    "unknowns",
-    "research_requests",
-    "sources",
-    "evidence_refs"
-  ],
-  "properties": {
-    "schema_version": {
-      "const": "cio-decision/1.0.0"
-    },
-    "assessment_id": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "pattern": "^CIO-[0-9a-f]{20}$"
-    },
-    "context_id": {
-      "type": "string",
-      "pattern": "^CTX-[0-9a-f]{20}$"
-    },
-    "asset_id": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
-    },
-    "created_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "model": {
-      "type": "object",
-      "required": [
-        "provider",
-        "name",
-        "prompt_version"
-      ],
-      "properties": {
-        "provider": {
-          "type": "string",
-          "minLength": 1
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "minLength": 1
-        },
-        "prompt_version": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "verdict": {
-      "enum": [
-        "BUY_NOW",
-        "WAIT",
-        "AVOID",
-        "INSUFFICIENT"
-      ]
-    },
-    "outcome_metric": {
-      "const": "TERMINAL_TOTAL_RETURN_ASSET_CURRENCY"
-    },
-    "horizon_months": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 120
-    },
-    "win_definition": {
-      "type": "string",
-      "minLength": 1
-    },
-    "failure_definition": {
-      "type": "string",
-      "minLength": 1
-    },
-    "win_return_threshold_pct": {
-      "type": "number",
-      "minimum": -100
-    },
-    "failure_return_threshold_pct": {
-      "type": "number",
-      "minimum": -100
-    },
-    "win_probability_pct": {
-      "type": [
-        "number",
-        "null"
-      ],
-      "minimum": 0,
-      "maximum": 100
-    },
-    "confidence_pct": {
-      "type": [
-        "number",
-        "null"
-      ],
-      "minimum": 0,
-      "maximum": 100
-    },
-    "expected_return_pct": {
-      "type": "object",
-      "required": [
-        "bear",
-        "base",
-        "bull",
-        "probability_weighted"
-      ],
-      "properties": {
-        "bear": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -100
-        },
-        "base": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -100
-        },
-        "bull": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -100
-        },
-        "probability_weighted": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -100
-        }
-      },
-      "additionalProperties": false
-    },
-    "scenario_probability_pct": {
-      "type": "object",
-      "required": [
-        "bear",
-        "base",
-        "bull"
-      ],
-      "properties": {
-        "bear": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0,
-          "maximum": 100
-        },
-        "base": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0,
-          "maximum": 100
-        },
-        "bull": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0,
-          "maximum": 100
-        }
-      },
-      "additionalProperties": false
-    },
-    "price_plan": {
-      "type": "object",
-      "required": [
-        "currency",
-        "preferred_entry",
-        "entry_range_low",
-        "entry_range_high",
-        "stop_price",
-        "scale_out_start",
-        "reask_below",
-        "reask_above",
-        "reask_events"
-      ],
-      "properties": {
-        "currency": {
-          "enum": [
-            "KRW",
-            "USD"
-          ]
-        },
-        "preferred_entry": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "entry_range_low": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "entry_range_high": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "stop_price": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "scale_out_start": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "reask_below": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "reask_above": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "reask_events": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "proposed_trade": {
-      "type": "object",
-      "required": [
-        "amount",
-        "currency",
-        "rationale"
-      ],
-      "properties": {
-        "amount": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": 0
-        },
-        "currency": {
-          "enum": [
-            "KRW",
-            "USD"
-          ]
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "action": {
-      "description": "이미 보유한 수량을 어떻게 할 것인가. verdict(새 자금)와 다른 질문이며 동시에 참일 수 있다.",
-      "type": "object",
-      "required": [
-        "direction",
-        "quantity",
-        "sell_reason",
-        "rationale"
-      ],
-      "properties": {
-        "direction": {
-          "description": "UNDETERMINED는 '지시할 수 없다'이지 '가만히 있으라'가 아니다. HOLD는 계속 보유하라는 지시이므로 보유량이 0이면 쓸 수 없고, 그 자리는 NOT_APPLICABLE이다. TRIM은 일부 축소, EXIT은 전량 매도이며 PC가 원장의 보유 수량과 대조한다.",
-          "enum": [
-            "ADD",
-            "HOLD",
-            "TRIM",
-            "EXIT",
-            "NOT_APPLICABLE",
-            "UNDETERMINED"
-          ]
-        },
-        "undetermined_reason": {
-          "description": "UNDETERMINED일 때 무엇이 없어서 정할 수 없는지. INSUFFICIENT_EVIDENCE는 verdict INSUFFICIENT와 짝이다.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "enum": [
-            "INSUFFICIENT_EVIDENCE",
-            "NO_INVESTOR_POLICY",
-            "NO_POSITION_DATA",
-            "USER_INPUT_REQUIRED",
-            null
-          ]
-        },
-        "quantity": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "limit_price": {
-          "description": "이 수량을 얼마에 걸 것인가 — 지금 증권사에 넣을 지정가다. TRIM·EXIT에는 필수, ADD에는 선택(진입가는 이미 price_plan.preferred_entry에 있어 강제하면 같은 뜻의 숫자가 둘이 된다), 나머지 방향에서는 null이어야 한다. **price_plan.scale_out_start와 다른 값이다** — 그쪽은 \"논지가 앞서가면 줄이기 시작할 가격\"이라는 미래 조건이고 이쪽은 지금 내는 주문이다. 서술에만 적은 가격은 주문이 되지 못한다.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "sell_reason": {
-          "description": "판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 제약임을 밝혀야 한다.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "enum": [
-            "THESIS_BROKEN",
-            "VALUATION",
-            "BETTER_OPPORTUNITY",
-            "CONCENTRATION",
-            "RISK_BUDGET",
-            "LIQUIDITY_NEED",
-            null
-          ]
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "drivers": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 8,
-      "items": {
-        "type": "object",
-        "required": [
-          "name",
-          "weight_pct",
-          "basis",
-          "researched"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "weight_pct": {
-            "type": "number",
-            "exclusiveMinimum": 0,
-            "maximum": 100
-          },
-          "basis": {
-            "type": "string",
-            "minLength": 1
-          },
-          "researched": {
-            "type": "boolean"
-          },
-          "finding": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "minLength": 1
-          },
-          "skipped_reason": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "minLength": 1
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "method": {
-      "type": "object",
-      "required": [
-        "valuation_family",
-        "why_fit",
-        "assumptions"
-      ],
-      "properties": {
-        "valuation_family": {
-          "type": "string",
-          "minLength": 1
-        },
-        "why_fit": {
-          "type": "string",
-          "minLength": 1
-        },
-        "assumptions": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "thesis": {
-      "type": "string",
-      "minLength": 1
-    },
-    "strongest_counter_thesis": {
-      "type": "object",
-      "required": [
-        "text",
-        "evidence_refs"
-      ],
-      "properties": {
-        "text": {
-          "type": "string",
-          "minLength": 1
-        },
-        "evidence_refs": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "invalidation_signals": {
-      "description": "무엇을 보면 이 논지가 틀린 것인지, 그리고 그때 무엇을 할 것인지. action 은 사후에 정하는 것이 아니라 지금 미리 하는 약속이다 — 나쁜 일이 실제로 일어난 뒤에 정하면 그때의 가격이 판단을 오염시킨다.",
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": [
-          "signal",
-          "action",
-          "rationale"
-        ],
-        "properties": {
-          "signal": {
-            "description": "관측 가능한 조건. 무엇이 어느 값을 넘으면인지 숫자로 쓴다.",
-            "type": "string",
-            "minLength": 1
-          },
-          "action": {
-            "description": "이 신호가 켜지면 보유분에 대해 무엇을 하는가. REASK 는 행동이 아니라 다시 묻는 자리이며, 전부 REASK 면 매도 규율이 없는 것이다.",
-            "enum": [
-              "EXIT",
-              "TRIM_HALF",
-              "REASK"
-            ]
-          },
-          "rationale": {
-            "description": "왜 그 신호에 그 행동인가. EXIT 와 TRIM_HALF 를 가르는 근거가 여기 있어야 나중의 판단이 이 약속을 읽고 이해한다.",
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "prior_signal_checks": {
-      "description": "직전 판단이 세운 무효화 신호를 하나씩 닫은 결과. packet 이 carried_forward.invalidation_signals 를 실어 보냈으면 필수가 되며 개수가 일치해야 한다. FIRED 인데 committed_action 과 다르게 행동하면 override_reason 없이는 판단이 저장되지 않는다 — 과거의 약속을 뒤집는 것은 허용하되 조용히 뒤집는 것은 허용하지 않는다.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "signal_index",
-          "signal",
-          "state",
-          "note"
-        ],
-        "properties": {
-          "signal_index": {
-            "description": "packet 의 carried_forward.invalidation_signals[].index 다. 이 값으로 어느 약속을 닫는 중인지 결속하며, PC 는 이 자리의 signal 문장과 committed_action 이 packet 이 실어 보낸 것과 같은지 대조한다. 임의로 붙이는 번호가 아니다.",
-            "type": "integer",
-            "minimum": 0
-          },
-          "signal": {
-            "description": "packet 이 실어 보낸 신호 문장을 그대로 옮긴다. 바꿔 쓰면 계약이 거부한다 — 무엇을 닫았는지가 사람이 읽는 기록에 남아야 하기 때문이다.",
-            "type": "string",
-            "minLength": 1
-          },
-          "state": {
-            "description": "FIRED 는 그 조건이 실제로 관측됐다는 뜻이다. 확인할 데이터가 없으면 NOT_FIRED 가 아니라 UNVERIFIABLE 이다.",
-            "enum": [
-              "FIRED",
-              "NOT_FIRED",
-              "UNVERIFIABLE"
-            ]
-          },
-          "committed_action": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "EXIT",
-              "TRIM_HALF",
-              "REASK",
-              null
-            ]
-          },
-          "taken_action": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "EXIT",
-              "TRIM_HALF",
-              "REASK",
-              null
-            ]
-          },
-          "override_reason": {
-            "description": "과거 계획과 이번 행동이 다를 때 이유를 기록한다. 승인이 필요한 것이 아니다. 새 사실·기존 해석의 오류·방법론 개선·기대수익을 바꾸는 가격 변화가 근거가 될 수 있으며 계산과 논리에 연결해 설명한다.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "note": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "unknowns": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "research_requests": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "sources": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "source_id",
-          "type",
-          "locator",
-          "published_at",
-          "retrieved_at"
-        ],
-        "properties": {
-          "source_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "type": {
-            "type": "string",
-            "minLength": 1
-          },
-          "locator": {
-            "type": "string",
-            "format": "uri",
-            "pattern": "^https?://"
-          },
-          "published_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
-          },
-          "retrieved_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "evidence_refs": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "user_assertion_checks": {
-      "description": "사용자 주장의 확인 결과. packet에 request.user_assertions가 있으면 필수이며 전부 닫혀야 한다.",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "type": "object",
-        "required": [
-          "claim_id",
-          "status",
-          "claim_kind",
-          "finding"
-        ],
-        "properties": {
-          "claim_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "status": {
-            "enum": [
-              "CONFIRMED",
-              "REFUTED",
-              "UNVERIFIABLE"
-            ]
-          },
-          "claim_kind": {
-            "description": "무엇에 관한 주장인가. 근거의 갈래와 대조된다 — 가격 CSV로 실적을 확인할 수 없다.",
-            "enum": [
-              "PRICE",
-              "EARNINGS",
-              "VALUATION",
-              "OWNERSHIP",
-              "BUSINESS",
-              "MARKET",
-              "EVENT_DATE",
-              "PORTFOLIO"
-            ]
-          },
-          "basis": {
-            "description": "CONFIRMED·REFUTED에는 필수, UNVERIFIABLE에는 null. 무엇을 어느 기간에 무엇과 비교했는가.",
-            "type": [
-              "object",
-              "null"
-            ],
-            "required": [
-              "metric",
-              "period",
-              "comparison"
-            ],
-            "properties": {
-              "metric": {
-                "type": "string",
-                "minLength": 1
-              },
-              "period": {
-                "type": "string",
-                "minLength": 1
-              },
-              "comparison": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "additionalProperties": false
-          },
-          "finding": {
-            "type": "string",
-            "minLength": 1
-          },
-          "evidence_refs": {
-            "description": "CONFIRMED·REFUTED에는 필수. packet의 evidence_index 또는 sources에 있는 ID여야 하고, 그 자료의 갈래가 claim_kind와 맞아야 한다.",
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "positioning": {
-      "description": "이익 동인이 아닌 가격 결정 요인(수급·포지셔닝). packet에 kr_flow가 있으면 필수.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [
-        "checked",
-        "affects_conclusion"
-      ],
-      "properties": {
-        "checked": {
-          "type": "boolean"
-        },
-        "finding": {
-          "description": "checked가 true면 필수. 무엇을 봤고 무엇을 읽었는가.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "minLength": 1
-        },
-        "skipped_reason": {
-          "description": "checked가 false면 필수. 왜 결론을 바꾸지 못하는가.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "minLength": 1
-        },
-        "unobservable": {
-          "description": "보고 싶었으나 없던 것. 공매도 잔고처럼 공개 경로가 없는 항목이 여기 쌓인다.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "affects_conclusion": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "recurring_plan": {
-      "description": "정기 자동매수 프로그램의 처분. 적립 중에는 침묵이 CONTINUE 와 같으므로 따로 답한다.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "required": [
-        "state",
-        "rationale"
-      ],
-      "properties": {
-        "state": {
-          "enum": [
-            "START",
-            "CONTINUE",
-            "PAUSE",
-            "STOP",
-            "NONE"
-          ]
-        },
-        "amount_per_period": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0
-        },
-        "currency": {
-          "enum": [
-            "KRW",
-            "USD",
-            null
-          ]
-        },
-        "period": {
-          "enum": [
-            "DAILY",
-            "WEEKLY",
-            "MONTHLY",
-            null
-          ]
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "assumption_review": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "enum": [
-            "EVALUATED",
-            "UNSUPPORTED_METHOD"
-          ]
-        },
-        "analysis_id": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^ASM-[0-9a-f]{20}$"
-        },
-        "interpretation": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000,
-          "description": "모델이 기준 가정과 대체 결과를 해석한다. 근거·관측 부족·판단을 바꾸는 조건을 설명한다."
-        },
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]{0,47}$"
-              },
-              "effect": {
-                "enum": [
-                  "KEEP",
-                  "CHANGE",
-                  "REASSESS"
-                ]
-              },
-              "verdict": {
-                "enum": [
-                  "BUY_NOW",
-                  "WAIT",
-                  "AVOID",
-                  "INSUFFICIENT",
-                  null
-                ]
-              },
-              "action": {
-                "enum": [
-                  "ADD",
-                  "HOLD",
-                  "TRIM",
-                  "EXIT",
-                  "UNDETERMINED",
-                  "NOT_APPLICABLE",
-                  null
-                ]
-              },
-              "rationale": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              }
-            },
-            "required": [
-              "id",
-              "effect",
-              "verdict",
-              "action",
-              "rationale"
-            ],
-            "additionalProperties": false
-          },
-          "minItems": 0,
-          "maxItems": 20
-        }
-      },
-      "required": [
-        "status",
-        "analysis_id",
-        "interpretation",
-        "responses"
-      ],
-      "additionalProperties": false,
-      "description": "새 context가 요구하면 필수. PC 계산 ID에 결속하고 모든 대체 가정·경계값에 모델이 답한다. 구버전 판단에는 소급 강제하지 않는다."
-    },
-    "exit_plan": {
-      "type": "object",
-      "properties": {
-        "currency": {
-          "enum": ["KRW", "USD"]
-        },
-        "reference_date": {
-          "type": "string",
-          "format": "date",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-        },
-        "reference_basis": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
-        },
-        "stages": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 8,
-          "items": {
-            "type": "object",
-            "properties": {
-              "stage_id": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]{0,47}$"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "quantity": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "limit_price": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "requires_review": {
-                "type": "boolean"
-              },
-              "depends_on": {
-                "type": ["string", "null"],
-                "pattern": "^(?:CURRENT_ACTION|[a-z][a-z0-9_]{0,47})$"
-              },
-              "condition": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "cancel_if": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "valid_from": {
-                "type": "string",
-                "format": "date",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-              },
-              "valid_until": {
-                "type": "string",
-                "format": "date",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-              }
-            },
-            "required": ["stage_id", "name", "quantity", "limit_price", "requires_review",
-              "depends_on", "condition", "cancel_if", "valid_from", "valid_until"],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": ["currency", "reference_date", "reference_basis", "stages"],
-      "additionalProperties": false,
-      "description": "현재 action과 분리한 미래 조건부 매도 단계. 보유수량과 합계를 대조하지만 주문·체결을 뜻하지 않는다."
-    },
-    "exit_plan_checks": {
-      "type": "array",
-      "maxItems": 24,
-      "items": {
-        "type": "object",
-        "properties": {
-          "assessment_id": {
-            "type": "string",
-            "pattern": "^CIO-[0-9a-f]{20}$"
-          },
-          "stage_id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{0,47}$"
-          },
-          "condition": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "state": {
-            "enum": ["SATISFIED", "NOT_SATISFIED", "UNVERIFIABLE", "CANCELLED"]
-          },
-          "note": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "evidence_refs": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000
-            }
-          }
-        },
-        "required": ["assessment_id", "stage_id", "condition", "state", "note", "evidence_refs"],
-        "additionalProperties": false
-      }
-    },
-    "entry_plan": {
-      "type": "object",
-      "properties": {
-        "currency": {
-          "enum": [
-            "KRW",
-            "USD"
-          ]
-        },
-        "reference_basis": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
-        },
-        "reference_date": {
-          "type": "string",
-          "format": "date",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-        },
-        "stages": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 8,
-          "items": {
-            "type": "object",
-            "properties": {
-              "stage_id": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]{0,47}$"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "budget": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "reference_price": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "share_multiplier": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "requires_review": {
-                "type": "boolean"
-              },
-              "condition": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "cancel_if": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              },
-              "valid_from": {
-                "type": "string",
-                "format": "date",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-              },
-              "valid_until": {
-                "type": "string",
-                "format": "date",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-              },
-              "capital_source_id": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
-              }
-            },
-            "required": [
-              "stage_id",
-              "name",
-              "budget",
-              "reference_price",
-              "share_multiplier",
-              "requires_review",
-              "condition",
-              "cancel_if",
-              "valid_from",
-              "valid_until"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": [
-        "currency",
-        "reference_basis",
-        "reference_date",
-        "stages"
-      ],
-      "additionalProperties": false,
-      "description": "현재 집행액을 제외한 향후 조건부 배분. 사용자가 요청한 예산에 결속하며 주문 기능이 아니다."
-    },
-    "entry_plan_checks": {
-      "type": "array",
-      "maxItems": 24,
-      "items": {
-        "type": "object",
-        "properties": {
-          "assessment_id": {
-            "type": "string",
-            "pattern": "^CIO-[0-9a-f]{20}$"
-          },
-          "stage_id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "condition": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "state": {
-            "enum": [
-              "SATISFIED",
-              "NOT_SATISFIED",
-              "UNVERIFIABLE",
-              "CANCELLED"
-            ]
-          },
-          "note": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "evidence_refs": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000
-            }
-          }
-        },
-        "required": [
-          "assessment_id",
-          "stage_id",
-          "condition",
-          "state",
-          "note",
-          "evidence_refs"
-        ],
-        "additionalProperties": false
-      }
-    }
+ "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"cio-decision/1.0.0",
+ "title":"Provider-neutral CIO decision","type":"object",
+ "required":[
+  "schema_version","context_id","asset_id","created_at","model","verdict","outcome_metric","horizon_months",
+  "win_definition","failure_definition","win_return_threshold_pct","failure_return_threshold_pct","win_probability_pct",
+  "confidence_pct","expected_return_pct","scenario_probability_pct","price_plan","proposed_trade","action","drivers",
+  "method","thesis","strongest_counter_thesis","invalidation_signals","unknowns","research_requests","sources",
+  "evidence_refs"
+ ],
+ "properties":{
+  "schema_version":{"const":"cio-decision/1.0.0"},
+  "assessment_id":{"type":["string","null"],"pattern":"^CIO-[0-9a-f]{20}$"},
+  "context_id":{"type":"string","pattern":"^CTX-[0-9a-f]{20}$"},
+  "asset_id":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"},
+  "created_at":{"type":"string","format":"date-time"},
+  "model":{
+   "type":"object","required":["provider","name","prompt_version"],
+   "properties":{
+    "provider":{"type":"string","minLength":1},"name":{"type":"string","minLength":1},
+    "version":{"type":["string","null"],"minLength":1},"prompt_version":{"type":"string","minLength":1}
+   },
+   "additionalProperties":false
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "INSUFFICIENT"
-          }
-        },
-        "required": [
-          "verdict"
-        ]
-      },
-      "then": {
-        "properties": {
-          "win_probability_pct": {
-            "type": "null"
-          },
-          "confidence_pct": {
-            "type": "null"
-          },
-          "expected_return_pct": {
-            "properties": {
-              "bear": {
-                "type": "null"
-              },
-              "base": {
-                "type": "null"
-              },
-              "bull": {
-                "type": "null"
-              },
-              "probability_weighted": {
-                "type": "null"
-              }
-            }
-          },
-          "scenario_probability_pct": {
-            "properties": {
-              "bear": {
-                "type": "null"
-              },
-              "base": {
-                "type": "null"
-              },
-              "bull": {
-                "type": "null"
-              }
-            }
-          },
-          "price_plan": {
-            "properties": {
-              "preferred_entry": {
-                "type": "null"
-              },
-              "entry_range_low": {
-                "type": "null"
-              },
-              "entry_range_high": {
-                "type": "null"
-              },
-              "stop_price": {
-                "type": "null"
-              },
-              "scale_out_start": {
-                "type": "null"
-              },
-              "reask_below": {
-                "type": "null"
-              },
-              "reask_above": {
-                "type": "null"
-              }
-            }
-          },
-          "proposed_trade": {
-            "properties": {
-              "amount": {
-                "type": "null"
-              }
-            }
-          },
-          "action": {
-            "properties": {
-              "direction": {
-                "const": "UNDETERMINED"
-              },
-              "undetermined_reason": {
-                "const": "INSUFFICIENT_EVIDENCE"
-              },
-              "quantity": {
-                "type": "null"
-              },
-              "sell_reason": {
-                "type": "null"
-              }
-            },
-            "required": [
-              "undetermined_reason"
-            ]
-          }
-        }
-      },
-      "else": {
-        "properties": {
-          "win_probability_pct": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "confidence_pct": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "expected_return_pct": {
-            "properties": {
-              "bear": {
-                "type": "number",
-                "minimum": -100
-              },
-              "base": {
-                "type": "number",
-                "minimum": -100
-              },
-              "bull": {
-                "type": "number",
-                "minimum": -100
-              },
-              "probability_weighted": {
-                "type": "number",
-                "minimum": -100
-              }
-            }
-          },
-          "scenario_probability_pct": {
-            "properties": {
-              "bear": {
-                "type": "number",
-                "exclusiveMinimum": 0,
-                "maximum": 100
-              },
-              "base": {
-                "type": "number",
-                "exclusiveMinimum": 0,
-                "maximum": 100
-              },
-              "bull": {
-                "type": "number",
-                "exclusiveMinimum": 0,
-                "maximum": 100
-              }
-            }
-          },
-          "price_plan": {
-            "properties": {
-              "preferred_entry": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "entry_range_low": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "entry_range_high": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "stop_price": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "scale_out_start": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "reask_below": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              },
-              "reask_above": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              }
-            }
-          },
-          "proposed_trade": {
-            "properties": {
-              "amount": {
-                "type": "number",
-                "minimum": 0
-              }
-            }
-          }
-        }
-      }
+  "verdict":{"enum":["BUY_NOW","WAIT","AVOID","INSUFFICIENT"]},
+  "outcome_metric":{"const":"TERMINAL_TOTAL_RETURN_ASSET_CURRENCY"},
+  "horizon_months":{"type":"integer","minimum":1,"maximum":120},"win_definition":{"type":"string","minLength":1},
+  "failure_definition":{"type":"string","minLength":1},"win_return_threshold_pct":{"type":"number","minimum":-100},
+  "failure_return_threshold_pct":{"type":"number","minimum":-100},
+  "win_probability_pct":{"type":["number","null"],"minimum":0,"maximum":100},
+  "confidence_pct":{"type":["number","null"],"minimum":0,"maximum":100},
+  "expected_return_pct":{
+   "type":"object","required":["bear","base","bull","probability_weighted"],
+   "properties":{
+    "bear":{"type":["number","null"],"minimum":-100},"base":{"type":["number","null"],"minimum":-100},
+    "bull":{"type":["number","null"],"minimum":-100},"probability_weighted":{"type":["number","null"],"minimum":-100}
+   },
+   "additionalProperties":false
+  },
+  "scenario_probability_pct":{
+   "type":"object","required":["bear","base","bull"],
+   "properties":{
+    "bear":{"type":["number","null"],"exclusiveMinimum":0,"maximum":100},
+    "base":{"type":["number","null"],"exclusiveMinimum":0,"maximum":100},
+    "bull":{"type":["number","null"],"exclusiveMinimum":0,"maximum":100}
+   },
+   "additionalProperties":false
+  },
+  "price_plan":{
+   "type":"object",
+   "required":[
+    "currency","preferred_entry","entry_range_low","entry_range_high","stop_price","scale_out_start","reask_below",
+    "reask_above","reask_events"
+   ],
+   "properties":{
+    "currency":{"enum":["KRW","USD"]},"preferred_entry":{"type":["number","null"],"exclusiveMinimum":0},
+    "entry_range_low":{"type":["number","null"],"exclusiveMinimum":0},
+    "entry_range_high":{"type":["number","null"],"exclusiveMinimum":0},
+    "stop_price":{"type":["number","null"],"exclusiveMinimum":0},
+    "scale_out_start":{"type":["number","null"],"exclusiveMinimum":0},
+    "reask_below":{"type":["number","null"],"exclusiveMinimum":0},
+    "reask_above":{"type":["number","null"],"exclusiveMinimum":0},
+    "reask_events":{"type":"array","items":{"type":"string","minLength":1}}
+   },
+   "additionalProperties":false
+  },
+  "proposed_trade":{
+   "type":"object","required":["amount","currency","rationale"],
+   "properties":{
+    "amount":{"type":["number","null"],"minimum":0},"currency":{"enum":["KRW","USD"]},
+    "rationale":{"type":"string","minLength":1}
+   },
+   "additionalProperties":false
+  },
+  "action":{
+   "description":"이미 보유한 수량을 어떻게 할 것인가. verdict(새 자금)와 다른 질문이며 동시에 참일 수 있다.","type":"object",
+   "required":["direction","quantity","sell_reason","rationale"],
+   "properties":{
+    "direction":{
+     "description":"UNDETERMINED는 '지시할 수 없다'이지 '가만히 있으라'가 아니다. HOLD는 계속 보유하라는 지시이므로 보유량이 0이면 쓸 수 없고, 그 자리는 NOT_APPLICABLE이다. TRIM은 일부 축소, EXIT은 전량 매도이며 PC가 원장의 보유 수량과 대조한다.",
+     "enum":["ADD","HOLD","TRIM","EXIT","NOT_APPLICABLE","UNDETERMINED"]
     },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "const": "BUY_NOW"
-          }
-        },
-        "required": [
-          "verdict"
-        ]
-      },
-      "then": {
-        "properties": {
-          "proposed_trade": {
-            "properties": {
-              "amount": {
-                "type": "number",
-                "exclusiveMinimum": 0
-              }
-            }
-          }
-        }
-      }
+    "undetermined_reason":{
+     "description":"UNDETERMINED일 때 무엇이 없어서 정할 수 없는지. INSUFFICIENT_EVIDENCE는 verdict INSUFFICIENT와 짝이다.",
+     "type":["string","null"],
+     "enum":["INSUFFICIENT_EVIDENCE","NO_INVESTOR_POLICY","NO_POSITION_DATA","USER_INPUT_REQUIRED",null]
     },
-    {
-      "if": {
-        "properties": {
-          "verdict": {
-            "enum": [
-              "WAIT",
-              "AVOID"
-            ]
-          }
-        },
-        "required": [
-          "verdict"
-        ]
+    "quantity":{"type":["number","null"],"exclusiveMinimum":0},
+    "limit_price":{
+     "description":"이 수량을 얼마에 걸 것인가 — 지금 증권사에 넣을 지정가다. TRIM·EXIT에는 필수, ADD에는 선택(진입가는 이미 price_plan.preferred_entry에 있어 강제하면 같은 뜻의 숫자가 둘이 된다), 나머지 방향에서는 null이어야 한다. **price_plan.scale_out_start와 다른 값이다** — 그쪽은 \"논지가 앞서가면 줄이기 시작할 가격\"이라는 미래 조건이고 이쪽은 지금 내는 주문이다. 서술에만 적은 가격은 주문이 되지 못한다.",
+     "type":["number","null"],"exclusiveMinimum":0
+    },
+    "sell_reason":{
+     "description":"판단 기반(THESIS_BROKEN·VALUATION·BETTER_OPPORTUNITY)은 verdict와 일치해야 한다. 제약 기반(CONCENTRATION·RISK_BUDGET·LIQUIDITY_NEED)은 제약임을 밝혀야 한다.",
+     "type":["string","null"],
+     "enum":["THESIS_BROKEN","VALUATION","BETTER_OPPORTUNITY","CONCENTRATION","RISK_BUDGET","LIQUIDITY_NEED",null]
+    },
+    "rationale":{"type":"string","minLength":1}
+   },
+   "additionalProperties":false
+  },
+  "drivers":{
+   "type":"array","minItems":1,"maxItems":8,
+   "items":{
+    "type":"object","required":["name","weight_pct","basis","researched"],
+    "properties":{
+     "name":{"type":"string","minLength":1},"weight_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+     "basis":{"type":"string","minLength":1},"researched":{"type":"boolean"},
+     "finding":{"type":["string","null"],"minLength":1},"skipped_reason":{"type":["string","null"],"minLength":1}
+    },
+    "additionalProperties":false
+   }
+  },
+  "method":{
+   "type":"object","required":["valuation_family","why_fit","assumptions"],
+   "properties":{
+    "valuation_family":{"type":"string","minLength":1},"why_fit":{"type":"string","minLength":1},
+    "assumptions":{"type":"array","items":{"type":"string","minLength":1}}
+   },
+   "additionalProperties":false
+  },
+  "thesis":{"type":"string","minLength":1},
+  "strongest_counter_thesis":{
+   "type":"object","required":["text","evidence_refs"],
+   "properties":{
+    "text":{"type":"string","minLength":1},
+    "evidence_refs":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}
+   },
+   "additionalProperties":false
+  },
+  "invalidation_signals":{
+   "description":"무엇을 보면 이 논지가 틀린 것인지, 그리고 그때 무엇을 할 것인지. action 은 사후에 정하는 것이 아니라 지금 미리 하는 약속이다 — 나쁜 일이 실제로 일어난 뒤에 정하면 그때의 가격이 판단을 오염시킨다.",
+   "type":"array","minItems":1,
+   "items":{
+    "type":"object","required":["signal","action","rationale"],
+    "properties":{
+     "signal":{"description":"관측 가능한 조건. 무엇이 어느 값을 넘으면인지 숫자로 쓴다.","type":"string","minLength":1},
+     "action":{
+      "description":"이 신호가 켜지면 보유분에 대해 무엇을 하는가. REASK 는 행동이 아니라 다시 묻는 자리이며, 전부 REASK 면 매도 규율이 없는 것이다.",
+      "enum":["EXIT","TRIM_HALF","REASK"]
+     },
+     "rationale":{
+      "description":"왜 그 신호에 그 행동인가. EXIT 와 TRIM_HALF 를 가르는 근거가 여기 있어야 나중의 판단이 이 약속을 읽고 이해한다.","type":"string",
+      "minLength":1
+     }
+    },
+    "additionalProperties":false
+   }
+  },
+  "prior_signal_checks":{
+   "description":"직전 판단이 세운 무효화 신호를 하나씩 닫은 결과. packet 이 carried_forward.invalidation_signals 를 실어 보냈으면 필수가 되며 개수가 일치해야 한다. FIRED 인데 committed_action 과 다르게 행동하면 override_reason 없이는 판단이 저장되지 않는다 — 과거의 약속을 뒤집는 것은 허용하되 조용히 뒤집는 것은 허용하지 않는다.",
+   "type":"array",
+   "items":{
+    "type":"object","required":["signal_index","signal","state","note"],
+    "properties":{
+     "signal_index":{
+      "description":"packet 의 carried_forward.invalidation_signals[].index 다. 이 값으로 어느 약속을 닫는 중인지 결속하며, PC 는 이 자리의 signal 문장과 committed_action 이 packet 이 실어 보낸 것과 같은지 대조한다. 임의로 붙이는 번호가 아니다.",
+      "type":"integer","minimum":0
+     },
+     "signal":{
+      "description":"packet 이 실어 보낸 신호 문장을 그대로 옮긴다. 바꿔 쓰면 계약이 거부한다 — 무엇을 닫았는지가 사람이 읽는 기록에 남아야 하기 때문이다.","type":"string",
+      "minLength":1
+     },
+     "state":{
+      "description":"FIRED 는 그 조건이 실제로 관측됐다는 뜻이다. 확인할 데이터가 없으면 NOT_FIRED 가 아니라 UNVERIFIABLE 이다.",
+      "enum":["FIRED","NOT_FIRED","UNVERIFIABLE"]
+     },
+     "committed_action":{"type":["string","null"],"enum":["EXIT","TRIM_HALF","REASK",null]},
+     "taken_action":{"type":["string","null"],"enum":["EXIT","TRIM_HALF","REASK",null]},
+     "override_reason":{
+      "description":"과거 계획과 이번 행동이 다를 때 이유를 기록한다. 승인이 필요한 것이 아니다. 새 사실·기존 해석의 오류·방법론 개선·기대수익을 바꾸는 가격 변화가 근거가 될 수 있으며 계산과 논리에 연결해 설명한다.",
+      "type":["string","null"]
+     },
+     "note":{"type":"string","minLength":1}
+    },
+    "additionalProperties":false
+   }
+  },
+  "unknowns":{"type":"array","items":{"type":"string","minLength":1}},
+  "research_requests":{"type":"array","items":{"type":"string","minLength":1}},
+  "sources":{
+   "type":"array",
+   "items":{
+    "type":"object","required":["source_id","type","locator","published_at","retrieved_at"],
+    "properties":{
+     "source_id":{"type":"string","minLength":1},"type":{"type":"string","minLength":1},
+     "locator":{"type":"string","format":"uri","pattern":"^https?://"},
+     "published_at":{"type":["string","null"],"format":"date-time"},
+     "retrieved_at":{"type":"string","format":"date-time"}
+    },
+    "additionalProperties":false
+   }
+  },
+  "evidence_refs":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}},
+  "user_assertion_checks":{
+   "description":"사용자 주장의 확인 결과. packet에 request.user_assertions가 있으면 필수이며 전부 닫혀야 한다.","type":["array","null"],
+   "items":{
+    "type":"object","required":["claim_id","status","claim_kind","finding"],
+    "properties":{
+     "claim_id":{"type":"string","minLength":1},"status":{"enum":["CONFIRMED","REFUTED","UNVERIFIABLE"]},
+     "claim_kind":{
+      "description":"무엇에 관한 주장인가. 근거의 갈래와 대조된다 — 가격 CSV로 실적을 확인할 수 없다.",
+      "enum":["PRICE","EARNINGS","VALUATION","OWNERSHIP","BUSINESS","MARKET","EVENT_DATE","PORTFOLIO"]
+     },
+     "basis":{
+      "description":"CONFIRMED·REFUTED에는 필수, UNVERIFIABLE에는 null. 무엇을 어느 기간에 무엇과 비교했는가.","type":["object","null"],
+      "required":["metric","period","comparison"],
+      "properties":{
+       "metric":{"type":"string","minLength":1},"period":{"type":"string","minLength":1},
+       "comparison":{"type":"string","minLength":1}
       },
-      "then": {
-        "properties": {
-          "proposed_trade": {
-            "properties": {
-              "amount": {
-                "const": 0
-              }
-            }
-          }
-        }
-      }
+      "additionalProperties":false
+     },
+     "finding":{"type":"string","minLength":1},
+     "evidence_refs":{
+      "description":"CONFIRMED·REFUTED에는 필수. packet의 evidence_index 또는 sources에 있는 ID여야 하고, 그 자료의 갈래가 claim_kind와 맞아야 한다.",
+      "type":"array","items":{"type":"string","minLength":1}
+     }
+    },
+    "additionalProperties":false
+   }
+  },
+  "positioning":{
+   "description":"이익 동인이 아닌 가격 결정 요인(수급·포지셔닝). packet에 kr_flow가 있으면 필수.","type":["object","null"],
+   "required":["checked","affects_conclusion"],
+   "properties":{
+    "checked":{"type":"boolean"},
+    "finding":{"description":"checked가 true면 필수. 무엇을 봤고 무엇을 읽었는가.","type":["string","null"],"minLength":1},
+    "skipped_reason":{"description":"checked가 false면 필수. 왜 결론을 바꾸지 못하는가.","type":["string","null"],"minLength":1},
+    "unobservable":{
+     "description":"보고 싶었으나 없던 것. 공매도 잔고처럼 공개 경로가 없는 항목이 여기 쌓인다.","type":"array","items":{"type":"string","minLength":1}
+    },
+    "affects_conclusion":{"type":"boolean"}
+   },
+   "additionalProperties":false
+  },
+  "recurring_plan":{
+   "description":"정기 자동매수 프로그램의 처분. 적립 중에는 침묵이 CONTINUE 와 같으므로 따로 답한다.","type":["object","null"],
+   "required":["state","rationale"],
+   "properties":{
+    "state":{"enum":["START","CONTINUE","PAUSE","STOP","NONE"]},
+    "amount_per_period":{"type":["number","null"],"exclusiveMinimum":0},"currency":{"enum":["KRW","USD",null]},
+    "period":{"enum":["DAILY","WEEKLY","MONTHLY",null]},"rationale":{"type":"string","minLength":1}
+   },
+   "additionalProperties":false
+  },
+  "assumption_review":{
+   "type":"object",
+   "properties":{
+    "status":{"enum":["EVALUATED","UNSUPPORTED_METHOD"]},
+    "analysis_id":{"type":["string","null"],"pattern":"^ASM-[0-9a-f]{20}$"},
+    "interpretation":{"type":"string","minLength":1,"maxLength":2000,"description":"모델이 기준 가정과 대체 결과를 해석한다. 근거·관측 부족·판단을 바꾸는 조건을 설명한다."},
+    "responses":{
+     "type":"array",
+     "items":{
+      "type":"object",
+      "properties":{
+       "id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},"effect":{"enum":["KEEP","CHANGE","REASSESS"]},
+       "verdict":{"enum":["BUY_NOW","WAIT","AVOID","INSUFFICIENT",null]},
+       "action":{"enum":["ADD","HOLD","TRIM","EXIT","UNDETERMINED","NOT_APPLICABLE",null]},
+       "rationale":{"type":"string","minLength":1,"maxLength":2000}
+      },
+      "required":["id","effect","verdict","action","rationale"],"additionalProperties":false
+     },
+     "minItems":0,"maxItems":20
     }
-  ],
-  "additionalProperties": false
+   },
+   "required":["status","analysis_id","interpretation","responses"],"additionalProperties":false,
+   "description":"새 context가 요구하면 필수. PC 계산 ID에 결속하고 모든 대체 가정·경계값에 모델이 답한다. 구버전 판단에는 소급 강제하지 않는다."
+  },
+  "exit_plan":{
+   "type":"object",
+   "properties":{
+    "currency":{"enum":["KRW","USD"]},
+    "reference_date":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"},
+    "reference_basis":{"type":"string","minLength":1,"maxLength":2000},
+    "stages":{
+     "type":"array","minItems":1,"maxItems":8,
+     "items":{
+      "type":"object",
+      "properties":{
+       "stage_id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+       "name":{"type":"string","minLength":1,"maxLength":2000},"quantity":{"type":"number","exclusiveMinimum":0},
+       "limit_price":{"type":"number","exclusiveMinimum":0},"requires_review":{"type":"boolean"},
+       "depends_on":{"type":["string","null"],"pattern":"^(?:CURRENT_ACTION|[a-z][a-z0-9_]{0,47})$"},
+       "condition":{"type":"string","minLength":1,"maxLength":2000},
+       "cancel_if":{"type":"string","minLength":1,"maxLength":2000},
+       "valid_from":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"},
+       "valid_until":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"}
+      },
+      "required":[
+       "stage_id","name","quantity","limit_price","requires_review","depends_on","condition","cancel_if","valid_from",
+       "valid_until"
+      ],
+      "additionalProperties":false
+     }
+    }
+   },
+   "required":["currency","reference_date","reference_basis","stages"],"additionalProperties":false,
+   "description":"현재 action과 분리한 미래 조건부 매도 단계. 보유수량과 합계를 대조하지만 주문·체결을 뜻하지 않는다."
+  },
+  "exit_plan_checks":{
+   "type":"array","maxItems":24,
+   "items":{
+    "type":"object",
+    "properties":{
+     "assessment_id":{"type":"string","pattern":"^CIO-[0-9a-f]{20}$"},
+     "stage_id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+     "condition":{"type":"string","minLength":1,"maxLength":2000},
+     "state":{"enum":["SATISFIED","NOT_SATISFIED","UNVERIFIABLE","CANCELLED"]},
+     "note":{"type":"string","minLength":1,"maxLength":2000},
+     "evidence_refs":{"type":"array","items":{"type":"string","minLength":1,"maxLength":2000}}
+    },
+    "required":["assessment_id","stage_id","condition","state","note","evidence_refs"],"additionalProperties":false
+   }
+  },
+  "entry_plan":{
+   "type":"object",
+   "properties":{
+    "currency":{"enum":["KRW","USD"]},"reference_basis":{"type":"string","minLength":1,"maxLength":2000},
+    "reference_date":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"},
+    "stages":{
+     "type":"array","minItems":1,"maxItems":8,
+     "items":{
+      "type":"object",
+      "properties":{
+       "stage_id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+       "name":{"type":"string","minLength":1,"maxLength":2000},"budget":{"type":"number","exclusiveMinimum":0},
+       "reference_price":{"type":"number","exclusiveMinimum":0},
+       "share_multiplier":{"type":"number","exclusiveMinimum":0},"requires_review":{"type":"boolean"},
+       "condition":{"type":"string","minLength":1,"maxLength":2000},
+       "cancel_if":{"type":"string","minLength":1,"maxLength":2000},
+       "valid_from":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"},
+       "valid_until":{"type":"string","format":"date","pattern":"^\\d{4}-\\d{2}-\\d{2}$"},
+       "capital_source_id":{"type":"string","minLength":1,"maxLength":2000}
+      },
+      "required":[
+       "stage_id","name","budget","reference_price","share_multiplier","requires_review","condition","cancel_if",
+       "valid_from","valid_until"
+      ],
+      "additionalProperties":false
+     }
+    }
+   },
+   "required":["currency","reference_basis","reference_date","stages"],"additionalProperties":false,
+   "description":"현재 집행액을 제외한 향후 조건부 배분. 사용자가 요청한 예산에 결속하며 주문 기능이 아니다."
+  },
+  "entry_plan_checks":{
+   "type":"array","maxItems":24,
+   "items":{
+    "type":"object",
+    "properties":{
+     "assessment_id":{"type":"string","pattern":"^CIO-[0-9a-f]{20}$"},
+     "stage_id":{"type":"string","minLength":1,"maxLength":2000},
+     "condition":{"type":"string","minLength":1,"maxLength":2000},
+     "state":{"enum":["SATISFIED","NOT_SATISFIED","UNVERIFIABLE","CANCELLED"]},
+     "note":{"type":"string","minLength":1,"maxLength":2000},
+     "evidence_refs":{"type":"array","items":{"type":"string","minLength":1,"maxLength":2000}}
+    },
+    "required":["assessment_id","stage_id","condition","state","note","evidence_refs"],"additionalProperties":false
+   }
+  }
+ },
+ "allOf":[
+  {
+   "if":{"properties":{"verdict":{"const":"INSUFFICIENT"}},"required":["verdict"]},
+   "then":{
+    "properties":{
+     "win_probability_pct":{"type":"null"},"confidence_pct":{"type":"null"},
+     "expected_return_pct":{
+      "properties":{"bear":{"type":"null"},"base":{"type":"null"},"bull":{"type":"null"},"probability_weighted":{"type":"null"}}
+     },
+     "scenario_probability_pct":{"properties":{"bear":{"type":"null"},"base":{"type":"null"},"bull":{"type":"null"}}},
+     "price_plan":{
+      "properties":{
+       "preferred_entry":{"type":"null"},"entry_range_low":{"type":"null"},"entry_range_high":{"type":"null"},
+       "stop_price":{"type":"null"},"scale_out_start":{"type":"null"},"reask_below":{"type":"null"},
+       "reask_above":{"type":"null"}
+      }
+     },
+     "proposed_trade":{"properties":{"amount":{"type":"null"}}},
+     "action":{
+      "properties":{
+       "direction":{"const":"UNDETERMINED"},"undetermined_reason":{"const":"INSUFFICIENT_EVIDENCE"},
+       "quantity":{"type":"null"},"sell_reason":{"type":"null"}
+      },
+      "required":["undetermined_reason"]
+     }
+    }
+   },
+   "else":{
+    "properties":{
+     "win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+     "confidence_pct":{"type":"number","minimum":0,"maximum":100},
+     "expected_return_pct":{
+      "properties":{
+       "bear":{"type":"number","minimum":-100},"base":{"type":"number","minimum":-100},
+       "bull":{"type":"number","minimum":-100},"probability_weighted":{"type":"number","minimum":-100}
+      }
+     },
+     "scenario_probability_pct":{
+      "properties":{
+       "bear":{"type":"number","exclusiveMinimum":0,"maximum":100},
+       "base":{"type":"number","exclusiveMinimum":0,"maximum":100},
+       "bull":{"type":"number","exclusiveMinimum":0,"maximum":100}
+      }
+     },
+     "price_plan":{
+      "properties":{
+       "preferred_entry":{"type":"number","exclusiveMinimum":0},
+       "entry_range_low":{"type":"number","exclusiveMinimum":0},
+       "entry_range_high":{"type":"number","exclusiveMinimum":0},"stop_price":{"type":"number","exclusiveMinimum":0},
+       "scale_out_start":{"type":"number","exclusiveMinimum":0},"reask_below":{"type":"number","exclusiveMinimum":0},
+       "reask_above":{"type":"number","exclusiveMinimum":0}
+      }
+     },
+     "proposed_trade":{"properties":{"amount":{"type":"number","minimum":0}}}
+    }
+   }
+  },
+  {
+   "if":{"properties":{"verdict":{"const":"BUY_NOW"}},"required":["verdict"]},
+   "then":{"properties":{"proposed_trade":{"properties":{"amount":{"type":"number","exclusiveMinimum":0}}}}}
+  },
+  {
+   "if":{"properties":{"verdict":{"enum":["WAIT","AVOID"]}},"required":["verdict"]},
+   "then":{"properties":{"proposed_trade":{"properties":{"amount":{"const":0}}}}}
+  }
+ ],
+ "additionalProperties":false
 }

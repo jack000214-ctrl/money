@@ -1,880 +1,288 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "cio-assumption-spec/1.0.0",
-  "title": "Model assumptions and PC arithmetic",
-  "type": "object",
-  "properties": {
-    "schema_version": {
-      "const": "cio-assumption-spec/1.0.0"
-    },
-    "inputs": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "method": {
-              "const": "EARNINGS_MULTIPLE"
-            },
-            "price": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "currency": {
-              "enum": [
-                "KRW",
-                "USD"
-              ]
-            },
-            "horizon_months": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 120
-            },
-            "win_return_threshold_pct": {
-              "type": "number",
-              "minimum": -100
-            },
-            "scenarios": {
-              "type": "object",
-              "properties": {
-                "bear": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "eps": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "multiple": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "eps",
-                    "multiple",
-                    "cash_distribution"
-                  ],
-                  "additionalProperties": false
-                },
-                "base": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "eps": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "multiple": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "eps",
-                    "multiple",
-                    "cash_distribution"
-                  ],
-                  "additionalProperties": false
-                },
-                "bull": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "eps": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "multiple": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "eps",
-                    "multiple",
-                    "cash_distribution"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "required": [
-                "bear",
-                "base",
-                "bull"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "method",
-            "price",
-            "currency",
-            "horizon_months",
-            "win_return_threshold_pct",
-            "scenarios"
-          ],
-          "additionalProperties": false
+ "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"cio-assumption-spec/1.0.0",
+ "title":"Model assumptions and PC arithmetic","type":"object",
+ "properties":{
+  "schema_version":{"const":"cio-assumption-spec/1.0.0"},
+  "inputs":{
+   "oneOf":[
+    {
+     "type":"object",
+     "properties":{
+      "method":{"const":"EARNINGS_MULTIPLE"},"price":{"type":"number","exclusiveMinimum":0},
+      "currency":{"enum":["KRW","USD"]},"horizon_months":{"type":"integer","minimum":1,"maximum":120},
+      "win_return_threshold_pct":{"type":"number","minimum":-100},
+      "scenarios":{
+       "type":"object",
+       "properties":{
+        "bear":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "eps":{"type":"number","exclusiveMinimum":0},"multiple":{"type":"number","exclusiveMinimum":0},
+          "cash_distribution":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","eps","multiple","cash_distribution"],
+         "additionalProperties":false
         },
-        {
-          "type": "object",
-          "properties": {
-            "method": {
-              "const": "DCF"
-            },
-            "price": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "currency": {
-              "enum": [
-                "KRW",
-                "USD"
-              ]
-            },
-            "horizon_months": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 120
-            },
-            "win_return_threshold_pct": {
-              "type": "number",
-              "minimum": -100
-            },
-            "dcf": {
-              "type": "object",
-              "properties": {
-                "fcf": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                "shares": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                "net_debt": {
-                  "type": "number"
-                },
-                "discount_rate_pct": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                "terminal_growth_pct": {
-                  "type": "number",
-                  "minimum": -99.999
-                },
-                "years": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 100
-                }
-              },
-              "required": [
-                "fcf",
-                "shares",
-                "net_debt",
-                "discount_rate_pct",
-                "terminal_growth_pct",
-                "years"
-              ],
-              "additionalProperties": false
-            },
-            "scenarios": {
-              "type": "object",
-              "properties": {
-                "bear": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "growth_pct": {
-                      "type": "number",
-                      "minimum": -99.999
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "growth_pct"
-                  ],
-                  "additionalProperties": false
-                },
-                "base": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "growth_pct": {
-                      "type": "number",
-                      "minimum": -99.999
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "growth_pct"
-                  ],
-                  "additionalProperties": false
-                },
-                "bull": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "growth_pct": {
-                      "type": "number",
-                      "minimum": -99.999
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "growth_pct"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "required": [
-                "bear",
-                "base",
-                "bull"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "method",
-            "price",
-            "currency",
-            "horizon_months",
-            "win_return_threshold_pct",
-            "dcf",
-            "scenarios"
-          ],
-          "additionalProperties": false
+        "base":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "eps":{"type":"number","exclusiveMinimum":0},"multiple":{"type":"number","exclusiveMinimum":0},
+          "cash_distribution":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","eps","multiple","cash_distribution"],
+         "additionalProperties":false
         },
-        {
-          "type": "object",
-          "properties": {
-            "method": {
-              "const": "EQUITY_BRIDGE"
-            },
-            "price": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "currency": {
-              "enum": [
-                "KRW",
-                "USD"
-              ]
-            },
-            "horizon_months": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 120
-            },
-            "win_return_threshold_pct": {
-              "type": "number",
-              "minimum": -100
-            },
-            "scenarios": {
-              "type": "object",
-              "properties": {
-                "bear": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "enterprise_value": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cash": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "debt": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "shares": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "enterprise_value",
-                    "cash",
-                    "debt",
-                    "shares"
-                  ],
-                  "additionalProperties": false
-                },
-                "base": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "enterprise_value": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cash": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "debt": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "shares": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "enterprise_value",
-                    "cash",
-                    "debt",
-                    "shares"
-                  ],
-                  "additionalProperties": false
-                },
-                "bull": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "enterprise_value": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cash": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "debt": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "shares": {
-                      "type": "number",
-                      "exclusiveMinimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "enterprise_value",
-                    "cash",
-                    "debt",
-                    "shares"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "required": [
-                "bear",
-                "base",
-                "bull"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "method",
-            "price",
-            "currency",
-            "horizon_months",
-            "win_return_threshold_pct",
-            "scenarios"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "method": {
-              "const": "EVENT_PRICE"
-            },
-            "price": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "currency": {
-              "enum": [
-                "KRW",
-                "USD"
-              ]
-            },
-            "horizon_months": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 120
-            },
-            "win_return_threshold_pct": {
-              "type": "number",
-              "minimum": -100
-            },
-            "scenarios": {
-              "type": "object",
-              "properties": {
-                "bear": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "terminal_price": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "cash_distribution",
-                    "terminal_price"
-                  ],
-                  "additionalProperties": false
-                },
-                "base": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "terminal_price": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "cash_distribution",
-                    "terminal_price"
-                  ],
-                  "additionalProperties": false
-                },
-                "bull": {
-                  "type": "object",
-                  "properties": {
-                    "probability_pct": {
-                      "type": "number",
-                      "exclusiveMinimum": 0,
-                      "maximum": 100
-                    },
-                    "conditional_win_probability_pct": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "cash_distribution": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "terminal_price": {
-                      "type": "number",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "probability_pct",
-                    "conditional_win_probability_pct",
-                    "cash_distribution",
-                    "terminal_price"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "required": [
-                "bear",
-                "base",
-                "bull"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "method",
-            "price",
-            "currency",
-            "horizon_months",
-            "win_return_threshold_pct",
-            "scenarios"
-          ],
-          "additionalProperties": false
+        "bull":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "eps":{"type":"number","exclusiveMinimum":0},"multiple":{"type":"number","exclusiveMinimum":0},
+          "cash_distribution":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","eps","multiple","cash_distribution"],
+         "additionalProperties":false
         }
-      ]
+       },
+       "required":["bear","base","bull"],"additionalProperties":false
+      }
+     },
+     "required":["method","price","currency","horizon_months","win_return_threshold_pct","scenarios"],
+     "additionalProperties":false
     },
-    "comparison": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "basis": {
-              "const": "POLICY_TARGET"
-            }
-          },
-          "required": [
-            "basis"
-          ],
-          "additionalProperties": false
+    {
+     "type":"object",
+     "properties":{
+      "method":{"const":"DCF"},"price":{"type":"number","exclusiveMinimum":0},"currency":{"enum":["KRW","USD"]},
+      "horizon_months":{"type":"integer","minimum":1,"maximum":120},
+      "win_return_threshold_pct":{"type":"number","minimum":-100},
+      "dcf":{
+       "type":"object",
+       "properties":{
+        "fcf":{"type":"number","exclusiveMinimum":0},"shares":{"type":"number","exclusiveMinimum":0},
+        "net_debt":{"type":"number"},"discount_rate_pct":{"type":"number","exclusiveMinimum":0},
+        "terminal_growth_pct":{"type":"number","minimum":-99.999},"years":{"type":"integer","minimum":1,"maximum":100}
+       },
+       "required":["fcf","shares","net_debt","discount_rate_pct","terminal_growth_pct","years"],
+       "additionalProperties":false
+      },
+      "scenarios":{
+       "type":"object",
+       "properties":{
+        "bear":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "growth_pct":{"type":"number","minimum":-99.999}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","growth_pct"],"additionalProperties":false
         },
-        {
-          "type": "object",
-          "properties": {
-            "basis": {
-              "const": "MODEL"
-            },
-            "total_return_pct": {
-              "type": "number",
-              "minimum": -100
-            },
-            "rationale": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000
-            }
-          },
-          "required": [
-            "basis",
-            "total_return_pct",
-            "rationale"
-          ],
-          "additionalProperties": false
+        "base":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "growth_pct":{"type":"number","minimum":-99.999}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","growth_pct"],"additionalProperties":false
+        },
+        "bull":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "growth_pct":{"type":"number","minimum":-99.999}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","growth_pct"],"additionalProperties":false
         }
-      ]
+       },
+       "required":["bear","base","bull"],"additionalProperties":false
+      }
+     },
+     "required":["method","price","currency","horizon_months","win_return_threshold_pct","dcf","scenarios"],
+     "additionalProperties":false
     },
-    "bases": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{0,47}$"
-          },
-          "parameters": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000
-            },
-            "minItems": 1,
-            "maxItems": 32
-          },
-          "origin": {
-            "enum": [
-              "OBSERVED",
-              "MODEL_ESTIMATE",
-              "MODEL_CHOICE"
-            ]
-          },
-          "rationale": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "evidence_refs": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000
-            },
-            "minItems": 0,
-            "maxItems": 24
-          },
-          "revisit_when": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          }
+    {
+     "type":"object",
+     "properties":{
+      "method":{"const":"EQUITY_BRIDGE"},"price":{"type":"number","exclusiveMinimum":0},
+      "currency":{"enum":["KRW","USD"]},"horizon_months":{"type":"integer","minimum":1,"maximum":120},
+      "win_return_threshold_pct":{"type":"number","minimum":-100},
+      "scenarios":{
+       "type":"object",
+       "properties":{
+        "bear":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "enterprise_value":{"type":"number","minimum":0},"cash":{"type":"number","minimum":0},
+          "debt":{"type":"number","minimum":0},"shares":{"type":"number","exclusiveMinimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","enterprise_value","cash","debt","shares"],
+         "additionalProperties":false
         },
-        "required": [
-          "id",
-          "parameters",
-          "origin",
-          "rationale",
-          "evidence_refs",
-          "revisit_when"
-        ],
-        "additionalProperties": false
-      },
-      "minItems": 1,
-      "maxItems": 24
-    },
-    "tests": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{0,47}$"
-          },
-          "changes": {
-            "type": "object",
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": "number"
-            }
-          },
-          "rationale": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          }
+        "base":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "enterprise_value":{"type":"number","minimum":0},"cash":{"type":"number","minimum":0},
+          "debt":{"type":"number","minimum":0},"shares":{"type":"number","exclusiveMinimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","enterprise_value","cash","debt","shares"],
+         "additionalProperties":false
         },
-        "required": [
-          "id",
-          "changes",
-          "rationale"
-        ],
-        "additionalProperties": false
-      },
-      "minItems": 1,
-      "maxItems": 12
-    },
-    "boundaries": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{0,47}$"
-          },
-          "parameter": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
-          },
-          "low": {
-            "type": "number"
-          },
-          "high": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "parameter",
-          "low",
-          "high"
-        ],
-        "additionalProperties": false
-      },
-      "minItems": 0,
-      "maxItems": 8
-    },
-    "earnings_basis": {
-      "type": "object",
-      "properties": {
-        "shares": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "basis": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
-        },
-        "source_id": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "net_income": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "bear": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                "base": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                "bull": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                }
-              },
-              "required": [
-                "bear",
-                "base",
-                "bull"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "price_unit_multiplier": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
-        },
-        "price_basis": {
-          "enum": [
-            "PRE_BONUS",
-            "POST_BONUS",
-            "UNCHANGED"
-          ]
+        "bull":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "enterprise_value":{"type":"number","minimum":0},"cash":{"type":"number","minimum":0},
+          "debt":{"type":"number","minimum":0},"shares":{"type":"number","exclusiveMinimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","enterprise_value","cash","debt","shares"],
+         "additionalProperties":false
         }
-      },
-      "required": [
-        "shares",
-        "basis",
-        "source_id",
-        "net_income",
-        "price_unit_multiplier",
-        "rationale",
-        "price_basis"
-      ],
-      "additionalProperties": false
+       },
+       "required":["bear","base","bull"],"additionalProperties":false
+      }
+     },
+     "required":["method","price","currency","horizon_months","win_return_threshold_pct","scenarios"],
+     "additionalProperties":false
+    },
+    {
+     "type":"object",
+     "properties":{
+      "method":{"const":"EVENT_PRICE"},"price":{"type":"number","exclusiveMinimum":0},"currency":{"enum":["KRW","USD"]},
+      "horizon_months":{"type":"integer","minimum":1,"maximum":120},
+      "win_return_threshold_pct":{"type":"number","minimum":-100},
+      "scenarios":{
+       "type":"object",
+       "properties":{
+        "bear":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "cash_distribution":{"type":"number","minimum":0},"terminal_price":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","cash_distribution","terminal_price"],
+         "additionalProperties":false
+        },
+        "base":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "cash_distribution":{"type":"number","minimum":0},"terminal_price":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","cash_distribution","terminal_price"],
+         "additionalProperties":false
+        },
+        "bull":{
+         "type":"object",
+         "properties":{
+          "probability_pct":{"type":"number","exclusiveMinimum":0,"maximum":100},
+          "conditional_win_probability_pct":{"type":"number","minimum":0,"maximum":100},
+          "cash_distribution":{"type":"number","minimum":0},"terminal_price":{"type":"number","minimum":0}
+         },
+         "required":["probability_pct","conditional_win_probability_pct","cash_distribution","terminal_price"],
+         "additionalProperties":false
+        }
+       },
+       "required":["bear","base","bull"],"additionalProperties":false
+      }
+     },
+     "required":["method","price","currency","horizon_months","win_return_threshold_pct","scenarios"],
+     "additionalProperties":false
     }
+   ]
   },
-  "required": [
-    "schema_version",
-    "inputs",
-    "comparison",
-    "bases",
-    "tests",
-    "boundaries"
-  ],
-  "additionalProperties": false
+  "comparison":{
+   "oneOf":[
+    {"type":"object","properties":{"basis":{"const":"POLICY_TARGET"}},"required":["basis"],"additionalProperties":false},
+    {
+     "type":"object",
+     "properties":{
+      "basis":{"const":"MODEL"},"total_return_pct":{"type":"number","minimum":-100},
+      "rationale":{"type":"string","minLength":1,"maxLength":2000}
+     },
+     "required":["basis","total_return_pct","rationale"],"additionalProperties":false
+    }
+   ]
+  },
+  "bases":{
+   "type":"array",
+   "items":{
+    "type":"object",
+    "properties":{
+     "id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+     "parameters":{"type":"array","items":{"type":"string","minLength":1,"maxLength":2000},"minItems":1,"maxItems":32},
+     "origin":{"enum":["OBSERVED","MODEL_ESTIMATE","MODEL_CHOICE"]},
+     "rationale":{"type":"string","minLength":1,"maxLength":2000},
+     "evidence_refs":{"type":"array","items":{"type":"string","minLength":1,"maxLength":2000},"minItems":0,"maxItems":24},
+     "revisit_when":{"type":"string","minLength":1,"maxLength":2000}
+    },
+    "required":["id","parameters","origin","rationale","evidence_refs","revisit_when"],"additionalProperties":false
+   },
+   "minItems":1,"maxItems":24
+  },
+  "tests":{
+   "type":"array",
+   "items":{
+    "type":"object",
+    "properties":{
+     "id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+     "changes":{"type":"object","minProperties":1,"additionalProperties":{"type":"number"}},
+     "rationale":{"type":"string","minLength":1,"maxLength":2000}
+    },
+    "required":["id","changes","rationale"],"additionalProperties":false
+   },
+   "minItems":1,"maxItems":12
+  },
+  "boundaries":{
+   "type":"array",
+   "items":{
+    "type":"object",
+    "properties":{
+     "id":{"type":"string","pattern":"^[a-z][a-z0-9_]{0,47}$"},
+     "parameter":{"type":"string","minLength":1,"maxLength":2000},"low":{"type":"number"},"high":{"type":"number"}
+    },
+    "required":["id","parameter","low","high"],"additionalProperties":false
+   },
+   "minItems":0,"maxItems":8
+  },
+  "earnings_basis":{
+   "type":"object",
+   "properties":{
+    "shares":{"type":"number","exclusiveMinimum":0},"basis":{"type":"string","minLength":1,"maxLength":2000},
+    "source_id":{"type":["string","null"]},
+    "net_income":{
+     "oneOf":[
+      {
+       "type":"object",
+       "properties":{
+        "bear":{"type":"number","exclusiveMinimum":0},"base":{"type":"number","exclusiveMinimum":0},
+        "bull":{"type":"number","exclusiveMinimum":0}
+       },
+       "required":["bear","base","bull"],"additionalProperties":false
+      },
+      {"type":"null"}
+     ]
+    },
+    "price_unit_multiplier":{"type":"number","exclusiveMinimum":0},
+    "rationale":{"type":"string","minLength":1,"maxLength":2000},
+    "price_basis":{"enum":["PRE_BONUS","POST_BONUS","UNCHANGED"]}
+   },
+   "required":["shares","basis","source_id","net_income","price_unit_multiplier","rationale","price_basis"],
+   "additionalProperties":false
+  }
+ },
+ "required":["schema_version","inputs","comparison","bases","tests","boundaries"],"additionalProperties":false
 }

@@ -15,6 +15,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from calculators.contracts import (
+    PACKET_LAYOUT,
     ContractError,
     change_pct,
     content_hash,
@@ -5515,7 +5516,9 @@ def build_context(
             / asset["asset_id"]
             / f"{packet['context_id']}.json"
         )
-        write_json(path, packet)
+        # 모델이 통째로 읽는 파일이다. 예산은 압축 크기로 재므로 저장도 그 크기에
+        # 가깝게 한다 — 들여쓰기로 쓰면 예산이 재는 것보다 3분의 1을 더 읽힌다.
+        write_json(path, packet, layout=PACKET_LAYOUT)
     return packet, path
 
 
