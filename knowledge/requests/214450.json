@@ -1,7 +1,7 @@
 {
   "schema_version": "research-ledger/1.0.0",
   "asset_id": "214450",
-  "updated_at": "2026-10-06T16:20:09+09:00",
+  "updated_at": "2026-10-13T10:27:25+09:00",
   "resolutions": [
     {
       "request_id": "REQ-1a8d49f66703",
@@ -82,6 +82,22 @@
       "note": "collectors.kr_product_sales",
       "resolved_by": "USER",
       "resolved_at": "2026-10-06T16:20:09+09:00"
+    },
+    {
+      "request_id": "REQ-a75aa0cab25c",
+      "text": "가격 수집기가 재수집 때 이미 저장된 봉을 지운다 — 2026-10-13 수집에서 214450.KQ와 ^KQ11의 2026-10-12 봉이 사라졌다(응답에 그 날짜가 없었다). 기존 봉을 보존하는 병합과, 지수 간 거래일 공백 경고가 필요하다(^KS11에는 10-12가 있는데 benchmark_calendar_gaps는 []였다).",
+      "state": "DONE",
+      "note": "price 병합이 응답에 없는 봉을 보존, KRX 종목 백필, packet session_gaps",
+      "resolved_by": "USER",
+      "resolved_at": "2026-10-13T10:27:24+09:00"
+    },
+    {
+      "request_id": "REQ-b270f192ca19",
+      "text": "달러/원 시계열(분기 평균·기말)과 반기·사업보고서 환위험 주석(통화별 외화 화폐성 자산, 10% 민감도)을 packet에 싣는 수집기 — packet에 환율이 없어 2026-10-06 판단이 수출 비중 47% 회사에서 환율을 통째로 빠뜨렸다.",
+      "state": "DONE",
+      "note": "structured_optional.fx_usdkrw 분기 환율표. 환위험 주석 파서는 만들지 않음(cio search 로 읽는다)",
+      "resolved_by": "USER",
+      "resolved_at": "2026-10-13T10:27:25+09:00"
     }
   ]
 }

@@ -125,5 +125,136 @@ class TestHistoryIsNotTruncated(unittest.TestCase):
         self.assertEqual(saved[0]["date"], "2021-06-01", "빈 구간을 이어 붙였다")
 
 
+class TestResponseHolesDoNotDeleteStoredBars(unittest.TestCase):
+    """응답에 없는 날짜는 '그날이 없었다'가 아니라 '이번에 안 실었다'다.
+
+    2026-10-13 수집에서 Yahoo 는 214450.KQ 와 ^KQ11 의 2026-10-12 를 빼고 정상
+    응답을 줬다. 병합은 **수집 범위보다 앞선** 행만 보존했으므로 범위 안의 그
+    하루가 사라졌고, packet 의 세션 수익률은 한 세션을 건너뛴 채 실렸다. 같은 날
+    ^KS11 은 10-12 종가가 사후 정정(6,399.43 → 6,384.24)된 것을 액면분할로 오판해
+    가장 오래된 40거래일을 버렸다.
+    """
+
+    _save = TestHistoryIsNotTruncated._save
+
+    def test_a_confirmed_bar_absent_from_the_response_is_kept(self):
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 8]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, SETTLED)
+            path = self._save(tmp, pulled, SETTLED)
+            saved = price._existing_rows(path)
+
+        dates = [row["date"] for row in saved]
+        self.assertIn("2020-01-08", dates, "응답에서 빠진 확정 봉을 지웠다")
+        self.assertEqual(dates, sorted(dates), "보존한 봉이 날짜 순서를 깼다")
+        self.assertEqual(len(saved), 12)
+
+    def test_a_late_revision_of_the_last_stored_bar_is_not_a_split(self):
+        """마지막 봉은 SETTLED 로 적혔어도 다음 수집 전까지는 잠정값이다."""
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13)]
+        pulled[4]["close"] = pulled[4]["adjusted_close"] = 109.76  # 2020-01-10 정정
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, SETTLED)
+            path = self._save(tmp, pulled, SETTLED)
+            saved = {row["date"]: row for row in price._existing_rows(path)}
+
+        self.assertIn("2020-01-01", saved, "하루의 정정을 분할로 오판해 이력을 잘랐다")
+        self.assertEqual(float(saved["2020-01-10"]["close"]), 109.76)
+
+    def test_an_unconfirmed_last_bar_is_not_frozen_as_a_close(self):
+        """장중 값을 종가로 남기지 않는다. 대신 그 세션이 있었다는 사실을 남긴다."""
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        stored[-1]["close"] = stored[-1]["adjusted_close"] = 555.0  # 장중 값
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 10]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, UNSETTLED)
+            path = self._save(tmp, pulled, SETTLED)
+            saved = [row["date"] for row in price._existing_rows(path)]
+            missing = price.missing_sessions(path)
+
+        self.assertNotIn("2020-01-10", saved, "장중 값이 확정 종가로 굳었다")
+        self.assertEqual(missing, ["2020-01-10"], "사라진 세션이 기록되지 않았다")
+        self.assertEqual(saved[0], "2020-01-01")
+
+    def test_a_settled_label_does_not_make_the_last_bar_final(self):
+        """SETTLED 로 적힌 마지막 봉도 같은 규칙이다. 재확인 전에는 잠정값이다."""
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 10]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, SETTLED)
+            path = self._save(tmp, pulled, SETTLED)
+            saved = [row["date"] for row in price._existing_rows(path)]
+            missing = price.missing_sessions(path)
+
+        self.assertNotIn("2020-01-10", saved)
+        self.assertEqual(missing, ["2020-01-10"])
+
+    def test_a_bar_filled_from_the_exchange_keeps_its_provenance(self):
+        """KRX 로 메운 봉은 재수집 뒤에도 남고, 출처 표기도 함께 남는다."""
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        stored[7]["volume"] = None  # 2020-01-08 — 지수 백필은 거래량을 비운다
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 8]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._save(tmp, stored, SETTLED)
+            lines = path.read_text(encoding="utf-8").splitlines()
+            marker = "# backfilled 2020-01-08 / source KRX Open API (idx/kospi_dd_trd) — 거래소 원문"
+            first_data_line = next(
+                index for index, line in enumerate(lines) if not line.startswith("#")
+            )
+            lines.insert(first_data_line, marker)
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+            path = self._save(tmp, pulled, SETTLED)
+            saved = [row["date"] for row in price._existing_rows(path)]
+            header = [
+                line for line in path.read_text(encoding="utf-8").splitlines()
+                if line.startswith("#")
+            ]
+
+        self.assertIn("2020-01-08", saved, "메운 봉이 재수집에 지워졌다")
+        self.assertIn(marker, header, "메운 봉의 출처 표기가 사라졌다")
+
+    def test_a_recorded_hole_survives_until_the_bar_arrives(self):
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        without = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 10]
+        again = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 14) if d != 10]
+        complete = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 15)]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, UNSETTLED)
+            self._save(tmp, without, SETTLED)
+            path = self._save(tmp, again, SETTLED)
+            still_missing = price.missing_sessions(path)
+            path = self._save(tmp, complete, SETTLED)
+            saved = [row["date"] for row in price._existing_rows(path)]
+            cleared = price.missing_sessions(path)
+
+        self.assertEqual(still_missing, ["2020-01-10"], "재수집 한 번에 기록이 지워졌다")
+        self.assertIn("2020-01-10", saved)
+        self.assertEqual(cleared, [], "봉이 들어왔는데 구멍 기록이 남았다")
+
+    def test_the_first_four_header_lines_keep_their_positions(self):
+        """packet 조립이 머리말 네 줄을 자리로 읽는다. 새 줄은 그 뒤에만 온다."""
+        stored = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(1, 11)]
+        pulled = [bar(f"2020-01-{d:02d}", 100 + d) for d in range(6, 13) if d != 10]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self._save(tmp, stored, UNSETTLED)
+            path = self._save(tmp, pulled, SETTLED)
+            head = path.read_text(encoding="utf-8").splitlines()[:4]
+
+        self.assertTrue(head[0].startswith("# schema_version "))
+        self.assertTrue(head[1].startswith("# symbol "))
+        self.assertTrue(head[2].startswith("# retrieved_at "))
+        self.assertTrue(head[3].startswith("# last_bar "))
+
+
 if __name__ == "__main__":
     unittest.main()

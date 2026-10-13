@@ -33,6 +33,7 @@ from cio.memory import (
     READABLE_EVALUATION_SCHEMAS,
 )
 from cio.paths import KNOWLEDGE_DIR, ROOT
+from collectors.price import missing_sessions as _recorded_missing_sessions
 from cio.policy import POLICY_PATH, load_policy, policy_for_context
 from cio.requests import open_requests_for_context
 from cio.pipeline import pipeline_for_context
@@ -1943,6 +1944,24 @@ def _data_coverage(
             available_when=optional.get("normalized_earnings"),
             market_supported=True,
         ),
+        **(
+            {
+                "fx_usdkrw": (
+                    {"state": "AVAILABLE", "as_of": optional["fx_usdkrw"]["as_of"]}
+                    if optional.get("fx_usdkrw")
+                    else {
+                        "state": "REGISTERED_NOT_COLLECTED",
+                        "note": (
+                            "달러/원 가격 이력(KRW=X)이나 분기 실적표가 없어 분기 "
+                            "환율표를 만들지 못했다. `cio refresh <asset_id> --run` "
+                            "으로 받는다. 수출 비중이 큰 회사면 환율을 직접 조사한다"
+                        ),
+                    }
+                )
+            }
+            if is_kr
+            else {}
+        ),
         "_role": (
             "이 자산에서 받을 수 있는 입력의 가용성이다. NOT_REGISTERED 는 "
             "등록하면 받을 수 있다는 뜻이고 NO_COLLECTOR_FOR_MARKET 은 "
@@ -2002,6 +2021,100 @@ def _data_coverage(
         if (optional.get("epc_contract_notes") or {}).get("unresolved"):
             coverage["epc_contract_notes"]["unresolved"] = optional["epc_contract_notes"]["unresolved"]
     return coverage
+
+
+# 실적이 나온 분기 중 표에 올릴 개수. 전년 동기 대비는 계산기가 시계열에서 직접
+# 내므로 표가 4개 분기를 넘을 이유가 없다.
+FX_REPORTED_QUARTERS = 4
+
+
+def _export_share(product_sales: dict[str, Any] | None) -> dict[str, Any] | None:
+    """품목군별 매출에서 이름에 '수출'이 붙은 줄의 비중.
+
+    품목군을 내수·수출로 나눠 공시하는 회사에서만 나온다. 나누지 않는 회사의
+    수출 비중은 여기서 만들지 않는다 — 사업보고서에서 읽을 값이다.
+    """
+    if not product_sales or product_sales.get("available") is False:
+        return None
+    items = product_sales.get("items") or []
+    flagged = [index for index, name in enumerate(items) if "수출" in str(name)]
+    if not flagged or len(flagged) == len(items):
+        return None
+
+    def share(quarter: dict[str, Any] | None) -> float | None:
+        if not quarter or quarter.get("reconciliation") != "RECONCILED":
+            return None
+        values, total = quarter.get("values") or [], quarter.get("sum")
+        if len(values) != len(items) or not isinstance(total, (int, float)) or total <= 0:
+            return None
+        return round(sum(values[index] for index in flagged) / total * 100, 1)
+
+    quarters = product_sales.get("quarters") or []
+    latest = quarters[-1] if quarters else None
+    latest_share = share(latest)
+    if latest_share is None:
+        return None
+    period = str(latest.get("period") or "")
+    year_ago = next(
+        (q for q in quarters
+         if period[:4].isdigit() and q.get("period") == f"{int(period[:4]) - 1}{period[4:]}"),
+        None,
+    )
+    return {
+        "period": period,
+        "pct": latest_share,
+        "year_ago_pct": share(year_ago),
+        "basis": "kr_product_sales 품목명에 '수출'이 붙은 줄의 합 ÷ 분기 매출",
+    }
+
+
+def _fx_quarters(
+    fundamentals: dict[str, Any] | None, product_sales: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """달러/원을 이 회사의 결산 분기에 맞춘 표.
+
+    2026-10-06 판단은 수출 비중 47% 회사에서 환율을 통째로 빠뜨렸다. packet 에
+    환율이 없었기 때문이고, 그 한 줄이 base EPS 를 5.6% 움직였다. 싣는 것은
+    산술뿐이다 — 환율이 실적을 얼마나 움직이는지는 모델이 정한다.
+    """
+    from calculators.fx_periods import quarter_table
+
+    summary, source = _price_summary("KRW=X")
+    bridge = (fundamentals or {}).get("earnings_bridge") or {}
+    reported = [row["end"] for row in bridge.get("rows") or [] if row.get("end")]
+    covered = bridge.get("covered_through")
+    if not summary or not reported or not covered:
+        return None, source
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol('KRW=X')}.csv"
+    series = []
+    for row in _csv_rows(path):
+        try:
+            series.append((row["date"], float(row["close"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    table = quarter_table(
+        series,
+        [*reported[-FX_REPORTED_QUARTERS:], *(bridge.get("quarter_ends_after_covered") or [])],
+        reported_through=covered,
+    )
+    if not table:
+        return None, source
+    return {
+        "as_of": table["latest"]["date"],
+        **table,
+        "export_share": _export_share(product_sales),
+        "_role": (
+            "달러/원 현물 종가(Yahoo)를 이 회사의 결산 분기에 맞춘 산술이다. "
+            "average 는 수출 매출의 환산에, period_end 는 외화 화폐성 자산의 "
+            "평가에 걸린다. reported:false 는 끝났지만 실적이 아직 나오지 않은 "
+            "분기다 — 그 분기의 환율 변화는 earnings_bridge 어디에도 없다. "
+            "회사가 쓰는 매매기준율과 다르므로 방향과 크기를 보는 값이고, 실적에 "
+            "얼마나 전가되는지는 여기 없다: 통화 구성·헤지·민감도는 "
+            "`cio search <asset_id> 환위험` 으로 주석을 읽는다. 엔·위안·유로는 "
+            "싣지 않는다. export_share 가 null 이면 품목군을 내수·수출로 나눠 "
+            "공시하지 않는 회사다 — 수출 비중은 사업보고서에서 읽는다"
+        ),
+    }, source
 
 
 def _optional_collection_summaries(
@@ -2326,6 +2439,12 @@ def _optional_collection_summaries(
                 }
             )
 
+    if asset["market"] == "KR" and asset.get("asset_type") == "STOCK":
+        fx, fx_source = _fx_quarters(fundamentals, summaries.get("kr_product_sales"))
+        if fx:
+            summaries["fx_usdkrw"] = fx
+            sources.append(fx_source)
+
     if "KR_EPC" in enabled:
         from collectors.kr_epc import contract_errors
         from calculators.epc import summary as epc_summary
@@ -2370,6 +2489,101 @@ def _optional_collection_summaries(
             )
 
     return summaries, sources
+
+
+# 자산의 거래일 달력과 같은 달력을 쓰는 지수. 변동성 지수나 해외 벤치마크는
+# 휴장일이 달라 넣지 않는다 — 넣으면 없는 구멍이 생긴다.
+SESSION_CALENDAR_REFERENCES = {
+    "KR": ("^KS11", "^KQ11"),
+    "US": ("^GSPC", "^IXIC"),
+}
+# 구멍을 찾는 범위. 오래된 구멍은 여기서 다루는 세션 수익률과 무관하고, 창을
+# 넓히면 상장 전·거래정지 기간이 전부 '구멍'으로 실린다.
+SESSION_GAP_LOOKBACK = 30
+
+
+def _price_dates(symbol: str) -> list[str]:
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    if not path.exists():
+        return []
+    try:
+        return sorted(row["date"] for row in _csv_rows(path) if row.get("date"))
+    except OSError:
+        return []
+
+
+def _session_gaps(symbol: str, market: str) -> dict[str, Any] | None:
+    """같은 달력의 다른 시계열에는 있는데 이 시계열에 없는 최근 거래일.
+
+    한 파일은 자기 구멍을 볼 수 없다. 종목과 벤치마크를 서로 대조하는 것으로도
+    모자랐다 — 2026-10-13 에는 둘이 같은 날(10-12)을 함께 잃어서
+    `events.benchmark_calendar_gaps` 가 `[]` 였고, 그 날짜를 가진 것은 다른
+    지수 하나뿐이었다. 그래서 그 시장의 지수 전부와 대조하고, 봉이 저장됐다가
+    사라진 날의 기록(`# missing_sessions`)도 함께 본다.
+
+    판정이 아니라 대조다. 구멍이 수집 누락인지 거래정지인지는 여기서 가리지
+    않는다. 대조할 달력이 없는 시장이면 None 이다 — 빈 목록과 다르다.
+    """
+    references = [
+        reference
+        for reference in SESSION_CALENDAR_REFERENCES.get(market, ())
+        if reference != symbol
+    ]
+    own = _price_dates(symbol)
+    if not references or not own:
+        return None
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    known = set(_recorded_missing_sessions(path))
+    checked = []
+    for reference in references:
+        dates = _price_dates(reference)
+        if dates:
+            known.update(dates)
+            checked.append(reference)
+    present = set(own)
+    # 이 시계열의 마지막 봉 이후는 구멍이 아니다. 지수가 하루 먼저 수집됐을 뿐이다.
+    calendar = sorted(day for day in known | present if own[0] <= day <= own[-1])
+    recent = calendar[-SESSION_GAP_LOOKBACK:]
+    return {
+        "dates": [day for day in recent if day not in present],
+        "checked_against": checked,
+        "sessions_checked": len(recent),
+    }
+
+
+def _apply_session_gaps(
+    summary: dict[str, Any] | None, gaps: dict[str, Any] | None,
+) -> None:
+    """구멍을 가격 요약에 싣고, 그 구멍에 걸친 세션 수익률을 거둔다.
+
+    "최근 2개 확정 세션 수익률"은 세션을 세어 만든 값이다. 그 사이에 봉이 없는
+    거래일이 있으면 수익률 숫자는 맞아도 **몇 세션의 수익률인지가 틀린다.**
+    구멍이 창보다 뒤에 있어도 마찬가지다 — 그 창은 더 이상 '최근'이 아니다.
+    근사해서 싣지 않고 뺀다.
+    """
+    if not summary or gaps is None:
+        return
+    summary["session_gaps"] = gaps
+    if not gaps["dates"]:
+        return
+    gaps["_warning"] = (
+        "같은 거래소 달력의 다른 시계열에는 있거나 봉이 저장됐다가 사라진 "
+        "거래일이다. 수집 구멍이거나 거래정지다. 이 날의 등락률은 여기 없고, 이 "
+        "날을 지나는 기간은 세션 수가 하나씩 모자란다 — 원문으로 확인한다"
+    )
+    returns = summary.get("settled_session_returns") or {}
+    windows = returns.get("windows") or {}
+    withheld = sorted(
+        key for key, window in windows.items()
+        if any(day > window["from_date"] for day in gaps["dates"])
+    )
+    for key in withheld:
+        del windows[key]
+    if withheld:
+        returns["_withheld"] = (
+            f"{', '.join(gaps['dates'])} 의 봉이 없어 최근 {', '.join(withheld)}개 "
+            "세션 창을 내지 않았다 — 그 날을 건너뛴 값은 세션 수가 틀린다"
+        )
 
 
 def _fx_rate() -> tuple[float | None, str | None]:
@@ -4344,6 +4558,31 @@ def build_context(
                         f"{summary['history_bars']}행뿐이다. 수익률 비교와 "
                         "초과수익 평가가 성립하지 않는다 — registry 의 "
                         "benchmarks 를 이력이 있는 심볼로 바꾼다"
+                    ),
+                }
+            )
+    # 구멍이 있다고 판단을 막지는 않는다. 가격 자체는 현재값이고, 틀리는 것은
+    # 그 날을 지나는 세션 값뿐이라 그것만 거두고 사실을 알린다.
+    same_calendar = SESSION_CALENDAR_REFERENCES.get(asset["market"], ())
+    for symbol, summary in (
+        (asset["price_symbol"], price_summary),
+        *((s, b) for s, b in benchmarks.items() if s in same_calendar),
+    ):
+        gaps = _session_gaps(symbol, asset["market"]) if summary else None
+        if gaps is None or (symbol != asset["price_symbol"] and not gaps["dates"]):
+            continue
+        _apply_session_gaps(summary, gaps)
+        if gaps["dates"]:
+            optional_gaps.append(
+                {
+                    "task": f"price:{symbol}",
+                    "state": "SESSION_GAP",
+                    "reason": (
+                        f"{symbol} 시계열에 최근 거래일 "
+                        f"{', '.join(gaps['dates'])} 의 봉이 없다. 그 날의 "
+                        "등락률과 그 날을 지나는 세션 수익률은 packet 에 없다"
+                        + (" — `cio refresh --run` 이 거래소 원문으로 메운다"
+                           if asset["market"] == "KR" else "")
                     ),
                 }
             )

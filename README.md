@@ -63,7 +63,7 @@ cp -n .env.example .env
 |---|---|---|
 | `DART_API_KEY` | 한국 주식 재무·공시 수집 | OpenDART 인증키 |
 | `SEC_USER_AGENT` | 미국 주식 SEC EDGAR 재무·공시 수집 | 이름과 이메일 |
-| `KRX_API_KEY` | 한국 종목 시세 대조·벤치마크 누락 거래일 보완 | KRX 인증키와 서비스별 이용 승인 |
+| `KRX_API_KEY` | 한국 종목 시세 대조, 종목·벤치마크 누락 거래일 보완 | KRX 인증키와 서비스별 이용 승인 |
 | `DATA_GO_KR_API_KEY` | 한국 주식 대차잔고 보조 수집 | 공공데이터포털 인증키와 해당 API 활용신청 |
 
 `.env`에는 다음 형식으로 넣는다. 아래 키 자리와 이름·이메일을 실제 값으로 바꾼다.
@@ -100,11 +100,11 @@ DATA_GO_KR_API_KEY=발급받은_공공데이터포털_인증키
 
 | 서비스명 | 사용하는 작업 |
 |---|---|
-| 유가증권 일별매매정보 | KOSPI 종목 시세 대조·수집 |
-| 코스닥 일별매매정보 | KOSDAQ 종목 시세 대조·수집 |
+| 유가증권 일별매매정보 | KOSPI 종목 시세 대조·수집·누락 거래일 보완 |
+| 코스닥 일별매매정보 | KOSDAQ 종목 시세 대조·수집·누락 거래일 보완 |
 | KOSPI 시리즈 일별시세정보 | KOSPI 벤치마크 대조·누락 거래일 보완 |
 | KOSDAQ 시리즈 일별시세정보 | KOSDAQ 벤치마크 대조·누락 거래일 보완 |
-| ETF 일별매매정보 | ETF 시세를 KRX 원문으로 대조·수집할 때 추가 신청 |
+| ETF 일별매매정보 | ETF 시세 대조·누락 거래일 보완. 신청하지 않으면 그 보완만 실패한다 |
 
 `401 Unauthorized Key`는 인증키·승인 상태·유효기간을 확인한다.
 `401 Unauthorized API Call`은 호출한 서비스의 활용신청·승인 상태를 확인한다.
@@ -405,6 +405,23 @@ holdings.csv는 고치지 않고 수량이 어긋난 종목만 보고한다. PDF
 python3.13 -m calculators.peer_kr 214450 145020 214150 278470   # 한국 동종 비교
 python3.13 -m calculators.sector_strength --highlight 헬스케어    # 미국 섹터 상대강도
 ```
+
+가격 시계열은 재수집으로 봉을 잃지 않는다. Yahoo가 응답에서 하루를 빼도 저장된
+봉은 남고, 재확인된 적 없는 마지막 봉만 값을 버린 채 날짜를 기록한다. 한국
+종목·지수의 빈 거래일은 `refresh`가 KRX 원문으로 메우며, 메우지 못한 구멍은 packet의
+`price.session_gaps`가 말하고 그 날을 지나는 세션 수익률은 싣지 않는다.
+[규칙과 한계](docs/data-policy.md#가격-시계열의-함정)
+
+```bash
+python3.13 -m collectors.krx backfill-stock 214450   # 종목 시계열의 빈 거래일
+python3.13 -m collectors.krx backfill KOSDAQ         # 지수 시계열의 빈 거래일
+```
+
+한국 주식의 packet에는 달러/원을 그 회사의 결산 분기에 맞춘 표가 실린다
+(`structured_optional.fx_usdkrw`) — 분기 평균·기말, 전분기·전년동기 대비, 그리고
+끝났지만 실적이 아직 나오지 않은 분기의 표시다. 환율이 실적을 얼마나 움직이는지는
+모델이 정하고, 회사의 환위험 주석은 `cio search <asset_id> 환위험`으로 읽는다.
+[분기 환율표](docs/data-policy.md#분기-환율표)
 
 ETF는 구성종목을 들여다본다. 가격만 보면 "3개월에 34% 내렸다"까지만 보이고,
 그것이 종목이 내린 것인지 환율이 내린 것인지, 내려온 뒤의 가격표가 구성종목

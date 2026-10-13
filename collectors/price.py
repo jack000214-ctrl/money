@@ -308,10 +308,48 @@ def _same_bar(left: dict, right: dict) -> bool:
     return True
 
 
+MISSING_SESSIONS_PREFIX = "# missing_sessions "
+BACKFILLED_PREFIX = "# backfilled "
+# 기록이 끝없이 자라지 않게 한다. 오래 메워지지 않은 구멍은 packet 의 최근
+# 세션 대조에서 이미 벗어났고, 남는 것은 가장 최근 것들이다.
+MAX_RECORDED_MISSING_SESSIONS = 20
+# 옛 행을 이어 붙이려면 값이 있어야 하는 열. 거래량은 뺀다 — KRX 로 메운
+# 지수 행은 거래량 단위가 Yahoo 와 달라 일부러 비워 둔다(`collectors/krx.py`).
+CARRIED_ROW_FIELDS = tuple(field for field in FIELDS if field != "volume")
+
+
+def _header_notes(path: Path, prefix: str) -> tuple[list[str], str]:
+    """머리말에서 `prefix 날짜,날짜 / 설명` 줄을 읽는다. (날짜들, 설명)."""
+    if not path.exists():
+        return [], ""
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.lstrip().startswith("#"):
+                    break
+                if line.startswith(prefix):
+                    body = line[len(prefix):].strip()
+                    dates, _, tail = body.partition(" / ")
+                    return [d for d in dates.split(",") if d], tail
+    except OSError:
+        return [], ""
+    return [], ""
+
+
+def missing_sessions(path: Path) -> list[str]:
+    """봉이 한 번 저장됐다가 확정값으로 재확인되지 못하고 사라진 거래일.
+
+    그 날짜에 봉이 있었다는 것은 그날 거래가 있었다는 뜻이다. 값은 믿을 수
+    없어 남기지 않지만 **세션이 있었다는 사실**은 남긴다. 이것이 없으면 같은
+    날을 모든 시계열이 함께 잃었을 때 구멍을 볼 방법이 없다.
+    """
+    return _header_notes(path, MISSING_SESSIONS_PREFIX)[0]
+
+
 def merge_with_existing(
     path: Path, rows: list[dict]
-) -> tuple[list[dict], str | None]:
-    """이미 있는 이력 앞부분을 보존한 채 새 수집분을 얹는다.
+) -> tuple[list[dict], list[str], list[str]]:
+    """이미 있는 봉을 보존한 채 새 수집분을 얹는다. (행, 알림, 사라진 세션).
 
     수집은 `--range` 만큼만 받아 오는데 저장이 통째로 덮어쓰기였다. 그래서
     `refresh` 가 고정으로 쓰는 `5y` 때문에 파일이 **롤링 5년 창**이 됐고,
@@ -324,20 +362,32 @@ def merge_with_existing(
     여기서 뽑고, 무엇보다 **과거 판단의 채점**이 이 시계열 위에 선다. 창이
     깎이면 track record 가 앞에서부터 지워진다.
 
-    **겹치는 구간이 어긋나면 병합하지 않는다.** 액면분할이나 데이터 정정이
-    있었다는 뜻이고, 그때 옛 행을 남기면 두 기준이 한 파일에 섞인다. 그 경우
-    새 수집분만 쓰고 사실을 알린다 — 조용히 고르지 않는다.
+    **응답에 없는 날짜의 봉도 지우지 않는다.** 처음 고칠 때는 수집 범위보다
+    앞선 행만 보존했다. 그런데 Yahoo 는 범위 **안의** 하루를 빼고도 정상 응답을
+    준다 — 2026-10-13 수집에서 214450.KQ 와 ^KQ11 의 2026-10-12 가 그렇게
+    사라졌고 packet 의 세션 수익률이 한 세션을 건너뛰었다. 응답에 없다는 것은
+    "그날이 없었다"가 아니라 "이번에 안 실었다"다.
+
+    **저장된 마지막 봉만은 잠정값으로 다룬다.** 다음 수집이 다시 실어 준 적이
+    없는 유일한 봉이다. 장중 수집분이면 종가가 아니고, 헤더에 `SETTLED` 로
+    적혔어도 장 마감 직후의 값은 뒤에 바뀐다(같은 날 ^KS11 의 10-12 는
+    6,399.43 → 6,384.24). 그래서 (1) 분할 판정의 대조에서 빼고 — 그 하루의
+    정정을 분할로 읽어 40거래일을 버린 적이 있다 — (2) 응답에 없으면 값을
+    보존하지 않고 날짜만 `missing_sessions` 로 남긴다. 장중 값을 종가로 굳히는
+    것보다 비어 있다고 말하는 쪽이 낫고, 한국 시계열은 `collectors.krx` 가 그
+    날짜를 거래소 원문으로 메운다.
+
+    **겹치는 구간이 어긋나면 병합하지 않는다.** 액면분할은 그 이전의 모든
+    봉을 바꾸므로 마지막 봉 하나를 빼도 드러난다. 그때 옛 행을 남기면 두 기준이
+    한 파일에 섞인다. 새 수집분만 쓰고 사실을 알린다 — 조용히 고르지 않는다.
     """
     previous = _existing_rows(path)
     if not previous or not rows:
-        return rows, None
+        return rows, [], []
     fresh = {row["date"]: row for row in rows}
-    # 미확정 봉은 대조에서 뺀다 — 장중 값이라 재수집하면 달라지는 것이 정상이다.
-    # 저장된 파일이 미확정으로 끝났을 수 있고, 이번 수집의 마지막 봉도 그렇다.
-    volatile = {rows[-1]["date"]}
-    stale_unsettled = _unsettled_date(path)
-    if stale_unsettled:
-        volatile.add(stale_unsettled)
+    last_stored = previous[-1].get("date")
+    # 이번 수집의 마지막 봉도 장중일 수 있어 같이 뺀다.
+    volatile = {rows[-1]["date"], last_stored}
     overlap = [
         row
         for row in previous
@@ -346,31 +396,84 @@ def merge_with_existing(
     if not overlap:
         # 겹치는 날이 하나도 없으면 이어 붙일 근거가 없다. 잘못 이으면
         # 사이가 빈 시계열이 되고 수익률이 조용히 틀린다.
-        return rows, None
+        return rows, [], []
     mismatched = [
         row["date"] for row in overlap if not _same_bar(row, fresh[row["date"]])
     ]
     if mismatched:
-        return rows, (
+        return rows, [
             f"겹치는 {len(overlap)}일 중 {len(mismatched)}일의 원가격·분할계수가 "
             f"다르다 (예: {mismatched[0]}). 액면분할이나 정정으로 보이며 "
             "옛 이력을 이어 붙이지 않았다 — 두 기준이 섞이면 수익률이 틀린다"
-        )
+        ], []
+
+    notes: list[str] = []
+    was_unsettled = _unsettled_date(path) == last_stored
     earliest = rows[0]["date"]
-    kept = [
-        row
-        for row in previous
-        if row.get("date")
-        and row["date"] < earliest
-        and all(row.get(field) not in (None, "") for field in FIELDS)
-    ]
+    older: list[dict] = []
+    holes: list[dict] = []
+    dropped_unconfirmed = None
+    for row in previous:
+        day = row.get("date")
+        if not day or day in fresh:
+            continue
+        if day == last_stored:
+            dropped_unconfirmed = day
+            continue
+        if any(row.get(field) in (None, "") for field in CARRIED_ROW_FIELDS):
+            continue
+        (older if day < earliest else holes).append(row)
+
+    if older:
+        notes.append(
+            f"기존 이력 {len(older)}일을 보존했다 ({older[0]['date']} 부터). "
+            f"이번 수집은 {earliest} 부터라 그대로 저장하면 그만큼 잘린다"
+        )
+    if holes:
+        days = ", ".join(row["date"] for row in holes[:6])
+        notes.append(
+            f"이번 응답에 없는 거래일 {len(holes)}일의 봉을 보존했다 "
+            f"({days}{' 외' if len(holes) > 6 else ''}) — 응답이 날짜를 뺀 것이지 "
+            "그날이 없었던 것이 아니다"
+        )
+    if last_stored in fresh and not was_unsettled and not _same_bar(
+        previous[-1], fresh[last_stored]
+    ):
+        notes.append(
+            f"확정으로 적혀 있던 마지막 봉 {last_stored} 의 종가가 "
+            f"{previous[-1].get('close')} → {fresh[last_stored]['close']} 로 바뀌었다. "
+            "새 값으로 바꿨다 — 장 마감 직후의 값은 확정이 아니었다"
+        )
+
+    merged = sorted(older + holes + rows, key=lambda row: row["date"])
+    present = {row["date"] for row in merged}
+    missing = [
+        day
+        for day in sorted({*missing_sessions(path), *filter(None, [dropped_unconfirmed])})
+        if day not in present
+    ][-MAX_RECORDED_MISSING_SESSIONS:]
+    if dropped_unconfirmed:
+        notes.append(
+            f"저장돼 있던 마지막 봉 {dropped_unconfirmed} 이 이번 응답에 없다. "
+            + ("장중 수집분이라" if was_unsettled else "재확인된 적 없는 값이라")
+            + " 종가로 보존하지 않고 사라진 세션으로 기록했다 (한국 종목·지수면 "
+            "collectors.krx 가 거래소 원문으로 메운다)"
+        )
+    return merged, notes, missing
+
+
+def _carried_backfill_line(path: Path, rows: list[dict], fresh: set[str]) -> str | None:
+    """KRX 로 메운 봉이 이번 저장에도 남아 있으면 그 출처 표기를 이어 쓴다.
+
+    예전에는 수집할 때마다 메운 봉이 지워졌으니 표기도 같이 사라지는 것이
+    맞았다. 이제는 봉이 남으므로 표기가 사라지면 Yahoo 값처럼 읽힌다.
+    """
+    dates, tail = _header_notes(path, BACKFILLED_PREFIX)
+    present = {row["date"] for row in rows}
+    kept = [day for day in dates if day in present and day not in fresh]
     if not kept:
-        return rows, None
-    merged = kept + rows
-    return merged, (
-        f"기존 이력 {len(kept)}일을 보존했다 ({kept[0]['date']} 부터). "
-        f"이번 수집은 {earliest} 부터라 그대로 저장하면 그만큼 잘린다"
-    )
+        return None
+    return f"{BACKFILLED_PREFIX}{','.join(kept)}" + (f" / {tail}" if tail else "")
 
 
 def save(
@@ -378,9 +481,13 @@ def save(
 ) -> Path:
     PRICE_DIR.mkdir(parents=True, exist_ok=True)
     path = PRICE_DIR / f"{safe_name(symbol)}.csv"
+    missing: list[str] = []
+    backfill_line = None
     if merge:
-        rows, note = merge_with_existing(path, rows)
-        if note:
+        fetched = {row["date"] for row in rows}
+        rows, notes, missing = merge_with_existing(path, rows)
+        backfill_line = _carried_backfill_line(path, rows, fetched)
+        for note in notes:
             print(f"※ {note}", file=sys.stderr)
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     temporary_name: str | None = None
@@ -406,6 +513,15 @@ def save(
             if type(meta.get("_collector_last_bar_timestamp")) is int:
                 temporary.write(
                     f"# last_bar_timestamp {meta['_collector_last_bar_timestamp']} / source Yahoo timestamp\n"
+                )
+            # 여기부터는 있을 때만 쓰는 줄이다. 위 네 줄은 packet 조립이 자리로
+            # 읽으므로(`cio/context.py:_price_summary`) 그 사이에 끼우지 않는다.
+            if backfill_line:
+                temporary.write(backfill_line + "\n")
+            if missing:
+                temporary.write(
+                    f"{MISSING_SESSIONS_PREFIX}{','.join(missing)} / 봉이 저장됐다가 "
+                    "응답에서 사라졌고 확정값으로 재확인되지 않았다\n"
                 )
             writer = csv.DictWriter(temporary, fieldnames=FIELDS)
             writer.writeheader()

@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "214450",
-  "collected_at": "2026-10-06T15:11:34+09:00",
+  "collected_at": "2026-10-13T09:37:28+09:00",
   "as_of": "2026-10-02",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
@@ -27,7 +27,7 @@
     "rating": 4.0,
     "target_price": 524667.0,
     "eps": 19274.0,
-    "per": 15.88,
+    "per": 15.41,
     "institution_count": 15
   },
   "estimates": {
@@ -86,10 +86,10 @@
         "operating_income_100m": 2727.0,
         "net_income_100m": 2229.0,
         "eps": 19274.0,
-        "per": 15.88,
-        "pbr": 4.09,
+        "per": 15.41,
+        "pbr": 3.97,
         "roe_pct": 28.66,
-        "ev_ebitda": 9.29,
+        "ev_ebitda": 8.96,
         "net_debt_ratio_pct": -55.01
       },
       {
@@ -101,10 +101,10 @@
         "operating_income_100m": 3411.0,
         "net_income_100m": 2740.0,
         "eps": 23694.0,
-        "per": 12.91,
-        "pbr": 3.23,
+        "per": 12.53,
+        "pbr": 3.13,
         "roe_pct": 27.93,
-        "ev_ebitda": 6.97,
+        "ev_ebitda": 6.71,
         "net_debt_ratio_pct": -60.0
       }
     ],
@@ -284,8 +284,8 @@
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data/raw/naver/consensus_214450_20261006_151132.html",
-    "estimates": "data/raw/naver/estimates_214450_20261006_151132.html"
+    "summary": "data/raw/naver/consensus_214450_20261013_093726.html",
+    "estimates": "data/raw/naver/estimates_214450_20261013_093726.html"
   },
   "history": [
     {
@@ -344,11 +344,11 @@
     },
     {
       "as_of": "2026-10-02",
-      "collected_at": "2026-10-06T15:11:34+09:00",
+      "collected_at": "2026-10-13T09:37:28+09:00",
       "rating": 4.0,
       "target_price": 524667.0,
       "eps": 19274.0,
-      "per": 15.88,
+      "per": 15.41,
       "institution_count": 15
     }
   ]

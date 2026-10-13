@@ -60,6 +60,8 @@ PER·DCF 등의 계산을 재사용하며, 관행에서 가져온 값은 모델�
 | `calculators/` | 재무 계약, 시장 국면, 포트폴리오, 비교·밸류에이션 계산 |
 | `collectors/kr_etf_holdings.py`, `collectors/etf_constituents.py` | 운용사 원문의 ETF 구성종목과, 종목별 가격·배수·환율 |
 | `calculators/etf_lookthrough.py` | ETF 구성종목의 가중 배수와 종목·환율 수익률 분해 |
+| `calculators/fx_periods.py` | 달러/원 일봉을 결산 분기의 평균·기말로 접는 산술. 실적 영향은 추정하지 않음 |
+| `collectors/krx.py` | 한국 종목·지수 시계열의 빈 거래일을 거래소 원문으로 메움 |
 | `calculators/assumptions.py` | 모델이 정한 EPS 배수·DCF 가정, 대체 계산과 수익률 경계값의 산술 |
 | `cio/assumptions.py` | 가정과 근거 파일을 context에 결속해 보존하고 모델 응답을 검증 |
 | `cio/refresh.py` | 자산에 필요한 작업만 계획하고 신선도를 검사·갱신 |

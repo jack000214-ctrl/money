@@ -11,6 +11,9 @@
   3. **종목코드는 정확히 일치해야 한다** — 임의 행으로 폴백하지 않는다
 """
 
+import contextlib
+import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -198,17 +201,45 @@ class TestKrxTradingCalendar(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def test_calendar_is_the_union_of_same_market_stock_files(self):
+    def test_calendar_is_one_for_both_korean_markets(self):
+        """유가증권·코스닥은 휴장일이 같다. 한쪽에만 남은 날짜가 다른 쪽의 구멍을 드러낸다."""
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
             self.write(directory, "005930_KS.csv", ["2026-08-06", "2026-08-07"])
             self.write(directory, "000660_KS.csv", ["2026-08-07", "2026-08-10"])
             self.write(directory, "214450_KQ.csv", ["2026-08-11"])
             with patch.object(krx, "PRICE_DIR", directory):
-                kospi = krx.trading_calendar("KOSPI")
-                kosdaq = krx.trading_calendar("KOSDAQ")
-        self.assertEqual(kospi, {"2026-08-06", "2026-08-07", "2026-08-10"})
-        self.assertEqual(kosdaq, {"2026-08-11"})
+                days = krx.trading_calendar()
+        self.assertEqual(
+            days, {"2026-08-06", "2026-08-07", "2026-08-10", "2026-08-11"})
+
+    def test_an_index_file_reveals_a_day_every_stock_file_lost(self):
+        """2026-10-13: 코스닥 종목과 코스닥 지수가 10-12 를 함께 잃었고 코스피 지수만 갖고 있었다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self.write(directory, "214450_KQ.csv", ["2026-10-08", "2026-10-13"])
+            self.write(directory, "KQ11.csv", ["2026-10-08", "2026-10-13"])
+            self.write(directory, "KS11.csv", ["2026-10-08", "2026-10-12", "2026-10-13"])
+            with patch.object(krx, "PRICE_DIR", directory):
+                days = krx.trading_calendar()
+        self.assertIn("2026-10-12", days)
+
+    def test_a_recorded_missing_session_is_part_of_the_calendar(self):
+        """모든 파일이 같은 날을 잃어도, 봉이 있었다는 기록이 그날을 달력에 남긴다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "214450_KQ.csv").write_text(
+                "# schema_version price-series/2.1.0\n"
+                "# symbol 214450.KQ / currency KRW\n"
+                "# retrieved_at 2026-10-13T00:37:14+00:00 / source Yahoo Finance chart API\n"
+                "# last_bar 2026-10-13 / session UNSETTLED\n"
+                "# missing_sessions 2026-10-12 / 봉이 저장됐다가 응답에서 사라졌다\n"
+                "date,close\n2026-10-08,302500\n2026-10-13,278000\n",
+                encoding="utf-8",
+            )
+            with patch.object(krx, "PRICE_DIR", directory):
+                days = krx.trading_calendar()
+        self.assertEqual(days, {"2026-10-08", "2026-10-12", "2026-10-13"})
 
     def test_backfilled_krx_files_do_not_define_the_calendar(self):
         """자기가 메운 파일을 달력의 근거로 쓰면 순환 논증이 된다."""
@@ -217,7 +248,7 @@ class TestKrxTradingCalendar(unittest.TestCase):
             self.write(directory, "005930_KS.csv", ["2026-08-07"])
             self.write(directory, "005930_KS_krx.csv", ["2026-08-08"])
             with patch.object(krx, "PRICE_DIR", directory):
-                days = krx.trading_calendar("KOSPI")
+                days = krx.trading_calendar()
         self.assertEqual(days, {"2026-08-07"})
 
     def test_comment_header_is_separated_from_data(self):
@@ -232,6 +263,171 @@ class TestKrxTradingCalendar(unittest.TestCase):
             header, rows = krx.price_rows(path)
         self.assertEqual(len(header), 2)
         self.assertEqual(rows, [{"date": "2026-08-07", "close": "100"}])
+
+
+PRICE_HEADER = (
+    "# schema_version price-series/2.1.0\n"
+    "# symbol {symbol} / currency KRW\n"
+    "# retrieved_at 2026-10-13T00:37:14+00:00 / source Yahoo Finance chart API\n"
+    "# last_bar 2026-10-13 / session UNSETTLED\n"
+    "# last_bar_timestamp 1791849600 / source Yahoo timestamp\n"
+    "{extra}"
+    "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n"
+)
+
+
+class TestStockSeriesIsFilledFromTheExchange(unittest.TestCase):
+    """종목 시계열의 구멍도 지수와 같은 방법으로 메운다.
+
+    2026-10-13 수집에서 파마리서치의 10-12 봉이 사라졌다. 그날 저장돼 있던 값은
+    장중의 300,000원이었고 거래소 종가는 297,000원이다 — 사라진 봉을 그대로
+    되살렸다면 틀린 값이 종가로 굳었을 것이다. 원문으로 메운다.
+    """
+
+    def _files(self, directory, *, extra="", stock_rows=None):
+        (directory / "214450_KQ.csv").write_text(
+            PRICE_HEADER.format(symbol="214450.KQ", extra=extra)
+            + "".join(stock_rows or [
+                "2026-10-08,302500.0,302500.0,1,309000.0,295500.0,125898\n",
+                "2026-10-13,278000.0,278000.0,1,289500.0,269500.0,30296\n",
+            ]),
+            encoding="utf-8",
+        )
+        (directory / "KS11.csv").write_text(
+            PRICE_HEADER.format(symbol="^KS11", extra="")
+            + "2026-10-08,6625.93,6625.93,1,6810.83,6625.93,302500\n"
+            + "2026-10-12,6384.24,6384.24,1,6589.69,6368.49,340600\n"
+            + "2026-10-13,6098.41,6098.41,1,6198.46,6088.6,52778\n",
+            encoding="utf-8",
+        )
+
+    def _run(self, directory, bars, **kwargs):
+        calls = []
+
+        def fetch_bar(date):
+            calls.append(date)
+            return bars.get(date)
+
+        with patch.object(krx, "PRICE_DIR", directory), \
+                patch.object(krx, "ROOT", directory), \
+                patch.object(krx.time, "sleep"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            krx.backfill_series(
+                directory / "214450_KQ.csv", symbol="214450.KQ",
+                endpoint="sto/ksq_bydd_trd", fetch_bar=fetch_bar,
+                limit=kwargs.get("limit", 20))
+        return calls
+
+    def test_the_lost_session_is_filled_with_the_exchange_close(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory, extra="# missing_sessions 2026-10-12 / 사라졌다\n")
+            calls = self._run(directory, {"2026-10-12": {
+                "close": 297000.0, "high": 306500.0, "low": 296500.0,
+                "volume": 69710.0}})
+            header, rows = krx.price_rows(directory / "214450_KQ.csv")
+            marker = json.loads(
+                (directory / "_backfill" / "214450_KQ.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(calls, ["2026-10-12"])
+        filled = next(r for r in rows if r["date"] == "2026-10-12")
+        self.assertEqual(float(filled["close"]), 297000.0)
+        self.assertEqual(float(filled["adjusted_close"]), 297000.0)
+        self.assertEqual(float(filled["volume"]), 69710.0)
+        self.assertEqual([r["date"] for r in rows],
+                         ["2026-10-08", "2026-10-12", "2026-10-13"])
+        self.assertEqual(marker["filled"], ["2026-10-12"])
+        self.assertEqual(marker["target"], "214450_KQ.csv")
+        self.assertTrue(header[3].startswith("# last_bar "),
+                        "머리말 네 줄의 자리가 바뀌었다")
+        self.assertTrue(any(line.startswith("# backfilled 2026-10-12 ") for line in header))
+        self.assertFalse(any(line.startswith("# missing_sessions") for line in header),
+                         "메웠는데 사라진 세션 기록이 남았다")
+
+    def test_a_day_the_exchange_does_not_have_is_left_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory)
+            self._run(directory, {})
+            _, rows = krx.price_rows(directory / "214450_KQ.csv")
+            marker = json.loads(
+                (directory / "_backfill" / "214450_KQ.json").read_text(encoding="utf-8"))
+
+        self.assertEqual([r["date"] for r in rows], ["2026-10-08", "2026-10-13"])
+        self.assertEqual(marker["filled"], [])
+        self.assertEqual(marker["unfilled"], ["2026-10-12"])
+
+    def test_exchange_quotes_are_moved_onto_the_stored_basis(self):
+        """앞뒤 봉이 같은 분할계수·배당 조정을 말하면 원문에 그 기준을 입힌다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory, stock_rows=[
+                "2026-10-08,1000.0,950.0,0.5,1010.0,990.0,200\n",
+                "2026-10-13,1100.0,1045.0,0.5,1110.0,1090.0,300\n",
+            ])
+            self._run(directory, {"2026-10-12": {
+                "close": 2100.0, "high": 2120.0, "low": 2080.0, "volume": 400.0}})
+            _, rows = krx.price_rows(directory / "214450_KQ.csv")
+
+        filled = next(r for r in rows if r["date"] == "2026-10-12")
+        self.assertEqual(float(filled["close"]), 1050.0)
+        self.assertAlmostEqual(float(filled["adjusted_close"]), 997.5)
+        self.assertEqual(float(filled["split_adjustment_factor"]), 0.5)
+        self.assertEqual(float(filled["high"]), 1060.0)
+        self.assertEqual(float(filled["volume"]), 800.0)
+
+    def test_two_holes_each_use_their_own_neighbours(self):
+        """먼저 메운 봉이 다음 구멍의 '직전 봉'이 되면 안 된다.
+
+        실제로 그랬다. 2025-09-19 를 먼저 메운 뒤 그 봉(배당 조정 전 기준)을
+        2026-10-12 의 직전 봉으로 읽어, 멀쩡한 구멍을 기준 불일치로 거절했다.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory, stock_rows=[
+                "2025-09-18,1000.0,980.0,1,1010.0,990.0,200\n",
+                "2025-09-22,1020.0,999.6,1,1030.0,1010.0,200\n",
+                "2026-10-08,302500.0,302500.0,1,309000.0,295500.0,125898\n",
+                "2026-10-13,278000.0,278000.0,1,289500.0,269500.0,30296\n",
+            ])
+            ks = directory / "KS11.csv"
+            ks.write_text(
+                ks.read_text(encoding="utf-8").replace(
+                    "2026-10-08,", "2025-09-19,3445.24,3445.24,1,3467.89,3434.61,1\n"
+                    "2026-10-08,", 1),
+                encoding="utf-8")
+            self._run(directory, {
+                "2025-09-19": {"close": 1010.0, "high": 1015.0, "low": 1005.0,
+                               "volume": 100.0},
+                "2026-10-12": {"close": 297000.0, "high": 306500.0, "low": 296500.0,
+                               "volume": 69710.0},
+            })
+            _, rows = krx.price_rows(directory / "214450_KQ.csv")
+            marker = json.loads(
+                (directory / "_backfill" / "214450_KQ.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(marker["filled"], ["2025-09-19", "2026-10-12"])
+        by_date = {r["date"]: r for r in rows}
+        self.assertAlmostEqual(float(by_date["2025-09-19"]["adjusted_close"]), 989.8)
+        self.assertEqual(float(by_date["2026-10-12"]["adjusted_close"]), 297000.0)
+
+    def test_a_basis_change_around_the_hole_is_not_guessed(self):
+        """배당락·분할 경계가 빈 날의 앞인지 뒤인지 모르면 메우지 않는다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory, stock_rows=[
+                "2026-10-08,1000.0,950.0,1,1010.0,990.0,200\n",
+                "2026-10-13,1100.0,1100.0,1,1110.0,1090.0,300\n",
+            ])
+            self._run(directory, {"2026-10-12": {
+                "close": 1050.0, "high": 1060.0, "low": 1040.0, "volume": 400.0}})
+            _, rows = krx.price_rows(directory / "214450_KQ.csv")
+            marker = json.loads(
+                (directory / "_backfill" / "214450_KQ.json").read_text(encoding="utf-8"))
+
+        self.assertNotIn("2026-10-12", [r["date"] for r in rows])
+        self.assertEqual(marker["unfilled"], ["2026-10-12"])
+        self.assertIn("2026-10-12", marker["unfilled_reasons"])
 
 
 if __name__ == "__main__":

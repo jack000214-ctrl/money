@@ -31,7 +31,10 @@ from cio.paths import DATA_DIR, ROOT
 
 KST = dt.timezone(dt.timedelta(hours=9))
 MARKET_PRICE_REQUIREMENTS = {
-    "KR": (("^KS11", True), ("^KQ11", True), ("^VIX", False)),
+    # 달러/원은 필수가 아니다. 없다고 판단을 세우지는 않지만, 원화로 보고하는
+    # 수출 회사의 packet 에 분기 평균·기말 환율을 싣는 재료다
+    # (`structured_optional.fx_usdkrw`).
+    "KR": (("^KS11", True), ("^KQ11", True), ("^VIX", False), ("KRW=X", False)),
     "US": (
         ("^GSPC", True),
         ("^IXIC", True),
@@ -170,12 +173,18 @@ def _price_task(symbol: str, *, required: bool = True) -> RefreshTask:
 KR_INDEX_MARKETS = {"^KS11": "KOSPI", "^KQ11": "KOSDAQ"}
 
 
-def _benchmark_backfill_task(symbol: str) -> RefreshTask:
+def _benchmark_backfill_task(
+    symbol: str, companions: tuple[str, ...] = (),
+) -> RefreshTask:
     """벤치마크 지수의 누락 거래일을 KRX 원문으로 메우는 작업.
 
-    Yahoo 는 거래일을 통째로 빠뜨리고도 정상 응답을 준다. price 수집이 파일을
-    덮어쓸 때마다 구멍도 함께 돌아오므로, 표식 파일이 가격 파일보다 오래되면
-    자동으로 다시 돈다.
+    Yahoo 는 거래일을 통째로 빠뜨리고도 정상 응답을 준다. 메운 봉은 다음 price
+    수집에서도 보존되지만(`collectors/price.py:merge_with_existing`) 새 구멍은
+    수집할 때마다 생길 수 있으므로, 표식 파일이 가격 파일보다 오래되면 다시 돈다.
+
+    `companions` 는 같은 계획에서 함께 수집되는 한국 시계열이다. 거래일 달력이
+    그 파일들의 합집합이라, 다른 파일에 새 날짜가 들어오면 이 지수의 구멍이
+    그때 처음 보인다 — 자기 파일만 의존성으로 걸면 "구멍 없음" 기록이 낡는다.
     """
     market = KR_INDEX_MARKETS[symbol]
     filename = safe_symbol(symbol)
@@ -191,7 +200,59 @@ def _benchmark_backfill_task(symbol: str) -> RefreshTask:
             "backfill",
             market,
         ],
-        dependencies=[f"knowledge/prices/{filename}.csv"],
+        dependencies=[
+            f"knowledge/prices/{filename}.csv",
+            *(f"knowledge/prices/{safe_symbol(other)}.csv"
+              for other in companions if other != symbol),
+        ],
+    )
+
+
+# `collectors.krx` 의 종목 서비스 경로와 같은 이름이다. ETF 는 거래소가 KOSPI 로
+# 적혀 있어도 서비스가 따로다.
+KRX_STOCK_MARKETS = {"KOSPI", "KOSDAQ", "KONEX"}
+
+
+def _asset_backfill_task(asset: dict[str, Any]) -> RefreshTask | None:
+    """종목·ETF 자기 시계열의 누락 거래일을 KRX 원문으로 메우는 작업.
+
+    지수만 메우던 때에는 종목 쪽 구멍을 볼 방법이 없었다. 2026-10-13 수집에서
+    파마리서치의 10-12 봉이 사라졌고, 그날의 packet 은 세션 수익률이 한 세션을
+    건너뛴 채 `validation: PASS` 로 나갔다.
+
+    필수가 아니다. 거래소 API 가 막혀도 판단을 세우지는 않는다 — 메우지 못한
+    구멍은 packet 의 `price.session_gaps` 가 따로 말한다. ETF 서비스는 활용신청이
+    별도라 신청하지 않았으면 이 작업만 실패한다.
+    """
+    if asset["market"] != "KR":
+        return None
+    market = "ETF" if asset["asset_type"] == "ETF" else asset.get("exchange")
+    if market != "ETF" and market not in KRX_STOCK_MARKETS:
+        return None
+    symbol = asset["price_symbol"]
+    filename = safe_symbol(symbol)
+    return RefreshTask(
+        name=f"price_backfill:{symbol}",
+        capability="PRICE_BACKFILL",
+        artifact=f"knowledge/prices/_backfill/{filename}.json",
+        max_age_hours=12,
+        command=[
+            sys.executable,
+            "-m",
+            "collectors.krx",
+            "backfill-stock",
+            symbol.split(".", 1)[0],
+            "--market",
+            market,
+        ],
+        required=False,
+        # 달력은 한국 시계열 전체의 합집합이다. 지수 파일에 새 날짜가 들어오면
+        # 종목 쪽 구멍이 그때 처음 보인다.
+        dependencies=[
+            f"knowledge/prices/{filename}.csv",
+            *(f"knowledge/prices/{safe_symbol(index)}.csv"
+              for index in KR_INDEX_MARKETS),
+        ],
     )
 
 
@@ -205,11 +266,18 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
     for symbol, required in MARKET_PRICE_REQUIREMENTS[asset["market"]]:
         tasks.append(_price_task(symbol, required=required))
     # 가격 수집 뒤에 놓는다 — 덮어쓴 파일 위에서 다시 메워야 한다.
-    for symbol in dict.fromkeys(
+    planned = list(dict.fromkeys(
         [*market_symbols, *(s for s, _ in MARKET_PRICE_REQUIREMENTS[asset["market"]])]
-    ):
+    ))
+    korean_series = tuple(
+        symbol for symbol in planned if symbol in KR_INDEX_MARKETS
+    ) + ((asset["price_symbol"],) if asset["market"] == "KR" else ())
+    for symbol in planned:
         if symbol in KR_INDEX_MARKETS:
-            tasks.append(_benchmark_backfill_task(symbol))
+            tasks.append(_benchmark_backfill_task(symbol, korean_series))
+    asset_backfill = _asset_backfill_task(asset)
+    if asset_backfill:
+        tasks.append(asset_backfill)
 
     if asset["asset_type"] == "STOCK":
         filing_source = asset["filing_source"]
@@ -464,6 +532,11 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                         "knowledge/prices/_backfill/"
                         f"{safe_symbol(primary_benchmark)}.json"
                     ] if primary_benchmark in KR_INDEX_MARKETS else []),
+                    # 종목 쪽 백필은 필수가 아니라 표식이 없을 수 있다. 없는
+                    # 입력을 의존성으로 걸면 급변 대조가 통째로 막히므로,
+                    # 한 번이라도 돈 뒤에만 건다.
+                    *([asset_backfill.artifact] if asset_backfill and (
+                        ROOT / asset_backfill.artifact).exists() else []),
                 ],
             )
         )
@@ -966,23 +1039,23 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             dispersion.get("recent"), dict
         ):
             return "컨센서스 packet에 최근 목표가 분산이 없다"
-    if task.capability == "BENCHMARK_BACKFILL":
+    if task.capability in {"BENCHMARK_BACKFILL", "PRICE_BACKFILL"}:
         try:
             data = load_json(path)
         except (OSError, ValueError):
-            return "벤치마크 백필 기록을 읽을 수 없다"
+            return "가격 백필 기록을 읽을 수 없다"
         if data.get("schema_version") != "price-backfill/1.0.0":
             return "price-backfill/1.0.0이 필요하다"
         filled = data.get("filled")
         target = data.get("target")
         if not isinstance(filled, list) or not isinstance(target, str):
-            return "벤치마크 백필 기록에 메운 거래일 목록이 없다"
+            return "가격 백필 기록에 메운 거래일 목록이 없다"
         # 기록이 스스로를 증명해야 한다. 대상 파일이 어떤 경로로든 다시 쓰여
         # 메웠던 거래일이 사라지면, 기록만 남아 '메웠다'고 거짓말한다.
         target_path = ROOT / "knowledge" / "prices" / target
         if filled:
             if not target_path.exists():
-                return "벤치마크 백필 대상 가격 파일이 없다"
+                return "가격 백필 대상 가격 파일이 없다"
             try:
                 with target_path.open(encoding="utf-8-sig") as handle:
                     present = {
@@ -994,7 +1067,7 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
                         )
                     }
             except OSError:
-                return "벤치마크 백필 대상 가격 파일을 읽을 수 없다"
+                return "가격 백필 대상 가격 파일을 읽을 수 없다"
             if not set(filled).issubset(present):
                 return "백필로 메웠던 거래일이 가격 파일에서 다시 사라졌다"
     if task.capability == "MARKET_STATE":
