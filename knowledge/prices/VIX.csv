@@ -1,6 +1,6 @@
 # schema_version price-series/2.1.0
 # symbol ^VIX / currency USD
-# retrieved_at 2026-10-13T00:37:15+00:00 / source Yahoo Finance chart API
+# retrieved_at 2026-10-13T03:39:45+00:00 / source Yahoo Finance chart API
 # last_bar 2026-10-12 / session SETTLED
 # last_bar_timestamp 1791788400 / source Yahoo timestamp
 date,close,adjusted_close,split_adjustment_factor,high,low,volume

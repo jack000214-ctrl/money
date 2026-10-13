@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "145020",
-  "collected_at": "2026-10-06T15:44:34+09:00",
+  "collected_at": "2026-10-13T12:41:14+09:00",
   "as_of": "2026-10-02",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
@@ -25,10 +25,10 @@
   "source_grade": "EXPLORATORY",
   "summary": {
     "rating": 4.0,
-    "target_price": 352667.0,
-    "eps": 12832.0,
-    "per": 14.04,
-    "institution_count": 15
+    "target_price": 348571.0,
+    "eps": 12804.0,
+    "per": 14.06,
+    "institution_count": 14
   },
   "estimates": {
     "annual": [
@@ -81,31 +81,31 @@
         "period": "2026-12",
         "fiscal_year": 2026,
         "actual": false,
-        "revenue_100m": 5227.0,
-        "revenue_yoy_pct": 22.96,
-        "operating_income_100m": 2023.0,
-        "net_income_100m": 1592.0,
-        "eps": 12832.0,
-        "per": 14.04,
+        "revenue_100m": 5220.0,
+        "revenue_yoy_pct": 22.79,
+        "operating_income_100m": 2003.0,
+        "net_income_100m": 1588.0,
+        "eps": 12804.0,
+        "per": 14.06,
         "pbr": 1.78,
-        "roe_pct": 15.41,
-        "ev_ebitda": 7.33,
-        "net_debt_ratio_pct": -53.29
+        "roe_pct": 15.38,
+        "ev_ebitda": 7.38,
+        "net_debt_ratio_pct": -53.4
       },
       {
         "period": "2027-12",
         "fiscal_year": 2027,
         "actual": false,
-        "revenue_100m": 6571.0,
-        "revenue_yoy_pct": 25.7,
-        "operating_income_100m": 2705.0,
+        "revenue_100m": 6583.0,
+        "revenue_yoy_pct": 26.12,
+        "operating_income_100m": 2694.0,
         "net_income_100m": 2102.0,
-        "eps": 16795.0,
+        "eps": 16797.0,
         "per": 10.72,
-        "pbr": 1.5,
-        "roe_pct": 17.22,
-        "ev_ebitda": 5.1,
-        "net_debt_ratio_pct": -55.74
+        "pbr": 1.49,
+        "roe_pct": 17.21,
+        "ev_ebitda": 5.11,
+        "net_debt_ratio_pct": -55.82
       }
     ],
     "per_band_actual": {
@@ -120,13 +120,13 @@
   "dispersion": {
     "consensus_window": {
       "window_days": 90,
-      "count": 15,
+      "count": 14,
       "min": 270000.0,
-      "max": 410000.0,
-      "median": 360000.0,
-      "mean": 352667.0,
-      "spread_pct": 51.85,
-      "oldest": "2026-07-07",
+      "max": 400000.0,
+      "median": 355000.0,
+      "mean": 348571.0,
+      "spread_pct": 48.15,
+      "oldest": "2026-08-07",
       "newest": "2026-10-02"
     },
     "recent": {
@@ -144,10 +144,10 @@
   },
   "revisions": {
     "window_days": 90,
-    "observed": 15,
+    "observed": 14,
     "raised": 0,
     "lowered": 6,
-    "unchanged": 9,
+    "unchanged": 8,
     "largest_raise": null,
     "largest_cut": {
       "broker": "삼성",
@@ -249,6 +249,14 @@
       "rating": "매수"
     },
     {
+      "broker": "IBK투자",
+      "date": "2026-08-07",
+      "target_price": 380000.0,
+      "prior_target_price": 380000.0,
+      "change_pct": 0.0,
+      "rating": "매수"
+    },
+    {
       "broker": "상상인",
       "date": "2026-08-07",
       "target_price": 380000.0,
@@ -263,29 +271,13 @@
       "prior_target_price": 400000.0,
       "change_pct": 0.0,
       "rating": "BUY"
-    },
-    {
-      "broker": "IBK투자",
-      "date": "2026-08-07",
-      "target_price": 380000.0,
-      "prior_target_price": 380000.0,
-      "change_pct": 0.0,
-      "rating": "매수"
-    },
-    {
-      "broker": "하나",
-      "date": "2026-07-07",
-      "target_price": 410000.0,
-      "prior_target_price": 410000.0,
-      "change_pct": 0.0,
-      "rating": "BUY"
     }
   ],
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data/raw/naver/consensus_145020_20261006_154431.html",
-    "estimates": "data/raw/naver/estimates_145020_20261006_154431.html"
+    "summary": "data/raw/naver/consensus_145020_20261013_124112.html",
+    "estimates": "data/raw/naver/estimates_145020_20261013_124112.html"
   },
   "history": [
     {
@@ -317,12 +309,12 @@
     },
     {
       "as_of": "2026-10-02",
-      "collected_at": "2026-10-06T15:44:34+09:00",
+      "collected_at": "2026-10-13T12:41:14+09:00",
       "rating": 4.0,
-      "target_price": 352667.0,
-      "eps": 12832.0,
-      "per": 14.04,
-      "institution_count": 15
+      "target_price": 348571.0,
+      "eps": 12804.0,
+      "per": 14.06,
+      "institution_count": 14
     }
   ]
 }

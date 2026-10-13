@@ -1,6 +1,6 @@
 {
   "schema_version": "market-regime/2.0.0",
-  "collected_at": "2026-10-13T10:15:03+09:00",
+  "collected_at": "2026-10-13T12:41:21+09:00",
   "lookback_days": 500,
   "by_market": {
     "KR": {
@@ -9,24 +9,24 @@
       "mark": "🟠",
       "score": 3,
       "notes": [
-        "주요 지수 고점 대비 -33.4% — 약세장"
+        "주요 지수 고점 대비 -34.9% — 약세장"
       ],
       "indices": [
         {
           "symbol": "^KS11",
           "name": "KOSPI",
           "as_of": "2026-10-13",
-          "close": 6066.79,
+          "close": 5935.8799,
           "high": 9114.5498,
-          "drawdown_pct": -33.44
+          "drawdown_pct": -34.87
         },
         {
           "symbol": "^KQ11",
           "name": "KOSDAQ",
           "as_of": "2026-10-13",
-          "close": 832.99,
+          "close": 809.27,
           "high": 1226.1801,
-          "drawdown_pct": -32.07
+          "drawdown_pct": -34.0
         }
       ],
       "volatility": {
@@ -38,7 +38,7 @@
         "percentile": 16.8,
         "in_score": false
       },
-      "worst_drawdown_pct": -33.44
+      "worst_drawdown_pct": -34.87
     }
   },
   "macro": {

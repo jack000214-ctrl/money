@@ -2,7 +2,7 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "TSLA",
   "cik": "0001318605",
-  "collected_at": "2026-09-02T04:36:41+00:00",
+  "collected_at": "2026-10-13T03:44:28+00:00",
   "source": "SEC_EDGAR_SUBMISSIONS",
   "forms_filter": [
     "10-K",
@@ -19,9 +19,47 @@
     "S-3/A",
     "S-3ASR"
   ],
-  "raw_payload_sha256": "0315111c04a0db623f85da3187c7cea0437598ad0c8701053af95cd85a5908c4",
-  "raw_locator": "data/raw/edgar/objects/0315111c04a0db623f85da3187c7cea0437598ad0c8701053af95cd85a5908c4.json",
+  "raw_payload_sha256": "95f2bf4860d726002b77e03d30475fc0e9523dd343e0f101df812e60c8e3e3eb",
+  "raw_locator": "data/raw/edgar/objects/95f2bf4860d726002b77e03d30475fc0e9523dd343e0f101df812e60c8e3e3eb.json",
   "filings": [
+    {
+      "filing_date": "2026-10-02",
+      "report_date": "2026-10-02",
+      "form": "8-K",
+      "accession_number": "0001628280-26-064366",
+      "primary_document": "tsla-20261002.htm",
+      "description": "8-K",
+      "items": [
+        "2.02",
+        "9.01"
+      ],
+      "item_labels": [
+        "2.02 실적 발표",
+        "9.01 재무제표·첨부서류"
+      ],
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026064366/tsla-20261002.htm"
+    },
+    {
+      "filing_date": "2026-09-29",
+      "report_date": "2026-09-29",
+      "form": "8-K",
+      "accession_number": "0001628280-26-063820",
+      "primary_document": "tsla-20260929.htm",
+      "description": "8-K",
+      "items": [
+        "1.01",
+        "1.02",
+        "2.03",
+        "9.01"
+      ],
+      "item_labels": [
+        "1.01 중요 계약 체결",
+        "1.02 중요 계약 종료",
+        "2.03 채무 발생",
+        "9.01 재무제표·첨부서류"
+      ],
+      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026063820/tsla-20260929.htm"
+    },
     {
       "filing_date": "2026-07-23",
       "report_date": "2026-06-30",
@@ -739,38 +777,6 @@
         "5.07 주주총회 표결 결과"
       ],
       "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023052618/tsla-20230516.htm"
-    },
-    {
-      "filing_date": "2023-10-02",
-      "report_date": "2023-10-02",
-      "form": "8-K",
-      "accession_number": "0000950170-23-050938",
-      "primary_document": "tsla-20231002.htm",
-      "description": "8-K",
-      "items": [
-        "2.02",
-        "9.01"
-      ],
-      "item_labels": [
-        "2.02 실적 발표",
-        "9.01 재무제표·첨부서류"
-      ],
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023050938/tsla-20231002.htm"
-    },
-    {
-      "filing_date": "2023-08-07",
-      "report_date": "2023-08-04",
-      "form": "8-K",
-      "accession_number": "0000950170-23-038779",
-      "primary_document": "tsla-20230804.htm",
-      "description": "8-K",
-      "items": [
-        "5.02"
-      ],
-      "item_labels": [
-        "5.02 임원·이사 변동"
-      ],
-      "document_url": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023038779/tsla-20230804.htm"
     }
   ]
 }

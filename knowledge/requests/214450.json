@@ -1,7 +1,7 @@
 {
   "schema_version": "research-ledger/1.0.0",
   "asset_id": "214450",
-  "updated_at": "2026-10-13T10:27:25+09:00",
+  "updated_at": "2026-10-13T13:11:52+09:00",
   "resolutions": [
     {
       "request_id": "REQ-1a8d49f66703",
@@ -98,6 +98,14 @@
       "note": "structured_optional.fx_usdkrw 분기 환율표. 환위험 주석 파서는 만들지 않음(cio search 로 읽는다)",
       "resolved_by": "USER",
       "resolved_at": "2026-10-13T10:27:25+09:00"
+    },
+    {
+      "request_id": "REQ-a68c073fec83",
+      "text": "fundamentals 수집기에 단기금융상품과 상환전환우선주부채·전환사채가 빠져 있다. 순부채와 희석주식수 둘 다 틀리게 나오므로 opendart_fnlttSinglAcntAll 계정 매핑을 보완해야 한다(214450 2026-03-31: 단기금융상품 3,308억, 전환상환우선주부채 2,051.9억, 전환사채 57.7억 누락).",
+      "state": "DONE",
+      "note": null,
+      "resolved_by": "USER",
+      "resolved_at": "2026-10-13T13:11:52+09:00"
     }
   ]
 }
