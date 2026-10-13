@@ -237,9 +237,12 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         adjusted_value = (
             adjusted[index] if adjusted and index < len(adjusted) else None
         )
-        adjusted_close = _stable(
-            adjusted_value if _is_number(adjusted_value) else close
-        )
+        # 조정종가가 없으면 **비워 둔다.** 예전에는 원가격을 대신 넣었다. 그러면
+        # 파일의 모든 행에 조정종가가 있는 것처럼 보여, 읽는 쪽이 원가격을 배당이
+        # 반영된 값으로 읽고 `returns_basis: ADJUSTED_CLOSE` 라고 싣는다 — 원가격
+        # 100→90, 배당 10 이면 총수익률 0% 가 −10% 로 나갔다. 결측을 메우는 순간
+        # 그 값이 무엇이었는지가 사라진다. 비어 있으면 읽는 쪽이 기준을 낮춘다.
+        adjusted_close = _stable(adjusted_value) if _is_number(adjusted_value) else None
         # Yahoo 가 주는 close·high·low 는 **응답 시점 기준으로 분할이 이미
         # 반영된** 값이다. MSTR 10:1 분할 직전 종가가 1,246 이 아니라 124.68 로
         # 오고 분할 다음 날과 끊김 없이 이어지며, 배당이 없는 종목은 분할 전
@@ -357,7 +360,11 @@ BACKFILLED_PREFIX = "# backfilled "
 MAX_RECORDED_MISSING_SESSIONS = 20
 # 옛 행을 이어 붙이려면 값이 있어야 하는 열. 거래량은 뺀다 — KRX 로 메운
 # 지수 행은 거래량 단위가 Yahoo 와 달라 일부러 비워 둔다(`collectors/krx.py`).
-CARRIED_ROW_FIELDS = tuple(field for field in FIELDS if field != "volume")
+# 조정종가도 뺀다 — 출처가 주지 않으면 비워 두는 열이고(`fetch`), 그 봉의 종가와
+# 고가·저가는 여전히 관측이라 조정종가가 없다는 이유로 이력을 버리지 않는다.
+CARRIED_ROW_FIELDS = tuple(
+    field for field in FIELDS if field not in ("volume", "adjusted_close")
+)
 
 
 def _header_notes(path: Path, prefix: str) -> tuple[list[str], str]:
@@ -597,6 +604,14 @@ def cmd_history(args) -> None:
     meta, rows = fetch(args.symbol, args.range)
     state = session_state(meta, rows[-1]["date"])
     fetched = len(rows)
+    unadjusted = [row["date"] for row in rows if row["adjusted_close"] is None]
+    if unadjusted:
+        print(
+            f"※ 조정종가가 없는 봉 {len(unadjusted)}일 "
+            f"({unadjusted[0]} ~ {unadjusted[-1]}) — 원가격으로 채우지 않고 비워 "
+            "뒀다. 그 봉이 걸친 수익률은 배당이 빠진 가격 수익률로 실린다",
+            file=sys.stderr,
+        )
     path = save(args.symbol, meta, rows)
     # 저장된 파일을 그대로 읽어 보고한다. 받아 온 행수를 그대로 찍으면
     # 병합으로 보존한 이력이 화면에서 사라지고, 사용자는 파일이 잘린 줄 안다.

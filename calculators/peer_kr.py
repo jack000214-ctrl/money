@@ -10,6 +10,7 @@
 
 import argparse
 import json
+import statistics
 import sys
 import urllib.parse
 import urllib.request
@@ -149,6 +150,17 @@ def gather(stock_code, key, year):
     return row
 
 
+def same_basis_peers(target, peers):
+    """기준 종목과 같은 회계연도의 동종만 비교에 남긴다. → (남긴 것, 뺀 것)
+
+    회계연도를 모르는 줄(재무를 못 받은 줄)은 어느 해의 값인지 말할 수 없으므로
+    뺀 쪽이다. 기준 종목의 회계연도를 모르면 아무것도 비교하지 않는다.
+    """
+    basis = target.get("basis")
+    kept = [row for row in peers if basis and row.get("basis") == basis]
+    return kept, [row for row in peers if row not in kept]
+
+
 def fmt(v, spec, width, dash="—"):
     return f"{v:{spec}}" if v is not None else f"{dash:>{width}}"
 
@@ -191,9 +203,16 @@ def main():
     if not tgt or not peers:
         return
 
+    # `fy_main` 은 요청 연도가 없으면 한 해 전으로 내려간다. 그래서 '기준' 열이
+    # 종목마다 다를 수 있는데, 예전에는 그대로 중앙값에 넣으면서 "전 종목 같은
+    # 기준으로 통일했다"고 적었다. 다른 해의 이익으로 낸 배수는 섞지 않는다.
+    peers, other_year = same_basis_peers(tgt, peers)
     print("\n" + "=" * 92)
-    print("상대 위치")
+    print(f"상대 위치 — 회계연도 {tgt.get('basis') or '미상'} 끼리만 비교")
     print("=" * 92)
+    if other_year:
+        print("※ 회계연도가 달라 뺀 종목: "
+              + ", ".join(f"{r['code']}({r.get('basis') or '미상'})" for r in other_year))
     for label, k in [("PER", "per"), ("PSR", "psr"),
                      ("PBR", "pbr"), ("영업이익률", "opm")]:
         vals = [r[k] for r in peers if r.get(k) is not None]
@@ -201,7 +220,7 @@ def main():
         if mine is None or not vals:
             print(f"{label:<12} 비교 불가 (데이터 부족)")
             continue
-        med = sorted(vals)[len(vals) // 2]
+        med = statistics.median(vals)
         # 중앙값이 0 이하면 차이를 비율로 말할 수 없다. 0 으로 두면
         # 비교 불가가 "중앙값 근접"으로 읽힌다 — peer_us 와 같은 자리다.
         gap = change_pct(mine, med)
@@ -215,8 +234,11 @@ def main():
               + cell(gap, 7, "+.1f", "%") + f"   {position}")
 
     print("\n※ 시가총액은 보통주 기준. 우선주 상장사는 실제 시총이 더 크다.")
-    print("※ 전 종목 연간(FY) 연결 기준으로 통일했다 — '기준' 열이 회계연도다.")
-    print("※ PER = 시가총액 ÷ 당기순이익. 최신 분기는 반영돼 있지 않다.")
+    print("※ 연간(FY) 연결 기준이다 — '기준' 열이 회계연도이며 종목마다 다를 수 "
+          "있다. 상대 위치는 기준 종목과 같은 회계연도끼리만 냈다.")
+    print("※ PER = 시가총액 ÷ 당기순이익. 분자는 보통주 시가총액인데 분모는 "
+          "비지배지분을 포함한 연결 순이익이다 — 비지배지분이 큰 회사는 PER 이 "
+          "낮게 나온다. 최신 분기는 반영돼 있지 않다.")
     print("※ 사업 구성이 다르면 마진 비교가 왜곡된다 (제품 믹스 확인 필요).")
 
 

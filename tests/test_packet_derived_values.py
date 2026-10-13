@@ -143,6 +143,124 @@ class TestPeerGapReachesThePacket(unittest.TestCase):
         self.assertIsNone(_peer_multiples({"asset_id": "000660", "peers": []}))
 
 
+class TestPeersAreComparedWithinOneForwardPeriod(unittest.TestCase):
+    """같은 수집기를 썼다는 것이 같은 전망기간이라는 뜻은 아니다.
+
+    대상 2026년 15배, 동종 A 2026년 10배, 동종 B 2027년 30배를 그대로 섞으면
+    중앙값 20 대비 25% 저렴하다고 실린다. 같은 2026년끼리는 50% 비싸다 —
+    상대 위치의 부호가 뒤집힌다.
+    """
+
+    def block(self, subject, *peers):
+        table = {"SUBJ": subject, **{f"PEER{i}": row for i, row in enumerate(peers)}}
+
+        def fake_row(asset_id, name):
+            row = table[asset_id]
+            if row is None:
+                return {"asset_id": asset_id, "name": name, "available": False,
+                        "forward_per": None}
+            period, per, as_of = row
+            return {"asset_id": asset_id, "name": name, "available": True,
+                    "as_of": as_of, "forward_period": period, "forward_per": per}
+
+        with patch("cio.context._forward_multiple_row", side_effect=fake_row):
+            return _peer_multiples({
+                "asset_id": "SUBJ", "name": "대상",
+                "peers": [{"asset_id": f"PEER{i}", "name": f"동종{i}"}
+                          for i in range(len(peers))]})
+
+    def test_a_peer_from_another_forward_year_does_not_move_the_median(self):
+        block = self.block(("2026-12", 15.0, "2026-10-12"),
+                           ("2026-12", 10.0, "2026-10-12"),
+                           ("2027-12", 30.0, "2026-10-12"))
+        self.assertEqual(block["forward_period"], "2026-12")
+        self.assertEqual(block["forward_per_median"], 10.0)
+        self.assertEqual(block["forward_per_vs_median_pct"], 50.0)
+        self.assertEqual(block["forward_per_max"], 10.0)
+        self.assertEqual(block["excluded_from_median"],
+                         [{"asset_id": "PEER1", "forward_period": "2027-12"}])
+        # 값은 지우지 않고, 어느 기간의 배수인지와 비교에서 빠졌다는 표시를 남긴다.
+        self.assertEqual(block["peers"][1]["forward_per"], 30.0)
+        self.assertIs(block["peers"][1]["comparable"], False)
+        self.assertNotIn("comparable", block["peers"][0])
+        self.assertIn("2026-12", block["_period_note"])
+
+    def test_all_peers_in_one_period_carry_no_exclusion_note(self):
+        block = self.block(("2026-12", 15.0, "2026-10-12"),
+                           ("2026-12", 10.0, "2026-10-12"),
+                           ("2026-12", 30.0, "2026-10-12"))
+        self.assertEqual(block["forward_per_median"], 20.0)
+        self.assertEqual(block["forward_per_vs_median_pct"], -25.0)
+        self.assertNotIn("excluded_from_median", block)
+        self.assertNotIn("as_of_range", block)
+
+    def test_a_different_fiscal_year_end_is_a_different_period(self):
+        """3월 결산의 2027-03 과 12월 결산의 2026-12 는 같은 해가 아니다."""
+        block = self.block(("2026-12", 15.0, "2026-10-12"),
+                           ("2027-03", 9.0, "2026-10-12"))
+        self.assertIsNone(block["forward_per_median"])
+        self.assertIsNone(block["forward_per_vs_median_pct"])
+        self.assertEqual(len(block["excluded_from_median"]), 1)
+
+    def test_without_a_subject_estimate_peers_need_one_shared_period(self):
+        shared = self.block(None, ("2026-12", 10.0, "2026-10-12"),
+                            ("2026-12", 14.0, "2026-10-12"))
+        self.assertEqual(shared["forward_period"], "2026-12")
+        self.assertEqual(shared["forward_per_median"], 12.0)
+        self.assertIsNone(shared["forward_per_vs_median_pct"])
+        split = self.block(None, ("2026-12", 10.0, "2026-10-12"),
+                           ("2027-12", 14.0, "2026-10-12"))
+        self.assertIsNone(split["forward_period"])
+        self.assertIsNone(split["forward_per_median"])
+        self.assertEqual(len(split["excluded_from_median"]), 2)
+
+    def test_the_price_dates_behind_the_multiples_are_shown_when_they_differ(self):
+        """기준일은 맞추지 않는다 — 맞췄다고 쓰지 않고 범위를 낸다."""
+        block = self.block(("2026-12", 15.0, "2026-10-12"),
+                           ("2026-12", 10.0, "2026-08-28"))
+        self.assertEqual(block["as_of_range"],
+                         {"from": "2026-08-28", "to": "2026-10-12"})
+        self.assertNotIn("동일 기준일", block["basis"])
+
+    def test_peer_order_does_not_change_the_result(self):
+        rows = [("2026-12", 10.0, "2026-10-12"), ("2027-12", 30.0, "2026-10-12"),
+                ("2026-12", 18.0, "2026-10-12")]
+        forward = self.block(("2026-12", 15.0, "2026-10-12"), *rows)
+        backward = self.block(("2026-12", 15.0, "2026-10-12"), *reversed(rows))
+        for key in ("forward_per_median", "forward_per_vs_median_pct",
+                    "forward_per_min", "forward_per_max"):
+            self.assertEqual(forward[key], backward[key])
+
+
+class TestTheFirstForwardYearIsChosenByPeriod(unittest.TestCase):
+    """첫 전망연도는 표의 순서가 아니라 기간으로 고른다."""
+
+    def row(self, annual):
+        import cio.context as context
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "consensus").mkdir()
+            (Path(tmp) / "consensus" / "X.json").write_text(json.dumps({
+                "as_of": "2026-10-12",
+                "estimates": {"annual": annual, "per_band_actual": {}}}))
+            with patch.object(context, "KNOWLEDGE_DIR", Path(tmp)):
+                return context._forward_multiple_row("X", "x")
+
+    def annual(self):
+        return [
+            {"period": period, "actual": actual, "per": per,
+             "revenue_yoy_pct": None, "roe_pct": None}
+            for period, actual, per in (("2025-12", True, 20.0),
+                                        ("2026-12", False, 15.0),
+                                        ("2027-12", False, 12.0))]
+
+    def test_row_order_does_not_change_the_forward_year(self):
+        ordered = self.row(self.annual())
+        shuffled = self.row(list(reversed(self.annual())))
+        self.assertEqual(ordered["forward_period"], "2026-12")
+        self.assertEqual(shuffled["forward_period"], "2026-12")
+        self.assertEqual(shuffled["forward_per"], 15.0)
+
+
 class TestForwardMultipleRow(unittest.TestCase):
     """자신과 동종이 같은 함수를 지나는가."""
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import json
 import statistics
 import urllib.error
@@ -38,21 +39,57 @@ def safe_name(symbol: str) -> str:
 
 
 def local_series(symbol: str, days: int | None = None) -> list[tuple[str, float]]:
+    return local_series_with_fingerprint(symbol, days)[0]
+
+
+def local_series_with_fingerprint(
+    symbol: str, days: int | None = None
+) -> tuple[list[tuple[str, float]], str | None]:
+    """로컬 가격 파일의 종가와, **읽은 그 바이트**의 지문.
+
+    지문은 "이 계산이 어떤 입력 위에서 나왔는가"의 기록이다. 가격 파일은 회수시각을
+    바꾸지 않고도 내용이 바뀐다 — 거래소 백필이 빠진 봉을 채우면 `retrieved_at` 은
+    그대로다. 시각만 비교하는 의존성 검사는 그 변화를 못 보고, 그래서 입력이
+    바뀌었는데 옛 시장 상태가 신선하다고 남았다(`cio/refresh.py:inspect_task`).
+    읽은 바이트와 지문 낸 바이트가 같도록 파일을 한 번만 읽는다.
+    """
     path = PRICE_DIR / f"{safe_name(symbol)}.csv"
     if not path.exists():
-        return []
-    with path.open(encoding="utf-8") as handle:
-        rows = list(
-            csv.DictReader(
-                line for line in handle if not line.lstrip().startswith("#")
-            )
+        return [], None
+    raw = path.read_bytes()
+    rows = list(
+        csv.DictReader(
+            line
+            for line in raw.decode("utf-8").splitlines()
+            if not line.lstrip().startswith("#")
         )
+    )
     points = [
         (row["date"], float(row["close"]))
         for row in rows
         if row.get("date") and row.get("close")
     ]
-    return points[-days:] if days and len(points) > days else points
+    if days and len(points) > days:
+        points = points[-days:]
+    return points, hashlib.sha256(raw).hexdigest()
+
+
+def source_row(symbol: str, mode: str, points: list[tuple[str, float]],
+               fingerprint: str | None) -> dict:
+    """입력 한 줄. 로컬 파일을 읽었으면 그 경로와 내용 지문을 함께 남긴다."""
+    row = {
+        "symbol": symbol,
+        "mode": mode,
+        "data_as_of": points[-1][0] if points else None,
+    }
+    if mode == "LOCAL_SNAPSHOT" and fingerprint:
+        path = PRICE_DIR / f"{safe_name(symbol)}.csv"
+        try:
+            row["path"] = str(path.relative_to(ROOT))
+        except ValueError:
+            row["path"] = str(path)
+        row["content_sha256"] = fingerprint
+    return row
 
 
 def remote_series(symbol: str, period: str) -> list[tuple[str, float]]:
@@ -82,13 +119,22 @@ def remote_series(symbol: str, period: str) -> list[tuple[str, float]]:
 def get_series(
     symbol: str, period: str, days: int, *, local_only: bool
 ) -> tuple[list[tuple[str, float]], str]:
-    local = local_series(symbol, days)
+    points, mode, _ = get_series_with_fingerprint(
+        symbol, period, days, local_only=local_only
+    )
+    return points, mode
+
+
+def get_series_with_fingerprint(
+    symbol: str, period: str, days: int, *, local_only: bool
+) -> tuple[list[tuple[str, float]], str, str | None]:
+    local, fingerprint = local_series_with_fingerprint(symbol, days)
     if local:
-        return local, "LOCAL_SNAPSHOT"
+        return local, "LOCAL_SNAPSHOT", fingerprint
     if local_only:
-        return [], "MISSING"
+        return [], "MISSING", None
     remote = remote_series(symbol, period)
-    return remote, "REMOTE_EPHEMERAL" if remote else "MISSING"
+    return remote, "REMOTE_EPHEMERAL" if remote else "MISSING", None
 
 
 def _rounded(value: float | None) -> float | None:
@@ -146,16 +192,10 @@ def analyse(
     sources = []
     index_rows = []
     for symbol, name in config["indices"]:
-        points, mode = get_series(
+        points, mode, fingerprint = get_series_with_fingerprint(
             symbol, period, days, local_only=local_only
         )
-        sources.append(
-            {
-                "symbol": symbol,
-                "mode": mode,
-                "data_as_of": points[-1][0] if points else None,
-            }
-        )
+        sources.append(source_row(symbol, mode, points, fingerprint))
         if not points:
             continue
         closes = [value for _, value in points]
@@ -173,17 +213,11 @@ def analyse(
         )
 
     volatility_symbol, volatility_name = config["volatility"]
-    volatility_points, mode = get_series(
+    volatility_points, mode, fingerprint = get_series_with_fingerprint(
         volatility_symbol, period, days, local_only=local_only
     )
     sources.append(
-        {
-            "symbol": volatility_symbol,
-            "mode": mode,
-            "data_as_of": volatility_points[-1][0]
-            if volatility_points
-            else None,
-        }
+        source_row(volatility_symbol, mode, volatility_points, fingerprint)
     )
     volatility = None
     volatility_now = None
@@ -240,14 +274,10 @@ def macro(
     rows = []
     sources = []
     for symbol, name in MARKETS[market]["macro"]:
-        points, mode = get_series(symbol, period, days, local_only=local_only)
-        sources.append(
-            {
-                "symbol": symbol,
-                "mode": mode,
-                "data_as_of": points[-1][0] if points else None,
-            }
+        points, mode, fingerprint = get_series_with_fingerprint(
+            symbol, period, days, local_only=local_only
         )
+        sources.append(source_row(symbol, mode, points, fingerprint))
         if not points:
             continue
         values = [value for _, value in points]
@@ -305,6 +335,13 @@ def main() -> int:
         "by_market": by_market,
         "macro": {"by_market": macro_rows},
         "input_sources": input_sources,
+        # 이 계산이 읽은 로컬 파일과 그 내용 지문. refresh 가 지금 파일과 대조해
+        # 입력이 바뀌었으면 다시 계산한다 — 시각이 아니라 내용으로 본다.
+        "input_fingerprints": {
+            source["path"]: source["content_sha256"]
+            for source in input_sources
+            if source.get("path") and source.get("content_sha256")
+        },
         "_note": "측정값이며 투자 행동을 지시하지 않는다",
     }
     if args.out:

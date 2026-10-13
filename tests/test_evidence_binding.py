@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -26,13 +27,76 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from calculators.contracts import content_hash
+from calculators.contracts import canonical_payload_hash, content_hash
+from cio import documents as documents_module
 from cio.decision import (
     context_id_for,
     validate_context_integrity,
     validate_decision,
 )
 from test_cio_core import valid_context, valid_decision
+
+
+class PreservedStore(unittest.TestCase):
+    """임시 폴더에 실제 모양의 보존 원문을 만든다.
+
+    결속 검사를 흉내 내지 않고 진짜 파일 위에서 돌린다 — 검사 대상인 함수를
+    패치해 놓고 통과를 확인하면 그 함수가 무엇을 보는지는 시험되지 않는다.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.dart = self.root / "data" / "raw" / "dart" / "objects"
+        self.web = self.root / "data" / "raw" / "web" / "objects"
+        self.dart.mkdir(parents=True)
+        self.web.mkdir(parents=True)
+        for target, value in (
+            ("ROOT", self.root),
+            ("INDEX_PATH", self.root / "data" / "raw" / "document-index.json"),
+            ("TEXT_CACHE_DIR", self.root / "data" / "raw" / "text"),
+            ("OBJECT_DIRS", (("DART", self.dart), ("WEB", self.web))),
+        ):
+            patcher = patch.object(documents_module, target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        documents_module._PRESERVED_LOCATORS.clear()
+        documents_module._VERIFIED_ORIGINALS.clear()
+        self.addCleanup(documents_module._PRESERVED_LOCATORS.clear)
+        self.addCleanup(documents_module._VERIFIED_ORIGINALS.clear)
+
+    def _store(self, directory, payload, fetched_at, source):
+        digest = canonical_payload_hash(payload)
+        path = directory / f"{digest}.json"
+        path.write_text(json.dumps({
+            "fetched_at": fetched_at, "source": source,
+            "payload_sha256": digest, "payload": payload}), encoding="utf-8")
+        documents_module._PRESERVED_LOCATORS.clear()
+        return digest, path
+
+    def preserve_filing(self, rcept_no="20260730800077",
+                        fetched_at="2026-07-28T00:30:00+00:00"):
+        payload = {"rcept_no": rcept_no, "documents": {
+            f"{rcept_no}.xml": "<DOCUMENT-NAME>영업(잠정)실적</DOCUMENT-NAME>"
+                               "<P>영업이익 100</P>"}}
+        _digest, path = self._store(self.dart, payload, fetched_at, "opendart.fss.or.kr")
+        return f"DARTDOC:{rcept_no}", path
+
+    def preserve_page(self, url="https://example.org/ir/q2", *, body=None,
+                      fetched_at="2026-07-28T00:30:00+00:00"):
+        payload = {"requested_url": url, "final_url": url, "http_status": 200,
+                   "content_type": "text/html", "content_length": 80,
+                   "body_encoding": "utf-8",
+                   "body": body or "<html><title>Q2</title><p>" + "영업이익 " * 300 + "</p></html>"}
+        digest, path = self._store(self.web, payload, fetched_at, "web")
+        return f"WEBSNAP:{digest[:12]}", path
+
+    @staticmethod
+    def source(source_id, locator, *, retrieved_at="2026-07-28T09:30:00+09:00"):
+        return {"source_id": source_id, "type": "PRESERVED_ORIGINAL",
+                "locator": locator, "published_at": None,
+                "retrieved_at": retrieved_at}
 
 BASIS = {
     "metric": "영업이익",
@@ -144,34 +208,6 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
             [],
         )
 
-    DART_SOURCE = {
-        "source_id": "DARTDOC:20260730800077",
-        "type": "DART_DOCUMENT",
-        "locator": "https://dart.fss.or.kr/x",
-        "published_at": "2026-07-30T00:00:00+09:00",
-        "retrieved_at": "2026-07-30T01:00:00+09:00",
-    }
-
-    def cite_original(self, *, preserved):
-        with patch("cio.documents.preserved_document_ids", return_value=preserved):
-            return _errors(
-                _context(),
-                _check(evidence_refs=["DARTDOC:20260730800077"]),
-                sources=[dict(self.DART_SOURCE)],
-            )
-
-    def test_a_preserved_original_document_can_confirm_earnings(self):
-        """공시 원문을 로컬에 보존해 인용하는 것이 1차 출처다."""
-        self.assertEqual(
-            self.cite_original(preserved={"DARTDOC:20260730800077"}), [])
-
-    def test_an_original_that_was_never_preserved_is_only_a_name(self):
-        """`DARTDOC:` 라는 이름은 주장이다. 가리키는 원문이 로컬에 없으면 직접
-        조사한 출처와 다를 것이 없고, 그것으로 실적을 확인했다고 할 수 없다."""
-        errors = self.cite_original(preserved=set())
-        self.assertEqual(len(errors), 1)
-        self.assertIn("MODEL_RESEARCH", errors[0])
-
     def test_earnings_confirmed_by_a_news_article_is_rejected(self):
         """1차 출처를 두고 2차 출처를 쓰는 것을 막는다."""
         context = _context()
@@ -215,6 +251,122 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
             ),
             [],
         )
+
+
+class TestACitedOriginalIsBoundToItsPreservedDocument(PreservedStore):
+    """인용 주소·보존한 본문·그 지문·회수시각이 한 문서를 가리켜야 한다.
+
+    예전에는 ID 가 색인에 있는지만 봤다. 실제 저장 판단 8건의 보존 출처 87개를
+    전부 다른 주소로 바꿔도 통과했고, 본문이 지문과 맞지 않는 파일도 이름만
+    맞으면 1차 원문(`PRIMARY_DOCUMENT`)이었다. 파일의 존재가 출처 결속으로
+    읽히고 있었다.
+    """
+
+    DART_URL = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800077"
+
+    def cite(self, source):
+        data = valid_decision()
+        context = _context()
+        data["context_id"] = context["context_id"]
+        data["sources"] = [source]
+        data["user_assertion_checks"] = [_check(evidence_refs=[source["source_id"]])]
+        return validate_decision(data, context=context)
+
+    def test_a_preserved_filing_cited_at_its_own_address_can_confirm_earnings(self):
+        """공시 원문을 로컬에 보존해 인용하는 것이 1차 출처다."""
+        source_id, _ = self.preserve_filing()
+        self.assertEqual(self.cite(self.source(source_id, self.DART_URL)), [])
+
+    def test_an_original_that_was_never_preserved_is_only_a_name(self):
+        """`DARTDOC:` 라는 이름은 주장이다. 가리키는 원문이 로컬에 없으면 직접
+        조사한 출처와 다를 것이 없고, 그것으로 실적을 확인했다고 할 수 없다."""
+        errors = self.cite(self.source("DARTDOC:20260730800077", self.DART_URL))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("MODEL_RESEARCH", errors[0])
+
+    def test_a_preserved_filing_cited_at_another_address_is_refused(self):
+        source_id, _ = self.preserve_filing()
+        for locator in ("https://example.invalid/replaced-citation",
+                        "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260101000001",
+                        "https://evil.example/dsaf001/main.do?rcpNo=20260730800077"):
+            with self.subTest(locator=locator):
+                errors = self.cite(self.source(source_id, locator))
+                self.assertTrue(any("locator가" in error for error in errors), errors)
+                # 결속되지 않은 출처로는 실적 주장도 닫히지 않는다.
+                self.assertTrue(any("MODEL_RESEARCH" in error for error in errors))
+
+    def test_a_preserved_page_must_be_cited_at_the_address_it_was_fetched_from(self):
+        source_id, _ = self.preserve_page("https://example.org/ir/q2")
+        self.assertEqual(self.cite(self.source(source_id, "https://example.org/ir/q2")), [])
+        errors = self.cite(self.source(source_id, "https://example.org/ir/q3"))
+        self.assertTrue(any("https://example.org/ir/q2" in error for error in errors), errors)
+
+    def test_a_fragment_or_host_case_is_the_same_document(self):
+        source_id, _ = self.preserve_page("https://example.org/ir/q2")
+        self.assertEqual(
+            self.cite(self.source(source_id, "https://EXAMPLE.org/ir/q2#table-3")), [])
+
+    def test_a_redirected_page_may_be_cited_by_either_address(self):
+        payload = {"requested_url": "https://example.org/short",
+                   "final_url": "https://example.org/ir/q2", "http_status": 200,
+                   "content_type": "text/html", "content_length": 80,
+                   "body_encoding": "utf-8",
+                   "body": "<html><p>" + "영업이익 " * 300 + "</p></html>"}
+        digest, _ = self._store(self.web, payload, "2026-07-28T00:30:00+00:00", "web")
+        for locator in ("https://example.org/short", "https://example.org/ir/q2"):
+            with self.subTest(locator=locator):
+                self.assertEqual(
+                    self.cite(self.source(f"WEBSNAP:{digest[:12]}", locator)), [])
+
+    def test_a_file_whose_body_no_longer_matches_its_fingerprint_is_not_an_original(self):
+        """파일 이름이 정체성을 만들면 안 된다 — 본문이 바뀌면 그 ID 의 원문이 아니다."""
+        source_id, path = self.preserve_filing()
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["payload"]["documents"]["20260730800077.xml"] = "<P>영업이익 999</P>"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        documents_module._PRESERVED_LOCATORS.clear()
+        errors = self.cite(self.source(source_id, self.DART_URL))
+        self.assertTrue(any("내용 지문과 맞지 않는다" in error for error in errors), errors)
+
+    def test_a_body_filed_under_another_filings_name_is_not_that_filing(self):
+        """본문은 온전하지만 다른 접수번호의 것이다."""
+        _, path = self.preserve_filing("20260730800077")
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["payload"]["rcept_no"] = "20991231000001"
+        digest = canonical_payload_hash(document["payload"])
+        document["payload_sha256"] = digest
+        moved = path.with_name(f"{digest}.json")
+        moved.write_text(json.dumps(document), encoding="utf-8")
+        path.unlink()
+        # 낡은 색인이 여전히 옛 ID 로 이 파일을 가리킨다고 해 보자.
+        documents_module._PRESERVED_LOCATORS.clear()
+        with patch.object(documents_module, "_preserved_locators", return_value={
+                "DARTDOC:20260730800077": (str(moved.relative_to(self.root)),)}):
+            errors = self.cite(self.source("DARTDOC:20260730800077", self.DART_URL))
+        self.assertTrue(any("내용 지문과 맞지 않는다" in error for error in errors), errors)
+
+    def test_an_original_preserved_after_the_decision_cannot_support_it(self):
+        """판단은 2026-07-28 10:00 KST. 그 뒤에 받은 원문은 그때 없던 자료다."""
+        source_id, _ = self.preserve_page(fetched_at="2030-01-01T00:00:00+00:00")
+        errors = self.cite(self.source(source_id, "https://example.org/ir/q2"))
+        self.assertTrue(any("그때 없던 원문" in error for error in errors), errors)
+
+    def test_a_frame_shell_is_kept_as_a_citation_but_is_not_a_primary_document(self):
+        """프레임 껍데기는 보존했다는 기록만 있고 내용이 없다."""
+        shell = '<html><frameset><frame src="viewer.do"></frameset></html>'
+        source_id, _ = self.preserve_page("https://example.org/viewer", body=shell)
+        errors = self.cite(self.source(source_id, "https://example.org/viewer"))
+        self.assertFalse(any("locator가" in error for error in errors))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("MODEL_RESEARCH", errors[0])
+
+    def test_the_same_citation_is_valid_whatever_else_is_in_the_store(self):
+        """무관한 원문이 늘어도 결속 결과는 같다."""
+        source_id, _ = self.preserve_filing()
+        before = self.cite(self.source(source_id, self.DART_URL))
+        self.preserve_filing("20260801000123")
+        self.preserve_page("https://example.org/unrelated")
+        self.assertEqual(self.cite(self.source(source_id, self.DART_URL)), before)
 
 
 class TestGhostEvidence(unittest.TestCase):

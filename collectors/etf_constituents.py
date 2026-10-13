@@ -222,9 +222,11 @@ def page_matches(body: str, code: str) -> bool:
 
 
 def load_holdings(asset_id: str) -> tuple[list[dict[str, str]], Path]:
-    paths = sorted((ETF_DIR / asset_id).glob("holdings-*.csv"))
+    from cio.refresh import dated_artifacts
+
+    paths = dated_artifacts(ETF_DIR / asset_id, "holdings-", ".csv")
     if not paths:
-        fail(f"knowledge/etfs/{asset_id}/holdings-*.csv 가 없다. 구성종목을 먼저 받는다")
+        fail(f"knowledge/etfs/{asset_id}/holdings-<기준일>.csv 가 없다. 구성종목을 먼저 받는다")
     path = paths[-1]
     with path.open(encoding="utf-8-sig") as handle:
         rows = list(csv.DictReader(
@@ -267,8 +269,10 @@ def _local_series(symbol: str) -> list[tuple[str, float]]:
         for row in csv.DictReader(
             line for line in handle if not line.lstrip().startswith("#")
         ):
+            # 조정종가가 없는 봉을 원가격으로 대신하지 않는다. 한 수익률 안에서
+            # 배당이 반영된 값과 안 된 값이 섞이면 배당만큼의 가짜 손익이 생긴다.
             try:
-                value = float(row.get("adjusted_close") or row.get("close") or "")
+                value = float(row.get("adjusted_close") or "")
             except ValueError:
                 continue
             if row.get("date") and value > 0:

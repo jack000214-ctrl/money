@@ -15,7 +15,31 @@ from unittest.mock import patch
 
 import helpers  # noqa: F401  (저장소 루트를 sys.path 에 올린다)
 from calculators import sector_strength
-from calculators.peer_kr import fmt, num, pick
+from calculators.peer_kr import fmt, num, pick, same_basis_peers
+
+
+class TestPeersShareTheTargetsFiscalYear(unittest.TestCase):
+    """재무는 요청 연도가 없으면 한 해 전으로 내려간다. 그 사실을 '기준' 열에
+    적으면서도 상대 위치는 연도를 섞어 냈고, 화면은 "전 종목 같은 기준으로
+    통일했다"고 말했다. 다른 해의 이익으로 낸 배수는 같은 통에 넣지 않는다."""
+
+    def test_a_peer_from_another_fiscal_year_is_set_aside(self):
+        target = {"code": "T", "basis": "2025", "per": 15.0}
+        same = {"code": "A", "basis": "2025", "per": 10.0}
+        other = {"code": "B", "basis": "2024", "per": 30.0}
+        kept, set_aside = same_basis_peers(target, [same, other])
+        self.assertEqual(kept, [same])
+        self.assertEqual(set_aside, [other])
+
+    def test_a_peer_with_no_financials_has_no_year_to_match(self):
+        target = {"code": "T", "basis": "2025"}
+        unknown = {"code": "C", "basis": None}
+        self.assertEqual(same_basis_peers(target, [unknown]), ([], [unknown]))
+
+    def test_an_unknown_target_year_compares_with_nothing(self):
+        peer = {"code": "A", "basis": "2025"}
+        self.assertEqual(same_basis_peers({"code": "T", "basis": None}, [peer]),
+                         ([], [peer]))
 
 
 class TestPeerNumberParsing(unittest.TestCase):

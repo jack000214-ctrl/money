@@ -246,12 +246,13 @@ class TestHoldingsFreshness(unittest.TestCase):
     HEADER = "etf_id,holding_id,holding_name,weight_pct,market,sector,as_of\n"
 
     def write(self, text):
-        tmp = tempfile.NamedTemporaryFile(
-            "w", suffix=".csv", delete=False, encoding="utf-8")
-        tmp.write(text)
-        tmp.close()
-        self.addCleanup(Path(tmp.name).unlink)
-        return Path(tmp.name)
+        """구성 파일은 이름이 `holdings-<행의 기준일>.csv` 다."""
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        as_of = text.strip().rsplit(",", 1)[-1]
+        path = Path(directory.name) / f"holdings-{as_of}.csv"
+        path.write_text(text, encoding="utf-8")
+        return path
 
     def task(self):
         return refresh.RefreshTask(

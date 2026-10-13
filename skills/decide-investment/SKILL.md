@@ -146,7 +146,10 @@ evidence. Do not stage or commit changes.
    earlier analysis was mistaken. Explain current evidence for keeping a plan too.
 8. `python3.13 -m cio validate DECISION.json` for a dry run (writes nothing), or
    `python3.13 -m cio record DECISION.json` for an official attempt — it validates,
-   stores valid output, and quarantines invalid output with its errors.
+   stores valid output, and quarantines invalid output with its errors. A packet
+   serves a decision for 12 hours after `prepare`, and a decision is recorded within
+   12 hours of its `created_at`; past either limit, prepare again rather than reuse
+   the old packet or draft.
 9. Report the verdict, win/failure definitions, horizon, probabilities and scenarios,
    preferred entry, stop, scale-out start, recheck prices and events, proposed amount,
    the action on any existing holding, the strongest counter-thesis, and unresolved

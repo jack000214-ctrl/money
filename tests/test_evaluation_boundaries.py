@@ -11,10 +11,15 @@
 · 완료는 날짜가 아니라 확정 종가로 정한다. 종료일 장중 봉으로 승패와 Brier 를
   굳히지 않는다.
 · 초과수익은 종목과 지수가 같은 구간일 때만 뺀다.
+· 종료일 뒤의 봉이 있다는 것은 종료일의 관측이 있다는 뜻이 아니다. 종료일의
+  봉이 빠진 채로는 완료가 아니다.
 """
 
 import datetime as dt
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from helpers import ROOT  # noqa: F401
@@ -35,7 +40,7 @@ def bar(day, close, *, factor=1.0, adjusted=None, low=None, high=None):
     }
 
 
-def evaluate(rows, *, entry=95.0, session=None):
+def evaluate(rows, *, entry=95.0, session=None, known_sessions=None):
     """질문가 100, 손절 80 인 판단을 2026-01-02 에 냈다고 보고 채점한다."""
     context = valid_context()
     context["request"]["as_of"] = "2026-01-02T10:00:00-05:00"
@@ -50,7 +55,8 @@ def evaluate(rows, *, entry=95.0, session=None):
     with patch("cio.memory.get_asset", return_value=asset), \
             patch("cio.memory.find_context", return_value=(context, None)), \
             patch("cio.memory._price_session", return_value=session):
-        return evaluate_assessment(normalize_decision(decision), rows=rows)
+        return evaluate_assessment(
+            normalize_decision(decision), rows=rows, known_sessions=known_sessions)
 
 
 class TestThresholdsUseTheDecisionDaySplitBasis(unittest.TestCase):
@@ -108,6 +114,42 @@ class TestDividendsBelongToWhoeverHeldTheShares(unittest.TestCase):
         self.assertAlmostEqual(waited["return_to_end_pct"], 0.0, places=6)
 
 
+class TestEvaluationUsesOnePriceBasis(unittest.TestCase):
+    """판단일 봉에만 조정종가가 없다. 원가격 100, 배당락 뒤 90, 조정종가 90.
+
+    예전에는 봉마다 있는 쪽을 골랐다. 원가는 원가격 100(배당 미반영), 기간 말은
+    조정종가 90 — 한 수익률 안에서 두 기준이 섞였고 표시만 `CLOSE_FALLBACK` 이었다.
+    """
+
+    def rows(self, *, decision_day_adjusted):
+        first = bar("2026-01-02", 100, adjusted=90)
+        first["has_adjusted_close"] = decision_day_adjusted
+        if not decision_day_adjusted:
+            first["adjusted_close"] = 100     # `_price_rows` 가 비어 있을 때 넣는 값
+        return [first, bar("2026-01-05", 90), bar("2026-01-30", 90),
+                bar("2026-02-02", 90)]
+
+    def test_with_every_adjusted_close_the_dividend_is_part_of_the_return(self):
+        price = evaluate(self.rows(decision_day_adjusted=True))["price"]
+        self.assertEqual(price["return_basis"], "ADJUSTED_CLOSE_ASSET_CURRENCY")
+        self.assertAlmostEqual(price["return_to_end_pct"], 0.0, places=6)
+        self.assertNotIn("_return_basis_note", price)
+
+    def test_a_blank_on_the_decision_day_makes_the_whole_window_a_price_return(self):
+        price = evaluate(self.rows(decision_day_adjusted=False))["price"]
+        self.assertEqual(price["return_basis"], "CLOSE_FALLBACK_ASSET_CURRENCY")
+        self.assertAlmostEqual(price["return_to_end_pct"], -10.0, places=6)
+        self.assertEqual(price["adjustment_factor_at_start"], 1.0)
+        self.assertIn("가격 수익률", price["_return_basis_note"])
+
+    def test_a_blank_before_the_decision_day_does_not_change_the_basis(self):
+        older = bar("2025-12-31", 100)
+        older["has_adjusted_close"] = False
+        price = evaluate([older, *self.rows(decision_day_adjusted=True)])["price"]
+        self.assertEqual(price["return_basis"], "ADJUSTED_CLOSE_ASSET_CURRENCY")
+        self.assertAlmostEqual(price["return_to_end_pct"], 0.0, places=6)
+
+
 class TestCompletionNeedsASettledClose(unittest.TestCase):
     ROWS = [bar("2026-01-02", 100), bar("2026-01-05", 101), bar("2026-02-02", 120)]
 
@@ -151,6 +193,136 @@ class TestCompletionNeedsASettledClose(unittest.TestCase):
         self.assertIsNone(_settled_through([], None))
 
 
+class TestCompletionNeedsTheEndSessionItself(unittest.TestCase):
+    """평가 종료일은 2/2. 그날의 봉이 없고 2/3 봉만 있다.
+
+    예전에는 확정 종가가 종료일을 지났는지만 봤다. 그래서 1/30 의 가격을 기간 말
+    가격으로 굳혀 승패와 Brier 를 확정했고, 지수는 2/2 가격을 써서 서로 다른
+    구간의 수익률을 뺐다. 뒤 날짜의 봉은 종료일 관측을 보장하지 않는다.
+    """
+
+    ROWS = [bar("2026-01-02", 100), bar("2026-01-05", 101),
+            bar("2026-01-30", 105), bar("2026-02-03", 130)]
+    SETTLED = {"last_bar": "2026-02-03", "session": "SETTLED"}
+
+    def test_a_known_session_missing_on_the_target_date_keeps_the_window_open(self):
+        result = evaluate(self.ROWS, session=self.SETTLED,
+                          known_sessions={"2026-02-02"})
+        window = result["window"]
+        self.assertFalse(window["complete"])
+        self.assertEqual(window["end_observation_date"], "2026-01-30")
+        self.assertEqual(window["end_observation_gaps"], ["2026-02-02"])
+        self.assertIn("2026-02-02", window["_end_gap_note"])
+        self.assertIsNone(result["calibration"]["brier_score"])
+        self.assertIsNone(result["calibration"]["return_error_pct_points"])
+        self.assertIsNone(result["thresholds"]["win_observed"])
+        month = result["fixed_horizons"]["months"]["m1"]
+        self.assertFalse(month["complete"])
+        self.assertEqual(month["missing_sessions_before_target"], ["2026-02-02"])
+
+    def test_a_target_date_with_no_session_still_ends_on_the_last_bar_before_it(self):
+        """종료일이 휴장일이면 그 전 마지막 봉이 기간 말이다. 그것은 구멍이 아니다."""
+        result = evaluate(self.ROWS, session=self.SETTLED, known_sessions=set())
+        self.assertTrue(result["window"]["complete"])
+        self.assertEqual(result["window"]["end_observation_gaps"], [])
+        self.assertNotIn("_end_gap_note", result["window"])
+        self.assertEqual(result["price"]["end"], 105)
+        self.assertIsNotNone(result["calibration"]["brier_score"])
+
+    def test_a_gap_earlier_in_the_window_does_not_block_the_end(self):
+        """기간 말 봉보다 앞선 구멍은 기간 말 가격을 바꾸지 않는다."""
+        result = evaluate(self.ROWS, session=self.SETTLED,
+                          known_sessions={"2026-01-15", "2026-02-03"})
+        self.assertTrue(result["window"]["complete"])
+
+    def test_a_session_the_series_has_not_reached_yet_is_not_a_hole(self):
+        """평가가 진행 중이고 지수 파일만 하루 먼저 수집됐다. 종목의 마지막 봉
+        뒤의 날은 아직 받지 않은 것이지 사라진 것이 아니다."""
+        rows = self.ROWS[:3]                      # 1/30 까지. 종료일은 2/2 다.
+        result = evaluate(rows, session={"last_bar": "2026-01-30", "session": "SETTLED"},
+                          known_sessions={"2026-02-02"})
+        self.assertFalse(result["window"]["complete"])
+        self.assertEqual(result["window"]["end_observation_gaps"], [])
+        self.assertNotIn("_end_gap_note", result["window"])
+        self.assertNotIn("missing_sessions_before_target",
+                         result["fixed_horizons"]["months"]["m1"])
+
+    def test_once_the_end_session_is_present_the_window_closes(self):
+        rows = [*self.ROWS[:3], bar("2026-02-02", 120), self.ROWS[3]]
+        result = evaluate(rows, session=self.SETTLED,
+                          known_sessions={"2026-02-02"})
+        self.assertTrue(result["window"]["complete"])
+        self.assertEqual(result["price"]["end"], 120)
+        self.assertEqual(result["window"]["end_observation_date"], "2026-02-02")
+
+
+class TestKnownSessions(unittest.TestCase):
+    """달력의 근거 — 자기 파일의 기록과 같은 거래소 지수, 그리고 거래소의 확인."""
+
+    HEADER = ("# schema_version price-series/2.1.0\n# symbol {symbol} / currency KRW\n"
+              "# retrieved_at 2026-02-04T00:00:00+00:00 / source Yahoo Finance chart API\n"
+              "# last_bar {last} / session SETTLED\n{extra}"
+              "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / "prices" / "_backfill").mkdir(parents=True)
+        patcher = patch.object(memory, "KNOWLEDGE_DIR", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def series(self, symbol, days, *, missing=()):
+        extra = (f"# missing_sessions {','.join(missing)} / 봉이 저장됐다가 사라졌다\n"
+                 if missing else "")
+        body = "".join(f"{day},100,100,1,100,100,10\n" for day in days)
+        (self.root / "prices" / f"{memory.safe_symbol(symbol)}.csv").write_text(
+            self.HEADER.format(symbol=symbol, last=days[-1], extra=extra) + body,
+            encoding="utf-8")
+
+    def marker(self, symbol, unfilled, reasons=None):
+        name = memory.safe_symbol(symbol)
+        (self.root / "prices" / "_backfill" / f"{name}.json").write_text(json.dumps({
+            "schema_version": "price-backfill/1.0.0", "symbol": symbol,
+            "target": f"{name}.csv", "filled": [], "unfilled": unfilled,
+            **({"unfilled_reasons": reasons} if reasons else {})}), encoding="utf-8")
+
+    def test_the_files_own_record_of_a_vanished_bar_is_a_known_session(self):
+        self.series("214450.KQ", ["2026-01-30", "2026-02-03"], missing=["2026-02-02"])
+        self.assertEqual(memory._known_sessions("214450.KQ", "KR"), {"2026-02-02"})
+
+    def test_an_index_on_the_same_calendar_reveals_a_hole_the_file_cannot_see(self):
+        self.series("214450.KQ", ["2026-01-30", "2026-02-03"])
+        self.series("^KS11", ["2026-01-30", "2026-02-02", "2026-02-03"])
+        self.assertIn("2026-02-02", memory._known_sessions("214450.KQ", "KR"))
+
+    def test_an_index_is_checked_against_its_sibling_but_not_itself(self):
+        self.series("^KQ11", ["2026-01-30", "2026-02-03"])
+        self.series("^KS11", ["2026-01-30", "2026-02-02", "2026-02-03"])
+        self.assertIn("2026-02-02", memory._known_sessions("^KQ11"))
+
+    def test_a_foreign_index_has_no_calendar_to_be_checked_against(self):
+        """휴장일이 다른 달력과 대조하면 없는 구멍이 생긴다."""
+        self.series("^HSI", ["2026-01-30", "2026-02-03"])
+        self.series("^KS11", ["2026-01-30", "2026-02-02", "2026-02-03"])
+        self.assertEqual(memory._known_sessions("^HSI"), set())
+
+    def test_a_day_the_exchange_confirmed_as_absent_is_not_a_hole(self):
+        """거래정지·휴장으로 거래소 원문에도 없는 날은 그 전 봉이 마지막 관측이다."""
+        self.series("214450.KQ", ["2026-01-30", "2026-02-03"])
+        self.series("^KS11", ["2026-01-30", "2026-02-02", "2026-02-03"])
+        self.marker("214450.KQ", ["2026-02-02"])
+        self.assertNotIn("2026-02-02", memory._known_sessions("214450.KQ", "KR"))
+
+    def test_a_day_the_exchange_has_but_could_not_be_placed_is_still_a_hole(self):
+        self.series("214450.KQ", ["2026-01-30", "2026-02-03"])
+        self.series("^KS11", ["2026-01-30", "2026-02-02", "2026-02-03"])
+        self.marker("214450.KQ", ["2026-02-02"],
+                    {"2026-02-02": "앞뒤 봉의 분할계수가 다르다"})
+        self.assertIn("2026-02-02", memory._known_sessions("214450.KQ", "KR"))
+
+
 class TestAWindowWithNoObservation(unittest.TestCase):
     def test_bars_only_after_the_horizon_are_not_the_period_end(self):
         """평가 기간 안에 봉이 하나도 없고 그 뒤에만 있다.
@@ -167,13 +339,46 @@ class TestAWindowWithNoObservation(unittest.TestCase):
 class TestExcessReturnNeedsTheSameWindow(unittest.TestCase):
     SECURITY = [bar("2026-01-02", 100), bar("2026-01-05", 102), bar("2026-02-02", 120)]
 
-    def horizons(self, benchmark, security=None):
+    def horizons(self, benchmark, security=None, *, known_sessions=None,
+                 benchmark_known=()):
         with patch.object(memory, "_price_rows", return_value=benchmark), \
                 patch.object(memory, "_price_currency", return_value="USD"), \
-                patch.object(memory, "_price_session", return_value=None):
+                patch.object(memory, "_price_session", return_value=None), \
+                patch.object(memory, "_known_sessions",
+                             return_value=set(benchmark_known)):
             return _fixed_horizon_returns(
                 rows=security or self.SECURITY, start=dt.date(2026, 1, 2),
-                adjusted_cost=100, benchmarks=["INDEX"], asset_currency="USD")
+                adjusted_cost=100, benchmarks=["INDEX"], asset_currency="USD",
+                known_sessions=known_sessions)
+
+    def test_a_security_without_its_end_session_is_not_compared_with_a_finished_index(self):
+        """종목은 1/30 가격, 지수는 2/2 가격 — 예전에는 둘 다 완료라며 뺐다."""
+        fixed = self.horizons(
+            [bar("2026-01-02", 100), bar("2026-01-30", 102), bar("2026-02-02", 105),
+             bar("2026-02-03", 106)],
+            security=[bar("2026-01-02", 100), bar("2026-01-30", 110),
+                      bar("2026-02-03", 125)],
+            known_sessions={"2026-02-02"})
+        own = fixed["months"]["m1"]
+        row = fixed["vs_benchmark"]["INDEX"]["m1"]
+        self.assertFalse(own["complete"])
+        self.assertEqual(own["observed_date"], "2026-01-30")
+        self.assertEqual(own["missing_sessions_before_target"], ["2026-02-02"])
+        self.assertTrue(row["benchmark_complete"])
+        self.assertEqual(row["benchmark_observed_date"], "2026-02-02")
+        self.assertIsNone(row["excess_pct"])
+
+    def test_an_index_without_its_end_session_is_not_finished_either(self):
+        fixed = self.horizons(
+            [bar("2026-01-02", 100), bar("2026-01-30", 102), bar("2026-02-03", 106)],
+            security=[bar("2026-01-02", 100), bar("2026-01-30", 110),
+                      bar("2026-02-02", 120), bar("2026-02-03", 125)],
+            benchmark_known={"2026-02-02"})
+        row = fixed["vs_benchmark"]["INDEX"]["m1"]
+        self.assertTrue(fixed["months"]["m1"]["complete"])
+        self.assertFalse(row["benchmark_complete"])
+        self.assertEqual(row["benchmark_missing_sessions_before_target"], ["2026-02-02"])
+        self.assertIsNone(row["excess_pct"])
 
     def test_a_benchmark_that_stopped_early_is_not_subtracted(self):
         """종목은 2/2 까지 +20%, 지수 파일은 1/5 에서 멈춰 +1%. 뺄 수 없다."""

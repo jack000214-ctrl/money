@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import tempfile
 import unittest
@@ -122,8 +123,10 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
                     patch("cio.decision.KNOWLEDGE_DIR", knowledge), \
                     patch("cio.memory._price_rows", return_value=self.ROWS), \
                     patch("cio.memory._price_session", return_value=None):
-                live = json.loads(
-                    record_decision_file(decision_path).read_text(encoding="utf-8"))
+                live = json.loads(record_decision_file(
+                    decision_path,
+                    now=dt.datetime.fromisoformat("2026-07-28T10:05:00+09:00"),
+                ).read_text(encoding="utf-8"))
                 report = score_asset("TSLA")
                 stored = {
                     path.stem: json.loads(path.read_text(encoding="utf-8"))

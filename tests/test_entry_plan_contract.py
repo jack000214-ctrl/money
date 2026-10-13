@@ -65,6 +65,21 @@ class EntryPlanContract(unittest.TestCase):
         self.assertEqual(no_review['stages'][0]['observation'],'UNVERIFIABLE')
         self.assertIsNone(no_review['stages'][0]['hypothetical_return_pct'])
 
+    def test_us_decision_made_after_korean_midnight_keeps_its_first_session(self):
+        """한국 7/29 00:31 의 판단은 뉴욕 7/28 이다. 사용자 달력의 기준일(7/29)로
+        판단 당일을 빼면 첫 사후 미국 거래일(7/29)의 접촉이 사라진다."""
+        plan=plan_fixture();plan['reference_date']='2026-07-29'
+        plan['stages'][0].update(requires_review=False,valid_from='2026-07-29',valid_until='2026-12-31')
+        a={'assessment_id':'old','created_at':'2026-07-29T00:31:00+09:00','entry_plan':plan}
+        bars=[{'date':'2026-07-28','low':80,'close':85,'adjusted_close':85,'split_adjustment_factor':1},
+              {'date':'2026-07-29','low':80,'close':85,'adjusted_close':85,'split_adjustment_factor':1},
+              {'date':'2026-07-30','low':100,'close':105,'adjusted_close':105,'split_adjustment_factor':1}]
+        r=observations(a,bars,start_factor=1,end=bars[-1],decision_date='2026-07-28')
+        self.assertEqual(r['stages'][0]['eligible_price_touch_date'],'2026-07-29')
+        # 판단 당일 봉은 여전히 세지 않는다 — 뉴욕 7/29 장중의 판단이면 7/29 는 빠진다.
+        same_day=observations(a,bars,start_factor=1,end=bars[-1],decision_date='2026-07-29')
+        self.assertIsNone(same_day['stages'][0]['price_touch_date'])
+
     def test_cancelled_stage_never_enters_after_a_later_touch(self):
         a={'assessment_id':'old','entry_plan':plan_fixture()}
         check={'assessment_id':'old','stage_id':'first','state':'CANCELLED','recorded_at':'2026-01-02T09:00:00+00:00'}

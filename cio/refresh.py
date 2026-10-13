@@ -14,6 +14,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from calculators.contracts import (
+    content_hash,
     load_json,
     load_raw_snapshot,
     validate_fundamentals,
@@ -77,6 +78,26 @@ US_EARNINGS_FAILURE_RETRY_HOURS = 1
 
 def safe_symbol(symbol: str) -> str:
     return symbol.replace(".", "_").replace("^", "").replace("=", "")
+
+
+def dated_artifacts(directory: Path, prefix: str, suffix: str) -> list[Path]:
+    """`<prefix><YYYY-MM-DD><suffix>` 꼴의 파일만, 날짜순으로.
+
+    날짜가 붙는 산출물(재무 스냅샷, ETF 구성)은 여러 곳이 "가장 최근 것"을 고른다.
+    고르는 규칙이 곳마다 달랐다 — refresh 는 파일 속 기준일로, packet 과 수집기는
+    파일 이름 순으로. 이름과 기준일이 어긋난 파일이 하나 끼면 refresh 가 신선하다고
+    본 파일과 packet 이 실은 파일이 서로 달라진다. 그리고 `IBM-*.json` 같은 느슨한
+    무늬는 `IBM-B-2026-06-30.json`(다른 자산)까지 집는다. 한 함수로 고른다.
+    """
+    pattern = re.compile(
+        re.escape(prefix) + r"\d{4}-\d{2}-\d{2}" + re.escape(suffix)
+    )
+    if not directory.is_dir():
+        return []
+    return sorted(
+        path for path in directory.iterdir()
+        if path.is_file() and pattern.fullmatch(path.name)
+    )
 
 
 def event_contract_errors(
@@ -154,13 +175,19 @@ class RefreshTask:
     contract_error: str | None = None
 
 
+# 가격을 "지금의 시세"로 부를 수 있는 기한. packet 이 판단에 쓰일 수 있는 기한
+# (`cio/decision.py` 의 context 나이 검사)도 같은 값을 쓴다 — packet 은 만든
+# 시점의 가격 위에 서 있으므로 가격보다 오래 유효할 수 없다.
+PRICE_MAX_AGE_HOURS = 12
+
+
 def _price_task(symbol: str, *, required: bool = True) -> RefreshTask:
     filename = safe_symbol(symbol)
     return RefreshTask(
         name=f"price:{symbol}",
         capability="PRICE",
         artifact=f"knowledge/prices/{filename}.csv",
-        max_age_hours=12,
+        max_age_hours=PRICE_MAX_AGE_HOURS,
         command=[
             sys.executable,
             "-m",
@@ -1524,6 +1551,12 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
         as_of_values = {row.get("as_of") for row in rows}
         if None in as_of_values or "" in as_of_values or len(as_of_values) != 1:
             return "ETF 구성 기준일이 비었거나 행마다 다르다"
+        # 이름의 날짜로 최신 구성을 고르므로 이름과 내용의 기준일이 같아야 한다.
+        if path.name != f"holdings-{next(iter(as_of_values))}.csv":
+            return (
+                f"ETF 구성 파일명({path.name})과 행의 기준일"
+                f"({next(iter(as_of_values))})이 다르다"
+            )
         try:
             weights = [float(row["weight_pct"]) for row in rows]
         except (TypeError, ValueError):
@@ -1560,8 +1593,8 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             return errors[0]
         # 재료가 어느 구성 위에서 만들어졌는지. 구성 기준일이 바뀌었는데 옛
         # 재료를 실으면 빠진 종목의 배수가 지금 ETF 의 것처럼 읽힌다.
-        holdings = sorted(
-            (ROOT / "knowledge" / "etfs" / asset_id).glob("holdings-*.csv")
+        holdings = dated_artifacts(
+            ROOT / "knowledge" / "etfs" / asset_id, "holdings-", ".csv"
         )
         if holdings:
             current = holdings[-1].stem.removeprefix("holdings-")
@@ -1616,6 +1649,25 @@ def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> Refres
         return task
 
     matches = [Path(path) for path in glob.glob(str(ROOT / task.artifact))]
+    # 날짜가 붙는 산출물은 이름이 계약의 일부다. 무늬에 걸렸다는 이유로 다른
+    # 자산의 파일이나 날짜 없는 이름을 후보로 삼지 않는다.
+    dated_prefix = {
+        "FUNDAMENTALS": f"{task.name.split(':', 1)[-1]}-",
+        "ETF_HOLDINGS": "holdings-",
+    }.get(task.capability)
+    if dated_prefix and matches:
+        suffix = Path(task.artifact).suffix
+        named = dated_artifacts(matches[0].parent, dated_prefix, suffix)
+        if not named and task.capability == "ETF_HOLDINGS":
+            task.state = "STALE"
+            task.reason = (
+                "ETF 구성 파일이 있지만 이름이 holdings-<기준일>.csv 가 아니다 "
+                f"({', '.join(sorted(path.name for path in matches)[:3])}). "
+                "packet 과 수집기는 그 이름으로 최신 구성을 고른다"
+            )
+            task.contract_error = task.reason
+            return task
+        matches = [path for path in matches if path in named]
     if not matches:
         task.state = "MISSING"
         return task
@@ -1664,7 +1716,63 @@ def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> Refres
     if dependency_times and max(dependency_times) > freshness_time:
         task.state = "STALE"
         task.reason = "입력 산출물보다 오래됐다"
+    # 시각 비교만으로는 **회수시각을 바꾸지 않는 내용 변화**를 못 본다. 거래소
+    # 백필은 가격 파일에 빠진 봉을 채우면서 원래 `retrieved_at` 을 보존한다 — 그
+    # 위에서 계산된 시장 상태는 입력이 바뀌었는데도 신선하다고 남았다(지수 봉
+    # 하나가 채워져 NORMAL·0 이 STRESS·3 이 되는데 packet 은 계속 NORMAL 이었다).
+    # 산출물이 자기가 읽은 입력의 지문을 적어 뒀으면 지금 파일과 내용으로 대조한다.
+    changed = _changed_inputs(
+        path, [dep for paths in dependency_matches.values() for dep in paths]
+    )
+    if changed:
+        task.state = "STALE"
+        task.reason = (
+            "계산에 쓴 입력의 내용이 그 뒤에 바뀌었다: " + ", ".join(changed[:3])
+            + (f" 외 {len(changed) - 3}건" if len(changed) > 3 else "")
+        )
+    elif changed is None and task.capability == "MARKET_STATE":
+        task.state = "STALE"
+        task.reason = (
+            "시장 상태 산출물에 입력 지문이 없다 — 입력이 바뀌었는지 대조할 수 "
+            "없으므로 다시 계산한다"
+        )
     return task
+
+
+def _changed_inputs(artifact: Path, dependencies: list[Path]) -> list[str] | None:
+    """산출물이 적어 둔 입력 지문과 지금 파일을 대조한다.
+
+    → 내용이 달라졌거나 사라진 입력, 그리고 선언된 의존 입력인데 계산에 쓰이지
+    않은 것의 경로 목록. 지문을 적지 않는 산출물이면 None(대조할 것이 없다).
+    """
+    if artifact.suffix != ".json":
+        return None
+    try:
+        recorded = json.loads(artifact.read_text(encoding="utf-8")).get(
+            "input_fingerprints"
+        )
+    except (OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(recorded, dict):
+        return None
+    changed = []
+    for locator, digest in sorted(recorded.items()):
+        source = (ROOT / str(locator)).resolve()
+        try:
+            source.relative_to(ROOT.resolve())
+            current = content_hash(source)
+        except (OSError, ValueError):
+            current = None
+        if current != digest:
+            changed.append(str(locator))
+    known = {(ROOT / str(locator)).resolve() for locator in recorded}
+    for dependency in dependencies:
+        if dependency.resolve() not in known:
+            try:
+                changed.append(str(dependency.resolve().relative_to(ROOT.resolve())))
+            except ValueError:
+                changed.append(str(dependency))
+    return changed
 
 
 def inspect_plan(

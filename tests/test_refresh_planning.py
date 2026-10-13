@@ -19,11 +19,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import helpers  # noqa: F401  (저장소 루트를 sys.path 에 올린다)
+from cio import refresh
 from cio.refresh import (
     DART_FILING_TYPES,
     RefreshTask,
     _append_optional,
     _dart_filing_index_error,
+    inspect_task,
     run_refresh,
 )
 
@@ -250,6 +252,70 @@ class TestDartFilingIndexContract(unittest.TestCase):
     def test_an_index_that_matches_the_empty_sources_is_checked_further(self):
         """원문이 전부 비었으면 색인도 비어 있어야 한다."""
         self.assertIsNotNone(self.check())
+
+
+class TestDatedArtifactsAreChosenByOneRule(unittest.TestCase):
+    """"가장 최근 것"을 고르는 규칙이 곳마다 달랐다.
+
+    refresh 는 파일 속 기준일로, packet 과 수집기는 파일 이름 순으로 골랐다.
+    이름과 기준일이 어긋난 파일이 하나 끼면 refresh 가 신선하다고 본 파일과
+    packet 이 실은 파일이 달라진다. 그리고 `IBM-*.json` 은 다른 자산
+    (`IBM-B-…json`)의 파일까지 집어, 무관한 파일 하나로 검사 결과가 바뀌었다.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def touch(self, relative):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    def test_a_longer_asset_id_with_the_same_prefix_is_another_asset(self):
+        own = self.touch("knowledge/fundamentals/IBM-2026-03-31.json")
+        self.touch("knowledge/fundamentals/IBM-B-2026-06-30.json")
+        self.assertEqual(refresh.dated_artifacts(
+            self.root / "knowledge" / "fundamentals", "IBM-", ".json"), [own])
+
+    def test_a_name_without_a_date_is_not_a_candidate(self):
+        dated = self.touch("knowledge/etfs/SCHD/holdings-2026-07-23.csv")
+        self.touch("knowledge/etfs/SCHD/holdings-latest.csv")
+        self.touch("knowledge/etfs/SCHD/holdings-2026-07.csv")
+        self.assertEqual(refresh.dated_artifacts(
+            self.root / "knowledge" / "etfs" / "SCHD", "holdings-", ".csv"), [dated])
+
+    def test_candidates_come_back_oldest_to_newest(self):
+        for day in ("2026-10-08", "2025-12-31", "2026-07-22"):
+            self.touch(f"knowledge/etfs/X/holdings-{day}.csv")
+        names = [path.name for path in refresh.dated_artifacts(
+            self.root / "knowledge" / "etfs" / "X", "holdings-", ".csv")]
+        self.assertEqual(names, sorted(names))
+
+    def test_refresh_inspects_this_assets_snapshot_not_the_other_assets(self):
+        self.touch("knowledge/fundamentals/IBM-2026-03-31.json")
+        self.touch("knowledge/fundamentals/IBM-B-2026-06-30.json")
+        task = RefreshTask(
+            name="fundamentals:IBM", capability="FUNDAMENTALS",
+            artifact="knowledge/fundamentals/IBM-*.json", max_age_hours=720,
+            command=None)
+        with patch.object(refresh, "ROOT", self.root):
+            inspected = inspect_task(task)
+        self.assertEqual(inspected.resolved_path,
+                         "knowledge/fundamentals/IBM-2026-03-31.json")
+
+    def test_a_holdings_file_that_cannot_be_ordered_by_name_is_reported(self):
+        self.touch("knowledge/etfs/SCHD/holdings-latest.csv")
+        task = RefreshTask(
+            name="holdings:SCHD", capability="ETF_HOLDINGS",
+            artifact="knowledge/etfs/SCHD/holdings-*.csv", max_age_hours=168,
+            command=None)
+        with patch.object(refresh, "ROOT", self.root):
+            inspected = inspect_task(task)
+        self.assertEqual(inspected.state, "STALE")
+        self.assertIn("holdings-<기준일>.csv", inspected.reason)
 
 
 if __name__ == "__main__":

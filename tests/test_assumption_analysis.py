@@ -127,6 +127,11 @@ class TestAssumptionPersistence(unittest.TestCase):
         self.stack.enter_context(patch("cio.exit_plan.ROOT", self.root))
         source = self.root / "source.json"; source.write_text('{"eps": [10, 15, 20]}')
         self.context = valid_context()
+        # 이 묶음의 판단은 지금 시각으로 만든다. packet 은 판단의 입력으로 쓸 수 있는
+        # 기한이 있으므로(가격 신선도와 같은 12시간) context 도 방금 만든 것으로 둔다.
+        self.context["created_at"] = (
+            dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1)
+        ).isoformat(timespec="seconds")
         self.context["context"] = {"portfolio": {"existing_position": {"held": True, "quantity": 10}}}
         self.context["model_contract"]["assumption_review_required"] = True
         self.context["evidence_index"] = [
@@ -448,6 +453,54 @@ class TestAssumptionPersistence(unittest.TestCase):
         write_json(report_path("TSLA", report["analysis_id"]), report)
         with self.assertRaisesRegex(AssumptionError, "재정의"):
             load_analysis("TSLA", report["analysis_id"], self.context)
+
+    def extra_source(self, fetched_at):
+        """packet 에 없던 보존 웹 원문 하나. → (근거 ID, documents_for 패치)"""
+        from calculators.contracts import canonical_payload_hash
+        payload = {"requested_url": "https://example.org/financials",
+                   "final_url": "https://example.org/financials",
+                   "body": "<html><title>Financial statement</title><p>EPS</p></html>",
+                   "http_status": 200, "content_type": "text/html",
+                   "body_encoding": "utf-8", "content_length": 60}
+        digest = canonical_payload_hash(payload)
+        identifier = "WEBSNAP:" + digest[:12]
+        write_json(self.root / "extra-source.json", {
+            "fetched_at": fetched_at, "source": "web",
+            "payload_sha256": digest, "payload": payload})
+        catalog = {"available": [{"doc_id": identifier, "locator": "extra-source.json",
+                                  "kind": "WEB_SNAPSHOT"}]}
+        return identifier, patch("cio.documents.documents_for", return_value=catalog)
+
+    def test_extra_evidence_fetched_after_the_analysis_is_refused(self):
+        """packet 밖에서 더한 근거도 시각 순서를 지킨다.
+
+        이 경로는 지문과 ID 만 보고 회수시각을 보지 않았다. 그래서 2030년에 받은
+        원문을 2026년 판단의 가정 근거로 묶어도 가정 검토와 판단 검증이 통과했다.
+        """
+        identifier, catalog = self.extra_source("2030-01-01T00:00:00+00:00")
+        spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = [identifier]
+        with catalog, self.assertRaisesRegex(AssumptionError, "그때 없던 자료"):
+            create_analysis(spec, self.context)
+
+    def test_extra_evidence_fetched_before_the_analysis_is_bound_and_replayed(self):
+        identifier, catalog = self.extra_source("2026-01-01T00:00:00+00:00")
+        spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = [identifier]
+        with catalog:
+            report = create_analysis(spec, self.context)
+        self.assertEqual(load_analysis("TSLA", report["analysis_id"], self.context), report)
+        self.assertEqual(validate_decision(self.decision(report), context=self.context), [])
+        # 봉인된 보고서의 시각을 원문 회수보다 앞으로 옮기면 다시 읽을 때 걸린다.
+        backdated = deepcopy(report); backdated["created_at"] = "2025-12-31T00:00:00+00:00"
+        backdated["analysis_id"] = analysis_id(backdated)
+        write_json(report_path("TSLA", backdated["analysis_id"]), backdated)
+        with self.assertRaisesRegex(AssumptionError, "그때 없던 자료"):
+            load_analysis("TSLA", backdated["analysis_id"], self.context)
+
+    def test_extra_evidence_without_a_readable_fetch_time_is_refused(self):
+        identifier, catalog = self.extra_source("언젠가")
+        spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = [identifier]
+        with catalog, self.assertRaisesRegex(AssumptionError, "시각"):
+            create_analysis(spec, self.context)
 
     def test_decision_cannot_skip_or_rewrite_its_experiment(self):
         report = create_analysis(self.spec, self.context)

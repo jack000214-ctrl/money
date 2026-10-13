@@ -1,6 +1,7 @@
 """CIO 판단·기억·라우팅의 적대 경계 회귀 테스트."""
 
 import hashlib
+import datetime as dt
 import json
 import tempfile
 import unittest
@@ -164,6 +165,55 @@ class TestDecisionIntegrity(unittest.TestCase):
         )
 
 
+# 픽스처 판단은 2026-07-28 10:00 KST 에 만든 것이다. 그 직후에 기록한다.
+RECORDED_AT = dt.datetime.fromisoformat("2026-07-28T10:05:00+09:00")
+
+
+class TestADecisionIsRecordedWhenItIsMade(unittest.TestCase):
+    """판단 시각은 모델이 적고 기록 시각은 어디에도 남지 않는다.
+
+    그래서 어제 만든 초안을 오늘 기록해도 어제의 판단으로 저장됐다. 사후 평가는
+    packet 의 기준일부터 재므로, 기록할 때 이미 본 가격 변동이 예측의 성적이 된다.
+    """
+
+    def record(self, now):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            knowledge = root / "knowledge"
+            context = valid_context()
+            context_path = knowledge / "contexts" / "TSLA" / f"{context['context_id']}.json"
+            context_path.parent.mkdir(parents=True)
+            context_path.write_text(json.dumps(context), encoding="utf-8")
+            decision_path = root / "decision.json"
+            decision_path.write_text(json.dumps(valid_decision()), encoding="utf-8")
+            with (
+                patch("cio.memory.ROOT", root),
+                patch("cio.memory.KNOWLEDGE_DIR", knowledge),
+                patch("cio.decision.ROOT", root),
+                patch("cio.decision.KNOWLEDGE_DIR", knowledge),
+            ):
+                try:
+                    record_decision_file(decision_path, now=now)
+                    errors = []
+                except ContractError as exc:
+                    errors = exc.errors
+            return (errors,
+                    len(list((knowledge / "assessments").glob("*/CIO-*.json"))),
+                    len(list((knowledge / "quarantine").glob("*/INVALID-*.json"))))
+
+    def test_a_decision_recorded_right_after_it_was_made_is_stored(self):
+        self.assertEqual(self.record(RECORDED_AT), ([], 1, 0))
+
+    def test_a_draft_recorded_the_next_day_is_refused_and_kept_in_quarantine(self):
+        errors, stored, quarantined = self.record(RECORDED_AT + dt.timedelta(days=1))
+        self.assertTrue(any("시간 뒤에 기록" in error for error in errors), errors)
+        self.assertEqual((stored, quarantined), (0, 1))
+
+    def test_the_limit_is_the_packets_own_window(self):
+        just_inside = dt.datetime.fromisoformat("2026-07-28T22:00:00+09:00")
+        self.assertEqual(self.record(just_inside)[0], [])
+
+
 class TestMemorySafety(unittest.TestCase):
     def test_malformed_and_traversal_outputs_stay_in_quarantine(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -227,7 +277,8 @@ class TestMemorySafety(unittest.TestCase):
                 patch("cio.decision.ROOT", root),
                 patch("cio.decision.KNOWLEDGE_DIR", knowledge),
             ):
-                saved = record_decision_file(decision_path)
+                saved = record_decision_file(decision_path, now=RECORDED_AT)
+                # 이미 기록된 판단을 다시 넣는 것은 새 기록이 아니다 — 언제든 같다.
                 self.assertEqual(record_decision_file(decision_path), saved)
                 assessment = json.loads(saved.read_text(encoding="utf-8"))
                 assessment["thesis"] = "저장 뒤 변조"
@@ -441,7 +492,7 @@ class TestRoutingContracts(unittest.TestCase):
             command=None,
         )
         with tempfile.TemporaryDirectory() as tmp:
-            valid = Path(tmp) / "valid.csv"
+            valid = Path(tmp) / "holdings-2026-07-28.csv"
             valid.write_text(
                 "etf_id,holding_id,holding_name,weight_pct,as_of\n"
                 "SCHD,HD,Home Depot,4.2,2026-07-28\n"

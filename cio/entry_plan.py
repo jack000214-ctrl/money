@@ -123,13 +123,18 @@ def observations(assessment, price_rows, *, start_factor, end, reviews=(), decis
     usable the next day. Never translate a missing review into a successful entry.
     """
     plan = assessment["entry_plan"]
+    # 봉의 날짜는 거래소의 날짜다. 판단 당일을 빼는 기준도 그 달력의 판단일
+    # (`decision_date`, 호출부가 시장 시간대로 옮겨 준다) 하나여야 한다.
+    # `reference_date` 는 사용자 달력의 날짜라 미국 종목에서는 하루 앞설 수 있다 —
+    # 한국 7/29 00:31 의 판단은 뉴욕 7/28 이고, 둘 중 늦은 날을 기준으로 삼으면
+    # 첫 사후 거래일(7/29)이 판단 당일로 취급돼 빠진다.
     decision_date = decision_date or assessment.get("created_at", plan["reference_date"])[:10]
     result = []
     for stage in plan["stages"]:
         checks = sorted([r for r in reviews if r["assessment_id"] == assessment["assessment_id"] and r["stage_id"] == stage["stage_id"]], key=lambda r: r["recorded_at"])
         touch, eligible, unknown, eligible_bar = None, None, False, None
         for bar in price_rows:
-            if not (max(plan["reference_date"], decision_date) < bar["date"] and stage["valid_from"] <= bar["date"] <= stage["valid_until"]):
+            if not (decision_date < bar["date"] and stage["valid_from"] <= bar["date"] <= stage["valid_until"]):
                 continue
             state = "SATISFIED" if not stage["requires_review"] else "UNVERIFIABLE"
             for check in checks:

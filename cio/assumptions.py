@@ -153,7 +153,13 @@ def validate_earnings_basis(spec, context):
         raise AssumptionError("DCF 분모 연결은 같은 주식 단위·null net_income이어야 한다")
 
 
-def _check_extra_source(source):
+def _check_extra_source(source, *, not_after):
+    """packet 밖에서 더한 보존 원문이 자기 내용·ID·시각과 맞는지 본다.
+
+    packet 의 근거는 context 무결성 검사가 기준일 순서를 본다. 이 경로는 지문과
+    ID 만 봤고, 그래서 회수시각이 2030년인 원문을 2026년 판단의 근거로 묶어도
+    통과했다. 분석을 만든 뒤에 받은 자료로 그 분석의 가정을 뒷받침할 수 없다.
+    """
     document = load_json(_source_path(source["path"]))
     payload = document.get("payload")
     digest = canonical_payload_hash(payload)
@@ -165,6 +171,17 @@ def _check_extra_source(source):
             raise AssumptionError("공시 접수번호와 가정 근거 ID가 다르다")
     elif identifier != f"WEBSNAP:{digest[:12]}":
         raise AssumptionError("보존 웹 원문과 가정 근거 ID가 다르다")
+    try:
+        fetched = dt.datetime.fromisoformat(str(document.get("fetched_at")).replace("Z", "+00:00"))
+        boundary = dt.datetime.fromisoformat(str(not_after).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise AssumptionError(f"보존 원문 또는 가정 분석의 시각을 읽을 수 없다: {identifier}") from exc
+    if fetched.tzinfo is None or boundary.tzinfo is None:
+        raise AssumptionError(f"보존 원문 또는 가정 분석의 시각에 시간대가 없다: {identifier}")
+    if fetched > boundary:
+        raise AssumptionError(
+            f"{identifier}: 원문 회수시각 {document.get('fetched_at')} 이 가정 분석 시각 "
+            f"{not_after} 보다 뒤다. 그때 없던 자료를 가정의 근거로 쓸 수 없다")
 
 
 def _check_basis_evidence(spec, evidence):
@@ -199,7 +216,7 @@ def create_analysis(spec, context):
     context_ids = {r["source_id"] for r in context.get("evidence_index") or []}
     for source in report["evidence_index"]:
         if source["source_id"] not in context_ids:
-            _check_extra_source(source)
+            _check_extra_source(source, not_after=report["created_at"])
     write_json(report_path(report["asset_id"], report["analysis_id"]), report)
     return report
 
@@ -240,7 +257,7 @@ def load_analysis(asset_id, identifier, context):
         if content_hash(_source_path(source.get("path"))) != source.get("content_sha256"):
             raise AssumptionError("가정 근거의 파일 지문이 다르다")
         if not original:
-            _check_extra_source(source)
+            _check_extra_source(source, not_after=report["created_at"])
     _check_basis_evidence(report["spec"], report["evidence_index"])
     return report
 

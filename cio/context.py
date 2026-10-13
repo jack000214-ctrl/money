@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
-import glob
 import json
 import math
 import os
@@ -37,6 +36,7 @@ from cio.decision import require_valid_decision, validate_context_integrity
 from cio.memory import (
     EVALUATION_ID_EXCLUDED_KEYS,
     READABLE_EVALUATION_SCHEMAS,
+    SESSION_CALENDAR_REFERENCES,
 )
 from cio.paths import KNOWLEDGE_DIR, ROOT
 from collectors.price import missing_sessions as _recorded_missing_sessions
@@ -51,6 +51,7 @@ from calculators.position import (
     position_value_by_currency,
 )
 from cio.refresh import (
+    dated_artifacts,
     DART_PRIMARY_REPORT_FORMS,
     SEC_PRIMARY_REPORT_FORMS,
     event_contract_errors,
@@ -91,6 +92,8 @@ MAX_CONTEXT_JSON_BYTES = 80_000
 MAX_LIVE_ASSESSMENTS = 3
 # 1개월 수익률(21거래일 전 대비)을 내려면 이만큼은 있어야 한다.
 MIN_BARS_FOR_RETURNS = 22
+# 가격 요약이 내는 가장 긴 수익률 창(12개월).
+RETURN_WINDOW_BARS = 252
 
 
 class ContextError(ValueError):
@@ -258,29 +261,39 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     # 같은 자리이므로 같은 값으로 모은다.
     session_state = session.group(2) if session else "UNKNOWN"
     rows = _csv_rows(path)
-    points = []
-    adjusted_complete = True
+    observed = []
     for row in rows:
         if not row.get("date") or not row.get("close"):
             continue
         try:
             close = float(row["close"])
-            adjusted = float(row.get("adjusted_close") or close)
+            adjusted = (
+                float(row["adjusted_close"]) if row.get("adjusted_close") else None
+            )
         except (TypeError, ValueError):
             continue
         if (
             not math.isfinite(close)
-            or not math.isfinite(adjusted)
             or close <= 0
-            or adjusted <= 0
+            or (adjusted is not None
+                and (not math.isfinite(adjusted) or adjusted <= 0))
         ):
             continue
-        adjusted_complete = adjusted_complete and bool(
-            row.get("adjusted_close")
-        )
-        points.append((row["date"], close, adjusted))
-    if not points:
+        observed.append((row["date"], close, adjusted))
+    if not observed:
         return None, source
+    # 수익률은 **한 기준의 가격**으로만 낸다. 아래 창이 닿는 구간(12개월 = 252
+    # 거래일 전까지)에 조정종가가 없는 봉이 하나라도 있으면 전부 원가격으로 센다.
+    # 예전에는 봉마다 있는 쪽을 골랐다 — 배당이 반영된 값과 안 된 값이 한 수익률
+    # 안에서 섞이고, 그러고도 기준을 `ADJUSTED_CLOSE` 라고 적을 수 있었다.
+    adjusted_complete = all(
+        point[2] is not None for point in observed[-(RETURN_WINDOW_BARS + 1):]
+    )
+    points = [
+        (date, close,
+         adjusted if adjusted_complete and adjusted is not None else close)
+        for date, close, adjusted in observed
+    ]
     source["data_as_of"] = points[-1][0]
     closes = [point[1] for point in points]
     return_closes = [point[2] for point in points]
@@ -304,7 +317,7 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             2,
         )
 
-    recent = closes[-252:]
+    recent = closes[-RETURN_WINDOW_BARS:]
     high = max(recent)
     low = min(recent)
     # 이력이 창보다 짧으면 그 사실을 값 옆에 둔다. 한 행짜리 파일은 수익률이
@@ -316,7 +329,7 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             f"가격 이력이 {len(points)}행뿐이다 — 수익률·낙폭·변동성을 낼 수 "
             "없다. 벤치마크라면 비교가 성립하지 않으므로 다른 심볼로 바꾼다"
         )
-    elif len(points) < 252:
+    elif len(points) < RETURN_WINDOW_BARS:
         history_note = (
             f"가격 이력이 {len(points)}거래일이라 12개월 창보다 짧다 — 12개월 "
             "수익률은 없고 고점·저점·낙폭은 그 기간 안의 값이다"
@@ -337,12 +350,21 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
             "returns_pct": {
                 "1m": change(21),
                 "3m": change(63),
-                "12m": change(252),
+                "12m": change(RETURN_WINDOW_BARS),
             },
             "returns_basis": (
                 "ADJUSTED_CLOSE"
                 if adjusted_complete
                 else "RAW_CLOSE_FALLBACK"
+            ),
+            **(
+                {}
+                if adjusted_complete
+                else {"_returns_basis_warning": (
+                    "최근 12개월 구간에 조정종가가 없는 봉이 있어 수익률·변동성을 "
+                    "전부 원가격으로 냈다. 배당·분배금이 빠진 **가격 수익률**이며 "
+                    "총수익률이 아니다 — 분배가 큰 자산에서는 그만큼 낮게 나온다"
+                )}
             ),
             "settled_session_returns": {
                 "windows": session_returns,
@@ -411,12 +433,10 @@ def _latest_fundamentals(
     asset: dict[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     asset_id = asset["asset_id"]
-    paths = [
-        Path(path)
-        for path in glob.glob(
-            str(KNOWLEDGE_DIR / "fundamentals" / f"{asset_id}-*.json")
-        )
-    ]
+    # `IBM-*.json` 은 `IBM-B-…json`(다른 자산)까지 집는다. 이름으로 정확히 고른다.
+    paths = dated_artifacts(
+        KNOWLEDGE_DIR / "fundamentals", f"{asset_id}-", ".json"
+    )
     source = {
         "source_id": f"FUNDAMENTALS:{asset_id}",
         "kind": "FILING_DERIVED",
@@ -1417,8 +1437,8 @@ def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[s
 def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     if asset["asset_type"] != "ETF":
         return None, None
-    paths = sorted(
-        (KNOWLEDGE_DIR / "etfs" / asset["asset_id"]).glob("holdings-*.csv")
+    paths = dated_artifacts(
+        KNOWLEDGE_DIR / "etfs" / asset["asset_id"], "holdings-", ".csv"
     )
     holdings_source = (asset.get("etf") or {}).get(
         "holdings_source", "MANUAL"
@@ -1828,7 +1848,13 @@ def _forward_multiple_row(asset_id: str, name: str | None) -> dict[str, Any]:
         return {"asset_id": asset_id, "name": name, "available": False,
                 "forward_per": None}
     annual = ((data.get("estimates") or {}).get("annual")) or []
-    forward = next((row for row in annual if not row["actual"]), None)
+    # 표의 순서가 아니라 기간으로 고른다. 첫 전망연도는 "확정이 아닌 행 중 가장
+    # 이른 기간"이며, 행 순서가 바뀐 파일에서 다른 연도를 집으면 안 된다.
+    forward = min(
+        (row for row in annual if not row["actual"]),
+        key=lambda row: str(row.get("period") or ""),
+        default=None,
+    )
     band = (data.get("estimates") or {}).get("per_band_actual") or {}
     return {
         "asset_id": asset_id,
@@ -1847,26 +1873,81 @@ def _forward_multiple_row(asset_id: str, name: str | None) -> dict[str, Any]:
 
 
 def _peer_multiples(asset: dict[str, Any]) -> dict[str, Any] | None:
-    """동종의 배수를 같은 소스·같은 방식으로 모아 비교한다.
+    """동종의 배수를 같은 소스·같은 방식으로 모아 **같은 전망기간끼리** 비교한다.
 
     언론이 인용하는 '에이피알 30배' 같은 값은 기준연도도 주가시점도 알 수 없어
     비교에 쓸 수 없다. 여기서는 동종도 같은 수집기를 거치므로 EPS 기준·PER
-    계산·기준일이 전부 같다.
+    계산식이 같다.
+
+    **같은 수집기를 썼다는 것이 같은 기간이라는 뜻은 아니다.** 예전에는 각 파일의
+    첫 전망연도를 그대로 중앙값에 넣었다. 대상 2026년 15배, 동종 A 2026년 10배,
+    동종 B 2027년 30배면 중앙값 20 대비 25% 저렴하다고 실렸는데, 같은 2026년끼리
+    보면 50% 비싸다 — 부호가 뒤집힌다. 결산월이 다른 회사나 이미 그 해 실적이
+    확정된 회사가 섞이면 생긴다. 전망기간이 다른 줄은 값을 그대로 보여 주되
+    중앙값에서 빼고 그 사실을 적는다. 기준일(주가시점)은 맞추지 않고 범위를 낸다.
     """
     peers = asset.get("peers") or []
     if not peers:
         return None
     rows = [_forward_multiple_row(peer["asset_id"], peer["name"])
             for peer in peers]
-    usable = [row["forward_per"] for row in rows if row.get("forward_per")]
-    median = round(statistics.median(usable), 2) if usable else None
     # 자기 자신도 **같은 경로로** 읽는다. 동종만 이 함수를 지나고 자신은 다른
     # 블록에서 오면 기준연도·주가시점이 달라져 비교가 성립하지 않는다.
     subject = _forward_multiple_row(asset["asset_id"], asset.get("name"))
+    # 비교의 기준 기간은 대상의 전망기간이다. 대상의 전망이 없으면 동종끼리
+    # 한 기간을 공유할 때만 그 기간을 쓴다 — 갈리면 고르지 않는다.
+    peer_periods = {
+        row["forward_period"] for row in rows
+        if row.get("forward_per") and row.get("forward_period")
+    }
+    period = subject.get("forward_period") or (
+        next(iter(peer_periods)) if len(peer_periods) == 1 else None
+    )
+    usable, excluded = [], []
+    for row in rows:
+        if not row.get("forward_per"):
+            continue
+        if period is not None and row.get("forward_period") == period:
+            usable.append(row["forward_per"])
+            continue
+        # 값은 지우지 않는다. 다른 기간의 배수라는 사실을 그 줄에 붙인다.
+        row["comparable"] = False
+        excluded.append({
+            "asset_id": row["asset_id"],
+            "forward_period": row.get("forward_period"),
+        })
+    median = round(statistics.median(usable), 2) if usable else None
+    as_of_dates = sorted({
+        str(row["as_of"])[:10] for row in [subject, *rows]
+        if row.get("available") and row.get("as_of")
+    })
     return {
-        "basis": "동일 수집기·동일 기준일의 컨센서스 추정",
+        "basis": "동일 수집기의 컨센서스 추정 · 같은 전망기간끼리만 비교",
+        "forward_period": period,
         "subject": subject,
         "peers": rows,
+        **(
+            {
+                "excluded_from_median": excluded,
+                "_period_note": (
+                    f"전망기간이 {period or '정해지지 않은 기준'} 과 다른 동종 "
+                    f"{len(excluded)}곳은 중앙값·최소·최대에서 뺐다. 다른 해의 "
+                    "이익으로 낸 배수를 섞으면 상대 위치의 부호까지 바뀐다. 그 "
+                    "줄의 forward_per 는 그 줄의 forward_period 기준 값으로만 읽는다"
+                ),
+            }
+            if excluded else {}
+        ),
+        **(
+            {
+                "as_of_range": {"from": as_of_dates[0], "to": as_of_dates[-1]},
+                "_as_of_note": (
+                    "forward_per 는 각 자료 기준일의 주가로 계산된 값이다. "
+                    "기준일이 서로 달라 그 사이의 주가 변동이 배수 차이에 섞여 있다"
+                ),
+            }
+            if len(as_of_dates) > 1 else {}
+        ),
         "forward_per_median": median,
         # 배수와 중앙값을 둘 다 실으면서 괴리를 빼면 모델이 직접 나눈다.
         # 화면(`peer_kr`·`peer_us`)은 이미 이 값과 "중앙값보다 낮음/높음/근접"
@@ -2845,12 +2926,8 @@ def _optional_collection_summaries(
     return summaries, sources
 
 
-# 자산의 거래일 달력과 같은 달력을 쓰는 지수. 변동성 지수나 해외 벤치마크는
-# 휴장일이 달라 넣지 않는다 — 넣으면 없는 구멍이 생긴다.
-SESSION_CALENDAR_REFERENCES = {
-    "KR": ("^KS11", "^KQ11"),
-    "US": ("^GSPC", "^IXIC"),
-}
+# 같은 달력을 쓰는 지수의 표(`SESSION_CALENDAR_REFERENCES`)는 `cio/memory.py` 에
+# 있다. 사후 평가도 같은 표로 종료일 관측의 구멍을 본다.
 # 구멍을 찾는 범위. 오래된 구멍은 여기서 다루는 세션 수익률과 무관하고, 창을
 # 넓히면 상장 전·거래정지 기간이 전부 '구멍'으로 실린다.
 SESSION_GAP_LOOKBACK = 30

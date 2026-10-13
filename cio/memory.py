@@ -30,13 +30,16 @@ from cio.refresh import safe_symbol
 KST = dt.timezone(dt.timedelta(hours=9))
 
 # 새 평가가 쓰는 판. 1.1.0 에서 `counterfactual` 이 붙었다. 1.2.0 에서 완료
-# 판정이 확정 종가에 묶였고 벤치마크의 관측일·완료 여부가 함께 실린다.
-EVALUATION_SCHEMA = "cio-evaluation/1.2.0"
+# 판정이 확정 종가에 묶였고 벤치마크의 관측일·완료 여부가 함께 실린다. 1.3.0 에서
+# 완료 판정이 **종료일 관측의 존재**까지 본다(`window.end_observation_gaps`) —
+# 그 전의 평가는 종료일 봉이 없어도 뒤 날짜의 봉만 있으면 완료였다.
+EVALUATION_SCHEMA = "cio-evaluation/1.3.0"
 # 읽을 때는 옛 판도 받는다. 여기서 하나로 못 박으면 판을 올릴 때마다 이전
 # 평가가 packet 에서 조용히 사라진다 — 읽는 쪽은 `continue` 로 건너뛸 뿐이라
 # 무엇이 없어졌는지 아무도 모른다. 추가된 필드는 읽는 쪽이 안 보면 그만이다.
 READABLE_EVALUATION_SCHEMAS = frozenset(
-    {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0", "cio-evaluation/1.2.0"}
+    {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0", "cio-evaluation/1.2.0",
+     "cio-evaluation/1.3.0"}
 )
 
 # 지문에서 빼는 키. **라이터와 리더가 반드시 같은 집합을 써야 한다.**
@@ -61,7 +64,35 @@ EVALUATION_ID_EXCLUDED_KEYS = frozenset(
 )
 
 
-def record_decision_file(path: str | Path) -> Path:
+def _require_timely_record(
+    decision: dict[str, Any], *, now: dt.datetime | None
+) -> None:
+    """판단을 만든 시각과 기록하는 시각이 한참 벌어졌으면 받지 않는다.
+
+    `created_at` 은 모델이 적는 값이고 기록 시각은 어디에도 남지 않는다. 그래서
+    어제 만든 초안을 오늘 기록해도 판단은 어제의 것으로 저장되고, 사후 평가는
+    packet 의 기준일부터 잰다 — 기록할 때 이미 본 가격 변동이 예측의 성적이 된다.
+    재검증에는 쓰지 않는다. 저장된 판단은 시간이 지나도 같은 판단이다.
+    """
+    from cio.refresh import PRICE_MAX_AGE_HOURS
+
+    now = now or dt.datetime.now(dt.timezone.utc)
+    created = dt.datetime.fromisoformat(
+        str(decision["created_at"]).replace("Z", "+00:00")
+    )
+    delay_hours = (now - created).total_seconds() / 3600
+    if delay_hours > PRICE_MAX_AGE_HOURS:
+        raise ContractError([
+            f"created_at: 판단을 만든 지 {delay_hours:.1f}시간 뒤에 기록하려 한다. "
+            f"판단은 만든 뒤 {PRICE_MAX_AGE_HOURS}시간 안에 기록한다 — 그 뒤에 "
+            "기록하면 그 사이의 가격을 이미 본 판단이 예측으로 채점된다. "
+            "`cio prepare` 로 새 context 를 만들어 다시 판단한다"
+        ])
+
+
+def record_decision_file(
+    path: str | Path, *, now: dt.datetime | None = None
+) -> Path:
     input_path = Path(path)
     try:
         raw_output = input_path.read_text(encoding="utf-8")
@@ -91,6 +122,14 @@ def record_decision_file(path: str | Path) -> Path:
     try:
         context, _ = find_context(str(data.get("context_id") or ""))
         normalized = require_valid_decision(data, context=context)
+        asset_id = _safe_memory_asset_id(normalized["asset_id"])
+        out = (
+            _memory_asset_dir("assessments", asset_id)
+            / f"{normalized['assessment_id']}.json"
+        )
+        # 이미 기록된 판단을 다시 넣는 것은 새 기록이 아니다.
+        if not out.exists():
+            _require_timely_record(normalized, now=now)
     except ContractError as exc:
         quarantine = quarantine_decision(
             data,
@@ -104,11 +143,6 @@ def record_decision_file(path: str | Path) -> Path:
                 f"격리 저장: {quarantine.resolve().relative_to(ROOT.resolve())}",
             ]
         ) from exc
-    asset_id = _safe_memory_asset_id(normalized["asset_id"])
-    out = (
-        _memory_asset_dir("assessments", asset_id)
-        / f"{normalized['assessment_id']}.json"
-    )
     if out.exists():
         existing = load_json(out)
         if existing != normalized:
@@ -240,6 +274,107 @@ def _price_rows(symbol: str) -> list[dict[str, Any]]:
     if not result:
         raise ContractError([f"가격 시계열이 비어 있다: {path.relative_to(ROOT)}"])
     return result
+
+
+def _on_one_return_basis(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], bool]:
+    """총수익률에 쓸 가격을 한 기준으로 맞춘다. → (행, 조정종가 기준인가)
+
+    조정종가가 없는 봉이 하나라도 있으면 그 구간 전부를 원가격으로 센다. 예전에는
+    봉마다 있는 쪽을 골랐다 — 판단일 봉에만 조정종가가 없으면 원가(배당 미반영)와
+    기간 말 가격(배당 반영)이 한 수익률 안에서 섞여 배당만큼의 가짜 손익이 생기고,
+    기준 표시만 `CLOSE_FALLBACK` 으로 바뀐 채 숫자는 어느 기준도 아니었다.
+    """
+    if all(row.get("has_adjusted_close") for row in rows):
+        return rows, True
+    return [{**row, "adjusted_close": row["close"]} for row in rows], False
+
+
+# 자산의 거래일 달력과 같은 달력을 쓰는 지수. 변동성 지수나 해외 벤치마크는
+# 휴장일이 달라 넣지 않는다 — 넣으면 없는 구멍이 생긴다. packet 의 세션 구멍
+# 대조(`cio/context.py:_session_gaps`)와 사후 평가가 같은 표를 쓴다.
+SESSION_CALENDAR_REFERENCES = {
+    "KR": ("^KS11", "^KQ11"),
+    "US": ("^GSPC", "^IXIC"),
+}
+
+
+def _exchange_confirmed_absent(symbol: str) -> set[str]:
+    """거래소 원문에도 봉이 없다고 확인된 날. 그날은 이 시계열의 구멍이 아니다.
+
+    `collectors.krx` 의 백필 기록에서 사유 없이 `unfilled` 로 남은 날이다 — 거래소에
+    물었고 그 종목·지수의 행이 없었다(휴장·거래정지). 사유가 붙은 날은 원문은
+    있는데 기준을 정하지 못해 못 메운 것이라 여전히 구멍이다.
+    """
+    path = KNOWLEDGE_DIR / "prices" / "_backfill" / f"{safe_symbol(symbol)}.json"
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return set()
+    if (
+        data.get("schema_version") != "price-backfill/1.0.0"
+        or data.get("target") != f"{safe_symbol(symbol)}.csv"
+        or not isinstance(data.get("unfilled"), list)
+    ):
+        return set()
+    reasons = data.get("unfilled_reasons")
+    return {
+        day for day in data["unfilled"]
+        if isinstance(day, str)
+        and day not in (reasons if isinstance(reasons, dict) else {})
+    }
+
+
+def _known_sessions(symbol: str, market: str | None = None) -> set[str]:
+    """이 시계열의 달력에 **있었다고 알려진** 거래일.
+
+    한 파일은 자기 구멍을 볼 수 없다. 봉이 저장됐다가 사라진 날의 기록
+    (`# missing_sessions`)과, 같은 거래소 달력을 쓰는 지수에 봉이 있는 날을 합친다.
+    `market` 을 주지 않으면 그 심볼이 달력 지수 자신일 때만 짝 지수와 대조한다 —
+    해외 지수·환율은 대조할 달력이 없어 자기 기록만 본다.
+
+    판정이 아니라 대조다. 모든 파일이 같은 날을 함께 잃고 기록도 없으면 알 수 없다.
+    """
+    from collectors.price import missing_sessions
+
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    known = set(missing_sessions(path))
+    if market not in SESSION_CALENDAR_REFERENCES:
+        market = next(
+            (name for name, references in SESSION_CALENDAR_REFERENCES.items()
+             if symbol in references),
+            None,
+        )
+    for reference in SESSION_CALENDAR_REFERENCES.get(market or "", ()):
+        if reference != symbol:
+            known.update(_price_dates(reference))
+    return known - _exchange_confirmed_absent(symbol)
+
+
+def _price_dates(symbol: str) -> list[str]:
+    """가격 파일에 봉이 있는 날짜. 파일이 없거나 못 읽으면 빈 목록이다."""
+    path = KNOWLEDGE_DIR / "prices" / f"{safe_symbol(symbol)}.csv"
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            return [
+                row["date"]
+                for row in csv.DictReader(
+                    line for line in handle if not line.lstrip().startswith("#")
+                )
+                if row.get("date")
+            ]
+    except OSError:
+        return []
+
+
+def _sessions_missing_before(
+    known_sessions: set[str] | None, *, after: str, through: str
+) -> list[str]:
+    """마지막 관측(`after`) 뒤, 목표일(`through`)까지에 봉이 없는 알려진 거래일."""
+    return sorted(
+        day for day in known_sessions or () if after < day <= through
+    )
 
 
 def _add_months(value: dt.date, months: int) -> dt.date:
@@ -627,21 +762,37 @@ def _return_at(
     months: int,
     adjusted_cost: float,
     settled_through: str | None = None,
-) -> tuple[float | None, bool, str | None]:
-    """기준일에서 N개월 뒤까지의 총수익률. 아직 안 지났으면 미완으로 남긴다."""
+    known_sessions: set[str] | None = None,
+) -> tuple[float | None, bool, str | None, list[str]]:
+    """기준일에서 N개월 뒤까지의 총수익률. 아직 안 지났으면 미완으로 남긴다.
+
+    → (수익률, 완료 여부, 관측일, 관측일 뒤 목표일까지 봉이 없는 알려진 거래일)
+
+    **목표일 뒤의 봉이 있다는 것은 목표일의 관측이 있다는 뜻이 아니다.** 예전에는
+    확정 종가가 목표일을 지났는지만 봤다. 그래서 목표일 2/2 의 봉이 사라진 채
+    2/3 봉만 있으면 1/30 의 가격을 기간 말 가격으로 굳혔고, 지수는 2/2 가격을 써서
+    서로 다른 구간의 수익률을 뺐다.
+    """
     target = _add_months(start, months)
     window = [row for row in rows if row["date"] <= target.isoformat()]
     if not window or adjusted_cost <= 0:
-        return None, False, None
+        return None, False, None, []
     last = window[-1]
     # 목표일이 아직 안 왔으면 값은 내되 complete=False 로 못박는다. 미완 값을
     # 완료된 것처럼 집계하면 최근 판단이 유리하거나 불리하게 치우친다.
     boundary = settled_through if settled_through is not None else rows[-1]["date"]
-    complete = boundary >= target.isoformat()
+    # 이 시계열이 아직 닿지 않은 날은 구멍이 아니다 — 지수 파일이 하루 먼저
+    # 수집됐을 뿐이다. 구멍은 그 뒤의 봉이 이미 있는데 그날만 없는 경우다.
+    gaps = _sessions_missing_before(
+        known_sessions, after=last["date"],
+        through=min(target.isoformat(), rows[-1]["date"]),
+    )
+    complete = boundary >= target.isoformat() and not gaps
     return (
         round((last["adjusted_close"] / adjusted_cost - 1) * 100, 4),
         bool(complete),
         last["date"],
+        gaps,
     )
 
 
@@ -669,6 +820,7 @@ def _fixed_horizon_returns(
     benchmarks: list[str],
     asset_currency: str | None = None,
     session: dict[str, Any] | None = None,
+    known_sessions: set[str] | None = None,
 ) -> dict[str, Any]:
     """모델의 자기 선언과 무관한 고정 기간 수익률과 기준지수 대비 초과수익.
 
@@ -679,14 +831,17 @@ def _fixed_horizon_returns(
     settled_through = _settled_through(usable, session)
     horizons: dict[str, Any] = {}
     for months in FIXED_HORIZON_MONTHS:
-        value, complete, observed = _return_at(
+        value, complete, observed, gaps = _return_at(
             usable, start=start, months=months, adjusted_cost=adjusted_cost,
             settled_through=settled_through if usable else None,
+            known_sessions=known_sessions,
         )
         horizons[f"m{months}"] = {
             "return_pct": value,
             "complete": complete,
             "observed_date": observed,
+            # 있을 때만 싣는다. 관측일 뒤 목표일까지에 봉이 없는 거래일이다.
+            **({"missing_sessions_before_target": gaps} if gaps else {}),
         }
 
     benchmark_rows: dict[str, Any] = {}
@@ -699,6 +854,9 @@ def _fixed_horizon_returns(
             {
                 **row,
                 "adjusted_close": float(row.get("adjusted_close") or row["close"]),
+                "has_adjusted_close": bool(
+                    row.get("has_adjusted_close", row.get("adjusted_close"))
+                ),
             }
             for row in series
         ]
@@ -708,12 +866,15 @@ def _fixed_horizon_returns(
         base = [row for row in series if row["date"] > start.isoformat()]
         if not at_start or not base:
             continue
-        base_cost = at_start[-1]["adjusted_close"]
+        in_use, benchmark_adjusted = _on_one_return_basis([at_start[-1], *base])
+        base_cost, base = in_use[0]["adjusted_close"], in_use[1:]
         benchmark_settled = _settled_through(base, _price_session(symbol))
+        benchmark_known = _known_sessions(symbol)
         for months in FIXED_HORIZON_MONTHS:
-            value, benchmark_complete, benchmark_observed = _return_at(
+            value, benchmark_complete, benchmark_observed, benchmark_gaps = _return_at(
                 base, start=start, months=months, adjusted_cost=base_cost,
                 settled_through=benchmark_settled,
+                known_sessions=benchmark_known,
             )
             own = horizons[f"m{months}"]
             # 두 수익률이 **같은 구간**의 것일 때만 뺀다. 종목은 2/2 까지 +20% 인데
@@ -736,6 +897,13 @@ def _fixed_horizon_returns(
                 "benchmark_return_pct": value,
                 "benchmark_complete": benchmark_complete,
                 "benchmark_observed_date": benchmark_observed,
+                **(
+                    {"benchmark_missing_sessions_before_target": benchmark_gaps}
+                    if benchmark_gaps else {}
+                ),
+                # 지수 쪽에 조정종가가 없는 봉이 있어 원가격으로 센 경우에만 싣는다.
+                **({} if benchmark_adjusted
+                   else {"benchmark_return_basis": "CLOSE_FALLBACK"}),
                 "excess_pct": (
                     round(own["return_pct"] - value, 4) if comparable else None
                 ),
@@ -782,15 +950,31 @@ def evaluate_assessment(
     assessment: dict[str, Any],
     *,
     rows: list[dict[str, Any]] | None = None,
+    known_sessions: set[str] | None = None,
 ) -> dict[str, Any]:
+    """판단 하나를 가격 경로에 대조한다.
+
+    `known_sessions` 는 이 시계열의 달력에 있었다고 알려진 거래일이다(봉이 없는
+    날 포함). 시계열을 직접 넘기는 호출부는 그 달력도 함께 넘긴다 — 넘기지 않으면
+    넘겨받은 봉만으로 본다. 파일에서 읽을 때는 여기서 함께 읽는다.
+    """
     asset = get_asset(assessment["asset_id"])
     session = _price_session(asset["price_symbol"])
-    rows = rows or _price_rows(asset["price_symbol"])
+    if not rows:
+        rows = _price_rows(asset["price_symbol"])
+        if known_sessions is None:
+            known_sessions = _known_sessions(
+                asset["price_symbol"], asset.get("market")
+            )
     rows = [
         {
             **row,
             "adjusted_close": float(row.get("adjusted_close") or row["close"]),
-            "has_adjusted_close": bool(row.get("has_adjusted_close")),
+            # 파일에서 읽은 행은 이 표시를 갖고 온다(`_price_rows`). 직접 넘긴
+            # 행에 표시가 없으면 조정종가 값이 실려 있는지로 본다.
+            "has_adjusted_close": bool(
+                row.get("has_adjusted_close", row.get("adjusted_close") is not None)
+            ),
             "split_adjustment_factor": float(
                 row.get("split_adjustment_factor") or 1.0
             ),
@@ -814,12 +998,7 @@ def evaluate_assessment(
     if not usable:
         raise ContractError([f"{start} 다음 거래일부터의 가격이 없다"])
     latest = usable[-1]
-    # 완료는 날짜가 아니라 **확정 종가**로 정한다. 평가 종료일의 봉이 장중
-    # 수집분이면 그 값으로 승패·Brier 를 굳히지 않는다.
     settled_through = _settled_through(usable, session)
-    complete = (
-        settled_through is not None and settled_through >= horizon.isoformat()
-    )
     horizon_rows = [row for row in usable if row["date"] <= horizon.isoformat()]
     if not horizon_rows:
         # 사후 봉이 전부 평가 종료일 뒤다(그 사이 시계열이 비었다). 예전에는
@@ -830,10 +1009,40 @@ def evaluate_assessment(
             [f"{start} ~ {horizon} 평가 기간 안에 가격 관측이 없다"]
         )
     end = horizon_rows[-1]
+    # 완료는 날짜가 아니라 **확정 종가**로 정한다. 평가 종료일의 봉이 장중
+    # 수집분이면 그 값으로 승패·Brier 를 굳히지 않는다.
+    #
+    # 그리고 **종료일 뒤의 봉이 있다는 것은 종료일의 관측이 있다는 뜻이 아니다.**
+    # 기간 말 가격으로 쓰는 봉(`end`)과 종료일 사이에 봉이 없는 거래일이 있으면
+    # — 봉이 저장됐다가 사라진 날이거나 같은 달력의 지수에만 있는 날 — 그 `end` 는
+    # 기간 말이 아니라 그 전의 어느 날이다. 그 값으로 완료를 선언하지 않는다.
+    # 이 시계열이 아직 닿지 않은 날은 구멍이 아니다(진행 중인 평가에서 지수 파일이
+    # 하루 먼저 수집된 경우). 그 뒤의 봉이 이미 있는데 그날만 없을 때가 구멍이다.
+    end_gaps = _sessions_missing_before(
+        known_sessions, after=end["date"],
+        through=min(horizon.isoformat(), latest["date"]),
+    )
+    complete = (
+        settled_through is not None
+        and settled_through >= horizon.isoformat()
+        and not end_gaps
+    )
     start_price = float(request["price"])
     first = usable[0]
     at_start = [row for row in rows if row["date"] <= start.isoformat()]
     reference_bar = at_start[-1] if at_start else first
+    # 판단일 봉부터 뒤로는 한 기준의 가격으로만 센다. 그 구간에 조정종가가 없는
+    # 봉이 있으면 전부 원가격(배당 미반영)이고, 그 사실이 price.return_basis 다.
+    # 판단 전의 봉은 수익률에 쓰이지 않으므로 기준을 정하는 데도 쓰지 않는다.
+    in_use, adjusted_basis = _on_one_return_basis(
+        [reference_bar, *usable] if at_start else usable
+    )
+    by_date = {row["date"]: row for row in in_use}
+    rows = [by_date.get(row["date"], row) for row in rows]
+    usable = [by_date[row["date"]] for row in usable]
+    horizon_rows = [by_date[row["date"]] for row in horizon_rows]
+    latest, end, first = usable[-1], horizon_rows[-1], usable[0]
+    reference_bar = by_date[reference_bar["date"]]
     start_split_factor = float(
         reference_bar.get("split_adjustment_factor") or 1.0
     )
@@ -875,6 +1084,7 @@ def evaluate_assessment(
         benchmarks=asset.get("benchmarks") or [],
         asset_currency=asset.get("currency"),
         session=session,
+        known_sessions=known_sessions,
     )
     evaluation = {
         "schema_version": EVALUATION_SCHEMA,
@@ -893,6 +1103,20 @@ def evaluate_assessment(
             "latest_available_date": latest["date"],
             "settled_through": settled_through,
             "complete": complete,
+            # 기간 말 가격으로 쓴 봉의 날짜와, 그 뒤 종료일까지에 봉이 없는 알려진
+            # 거래일. 비어 있지 않으면 price.end 는 기간 말 가격이 아니다.
+            "end_observation_date": end["date"],
+            "end_observation_gaps": end_gaps,
+            **(
+                {"_end_gap_note": (
+                    f"{', '.join(end_gaps)} 의 봉이 없다 — 봉이 저장됐다가 "
+                    "사라졌거나 같은 거래소 달력의 지수에만 있는 거래일이다. "
+                    f"price.end 는 {end['date']} 의 값이라 평가 종료일의 관측이 "
+                    "아니므로 완료로 세지 않았다. 가격을 다시 수집하거나 "
+                    "거래소 원문으로 메운 뒤 다시 채점한다"
+                )}
+                if end_gaps else {}
+            ),
             # 마지막 관측이 확정 종가인가. 장중에 채점하면 진행 중인 봉이
             # price.latest 에 들어가는데, 그 사실이 남지 않으면 나중에 이
             # 평가를 읽는 쪽이 14시의 값을 종가로 인용한다.
@@ -928,8 +1152,17 @@ def evaluate_assessment(
             "currency": request["price_currency"],
             "return_basis": (
                 "ADJUSTED_CLOSE_ASSET_CURRENCY"
-                if all(row.get("has_adjusted_close") for row in usable)
+                if adjusted_basis
                 else "CLOSE_FALLBACK_ASSET_CURRENCY"
+            ),
+            **(
+                {}
+                if adjusted_basis
+                else {"_return_basis_note": (
+                    "판단일 이후 구간에 조정종가가 없는 봉이 있어 수익률을 전부 "
+                    "원가격으로 냈다. 배당·분배금이 빠진 가격 수익률이며, 판단이 "
+                    "약속한 총수익률(outcome_metric)과 그만큼 다르다"
+                )}
             ),
             "excludes": ["FX", "TAX", "FEES", "SLIPPAGE"],
             "adjustment_factor_at_start": round(adjustment_factor, 10),
@@ -1100,6 +1333,7 @@ def _score_one(
     filename: str,
     rows: list[dict[str, Any]],
     retired: dict[str, Any] | None,
+    known_sessions: set[str] | None = None,
 ) -> dict[str, Any]:
     """한 건을 채점한다. 변조는 계약 변화와 다르므로 여기서 멈춘다."""
     stored_id = assessment.get("assessment_id")
@@ -1131,7 +1365,9 @@ def _score_one(
         if errors:
             # 측정조차 불가능하다. 이때만 건너뛴다.
             raise ContractError(errors)
-    evaluation = evaluate_assessment(assessment, rows=rows)
+    evaluation = evaluate_assessment(
+        assessment, rows=rows, known_sessions=known_sessions
+    )
     evaluation["source"] = "RETIRED" if retired else "LIVE"
     evaluation["citable"] = retired is None and not contract_gap
     if contract_gap:
@@ -1223,6 +1459,7 @@ def score_asset(asset_id: str) -> dict[str, Any]:
             "skipped": [],
         }
     rows = _price_rows(asset["price_symbol"])
+    known_sessions = _known_sessions(asset["price_symbol"], asset.get("market"))
     evaluated: list[dict[str, Any]] = []
     retired_evaluated: list[dict[str, Any]] = []
     not_citable: list[dict[str, Any]] = []
@@ -1248,6 +1485,7 @@ def score_asset(asset_id: str) -> dict[str, Any]:
                 filename=assessment_path.name,
                 rows=rows,
                 retired=marker,
+                known_sessions=known_sessions,
             )
         except ContractError as exc:
             if "변조" in "".join(exc.errors) or "지문화할 수 없다" in "".join(

@@ -280,15 +280,16 @@ def _model_source_family(source_id: str, asset_id: str | None) -> str:
     붙이면 재무 자료로 분류돼 EARNINGS 주장을 CONFIRMED 로 닫을 수 있었다.
     모델이 지은 ID 는 주장일 뿐이다 — 보존한 원문이나 저장된 계산을 실제로
     가리킬 때만 그 갈래이고, 나머지는 전부 직접 조사한 출처다.
+
+    보존 원문(`DARTDOC:`·`WEBSNAP:`)은 여기서 **ID 가 온전한 원문을 가리키는가**
+    까지만 본다. 인용 주소와 시각까지 묶는 것은 `_preserved_source_binding` 이다.
     """
     if source_id.startswith(("DARTDOC:", "WEBSNAP:")):
-        from cio.documents import preserved_document_ids
-
-        try:
-            preserved = preserved_document_ids()
-        except (ContractError, OSError, ValueError):
-            preserved = set()
-        return "PRIMARY_DOCUMENT" if source_id in preserved else "MODEL_RESEARCH"
+        return (
+            "PRIMARY_DOCUMENT"
+            if any(original["intact"] for original in _preserved_originals(source_id))
+            else "MODEL_RESEARCH"
+        )
     if source_id.startswith("CALC-"):
         path = KNOWLEDGE_DIR / "calculations" / f"{source_id}.json"
         try:
@@ -301,6 +302,126 @@ def _model_source_family(source_id: str, asset_id: str | None) -> str:
             else "MODEL_RESEARCH"
         )
     return "MODEL_RESEARCH"
+
+
+def _preserved_originals(source_id: str) -> list[dict[str, Any]]:
+    from cio.documents import preserved_originals
+
+    try:
+        return preserved_originals(source_id)
+    except (ContractError, OSError, ValueError):
+        return []
+
+
+def _canonical_url(url: Any) -> tuple[str, str, str, str] | None:
+    """같은 문서를 가리키는 주소인지 견줄 때 쓰는 꼴. 조각(#...)은 서버로 가지 않는다."""
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(url.strip())
+    except ValueError:
+        return None
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return (parsed.scheme.lower(), parsed.netloc.lower(), parsed.path or "/",
+            parsed.query)
+
+
+def _preserved_source_binding(
+    source_id: str,
+    locator: Any,
+    created_at: dt.datetime | None,
+) -> tuple[str, list[str]]:
+    """보존 원문을 인용한 출처를 그 원문 하나에 묶는다. → (갈래, 오류)
+
+    ID 가 색인에 있는지만 보던 때에는 세 가지가 따로 놀았다 — 인용 주소
+    (`locator`), 보존된 본문, 그 본문의 지문. 실제 저장 판단의 보존 출처 87개를
+    전부 다른 주소로 바꿔도 통과했고, 본문이 지문과 맞지 않는 파일도 이름만
+    맞으면 1차 원문이었다. **파일이 있다는 것은 그 주소의 그 본문을 인용했다는
+    뜻이 아니다.** 여기서 넷을 하나로 묶는다.
+
+    · 본문 — 객체를 다시 지문 내어 파일 이름·ID 와 대조한다(`intact`)
+    · 주소 — 웹 원문은 그 본문이 받아 온 주소, 공시 원문은 같은 접수번호의 DART 주소
+    · 시각 — 판단보다 늦게 보존된 원문은 그 판단의 근거일 수 없다
+    · 내용 — 프레임 껍데기는 보존은 됐어도 1차 원문이 아니다
+
+    보존하지 않은 ID 는 오류가 아니다. 직접 조사한 출처(`MODEL_RESEARCH`)일 뿐이다.
+    """
+    originals = _preserved_originals(source_id)
+    if not originals:
+        return "MODEL_RESEARCH", []
+    intact = [original for original in originals if original["intact"]]
+    if not intact:
+        return "MODEL_RESEARCH", [
+            f"{source_id} 로 보존된 파일이 자기 내용 지문과 맞지 않는다 "
+            f"({originals[0].get('problem')}). 손상되거나 바뀐 파일은 원문이 "
+            "아니다 — 다시 보존한 뒤 인용한다"
+        ]
+    errors: list[str] = []
+    if source_id.startswith("DARTDOC:"):
+        rcept_no = source_id.split(":", 1)[1]
+        try:
+            parsed = urllib.parse.urlsplit(locator if isinstance(locator, str) else "")
+            cited = {
+                value
+                for key in ("rcpNo", "rcept_no")
+                for value in urllib.parse.parse_qs(parsed.query).get(key, [])
+            }
+            host = (parsed.hostname or "").lower()
+        except ValueError:
+            cited, host = set(), ""
+        if cited != {rcept_no} or not (
+            host == "fss.or.kr" or host.endswith(".fss.or.kr")
+        ):
+            errors.append(
+                f"locator가 {source_id} 의 공시를 가리키지 않는다. 같은 "
+                "접수번호의 DART 주소여야 한다 — "
+                f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
+            )
+        matched = intact
+    else:
+        wanted = _canonical_url(locator)
+        matched = [
+            original for original in intact
+            if wanted is not None
+            and wanted in {_canonical_url(url) for url in original["urls"]}
+        ]
+        if not matched:
+            preserved_urls = sorted({url for original in intact for url in original["urls"]})
+            errors.append(
+                f"locator가 {source_id} 로 보존한 원문의 주소와 다르다. 이 ID 의 "
+                f"본문은 {' 또는 '.join(preserved_urls) or '주소 미상'} 에서 받은 "
+                "것이다 — 인용 주소와 보존한 본문은 같은 문서여야 한다"
+            )
+            matched = intact
+    if created_at is not None:
+        fetched_times = []
+        for original in matched:
+            try:
+                fetched = dt.datetime.fromisoformat(
+                    str(original.get("fetched_at")).replace("Z", "+00:00")
+                )
+            except ValueError:
+                continue
+            if fetched.tzinfo is not None:
+                fetched_times.append(fetched)
+        if not fetched_times:
+            errors.append(
+                f"{source_id} 로 보존한 원문의 회수시각을 읽을 수 없다 — 판단보다 "
+                "먼저 보존했는지 확인할 수 없다"
+            )
+        elif min(fetched_times) > created_at:
+            errors.append(
+                f"{source_id} 는 {min(fetched_times).isoformat()} 에 보존됐다. "
+                "판단 시각보다 뒤다 — 그때 없던 원문을 근거로 쓸 수 없다"
+            )
+    if errors:
+        return "MODEL_RESEARCH", errors
+    if all(original.get("shell_page") for original in matched):
+        # 보존은 했지만 본문이 없는 프레임 껍데기다. 인용은 남기되 1차 원문으로
+        # 주장을 닫을 수는 없다.
+        return "MODEL_RESEARCH", []
+    return "PRIMARY_DOCUMENT", []
 
 
 def _evidence_family(source_id: str, kind: Any) -> str:
@@ -1719,6 +1840,7 @@ def _validate_decision_values(
 
     sources = data.get("sources")
     model_source_ids: set[str] = set()
+    model_source_locators: dict[str, tuple[str, Any]] = {}
     source_times: list[
         tuple[str, dt.datetime | None, dt.datetime | None]
     ] = []
@@ -1741,6 +1863,8 @@ def _validate_decision_values(
                 if source_id in model_source_ids:
                     errors.append(f"{field}.source_id: 중복 {source_id}")
                 model_source_ids.add(source_id)
+                model_source_locators.setdefault(
+                    source_id, (field, source.get("locator")))
                 reserved = _reserved_prefix(source_id)
                 if reserved and reserved not in MODEL_REGISTERABLE_PREFIXES:
                     errors.append(
@@ -1820,6 +1944,22 @@ def _validate_decision_values(
         )
         if created_at and context_created and created_at < context_created:
             errors.append("created_at: 컨텍스트보다 앞설 수 없다")
+        # packet 은 만든 시점의 가격·보유·준비상태다. 판단이 그 뒤 한참 지나서
+        # 만들어져도 통과하면, 지금 계약이 요구하는 것(새 경고, 가정 검토,
+        # 갱신된 원장)을 옛 packet 을 골라 피할 수 있고, 사후 평가는 그 packet 의
+        # 기준일부터 재므로 이미 본 가격 변동이 예측의 성적으로 들어간다.
+        # 기한은 가격의 신선도 기한과 같다 — packet 이 가격보다 오래 유효할 수 없다.
+        if created_at and context_created:
+            from cio.refresh import PRICE_MAX_AGE_HOURS
+
+            age_hours = (created_at - context_created).total_seconds() / 3600
+            if age_hours > PRICE_MAX_AGE_HOURS:
+                errors.append(
+                    f"created_at: 판단이 context 생성 {age_hours:.1f}시간 뒤에 "
+                    f"만들어졌다. packet 은 {PRICE_MAX_AGE_HOURS}시간까지만 "
+                    "판단의 입력으로 쓴다 — 그 뒤의 가격·보유·준비상태는 packet 에 "
+                    "없다. `cio prepare` 로 새 context 를 만들어 다시 판단한다"
+                )
         if created_at and created_at > dt.datetime.now(dt.timezone.utc) + dt.timedelta(
             minutes=5
         ):
@@ -1850,11 +1990,20 @@ def _validate_decision_values(
             for item in context.get("evidence_index") or []
             if isinstance(item, dict) and item.get("source_id")
         }
-        model_families = {
-            source_id: _model_source_family(source_id, asset_id)
-            for source_id in model_source_ids
-            if source_id not in evidence_kinds
-        }
+        model_families: dict[str, str] = {}
+        for source_id in sorted(model_source_ids):
+            if source_id in evidence_kinds:
+                continue
+            if source_id.startswith(("DARTDOC:", "WEBSNAP:")):
+                # 보존 원문을 인용했으면 주소·본문·지문·시각이 한 문서여야 한다.
+                field, locator = model_source_locators[source_id]
+                family, binding_errors = _preserved_source_binding(
+                    source_id, locator, created_at
+                )
+                errors.extend(f"{field}: {error}" for error in binding_errors)
+            else:
+                family = _model_source_family(source_id, asset_id)
+            model_families[source_id] = family
         for source_id in model_source_ids:
             evidence_kinds.setdefault(source_id, None)
         _validate_assertion_checks(

@@ -118,6 +118,121 @@ class TestBrokenAndFutureBars(unittest.TestCase):
         self.assertIsNone(result[1][1]["high"])
 
 
+class TestAMissingAdjustedCloseIsNotFilledIn(unittest.TestCase):
+    """조정종가가 없는 봉에 원가격을 채우면 그 값의 뜻이 사라진다.
+
+    원가격 100→90, 배당 10 인 자산의 총수익률은 0% 다. 응답에서 조정종가만
+    빠졌을 때 수집기가 원가격을 대신 넣었고, 파일의 모든 행에 조정종가가 있는
+    것처럼 보여 packet 이 −10% 를 `returns_basis: ADJUSTED_CLOSE` 로 실었다.
+    """
+
+    def without_adjusted(self, payload, indexes=None):
+        result = payload["chart"]["result"][0]
+        if indexes is None:
+            del result["indicators"]["adjclose"]
+        else:
+            values = list(result["indicators"]["adjclose"][0]["adjclose"])
+            for index in indexes:
+                values[index] = None
+            result["indicators"]["adjclose"] = [{"adjclose": values}]
+        return payload
+
+    def test_a_response_without_the_adjusted_block_leaves_every_bar_blank(self):
+        (meta, rows), _ = fetch(self.without_adjusted(chart(DAYS, [100, 95, 90])))
+        self.assertEqual([row["close"] for row in rows], [100, 95, 90])
+        self.assertEqual([row["adjusted_close"] for row in rows], [None] * 3)
+
+    def test_only_the_bar_that_lacks_it_is_blank(self):
+        (meta, rows), _ = fetch(
+            self.without_adjusted(chart(DAYS, [100, 95, 90]), indexes=[1]))
+        self.assertEqual([row["adjusted_close"] for row in rows], [100.0, None, 90.0])
+
+    def test_the_blank_survives_the_file_and_is_not_read_back_as_a_price(self):
+        (meta, rows), _ = fetch(
+            self.without_adjusted(chart(DAYS, [100, 95, 90]), indexes=[0]))
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(price, "PRICE_DIR", Path(tmp)):
+            path = price.save("TSLA", meta, rows)
+            stored = price._existing_rows(path)
+        self.assertEqual(stored[0]["adjusted_close"], "")
+        self.assertEqual(float(stored[1]["adjusted_close"]), 95.0)
+
+    def test_a_stored_bar_without_an_adjusted_close_is_still_carried(self):
+        """그 봉의 종가와 고가·저가는 관측이다. 조정종가가 없다고 이력을 버리지 않는다."""
+        header = ("# schema_version price-series/2.1.0\n# symbol TSLA / currency USD\n"
+                  "# retrieved_at 2026-10-12T00:00:00+00:00 / source Yahoo Finance chart API\n"
+                  "# last_bar 2026-10-09 / session SETTLED\n"
+                  "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "TSLA.csv"
+            path.write_text(header + "2026-10-01,98,,1,99,97,10\n"
+                            "2026-10-07,100,100,1,101,99,10\n"
+                            "2026-10-08,95,95,1,101,99,10\n"
+                            "2026-10-09,90,90,1,101,99,10\n", encoding="utf-8")
+            fresh = [{"date": day, "close": close, "adjusted_close": close,
+                      "split_adjustment_factor": 1, "high": 101, "low": 99,
+                      "volume": 10}
+                     for day, close in zip([*DAYS, "2026-10-12"], [100, 95, 90, 91])]
+            merged, _notes, _missing = price.merge_with_existing(path, fresh)
+        self.assertEqual(merged[0]["date"], "2026-10-01")
+        self.assertEqual(merged[0]["adjusted_close"], "")
+
+
+class TestReturnsUseOnePriceBasis(unittest.TestCase):
+    """수익률은 한 기준의 가격으로만 낸다 — 조정된 값과 안 된 값을 섞지 않는다."""
+
+    HEADER = ("# schema_version price-series/2.1.0\n# symbol TEST / currency USD\n"
+              "# retrieved_at 2026-10-13T00:00:00+00:00 / source Yahoo Finance chart API\n"
+              "# last_bar {last} / session SETTLED\n"
+              "date,close,adjusted_close,split_adjustment_factor,high,low,volume\n")
+
+    def summary(self, bars):
+        from cio import context
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "prices").mkdir()
+            body = "".join(
+                f"{day},{close},{'' if adjusted is None else adjusted},1,"
+                f"{close},{close},1\n" for day, close, adjusted in bars)
+            (root / "prices" / "TEST.csv").write_text(
+                self.HEADER.format(last=bars[-1][0]) + body, encoding="utf-8")
+            with patch.object(context, "KNOWLEDGE_DIR", root), \
+                    patch.object(context, "ROOT", root):
+                return context._price_summary("TEST")[0]
+
+    def bars(self, count, *, blank=()):
+        """원가격은 100 에서 90 으로, 조정종가는 내내 90 — 배당 10, 총수익률 0%."""
+        start = dt.date(2025, 1, 1)
+        rows = []
+        for index in range(count):
+            day = (start + dt.timedelta(days=index)).isoformat()
+            close = 100 if index < count - 1 else 90
+            rows.append((day, close, None if index in blank else 90))
+        return rows
+
+    def test_a_fully_adjusted_window_is_a_total_return(self):
+        summary = self.summary(self.bars(30))
+        self.assertEqual(summary["returns_basis"], "ADJUSTED_CLOSE")
+        self.assertEqual(summary["returns_pct"]["1m"], 0.0)
+        self.assertNotIn("_returns_basis_warning", summary)
+
+    def test_one_blank_bar_in_the_window_moves_every_return_to_raw_prices(self):
+        """기준 봉에만 조정종가가 없다. 그 봉만 원가격으로 읽으면 100→90(조정)
+        이라는, 어느 기준도 아닌 −10% 가 조정종가 기준으로 실린다."""
+        summary = self.summary(self.bars(30, blank={8}))
+        self.assertEqual(summary["returns_basis"], "RAW_CLOSE_FALLBACK")
+        self.assertEqual(summary["returns_pct"]["1m"], -10.0)
+        self.assertIn("가격 수익률", summary["_returns_basis_warning"])
+        # 마지막 세션 수익률도 같은 기준이다 (원가격 100 → 90).
+        self.assertEqual(
+            summary["settled_session_returns"]["windows"]["1"]["return_pct"], -10.0)
+
+    def test_a_blank_bar_older_than_the_longest_window_changes_nothing(self):
+        summary = self.summary(self.bars(300, blank={0, 1, 2}))
+        self.assertEqual(summary["returns_basis"], "ADJUSTED_CLOSE")
+        self.assertEqual(summary["returns_pct"]["12m"], 0.0)
+
+
 class PriceContract(unittest.TestCase):
     def inspect(self, rows, *, retrieved="2026-10-13T02:00:00+00:00", last_bar=None):
         with tempfile.TemporaryDirectory() as tmp:

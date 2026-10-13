@@ -121,10 +121,36 @@ class TestTopLevelRules(RuleTable, unittest.TestCase):
         ("created_at 이 먼 미래",
          lambda d: d.update(created_at="2099-01-01T00:00:00+09:00"),
          "5분 이상 미래"),
+        # context 는 2026-07-28 09:00 KST. 그보다 12시간 넘게 뒤의 판단은 옛 packet
+        # 위에 선 것이다 — 그 사이의 가격·보유·계약 변화가 packet 에 없다.
+        ("created_at 이 context 보다 12시간 넘게 뒤",
+         lambda d: d.update(created_at="2026-07-28T21:00:01+09:00"),
+         "12시간까지만"),
         ("unknowns 가 배열이 아님",
          lambda d: d.update(unknowns="문자열 하나"),
          "문자열 배열이 필요하다"),
     )
+
+
+class TestAPacketIsUsedOnlyWhileItsPricesAreCurrent(unittest.TestCase):
+    """context 는 2026-07-28 09:00 KST 에 만들어졌다."""
+
+    def errors(self, created_at):
+        data = valid_decision()
+        data["created_at"] = created_at
+        return [error for error in validate_decision(data, context=valid_context())
+                if "12시간까지만" in error]
+
+    def test_a_decision_within_the_window_passes(self):
+        self.assertEqual(self.errors("2026-07-28T09:05:00+09:00"), [])
+        self.assertEqual(self.errors("2026-07-28T21:00:00+09:00"), [])
+
+    def test_the_same_instant_in_another_timezone_is_the_same_age(self):
+        self.assertEqual(self.errors("2026-07-28T12:00:00+00:00"), [])
+        self.assertEqual(len(self.errors("2026-07-28T12:00:01+00:00")), 1)
+
+    def test_an_old_packet_cannot_carry_a_new_decision(self):
+        self.assertEqual(len(self.errors("2026-08-30T10:00:00+09:00")), 1)
 
 
 class TestModelBlockRules(RuleTable, unittest.TestCase):

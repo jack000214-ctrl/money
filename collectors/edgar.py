@@ -18,7 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import NoReturn
 
@@ -521,6 +521,37 @@ def _filing_order(point):
             json.dumps(point, sort_keys=True, ensure_ascii=False))
 
 
+# 누계 구간의 길이(일). 회계연도 첫날에서 시작하는 사실을 이 길이로 가른다.
+YTD_DAYS = {"Q1": (80, 110), "H1": (160, 210), "9M": (250, 310), "FY": (340, 390)}
+# 서류의 회계기간(fp)이 말하는, 그 서류에서 가장 긴 누계.
+FP_YTD = {"Q1": "Q1", "Q2": "H1", "Q3": "9M", "FY": "FY"}
+# 회계연도 중간에서 시작하는 3개월 사실: (이름, 연초부터 끝까지, 연초부터 시작까지).
+STANDALONE_QUARTERS = (
+    ("Q2S", YTD_DAYS["H1"], YTD_DAYS["Q1"]),
+    ("Q3S", YTD_DAYS["9M"], YTD_DAYS["H1"]),
+    ("Q4S", YTD_DAYS["FY"], YTD_DAYS["9M"]),
+)
+
+
+def _period_days(point):
+    return (datetime.fromisoformat(point["end"])
+            - datetime.fromisoformat(point["start"])).days
+
+
+def _rounding_unit(*values):
+    """값들이 함께 반올림된 단위(10의 거듭제곱).
+
+    공시 금액은 천·백만 단위로 반올림돼 있어 1분기 + 2분기가 반기 누계와 한두
+    단위 어긋날 수 있다. 그것은 재작성이 아니다. 단위는 값들 자신에서 읽는다.
+    """
+    amounts = [abs(int(round(value))) for value in values if value]
+    unit = 1
+    while amounts and unit < 10 ** 12 and all(
+            amount % (unit * 10) == 0 for amount in amounts):
+        unit *= 10
+    return unit
+
+
 def fiscal_quarters(points):
     """SEC duration fact에서 연속된 실제 분기값을 복원한다.
 
@@ -529,26 +560,38 @@ def fiscal_quarters(points):
     제출일을 기준으로 최신 사실을 고른 뒤 누계 차감으로 Q1~Q4를 만든다.
     SEC의 fy/fp는 **제출 서류** 기준이다. 전년 비교값도 다음 해 fy로 반복되므로
     실제 start/end로 묶고 최신 비교표의 재작성 값까지 반영한다.
+
+    **사실은 서류의 fp 가 아니라 자기 기간(start~end)으로 분류한다.** 2분기
+    10-Q 안의 사실은 전부 fp=Q2 다 — 반기 누계도, 2분기 3개월 값도, 재작성된
+    1분기 값도. 예전에는 fp=Q2 면 반기 누계 길이만 받았다. 그래서 그 서류가 직접
+    보고한 2분기 3개월 값과 재작성된 1분기 값을 버리고 `새 반기 누계 − 옛 1분기`
+    로 2분기를 만들었다(재작성 1분기 8·2분기 22·반기 30 을 옛 1분기 10 으로 빼
+    2분기 20, 전년 대비 +10% 가 0% 가 됐다). 재생 검사는 같은 함수를 다시 돌리므로
+    이것을 잡지 못한다.
+
+    순서는 이렇다.
+      1. **직접 보고된 3개월 값이 있으면 그것이 그 분기다.** 차감은 3개월 값이
+         없을 때만 쓴다(현금흐름표는 대개 누계만 있다).
+      2. 1분기 값이 같은 회계연도의 반기 누계·2분기 값보다 먼저 제출됐고 셋이
+         반올림 범위 밖으로 어긋나면, 1분기는 그 뒤 재작성된 것이다. 나중 서류의
+         두 값에서 `반기 누계 − 2분기` 로 다시 내고 원래 값을 `restated_from` 에
+         남긴다.
+    누계만 있는 항목에서 앞 분기가 뒤 서류에서 재작성되면 여전히 알 수 없다 —
+    그때는 분기 사이의 배분만 어긋나고 누계와 TTM 은 맞다.
     """
+    usable = [
+        point for point in points
+        if point.get("start") and point.get("end")
+        and point.get("form") in PERIODIC_FORMS
+    ]
     candidates = []
     latest_in_filing = {}
-    for point in points:
+    for point in usable:
         fy, fp = point.get("fy"), point.get("fp")
-        if not fy or fp not in {"Q1", "Q2", "Q3", "FY"}:
+        if not fy or fp not in FP_YTD:
             continue
-        if not point.get("start") or not point.get("end"):
-            continue
-        if point.get("form") not in PERIODIC_FORMS:
-            continue
-        days = (datetime.fromisoformat(point["end"]) -
-                datetime.fromisoformat(point["start"])).days
-        wanted = (
-            80 <= days <= 110 if fp == "Q1" else
-            160 <= days <= 210 if fp == "Q2" else
-            250 <= days <= 310 if fp == "Q3" else
-            340 <= days <= 390
-        )
-        if not wanted:
+        low, high = YTD_DAYS[FP_YTD[fp]]
+        if not low <= _period_days(point) <= high:
             continue
         filing_key = (point.get("accn"), point.get("filed"), int(fy), fp)
         latest_in_filing[filing_key] = max(
@@ -565,40 +608,97 @@ def fiscal_quarters(points):
         start, fy = point["start"], int(point["fy"])
         fiscal_year_by_start[start] = min(fiscal_year_by_start.get(start, fy), fy)
 
+    year_starts = sorted(fiscal_year_by_start)
+    # (회계연도, 종류)마다 가장 나중에 제출된 사실 하나. 시작일이 다른 정정이
+    # 나중에 오면 그것이 이기고, 아래에서 시작일이 맞지 않는 누계끼리는 빼지
+    # 않는다 — 옛 값으로 조용히 되돌아가지 않는다.
     selected = {}
-    for point, _ in candidates:
-        fy = fiscal_year_by_start.get(point["start"])
-        if fy is None:
+    year_start_of = {}
+    for point in usable:
+        days = _period_days(point)
+        key = year_start = None
+        if point["start"] in fiscal_year_by_start:
+            year_start = point["start"]
+            kind = next((name for name, (low, high) in YTD_DAYS.items()
+                         if low <= days <= high), None)
+            if kind:
+                key = (fiscal_year_by_start[year_start], kind)
+        elif YTD_DAYS["Q1"][0] <= days <= YTD_DAYS["Q1"][1]:
+            year_start = max(
+                (start for start in year_starts if start < point["start"]),
+                default=None,
+            )
+            if year_start:
+                opened = datetime.fromisoformat(year_start)
+                through = (datetime.fromisoformat(point["end"]) - opened).days
+                lead = (datetime.fromisoformat(point["start"]) - opened).days
+                kind = next(
+                    (name for name, (low, high), (lead_low, lead_high)
+                     in STANDALONE_QUARTERS
+                     if low <= through <= high and lead_low <= lead <= lead_high),
+                    None,
+                )
+                if kind:
+                    key = (fiscal_year_by_start[year_start], kind)
+        if key is None:
             continue
-        key = (fy, point["fp"])
         if key not in selected or _filing_order(point) > _filing_order(selected[key]):
             selected[key] = point
+            year_start_of[key] = year_start
 
     out = []
     for fy in sorted({key[0] for key in selected}):
-        q1 = selected.get((fy, "Q1"))
-        q2 = selected.get((fy, "Q2"))
-        q3 = selected.get((fy, "Q3"))
-        annual = selected.get((fy, "FY"))
-        values = {}
-        if q1:
-            values[1] = q1["val"]
-        if q1 and q2 and q1["start"] == q2["start"]:
-            values[2] = q2["val"] - q1["val"]
-        if q2 and q3 and q2["start"] == q3["start"]:
-            values[3] = q3["val"] - q2["val"]
-        if q3 and annual and q3["start"] == annual["start"]:
-            values[4] = annual["val"] - q3["val"]
-        sources = {1: q1, 2: q2, 3: q3, 4: annual}
-        for quarter, value in values.items():
-            source = sources[quarter]
+        ytd = {1: selected.get((fy, "Q1")), 2: selected.get((fy, "H1")),
+               3: selected.get((fy, "9M")), 4: selected.get((fy, "FY"))}
+        direct = {1: ytd[1], 2: selected.get((fy, "Q2S")),
+                  3: selected.get((fy, "Q3S")), 4: selected.get((fy, "Q4S"))}
+        rows = {}
+        for quarter in (1, 2, 3, 4):
+            if direct[quarter]:
+                rows[quarter] = {"source": direct[quarter],
+                                 "val": direct[quarter]["val"], "derived": False}
+            elif (quarter > 1 and ytd[quarter] and ytd[quarter - 1]
+                  and ytd[quarter]["start"] == ytd[quarter - 1]["start"]):
+                rows[quarter] = {
+                    "source": ytd[quarter],
+                    "val": ytd[quarter]["val"] - ytd[quarter - 1]["val"],
+                    "derived": True,
+                }
+        # 1분기가 그 뒤의 서류에서 재작성됐는가. 반기 누계와 2분기 3개월 값이
+        # 둘 다 1분기보다 나중에 제출됐고 셋이 반올림 범위 밖으로 어긋날 때만.
+        half, second, first = ytd[2], direct[2], ytd[1]
+        if (half and second
+                and year_start_of[(fy, "Q2S")] == half["start"]
+                and (first is None or first["start"] == half["start"])):
+            implied = half["val"] - second["val"]
+            if first is None:
+                rows[1] = {
+                    "source": half, "val": implied, "derived": True,
+                    "end": (datetime.fromisoformat(second["start"])
+                            - timedelta(days=1)).date().isoformat(),
+                }
+            else:
+                # 세 값이 각각 반 단위까지 반올림되므로 반올림만으로는 1.5 단위를
+                # 넘게 어긋나지 않는다. 값은 단위의 정수배라 2 단위부터가 재작성이다.
+                tolerance = 1.5 * _rounding_unit(
+                    first["val"], half["val"], second["val"])
+                later = min(half.get("filed") or "", second.get("filed") or "")
+                if (later > (first.get("filed") or "")
+                        and abs(implied - first["val"]) > tolerance):
+                    rows[1] = {"source": half, "val": implied, "derived": True,
+                               "end": first["end"],
+                               "restated_from": first["val"]}
+        for quarter, row in rows.items():
+            source = row["source"]
             out.append({
                 "fy": fy,
                 "quarter": quarter,
-                "end": source["end"],
+                "end": row.get("end") or source["end"],
                 "filed": source.get("filed"),
-                "val": value,
-                "derived": quarter in {2, 3, 4},
+                "val": row["val"],
+                "derived": row["derived"],
+                **({"restated_from": row["restated_from"]}
+                   if "restated_from" in row else {}),
             })
     return sorted(out, key=lambda p: (p["fy"], p["quarter"]))
 
@@ -857,6 +957,15 @@ US_INCOME_PLAN = (
 # null과 누락 사유를 남긴다.
 US_REQUIRED_INCOME = {"revenue", "net_income"}
 US_QUARTER_KEYS = ("fy", "quarter", "end", "filed", "val", "derived")
+# 있을 때만 싣는 칸. 뒤의 서류가 재작성한 분기에만 붙는다.
+US_QUARTER_OPTIONAL_KEYS = ("restated_from",)
+
+
+def _quarter_row(quarter):
+    return {
+        **{key: quarter[key] for key in US_QUARTER_KEYS},
+        **{key: quarter[key] for key in US_QUARTER_OPTIONAL_KEYS if key in quarter},
+    }
 
 
 def derive_us_fundamentals(raw):
@@ -915,7 +1024,7 @@ def derive_us_fundamentals(raw):
             continue
         income[key] = {
             "tag": tag, "ttm": float(total),
-            "quarters": [{k: q[k] for k in US_QUARTER_KEYS} for q in recent],
+            "quarters": [_quarter_row(q) for q in recent],
         }
 
     if [(q["fy"], q["quarter"]) for q in ocf_q] != [(q["fy"], q["quarter"]) for q in capex_q]:
@@ -982,8 +1091,8 @@ def derive_us_fundamentals(raw):
         "share_period": {"start": shares_q[0].get("start"),
                          "filed": shares_q[0].get("filed")},
         "quarters": {
-            "ocf": [{k: q[k] for k in US_QUARTER_KEYS} for q in ocf_q],
-            "capex": [{k: q[k] for k in US_QUARTER_KEYS} for q in capex_q],
+            "ocf": [_quarter_row(q) for q in ocf_q],
+            "capex": [_quarter_row(q) for q in capex_q],
         },
         "values": {
             "ocf_ttm": float(ocf_ttm),

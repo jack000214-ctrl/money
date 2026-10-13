@@ -249,75 +249,82 @@ class TestEtfHoldingsArtifact(ArtifactCase):
     def rows(self, body, header=None):
         return (header if header is not None else self.HEADER) + body
 
+    def test_the_file_name_must_carry_the_as_of_date_of_its_rows(self):
+        """이름의 날짜로 최신 구성을 고른다. 이름과 내용이 다른 날을 말하면
+        refresh 가 신선하다고 본 파일과 packet 이 실은 파일이 달라진다."""
+        rows = self.rows("SCHD,AAPL,Apple,4.5,2026-08-01\n")
+        self.assertFlags(rows, "파일명", name="holdings-2026-07-01.csv")
+        self.assertFlags(rows, "파일명", name="holdings-latest.csv")
+
     def test_a_valid_file_passes(self):
         self.assertClean(self.rows(
             "SCHD,AAPL,Apple,4.5,2026-08-01\n"
-            "SCHD,MSFT,Microsoft,4.1,2026-08-01\n"), name="h.csv")
+            "SCHD,MSFT,Microsoft,4.1,2026-08-01\n"), name="holdings-2026-08-01.csv")
 
     def test_comment_lines_are_ignored(self):
         self.assertClean("# 손으로 채운 파일\n" + self.rows(
-            "SCHD,AAPL,Apple,4.5,2026-08-01\n"), name="h.csv")
+            "SCHD,AAPL,Apple,4.5,2026-08-01\n"), name="holdings-2026-08-01.csv")
 
     def test_an_empty_file_is_refused(self):
-        self.assertFlags(self.HEADER, "필수 열 또는 행이 없다", name="h.csv")
+        self.assertFlags(self.HEADER, "필수 열 또는 행이 없다", name="holdings-2026-08-01.csv")
 
     def test_a_missing_column_is_refused(self):
         """holding_name 이 없으면 무엇을 들고 있는지 화면에 못 쓴다."""
         self.assertFlags(
             self.rows("SCHD,AAPL,4.5,2026-08-01\n",
                       header="etf_id,holding_id,weight_pct,as_of\n"),
-            "필수 열 또는 행이 없다", name="h.csv")
+            "필수 열 또는 행이 없다", name="holdings-2026-08-01.csv")
 
     def test_a_row_for_another_etf_is_refused(self):
         self.assertFlags(self.rows(
             "SCHD,AAPL,Apple,4.5,2026-08-01\n"
             "XLK,MSFT,Microsoft,4.1,2026-08-01\n"),
-            "etf_id가 요청 자산과 다르다", name="h.csv")
+            "etf_id가 요청 자산과 다르다", name="holdings-2026-08-01.csv")
 
     def test_a_blank_holding_id_is_refused(self):
         self.assertFlags(self.rows("SCHD,,Apple,4.5,2026-08-01\n"),
-                         "holding_id가 비었거나 중복됐다", name="h.csv")
+                         "holding_id가 비었거나 중복됐다", name="holdings-2026-08-01.csv")
 
     def test_a_duplicate_holding_is_refused(self):
         """같은 종목을 두 번 적으면 비중이 두 번 세어진다."""
         self.assertFlags(self.rows(
             "SCHD,AAPL,Apple,4.5,2026-08-01\n"
             "SCHD,AAPL,Apple,4.1,2026-08-01\n"),
-            "holding_id가 비었거나 중복됐다", name="h.csv")
+            "holding_id가 비었거나 중복됐다", name="holdings-2026-08-01.csv")
 
     def test_mixed_as_of_dates_are_refused(self):
         """반쯤 갱신하다 만 파일은 한 시점의 구성이 아니다."""
         self.assertFlags(self.rows(
             "SCHD,AAPL,Apple,4.5,2026-08-01\n"
             "SCHD,MSFT,Microsoft,4.1,2026-07-01\n"),
-            "기준일이 비었거나 행마다 다르다", name="h.csv")
+            "기준일이 비었거나 행마다 다르다", name="holdings-2026-08-01.csv")
 
     def test_a_blank_as_of_is_refused(self):
         self.assertFlags(self.rows("SCHD,AAPL,Apple,4.5,\n"),
-                         "기준일이 비었거나 행마다 다르다", name="h.csv")
+                         "기준일이 비었거나 행마다 다르다", name="holdings-2026-08-01.csv")
 
     def test_a_non_numeric_weight_is_refused(self):
         self.assertFlags(self.rows("SCHD,AAPL,Apple,4.5%,2026-08-01\n"),
-                         "weight_pct가 숫자가 아니다", name="h.csv")
+                         "weight_pct가 숫자가 아니다", name="holdings-2026-08-01.csv")
 
     def test_a_negative_weight_is_refused(self):
         self.assertFlags(self.rows("SCHD,AAPL,Apple,-4.5,2026-08-01\n"),
-                         "weight_pct가 유효하지 않다", name="h.csv")
+                         "weight_pct가 유효하지 않다", name="holdings-2026-08-01.csv")
 
     def test_a_non_finite_weight_is_refused(self):
         self.assertFlags(self.rows("SCHD,AAPL,Apple,inf,2026-08-01\n"),
-                         "weight_pct가 유효하지 않다", name="h.csv")
+                         "weight_pct가 유효하지 않다", name="holdings-2026-08-01.csv")
 
     def test_all_zero_weights_are_refused(self):
         """비중 칸을 안 채운 파일이 '구성 없음'으로 읽히면 안 된다."""
         self.assertFlags(self.rows("SCHD,AAPL,Apple,0,2026-08-01\n"),
-                         "weight_pct가 유효하지 않다", name="h.csv")
+                         "weight_pct가 유효하지 않다", name="holdings-2026-08-01.csv")
 
     def test_a_single_zero_row_beside_real_weights_is_allowed(self):
         """편입 예정으로 0% 인 줄은 실제로 있다."""
         self.assertClean(self.rows(
             "SCHD,AAPL,Apple,4.5,2026-08-01\n"
-            "SCHD,MSFT,Microsoft,0,2026-08-01\n"), name="h.csv")
+            "SCHD,MSFT,Microsoft,0,2026-08-01\n"), name="holdings-2026-08-01.csv")
 
 
 if __name__ == "__main__":
