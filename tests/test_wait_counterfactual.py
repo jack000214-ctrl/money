@@ -140,7 +140,7 @@ class TestEntryPriceChoice(unittest.TestCase):
             path_until_horizon=[_row("2026-01-02", 100.0, low=90.0, high=110.0)],
             end=_row("2026-01-02", 100.0, low=90.0, high=110.0),
             latest=_row("2026-01-02", 100.0, low=90.0, high=110.0),
-            adjustment_factor=1.0,
+            start_split_factor=1.0,
             realized=0.0,
             latest_return=0.0,
         )

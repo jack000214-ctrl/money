@@ -641,6 +641,23 @@ packet이 **실어 보낸 값**과 대조하지 않았고, 그래서 세 가지�
 evidence ID를 재정의할 수 없고 `published_at <= retrieved_at <= decision.created_at`
 순서를 지켜야 한다.
 
+**출처의 갈래는 ID가 아니라 그 ID가 가리키는 것이 정한다.** 모델이 지은 ID는
+주장일 뿐이다. 예전에는 접두사만 봐서 뉴스 기사에 `FUNDAMENTALS:…`라는 이름을
+붙이면 재무 자료로 분류돼 실적 주장을 `CONFIRMED`로 닫을 수 있었다.
+
+- 로컬 근거의 접두사(`FUNDAMENTALS:`, `PRICE:`, `KR_*:`, `FILINGS:` 등)는 모델
+  source에 쓸 수 없다. packet의 `evidence_index`에 있는 ID를 그대로 인용한다.
+- `DARTDOC:`·`WEBSNAP:`은 모델이 등록할 수 있지만, 그 원문이 로컬에 실제로
+  보존돼 있을 때만 1차 원문(`PRIMARY_DOCUMENT`)이다. 보존하지 않은 ID는 직접
+  조사한 출처(`MODEL_RESEARCH`)와 같다 — 인용 전에 `cio snapshot`이나
+  `collectors.dart document`로 받는다.
+- `CALC-`는 이 자산의 저장된 계산을 가리킬 때만 계산이다.
+
+로컬 근거도 시각 순서를 지킨다. `evidence_index`의 `data_as_of`가 context 생성일보다
+뒤면 context 무결성 검사가 거부한다. 그때 없던 자료로 그때의 판단을 뒷받침할 수
+없다. 사용자 원장(`USER_DATA`)은 예외다 — 그 기준일은 수집한 관측이 아니라
+사용자가 적은 거래의 날짜(결제일)라 며칠 뒤일 수 있다.
+
 모델이 직접 조사한 `sources`는 URL과 시각을 보존하는 **citation metadata**다.
 프로그램은 URL 형식과 시각 순서를 검사하지만 페이지의 실재·당시 내용까지
 보존했다고 주장하지 않는다. 정확한 본문 재현이 필요한 결정 핵심 자료는 전용

@@ -530,6 +530,9 @@ def multiples(
     return {
         "source": _display(path),
         "consensus_as_of": data.get("as_of"),
+        # 위는 최신 목표가 보고일이고 이것이 EPS 전망의 갱신일이다. 둘은 다른
+        # 날짜이며 뒤쪽은 제공처가 주지 않으면 null 이다 — 앞의 것으로 대신하지 않는다.
+        "estimates_as_of": data.get("estimates_as_of"),
         "source_grade": data.get("source_grade"),
         "rows": rows,
         "_note": (

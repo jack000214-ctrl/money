@@ -58,6 +58,38 @@ def _compare_key(text: str) -> str:
     return re.sub(r"[^0-9A-Za-z가-힣]", "", text)
 
 
+# 요청이 **어느 기간**을 가리키는지 드러내는 토큰만 본다. 숫자 전부를 보면 안
+# 된다 — 재요청은 "(REQ-a68c…, 네 번째 요청)"이나 갱신된 금액을 달고 오므로,
+# 그것까지 다르다고 치면 같은 요청의 반복 횟수가 갈라져 반복 신호가 죽는다.
+PERIOD_TOKEN_RES = (
+    (re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)"), "Y{}"),
+    (re.compile(r"(?<!\d)([1-4])\s*분기"), "Q{}"),
+    (re.compile(r"(?<![0-9A-Za-z])([1-4])Q|Q([1-4])(?![0-9A-Za-z])"), "Q{}"),
+    (re.compile(r"(?<!\d)(1[0-2]|0?[1-9])\s*월"), "M{}"),
+    (re.compile(r"(상반기|하반기|반기|연간)"), "{}"),
+)
+
+
+def _scope_signature(text: str) -> tuple[str, ...]:
+    """요청 문장에 적힌 기간(연·분기·월·반기).
+
+    문자열 유사도는 "2026년 1분기 실적 수집"과 "2026년 2분기 실적 수집"을 같은
+    요청으로 본다(0.98). 그러면 1분기 요청 하나를 DONE 으로 닫는 순간 아직 받지
+    않은 2분기 요청이 대기열에서 사라진다. 새 기간은 새 요청이다 — 기간이
+    하나라도 다르면 문장이 아무리 닮아도 묶지 않는다. 덜 묶여 반복 횟수가
+    갈리는 쪽이, 잘못 묶여 미해결 요청이 닫히는 쪽보다 싸다.
+    """
+    tokens: set[str] = set()
+    for pattern, label in PERIOD_TOKEN_RES:
+        for match in pattern.finditer(text):
+            value = next(group for group in match.groups() if group)
+            tokens.add(label.format(value.lstrip("0") or value))
+    # '상반기'·'하반기'를 센 문장에서 그 안의 '반기'를 따로 세지 않는다.
+    if tokens & {"상반기", "하반기"}:
+        tokens.discard("반기")
+    return tuple(sorted(tokens))
+
+
 def _similar(left: str, right: str) -> float:
     if len(left) < MIN_CLUSTER_CHARS or len(right) < MIN_CLUSTER_CHARS:
         return 1.0 if left == right else 0.0
@@ -79,10 +111,12 @@ def cluster_requests(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ordered = sorted(entries, key=lambda item: item["first_asked_at"])
     clusters: list[list[dict[str, Any]]] = []
     keys: list[list[str]] = []
+    scopes: list[tuple[str, ...]] = []
     for entry in ordered:
         key = _compare_key(entry["text"])
+        scope = _scope_signature(entry["text"])
         for index, group_keys in enumerate(keys):
-            if any(
+            if scopes[index] == scope and any(
                 _similar(key, other) >= SIMILARITY_THRESHOLD
                 for other in group_keys
             ):
@@ -92,6 +126,7 @@ def cluster_requests(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         else:
             clusters.append([entry])
             keys.append([key])
+            scopes.append(scope)
 
     result = []
     for members in clusters:

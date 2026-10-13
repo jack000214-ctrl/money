@@ -52,6 +52,18 @@ class TestStripMarkup(unittest.TestCase):
     def test_no_runaway_blank_lines(self):
         self.assertNotIn("\n\n\n", _strip_markup("<p>가</p><p></p><p></p><p>나</p>"))
 
+    def test_dart_number_and_unit_cells_keep_their_boundaries(self):
+        """DART 정기보고서는 숫자 칸을 TD 가 아니라 TE 로, 단위 칸을 TU 로 적는다.
+
+        TD·TH 만 경계로 남기던 때는 `충당부채 | 100 200` 이 됐다 — 어느 숫자가
+        어느 열인지 사라진다. 로컬 원문에 TE 가 105,612개 있었다.
+        """
+        text = _strip_markup(
+            "<TABLE><TR><TD>충당부채</TD><TE>100</TE><TE>200</TE></TR>"
+            "<TR><TH>구분</TH><TU>(단위: 백만원)</TU></TR></TABLE>")
+        self.assertIn("충당부채 | 100 | 200", text)
+        self.assertIn("구분 | (단위: 백만원)", text)
+
 
 class TestCompilePattern(unittest.TestCase):
     def test_valid_regex_stays_regex(self):
@@ -395,8 +407,93 @@ class TestContextBlock(DocumentSearchTest):
         self.assertIn("cio search", block["_role"])
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestFilingsThatLeftTheIndexWindow(DocumentSearchTest):
+    """공시 색인은 60건에서 잘리는 창이다. 원문과 자산의 연결은 그 창보다 오래 산다.
+
+    예전에는 연결이 색인 하나에만 있어서, 공시가 창 밖으로 밀리면 받아 둔 원문이
+    디스크에 그대로 있는데도 `cio docs`·`cio search` 에서 사라졌다.
+    """
+
+    def roll_off(self, accession):
+        path = self.knowledge / "filings" / "005930.json"
+        index = json.loads(path.read_text(encoding="utf-8"))
+        index["filings"] = [row for row in index["filings"]
+                            if row["accession_number"] != accession]
+        path.write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
+
+    def test_a_fetched_original_stays_searchable_after_its_row_rolls_off(self):
+        before = documents_module.documents_for("005930")
+        self.assertEqual(len(before["available"]), 1)
+        self.roll_off("20260310002820")
+        after = documents_module.documents_for("005930")
+        self.assertEqual(len(after["available"]), 1)
+        self.assertEqual(after["available"][0]["index_status"], "ROLLED_OFF")
+        self.assertEqual(after["available"][0]["filing_date"], "2026-03-10")
+        self.assertEqual(search_asset("005930", "DS 부문")["total_matches"], 1)
+
+    def test_an_old_unfetched_filing_is_not_listed_as_missing_forever(self):
+        documents_module.documents_for("005930")
+        self.roll_off("20260515002181")
+        self.assertEqual(documents_module.documents_for("005930")["missing"], [])
+
+    def test_the_collector_archives_rows_before_it_overwrites_the_index(self):
+        documents_module.archive_filing_rows("005930", [
+            {"accession_number": "20250101000001", "filing_date": "2025-01-01",
+             "form": "ANNUAL_REPORT", "description": "사업보고서 (2024.12)"}])
+        archive = json.loads(documents_module.filing_archive_path("005930").read_text(
+            encoding="utf-8"))
+        self.assertIn("20250101000001", archive["filings"])
+        # 더하기만 한다. 다시 불러도 앞의 행을 지우지 않는다.
+        documents_module.archive_filing_rows("005930", [
+            {"accession_number": "20260310002820", "filing_date": "2026-03-10"}])
+        archive = json.loads(documents_module.filing_archive_path("005930").read_text(
+            encoding="utf-8"))
+        self.assertEqual(len(archive["filings"]), 2)
+
+    def test_preserved_ids_are_read_without_writing_the_index(self):
+        self.assertEqual(documents_module.preserved_document_ids(),
+                         {"DARTDOC:20260310002820"})
+        self.assertFalse(documents_module.INDEX_PATH.exists())
+
+
+class TestUnfetchedExhibits(unittest.TestCase):
+    """실적 8-K 의 본체는 대개 한 문단이고 숫자는 Exhibit 99.1 에 있다."""
+
+    PRIMARY = "https://www.sec.gov/Archives/edgar/data/1/000000000026000999/earnings.htm"
+    EXHIBIT = "https://www.sec.gov/Archives/edgar/data/1/000000000026000999/ex991.htm"
+
+    def exhibits(self, body, *, stored_exhibit=False):
+        available = [{"url": self.PRIMARY, "locator": "primary.json"}]
+        if stored_exhibit:
+            available.append({"url": self.EXHIBIT, "locator": "exhibit.json"})
+        with patch.object(documents_module, "documents_for",
+                          return_value={"available": available}), \
+                patch.object(documents_module, "load_json",
+                             return_value={"payload": {"body": body}}):
+            return documents_module.unfetched_exhibits("TSLA", self.PRIMARY)
+
+    STUB = ("<p>Item 2.02 Results of Operations. The release is furnished as "
+            "Exhibit 99.1.</p><a href='ex991.htm'>Exhibit 99.1</a>")
+
+    def test_a_stub_that_points_at_an_unfetched_exhibit_is_reported(self):
+        self.assertEqual(self.exhibits(self.STUB), [self.EXHIBIT])
+
+    def test_a_stub_whose_exhibit_was_fetched_is_complete(self):
+        self.assertEqual(self.exhibits(self.STUB, stored_exhibit=True), [])
+
+    def test_a_body_that_carries_its_own_numbers_needs_nothing_more(self):
+        self.assertEqual(self.exhibits("<p>Revenue was $25.0 billion.</p>"), [])
+
+    def test_a_reference_without_a_link_points_at_the_filing_folder(self):
+        folder = self.PRIMARY.rsplit("/", 1)[0] + "/"
+        self.assertEqual(
+            self.exhibits("<p>See Exhibit 99.1 for the release.</p>"), [folder])
+
+    def test_an_unreadable_catalog_is_unknown_not_complete(self):
+        with patch.object(documents_module, "documents_for",
+                          side_effect=OSError("읽을 수 없다")):
+            self.assertIsNone(
+                documents_module.unfetched_exhibits("TSLA", self.PRIMARY))
 
 
 class TestFetchHintAcrossAssetTypes(unittest.TestCase):
@@ -423,3 +520,7 @@ class TestFetchHintAcrossAssetTypes(unittest.TestCase):
         asset = {"asset_id": "IBM", "market": "US", "filing_source": "EDGAR"}
         hint = fetch_hint(asset, {"document_url": "https://sec.gov/x"})
         self.assertIn("cio snapshot https://sec.gov/x", hint)
+
+
+if __name__ == "__main__":
+    unittest.main()

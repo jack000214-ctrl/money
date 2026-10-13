@@ -46,6 +46,14 @@ def safe_name(symbol: str) -> str:
 ADJUSTED_CLOSE_SIGNIFICANT_DIGITS = 6
 
 
+def _is_number(value) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
 def _stable(value):
     """조정종가에서 float32 지터를 걷어낸다. 원시 호가(close/high/low)는 건드리지 않는다."""
     if not isinstance(value, (int, float)):
@@ -167,6 +175,20 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
     if not results:
         fail(f"{symbol}: 데이터 없음 {(data.get('chart') or {}).get('error')}")
     result = results[0]
+    # 파일 이름이 정체성을 만들면 안 된다. 요청한 종목과 다른 종목의 응답이 와도
+    # 그대로 저장하면 헤더에는 요청한 이름이 찍히고, 그 뒤로는 아무도 구분할 수
+    # 없다. 응답이 종목을 말하지 않으면 대조할 수 없으므로 막지 않는다 — 막는
+    # 것은 다르다고 **확인된** 경우다(아래 일봉 판정과 같은 규칙).
+    response_symbol = (result.get("meta") or {}).get("symbol")
+    if (
+        isinstance(response_symbol, str)
+        and response_symbol
+        and response_symbol.upper() != symbol.upper()
+    ):
+        fail(
+            f"{symbol}: 응답은 {response_symbol} 의 시세다. 다른 종목의 가격을 "
+            "요청한 이름으로 저장하지 않는다"
+        )
     timestamps = result.get("timestamp") or []
     quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
     adjusted_blocks = (result.get("indicators") or {}).get("adjclose") or []
@@ -193,6 +215,10 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         values = quote.get(field) or []
         return values[index] if index < len(values) else None
 
+    def optional_number(field: str, index: int):
+        value = quote_value(field, index)
+        return value if _is_number(value) else None
+
     rows: list[dict] = []
     last_bar_timestamp = None
     for index, timestamp in enumerate(timestamps):
@@ -200,10 +226,19 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         close = quote_value("close", index)
         if close is None:
             continue
+        # 값이 없는 날은 건너뛰지만(휴장일에도 날짜만 실려 온다), 값이 **있는데
+        # 숫자가 아니면** 응답이 깨진 것이다. 그 행만 버리면 마지막 봉이 조용히
+        # 하루 전으로 물러나고 헤더의 날짜와 본문이 어긋난다.
+        if not _is_number(close):
+            fail(
+                f"{symbol}: {row_date} 종가가 숫자가 아니다 ({close!r}). "
+                "깨진 응답을 저장하지 않는다"
+            )
+        adjusted_value = (
+            adjusted[index] if adjusted and index < len(adjusted) else None
+        )
         adjusted_close = _stable(
-            adjusted[index]
-            if adjusted and index < len(adjusted) and adjusted[index] is not None
-            else close
+            adjusted_value if _is_number(adjusted_value) else close
         )
         # Yahoo 가 주는 close·high·low 는 **응답 시점 기준으로 분할이 이미
         # 반영된** 값이다. MSTR 10:1 분할 직전 종가가 1,246 이 아니라 124.68 로
@@ -226,14 +261,21 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
                 "close": close,
                 "adjusted_close": adjusted_close,
                 "split_adjustment_factor": split_adjustment_factor,
-                "high": quote_value("high", index),
-                "low": quote_value("low", index),
-                "volume": quote_value("volume", index),
+                "high": optional_number("high", index),
+                "low": optional_number("low", index),
+                "volume": optional_number("volume", index),
             }
         )
         last_bar_timestamp = timestamp
     if not rows:
         fail(f"{symbol}: 유효한 가격 행이 없다")
+    # 시계가 틀렸거나 응답이 틀렸다. 어느 쪽이든 오늘보다 뒤의 봉은 관측이 아니다.
+    horizon = datetime.now(timezone.utc).date() + timedelta(days=1)
+    if date.fromisoformat(rows[-1]["date"]) > horizon:
+        fail(
+            f"{symbol}: 마지막 봉 {rows[-1]['date']} 이 오늘보다 뒤다. "
+            "미래 날짜의 시세를 저장하지 않는다"
+        )
 
     # Yahoo 는 interval=1d 로 요청해도 range 가 크면 조용히 봉을 굵게 만든다
     # (range=max → dataGranularity=1mo). 그대로 저장하면 2,447행짜리 일봉

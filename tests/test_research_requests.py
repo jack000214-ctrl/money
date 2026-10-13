@@ -216,6 +216,55 @@ class TestClustering(RequestLedgerTest):
         self.assertIn("↔", rendered)
 
 
+class TestANewPeriodIsANewRequest(RequestLedgerTest):
+    """문자열 유사도는 "1분기 실적 수집"과 "2분기 실적 수집"을 같은 요청으로 본다.
+
+    두 문장의 유사도는 0.98 이다. 한 묶음이 되면 1분기 요청 하나를 DONE 으로
+    닫는 순간 아직 받지 않은 2분기 요청이 대기열에서 사라진다.
+    """
+
+    TEMPLATE = (
+        "2026년 {}분기 최신 실적과 품목별 수출 매출을 공식 공시에서 수집하고 "
+        "연결 기준으로 검증해 주세요"
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.first, self.second = self.TEMPLATE.format(1), self.TEMPLATE.format(2)
+        write_assessment(self.root, "CIO-a", [self.first], "2026-05-01T09:00:00+09:00")
+        write_assessment(self.root, "CIO-b", [self.second], "2026-08-01T09:00:00+09:00")
+
+    def test_two_quarters_are_two_requests(self):
+        self.assertEqual(len(request_state(ASSET)["open"]), 2)
+
+    def test_closing_one_quarter_leaves_the_other_open(self):
+        resolve_request(ASSET, request_id(self.first), state="DONE", note="1분기 수집")
+        state = request_state(ASSET)
+        self.assertEqual([entry["text"] for entry in state["open"]], [self.second])
+        self.assertEqual(len(state["resolved"]), 1)
+
+    def test_a_re_request_carrying_an_id_and_a_count_still_joins(self):
+        """재요청은 "(REQ-…, 네 번째 요청)"을 달고 온다. 숫자 전부를 기간으로
+        읽으면 같은 요청의 반복 횟수가 갈라져 반복 신호가 죽는다."""
+        again = (
+            "2026년 1분기 최신 실적과 품목별 수출 매출을 공식 공시에서 수집하고 "
+            "연결 기준으로 검증해 주세요(REQ-a68c073fec83, 4번째 요청, 538,089건)"
+        )
+        write_assessment(self.root, "CIO-c", [again], "2026-09-01T09:00:00+09:00")
+        state = request_state(ASSET)
+        self.assertEqual(len(state["open"]), 2)
+        first = next(e for e in state["open"] if e["text"] == self.first)
+        self.assertEqual(first["asked_count"], 2)
+
+    def test_period_tokens(self):
+        signature = requests_module._scope_signature
+        self.assertEqual(signature("2026년 1분기 실적"), ("Q1", "Y2026"))
+        self.assertEqual(signature("2Q 잠정실적"), ("Q2",))
+        self.assertEqual(signature("8월 반기보고서 공시 직후"), ("M8", "반기"))
+        self.assertNotEqual(signature("상반기 실적"), signature("하반기 실적"))
+        self.assertEqual(signature("REQ-a68c073fec83 재요청(6번째). 538,089,875"), ())
+
+
 class TestClusterResolution(RequestLedgerTest):
     A = "동종 배수의 시계열을 쌓아 달라. 지금은 스냅샷 비교라 시간축을 볼 수 없다"
     B = "동종 배수의 시계열을 쌓아 달라. 지금은 스냅샷 비교라 시간축을 볼 수 없다."

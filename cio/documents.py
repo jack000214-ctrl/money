@@ -32,7 +32,8 @@ INDEX_PATH = DATA_DIR / "raw" / "document-index.json"
 TEXT_CACHE_DIR = DATA_DIR / "raw" / "text"
 INDEX_SCHEMA = "document-index/1.0.0"
 # _strip_markup 을 고칠 때마다 올린다. 캐시된 사본의 신원에 들어간다.
-TEXT_EXTRACT_VERSION = "v2"
+# v3: DART 의 숫자 칸(TE)·단위 칸(TU)도 칸 경계로 남긴다.
+TEXT_EXTRACT_VERSION = "v3"
 
 OBJECT_DIRS = (
     ("DART", DATA_DIR / "raw" / "dart" / "objects"),
@@ -68,7 +69,10 @@ def _strip_markup(raw: str) -> str:
     text = re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)
     text = re.sub(r"</(?:tr|p|div|h[1-6]|li|table)\s*>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</(?:td|th)\s*>", " | ", text, flags=re.IGNORECASE)
+    # DART 정기보고서는 숫자 칸을 TD 가 아니라 TE 로, 단위 칸을 TU 로 적는다
+    # (로컬 원문 기준 TE 105,612개). TD·TH 만 경계로 남기면 `충당부채 | 100 | 200`
+    # 이 `충당부채 | 100 200` 이 되어 어느 숫자가 어느 열인지 사라진다.
+    text = re.sub(r"</(?:td|th|te|tu)\s*>", " | ", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", " ", text)
     # 태그를 걷어낸 뒤에 푼다. 먼저 풀면 본문에 적힌 &lt;script&gt; 가 진짜
     # 태그가 되어 그 다음 단계에서 사라진다.
@@ -178,11 +182,14 @@ def _describe(digest: str, source: str, path: Path) -> dict[str, Any] | None:
     return None
 
 
-def build_index(*, rebuild: bool = False) -> dict[str, Any]:
+def build_index(*, rebuild: bool = False, write: bool = True) -> dict[str, Any]:
     """새로 생긴 원문만 훑어 색인을 갱신한다.
 
     내용 주소형 저장이라 이미 색인된 지문은 다시 열 필요가 없다. 사업보고서
     하나가 13MB라 이 증분 성질이 없으면 매 검색이 느려진다.
+
+    `write=False` 는 색인 파일을 고치지 않고 지금 상태만 돌려준다 — 쓰기 없는
+    사전검사(`cio validate`)가 원문 보유 여부를 물을 때 쓴다.
     """
     known: dict[str, dict[str, Any]] = {}
     if INDEX_PATH.exists() and not rebuild:
@@ -223,6 +230,8 @@ def build_index(*, rebuild: bool = False) -> dict[str, Any]:
         "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "documents": documents,
     }
+    if not write:
+        return index
     INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
     temporary_name = None
     try:
@@ -254,6 +263,93 @@ def _filing_rows(asset_id: str) -> list[dict[str, Any]]:
         return []
     rows = data.get("filings")
     return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
+ARCHIVE_SCHEMA = "filing-archive/1.0.0"
+
+
+def filing_archive_path(asset_id: str) -> Path:
+    # 원문 저장소 옆에 둔다. 이것은 원문과 자산을 잇는 기록이고, 원문처럼 이
+    # 기기에만 있다(data/raw 는 버전 관리 밖이다).
+    return INDEX_PATH.parent / "filing-links" / f"{asset_id}.json"
+
+
+def archive_filing_rows(asset_id: str, rows: list[dict[str, Any]]) -> Path:
+    """공시 색인에 한 번이라도 실렸던 행을 자산별로 계속 쌓아 둔다.
+
+    색인은 최신 사건을 보는 창이라 60건에서 잘린다. 그런데 원문과 자산의 연결이
+    그 색인 하나에만 있어서, 공시가 창 밖으로 밀리면 받아 둔 원문이 디스크에
+    그대로 있는데도 `cio docs`·`cio search` 에서 사라졌다. 연결은 창과 수명이
+    다르므로 따로 둔다. 지우지 않고 더하기만 하며, 새 행이 없으면 쓰지 않는다.
+    """
+    path = filing_archive_path(asset_id)
+    known: dict[str, dict[str, Any]] = {}
+    if path.exists():
+        try:
+            existing = load_json(path)
+            if existing.get("schema_version") == ARCHIVE_SCHEMA \
+                    and existing.get("asset_id") == asset_id:
+                known = {
+                    key: value
+                    for key, value in (existing.get("filings") or {}).items()
+                    if isinstance(value, dict)
+                }
+        except (ContractError, OSError):
+            known = {}
+    before = dict(known)
+    for row in rows:
+        accession = row.get("accession_number") if isinstance(row, dict) else None
+        if isinstance(accession, str) and accession:
+            known[accession] = {
+                key: row.get(key)
+                for key in ("filing_date", "form", "description", "document_url")
+            }
+    if known == before and path.exists():
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_name = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, delete=False
+        ) as handle:
+            json.dump(
+                {
+                    "schema_version": ARCHIVE_SCHEMA,
+                    "asset_id": asset_id,
+                    "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(
+                        timespec="seconds"
+                    ),
+                    "filings": dict(sorted(known.items())),
+                },
+                handle, ensure_ascii=False, indent=2,
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary_name = handle.name
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name and Path(temporary_name).exists():
+            Path(temporary_name).unlink()
+    return path
+
+
+def _archived_rows(asset_id: str, current: set[str]) -> list[dict[str, Any]]:
+    """지금 색인에는 없지만 예전에 이 자산의 색인에 실렸던 공시."""
+    path = filing_archive_path(asset_id)
+    if not path.exists():
+        return []
+    try:
+        data = load_json(path)
+    except (ContractError, OSError):
+        return []
+    if data.get("schema_version") != ARCHIVE_SCHEMA or data.get("asset_id") != asset_id:
+        return []
+    return [
+        {"accession_number": accession, **row}
+        for accession, row in (data.get("filings") or {}).items()
+        if isinstance(row, dict) and accession not in current
+    ]
 
 
 def _web_digests(asset_id: str) -> dict[str, dict[str, Any]]:
@@ -331,6 +427,31 @@ def documents_for(asset_id: str) -> dict[str, Any]:
                 "description": row.get("description"),
                 "document_url": row.get("document_url"),
                 "fetch_with": fetch_hint(asset, row),
+            })
+    # 색인 창 밖으로 밀린 공시. 받아 둔 원문만 잇는다 — 오래된 미수집 공시를
+    # "아직 안 받음"으로 다시 늘어놓지 않는다. 지금 보이는 행은 여기서도 보관
+    # 목록에 남긴다. 색인이 어떤 경로로 바뀌든 한 번 본 연결은 잃지 않는다.
+    indexed = _filing_rows(asset_id)
+    current = {str(row.get("accession_number")) for row in indexed}
+    # 색인과 원문 저장소가 같은 뿌리 아래 있을 때만 남긴다. 한쪽만 다른 곳을
+    # 가리키는 실행(격리된 검사)이 실제 보관 목록에 남의 행을 섞지 않게 한다.
+    if indexed and INDEX_PATH.parents[2] == KNOWLEDGE_DIR.parent:
+        try:
+            archive_filing_rows(asset_id, indexed)
+        except OSError:
+            pass
+    for row in _archived_rows(asset_id, current):
+        entry = by_rcept.get(row["accession_number"]) or by_url.get(
+            row.get("document_url")
+        )
+        if entry and entry["digest"] not in linked_digests:
+            linked_digests.add(entry["digest"])
+            available.append({
+                **entry,
+                "description": row.get("description"),
+                "filing_date": row.get("filing_date"),
+                "form": row.get("form"),
+                "index_status": "ROLLED_OFF",
             })
     for entry in index["documents"]:
         if entry.get("kind") != "WEB_SNAPSHOT" or entry["digest"] in linked_digests:
@@ -506,6 +627,75 @@ def stored_filing_keys(asset_id: str) -> set[str] | None:
     return keys
 
 
+_PRESERVED_IDS: dict[tuple, frozenset[str]] = {}
+
+
+def preserved_document_ids() -> frozenset[str]:
+    """로컬에 실제로 보존된 원문의 ID(`DARTDOC:`·`WEBSNAP:`). 파일을 쓰지 않는다.
+
+    저장된 판단을 여러 건 재검증할 때마다 원문 폴더를 다시 훑지 않도록, 폴더가
+    바뀌지 않은 동안은 한 번 읽은 결과를 쓴다(파일이 늘거나 줄면 폴더의 수정
+    시각이 바뀐다).
+    """
+    key = tuple(
+        (str(directory), directory.stat().st_mtime_ns if directory.exists() else None)
+        for _, directory in OBJECT_DIRS
+    )
+    if key not in _PRESERVED_IDS:
+        _PRESERVED_IDS.clear()
+        _PRESERVED_IDS[key] = frozenset(
+            str(entry["doc_id"])
+            for entry in build_index(write=False)["documents"]
+            if entry.get("doc_id")
+        )
+    return _PRESERVED_IDS[key]
+
+
+EXHIBIT_REFERENCE_RE = re.compile(r"Exhibit\s*99|EX-99", re.IGNORECASE)
+HREF_RE = re.compile(r"""href\s*=\s*["']([^"'#]+)["']""", re.IGNORECASE)
+
+
+def unfetched_exhibits(asset_id: str, document_url: str) -> list[str] | None:
+    """받아 둔 SEC 본체 문서가 가리키는 Exhibit 99 중 받지 않은 것의 URL.
+
+    실적 8-K(Item 2.02)의 본체는 대개 "실적 자료는 Exhibit 99.1 에 있다"는 한
+    문단이고 숫자는 첨부에 있다. 본체 URL 이 보존됐다는 것만으로 원문을 가졌다고
+    하면, 모델에게 최신 실적을 확인할 경로가 packet 안에 여전히 없다.
+
+    → 받지 않은 첨부 URL 목록. 첨부를 가리키지 않거나 전부 받았으면 빈 목록,
+    본체를 읽을 수 없어 판정하지 못하면 None.
+    """
+    try:
+        catalog = documents_for(asset_id)
+    except (ContractError, ValueError, OSError, KeyError):
+        return None
+    entry = next(
+        (item for item in catalog["available"] if item.get("url") == document_url),
+        None,
+    )
+    if entry is None:
+        return None
+    try:
+        body = (load_json(ROOT / entry["locator"]).get("payload") or {}).get("body")
+    except (ContractError, OSError):
+        return None
+    if not isinstance(body, str):
+        return None
+    if not EXHIBIT_REFERENCE_RE.search(_strip_markup(body)):
+        return []
+    directory = document_url.rsplit("/", 1)[0] + "/"
+    stored = {str(item["url"]) for item in catalog["available"] if item.get("url")}
+    linked = []
+    for href in HREF_RE.findall(body):
+        url = href if "://" in href else directory + href.lstrip("./")
+        if url.startswith(directory) and url != document_url and url not in linked:
+            linked.append(url)
+    if any(url in stored for url in linked):
+        return []
+    # 첨부를 가리키는데 링크를 찾지 못했으면 제출 폴더를 알려 준다.
+    return linked or [directory]
+
+
 def documents_for_context(asset_id: str) -> dict[str, Any] | None:
     """packet 에 실을 원문 목록. 본문은 넣지 않고 '무엇을 찾을 수 있는지'만 알린다.
 
@@ -623,4 +813,7 @@ __all__ = [
     "format_documents",
     "format_search",
     "search_asset",
+    "archive_filing_rows",
+    "preserved_document_ids",
+    "unfetched_exhibits",
 ]

@@ -443,6 +443,64 @@ def validate_fundamentals(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def fundamentals_differences(
+    snapshot: dict[str, Any],
+    derived: dict[str, Any],
+    fields: tuple[str, ...],
+    *,
+    limit: int = 5,
+    ignore_keys: tuple[str, ...] = ("filed",),
+) -> list[str]:
+    """저장된 재무 스냅샷과 원문에서 다시 만든 값의 차이를 문장으로 낸다.
+
+    내부 항등식(분기 합 = TTM, 차입 − 현금 = 순부채)은 값이 **서로** 맞는지만
+    본다. 원문의 영업현금흐름 40 을 400 으로 일관되게 바꾸면 항등식도 지문도
+    통과한다. 그래서 수집기의 도출 함수를 봉인된 원문에 다시 돌린 결과와 필드
+    단위로 대조한다. 숫자는 허용오차 안에서 같다고 본다.
+
+    `filed`(그 값을 실은 제출일)는 대조하지 않는다. 같은 분기 값이 이듬해 비교표에
+    다시 실리면 제출일만 바뀌고 값은 그대로인데, 그것으로 스냅샷을 낡았다고 하면
+    매년 모든 스냅샷이 이유 없이 재수집된다. 값이 재작성됐다면 val 이 걸린다.
+    """
+    out: list[str] = []
+
+    def walk(path: str, left: Any, right: Any) -> None:
+        if len(out) >= limit:
+            return
+        numeric = (int, float)
+        if (
+            isinstance(left, numeric)
+            and isinstance(right, numeric)
+            and not isinstance(left, bool)
+            and not isinstance(right, bool)
+        ):
+            if abs(left - right) > max(IDENTITY_TOLERANCE, abs(right) * 1e-9):
+                out.append(
+                    f"{path}: 스냅샷 {left:,.0f} / 원문 재생 {right:,.0f}"
+                )
+            return
+        if isinstance(left, dict) and isinstance(right, dict):
+            for key in sorted(set(left) | set(right)):
+                if key not in ignore_keys:
+                    walk(f"{path}.{key}", left.get(key), right.get(key))
+            return
+        if isinstance(left, list) and isinstance(right, list):
+            if len(left) != len(right):
+                out.append(
+                    f"{path}: 스냅샷 {len(left)}건 / 원문 재생 {len(right)}건"
+                )
+                return
+            for index, (a, b) in enumerate(zip(left, right)):
+                walk(f"{path}[{index}]", a, b)
+            return
+        if left != right:
+            out.append(f"{path}: 스냅샷 {left!r} / 원문 재생 {right!r}")
+
+    for name in fields:
+        walk(name, snapshot.get(name), derived.get(name))
+    return out
+
+
 def load_fundamentals(path: str | Path) -> dict[str, Any]:
     data = load_json(path)
     errors = validate_fundamentals(data)

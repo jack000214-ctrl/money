@@ -108,7 +108,15 @@ def validate(decision, context):
     return errors
 
 
-def observations(assessment, price_rows, *, start_factor, adjustment_factor, end, reviews=(), decision_date=None):
+def _dividend_factor(bar):
+    """그 봉 이후의 배당분(조정종가/종가). 종가가 없으면 배당 정보가 없는 것이라 1 이다."""
+    close, adjusted = bar.get("close"), bar.get("adjusted_close")
+    if not close or not adjusted:
+        return 1.0
+    return float(adjusted) / float(close)
+
+
+def observations(assessment, price_rows, *, start_factor, end, reviews=(), decision_date=None):
     """Record touches only after the model's confirmation was recorded.
 
     A daily bar cannot identify a same-day before/after event, so a review becomes
@@ -119,7 +127,7 @@ def observations(assessment, price_rows, *, start_factor, adjustment_factor, end
     result = []
     for stage in plan["stages"]:
         checks = sorted([r for r in reviews if r["assessment_id"] == assessment["assessment_id"] and r["stage_id"] == stage["stage_id"]], key=lambda r: r["recorded_at"])
-        touch, eligible, unknown = None, None, False
+        touch, eligible, unknown, eligible_bar = None, None, False, None
         for bar in price_rows:
             if not (max(plan["reference_date"], decision_date) < bar["date"] and stage["valid_from"] <= bar["date"] <= stage["valid_until"]):
                 continue
@@ -134,12 +142,16 @@ def observations(assessment, price_rows, *, start_factor, adjustment_factor, end
             if bar["low"] <= stage["reference_price"] * start_factor:
                 touch = touch or bar["date"]
                 if state == "SATISFIED" and matching_basis:
-                    eligible = bar["date"]
+                    eligible, eligible_bar = bar["date"], bar
                     break
                 unknown |= state == "UNVERIFIABLE" or not matching_basis
         result.append({"stage_id": stage["stage_id"], "price_touch_date": touch,
                        "eligible_price_touch_date": eligible,
                        "observation": "CONDITIONS_AND_PRICE_OBSERVED" if eligible else "UNVERIFIABLE" if unknown else "NO_ELIGIBLE_TOUCH",
-                       "hypothetical_return_pct": round((end["adjusted_close"] / (stage["reference_price"] * adjustment_factor) - 1) * 100, 4) if eligible else None})
+                       # 배당은 접촉한 날부터 받는다. 판단일의 배당 조정계수를 쓰면 그 사이에
+                       # 지급된 배당이 이 단계의 수익으로 들어간다 (`cio/memory.py:_counterfactual`).
+                       "hypothetical_return_pct": round((end["adjusted_close"] / (
+                           stage["reference_price"] * start_factor * _dividend_factor(eligible_bar)
+                       ) - 1) * 100, 4) if eligible else None})
     return {"stages": result, "actual_execution": "UNKNOWN", "strategy_return_pct": None,
             "_note": "조건 충족 후 가격 접촉의 관측이다. 실제 체결과 전략 수익률을 인증하지 않으며, 미확인 조건은 체결로 가정하지 않는다. 기존 고정기간 평가는 별도다."}

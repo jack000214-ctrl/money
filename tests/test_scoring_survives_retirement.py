@@ -9,13 +9,21 @@
 """
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
+from cio.decision import normalize_decision
 from cio.memory import (
     FIXED_HORIZON_MONTHS,
     SCORING_REQUIRED,
+    record_decision_file,
+    score_asset,
     scoring_contract_errors,
 )
+from test_cio_core import valid_context, valid_decision
 
 
 def measurable():
@@ -73,10 +81,58 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
     파마리서치 판단이 채점에서 사라졌고, 그것이 이 구분을 만든 계기다.
     """
 
-    def test_score_result_separates_the_three_buckets(self):
-        from cio.memory import score_asset
+    ROWS = [
+        {"date": day, "close": close, "adjusted_close": close,
+         "has_adjusted_close": True, "split_adjustment_factor": 1.0,
+         "high": close + 1, "low": close - 1}
+        for day, close in (("2025-12-31", 100.0), ("2026-01-02", 104.0),
+                           ("2026-02-02", 112.0))
+    ]
 
-        report = score_asset("214450")
+    def score(self):
+        """살아 있는 판단 하나와 폐기된 판단 하나를 임시 저장소에 두고 채점한다.
+
+        예전에는 실제 저장소의 214450·005930 을 채점했다. 그러면 테스트를 돌릴
+        때마다 진짜 평가 파일이 다시 쓰이고, 사용자가 삼성전자 판단을 새로 하나
+        기록하는 순간 "살아 있는 평가가 없다"는 단언이 깨진다 — 코드가 아니라
+        그날의 보유 기록을 시험하는 테스트였다.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            knowledge = root / "knowledge"
+            context = valid_context()
+            context_path = (
+                knowledge / "contexts" / "TSLA" / f"{context['context_id']}.json")
+            context_path.parent.mkdir(parents=True)
+            context_path.write_text(json.dumps(context), encoding="utf-8")
+            decision_path = root / "decision.json"
+            decision_path.write_text(json.dumps(valid_decision()), encoding="utf-8")
+            old = valid_decision()
+            old["thesis"] = "폐기된 옛 판단의 논지"
+            retired = normalize_decision(old)
+            retired_path = (
+                knowledge / "retired" / "TSLA" / f"{retired['assessment_id']}.json")
+            retired_path.parent.mkdir(parents=True)
+            retired_path.write_text(json.dumps({**retired, "_retired": {
+                "retired_at": "2026-08-01T09:00:00+09:00", "class": "VALID",
+                "reason": "구버전 산물"}}), encoding="utf-8")
+            with patch("cio.memory.ROOT", root), \
+                    patch("cio.memory.KNOWLEDGE_DIR", knowledge), \
+                    patch("cio.decision.ROOT", root), \
+                    patch("cio.decision.KNOWLEDGE_DIR", knowledge), \
+                    patch("cio.memory._price_rows", return_value=self.ROWS), \
+                    patch("cio.memory._price_session", return_value=None):
+                live = json.loads(
+                    record_decision_file(decision_path).read_text(encoding="utf-8"))
+                report = score_asset("TSLA")
+                stored = {
+                    path.stem: json.loads(path.read_text(encoding="utf-8"))
+                    for path in (knowledge / "evaluations" / "TSLA").glob("EVAL-*.json")
+                }
+        return report, live["assessment_id"], retired["assessment_id"], stored
+
+    def test_score_result_separates_the_three_buckets(self):
+        report, _live, _retired, _stored = self.score()
         for bucket in (
             "evaluated",
             "scored_but_not_citable",
@@ -87,11 +143,13 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
 
     def test_retired_judgments_are_not_mixed_into_evaluated(self):
         """그때의 계약과 prompt 가 지금과 달랐으므로 같은 통에 넣지 않는다."""
-        from cio.memory import score_asset
-
-        report = score_asset("005930")
-        self.assertEqual(report["evaluated"], [])
-        self.assertTrue(report["retired_evaluated"])
+        report, live, retired, stored = self.score()
+        self.assertEqual([row["assessment_id"] for row in report["evaluated"]], [live])
+        self.assertEqual(
+            [row["assessment_id"] for row in report["retired_evaluated"]], [retired])
+        sources = {data["assessment_id"]: (data["source"], data["citable"])
+                   for data in stored.values()}
+        self.assertEqual(sources, {live: ("LIVE", True), retired: ("RETIRED", False)})
 
 
 class TestFixedHorizonsAreModelIndependent(unittest.TestCase):

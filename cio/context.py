@@ -26,7 +26,12 @@ from calculators.contracts import (
     write_json,
 )
 from cio.assets import get_asset
-from cio.documents import documents_for_context, fetch_hint, stored_filing_keys
+from cio.documents import (
+    documents_for_context,
+    fetch_hint,
+    stored_filing_keys,
+    unfetched_exhibits,
+)
 from cio.decision import require_valid_decision, validate_context_integrity
 from cio.memory import (
     EVALUATION_ID_EXCLUDED_KEYS,
@@ -48,6 +53,7 @@ from cio.refresh import (
     DART_PRIMARY_REPORT_FORMS,
     SEC_PRIMARY_REPORT_FORMS,
     event_contract_errors,
+    inspect_asset_plan,
     inspect_plan,
     safe_symbol,
 )
@@ -518,8 +524,75 @@ def _latest_fundamentals(
                     if asset["market"] == "US"
                     else "LEASE는 IFRS16 리스부채다. 현금흐름의 리스원금·이자 "
                     "분류와 맞춰 포함 여부를 정한다"
+                    + (
+                        ". REDEEMABLE_PREFERRED는 부채로 분류된 전환상환우선주다 — "
+                        "전환되면 부채가 사라지고 주식수가 늘므로, 부채로 볼지 "
+                        "희석으로 볼지 정하고 양쪽에 겹쳐 세지 않는다"
+                        if by_category.get("REDEEMABLE_PREFERRED") else ""
+                    )
                 )
                 + ". 리스를 뺀 순부채를 쓰려면 LEASE를 덜어내고 다시 센다"
+            ),
+        }
+    # 총차입은 "찾은 줄의 합"이다. 찾지 못한 줄과 두 번 셌을 수 있는 줄을 값 옆에
+    # 두지 않으면 합계가 완전한 것으로 읽힌다 — SK하이닉스는 리스부채 2.5조만
+    # 잡힌 채 차입금 18.6조가 빠진 순현금으로 실려 나갔다. 깨끗할 때는 싣지 않는다.
+    unclassified = [
+        item for item in data.get("debt_unclassified") or []
+        if isinstance(item, dict) and _as_float(item.get("value"))
+    ]
+    if unclassified:
+        summary["debt_unclassified"] = {
+            "total": sum(float(item["value"]) for item in unclassified),
+            "items": [
+                {"label": item.get("label"), "value": float(item["value"])}
+                for item in unclassified[:6]
+            ],
+            "_warning": (
+                "차입처럼 보이는데 분류하지 못한 재무상태표 계정이다. "
+                "values.long_term_debt·net_debt 에 들어 있지 않으므로 총차입은 "
+                "하한이고 순부채는 최대 total 만큼 작게 잡혀 있다. 합산행인지 "
+                "별도 차입인지 원문에서 확인하고 순부채를 다시 센다"
+            ),
+        }
+    uncounted_assets = [
+        item for item in data.get("short_term_investments_unclassified") or []
+        if isinstance(item, dict) and _as_float(item.get("value"))
+    ]
+    if uncounted_assets:
+        summary["short_term_investments_unclassified"] = {
+            "total": sum(float(item["value"]) for item in uncounted_assets),
+            "items": [
+                {"label": item.get("label"), "value": float(item["value"])}
+                for item in uncounted_assets[:6]
+            ],
+            "_warning": (
+                "현금성일 수 있는데 values.short_term_investments 에 넣지 않은 유동 "
+                "금융자산이다(대여금·보증금이 섞였을 수 있어 세지 않았다). "
+                "현금성이면 순부채는 최대 total 만큼 작다. 결론이 순부채에 "
+                "민감하면 주석에서 구성을 확인한다"
+            ),
+        }
+    overlaps = [
+        item for item in data.get("debt_overlap_candidates") or []
+        if isinstance(item, dict) and _as_float(item.get("value"))
+    ]
+    if overlaps:
+        summary["debt_overlap_candidates"] = {
+            "total": sum(float(item["value"]) for item in overlaps),
+            "items": [
+                {
+                    "tag": item.get("tag"),
+                    "value": float(item["value"]),
+                    "may_be_inside": item.get("may_be_inside"),
+                }
+                for item in overlaps[:6]
+            ],
+            "_warning": (
+                "총차입에 더했지만 다른 태그 값에 이미 들어 있을 수 있는 금액이다. "
+                "태그 정의상 포함관계인데 회사가 정의대로 썼는지 값만으로는 "
+                "확인되지 않는다. 전부 겹침이면 총차입·순부채는 total 만큼 작다. "
+                "결론이 순부채에 민감하면 재무상태표 원문에서 확인한다"
             ),
         }
     fcf = _as_float(values.get("fcf_ttm"))
@@ -804,9 +877,28 @@ def _filing_summary(
     )
     primary_reports = []
     material_events = []
+    # 최신성 판정의 재료는 **줄이기 전의 색인 전체**에서 모은다. 요약은 정기보고서
+    # 4건·사건 8건에서 잘리는데, 예전에는 그 잘린 목록으로 "로컬 재무보다 새
+    # 실적이 나왔는가"를 판정했다. 실적 공시 뒤에 다른 공시가 8건 쌓이면 실적이
+    # 요약에서 밀려나 미반영 실적을 통째로 놓쳤다.
+    lag_scan: dict[str, list[dict[str, Any]]] = {
+        "primary_reports": [], "result_disclosures": [],
+    }
     for filing in filings:
         if not isinstance(filing, dict):
             continue
+        if filing.get("form") in primary_forms:
+            lag_scan["primary_reports"].append({
+                key: filing.get(key)
+                for key in ("form", "report_date", "filing_date", "description",
+                            "document_url")
+            })
+        elif _is_result_disclosure(filing):
+            lag_scan["result_disclosures"].append({
+                key: filing.get(key)
+                for key in ("form", "filing_date", "description", "document_url",
+                            "accession_number")
+            })
         # 값이 없는 키는 싣지 않는다. DART 는 report_date 를 주지 않아 KR 공시
         # 8건이 매번 `"report_date": null` 을 들고 나갔다(152 B). SEC 는 실제
         # 값을 주므로 그쪽에서는 그대로 남는다 — 키를 지우는 게 아니라 빈 값을
@@ -842,6 +934,8 @@ def _filing_summary(
         "collected_at": data.get("collected_at"),
         "latest_primary_reports": primary_reports[:4],
         "latest_material_events": material_events[:8],
+        # packet 에 싣는 값이 아니다. `_reporting_lag` 가 읽은 뒤 조립 단계에서 뺀다.
+        "_lag_scan": lag_scan,
         "_note": (
             "제출 문서 탐색용 색인이다. 문서의 의미와 투자 영향은 모델이 "
             f"{'DART' if is_dart else 'SEC'} 원문을 읽고 판단한다. 여기 없는 "
@@ -1021,6 +1115,30 @@ def _earnings_calendar_section(
 
 
 RESULT_DISCLOSURE_FORMS = {"PROVISIONAL_RESULT", "FAIR_DISCLOSURE", "8-K"}
+SEC_CURRENT_REPORT_FORMS = {"8-K", "8-K/A"}
+SEC_RESULTS_ITEM = "2.02"
+
+
+def _is_result_disclosure(filing: dict[str, Any]) -> bool:
+    """이 공시가 실적을 새로 말하는가.
+
+    8-K 는 서식이 아니라 **Item 번호**가 내용을 말한다. 서식만 보면 임원 교체
+    (5.02)가 최신 실적으로 세어져 판단이 막히고, 실적을 정정한 8-K/A(2.02)는
+    빠진다. Item 2.02(Results of Operations)가 있는 것만 실적 공시다.
+
+    Item 정보가 아예 없는 행(옛 색인)은 실적인지 아닌지 알 수 없다. 모르는 것을
+    "실적 아님"으로 넘기지 않고 후보로 둔다.
+    """
+    form = filing.get("form")
+    if form in SEC_CURRENT_REPORT_FORMS:
+        items = filing.get("items")
+        if items is None:
+            labels = filing.get("item_labels")
+            if labels is None:
+                return True
+            items = [str(label).split(" ", 1)[0] for label in labels]
+        return SEC_RESULTS_ITEM in items
+    return form in RESULT_DISCLOSURE_FORMS
 
 
 def _reporting_lag(
@@ -1037,8 +1155,14 @@ def _reporting_lag(
     period_end = fundamentals.get("period_end")
     if not isinstance(period_end, str):
         return None
-    primary = filings.get("latest_primary_reports") or []
-    events = filings.get("latest_material_events") or []
+    # 줄이기 전의 전체 목록이 있으면 그것으로 판정한다(`_filing_summary`).
+    scan = filings.get("_lag_scan")
+    if isinstance(scan, dict):
+        primary = scan.get("primary_reports") or []
+        events = scan.get("result_disclosures") or []
+    else:
+        primary = filings.get("latest_primary_reports") or []
+        events = filings.get("latest_material_events") or []
     if not isinstance(primary, list) or not isinstance(events, list):
         return None
 
@@ -1075,7 +1199,7 @@ def _reporting_lag(
         }
         for item in events
         if isinstance(item, dict)
-        and item.get("form") in RESULT_DISCLOSURE_FORMS
+        and _is_result_disclosure(item)
         and isinstance(item.get("filing_date"), str)
         and item["filing_date"] > cutoff
     ]
@@ -1442,7 +1566,8 @@ def _etf_issuer_facts(
 
 
 def _etf_lookthrough(
-    asset: dict[str, Any], *, holdings_as_of: str | None
+    asset: dict[str, Any], *, holdings_as_of: str | None,
+    refresh_tasks: list[Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """구성종목 들여다보기. 재료가 없으면 None 이고 그 사실은 data_coverage 가 말한다."""
     from calculators.etf_lookthrough import summarize
@@ -1477,6 +1602,19 @@ def _etf_lookthrough(
             f"지금 구성은 {holdings_as_of} 이다. 빠지거나 들어온 종목이 있으면 "
             "배수와 분해가 지금 ETF 의 것이 아니다 — 다시 받는다"
         )
+    # refresh 가 낡았다고 본 재료를 packet 에서 현재 값처럼 싣지 않는다.
+    task = next(
+        (item for item in _plan_for(asset, refresh_tasks)
+         if getattr(item, "capability", None) == "ETF_CONSTITUENTS"),
+        None,
+    )
+    if task is not None and task.state != "FRESH":
+        if getattr(task, "contract_error", None):
+            return {"contract_errors": [task.contract_error]}, source
+        block["freshness"] = task.state
+        block["_freshness_note"] = (
+            f"{task.reason or '수집 기한이 지났다'}. {STALE_VALUE_NOTE}"
+        )
     return block, source
 
 
@@ -1486,6 +1624,15 @@ def _as_float(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return number if math.isfinite(number) else None
+
+
+def _observed_sum(rows: list[dict[str, Any]], column: str) -> tuple[int | None, int]:
+    """값이 있는 행만 더한다. → (합 또는 None, 값이 있던 행 수)"""
+    values = [
+        value for row in rows
+        if (value := _as_float(row.get(column))) is not None
+    ]
+    return (round(sum(values)) if values else None), len(values)
 
 
 def _estimate_rows(data: dict[str, Any]) -> dict[str, Any] | None:
@@ -1549,8 +1696,16 @@ ESTIMATE_INVALIDATING_FORMS = {
 }
 
 
-def _estimates_event_lag(asset_id: str, as_of: Any) -> dict[str, Any] | None:
+def _estimates_event_lag(
+    asset_id: str, as_of: Any, *, estimates_date_known: bool = True
+) -> dict[str, Any] | None:
     """추정치 기준일 이후에 실적 공시가 있었는가.
+
+    `estimates_date_known=False` 는 `as_of` 가 전망의 갱신일이 아니라 **최신
+    목표가 보고일**이라는 뜻이다. 둘은 다른 날짜다 — 목표가 보고가 9/29 에
+    멈췄어도 EPS 전망은 10/13 에 갱신됐을 수 있다. 그때는 "반영하지 않았다"고
+    단정하지 않고, 그 날짜 이후 실적 공시가 있었다는 관측과 반영 여부를 모른다는
+    사실만 낸다.
 
     신선도를 시간으로만 재면 이것을 못 잡는다. `consensus:214450` 는 as_of
     2026-07-28 로 refresh 가 FRESH 라고 답했는데 그 사이 2026-08-07 에 2Q26
@@ -1591,6 +1746,23 @@ def _estimates_event_lag(asset_id: str, as_of: Any) -> dict[str, Any] | None:
     if not events:
         return None
     events.sort(key=lambda row: row["filing_date"], reverse=True)
+    if not estimates_date_known:
+        return {
+            "estimates_as_of": None,
+            "latest_target_report_date": boundary,
+            "latest_event_date": events[0]["filing_date"],
+            "events_since": len(events),
+            "events": events[:4],
+            "_role": (
+                "EPS 전망이 언제 갱신됐는지 **모른다.** 알려진 것은 최신 목표가 "
+                "보고일뿐이고 그 뒤에 실적 공시가 나왔다. 전망이 그 실적을 "
+                "반영했는지는 로컬에서 가릴 수 없다 — 반영했다고도 안 했다고도 "
+                "읽지 않는다. 공시 원문의 실적과 이 EPS 를 대조해 직접 확인하고, "
+                "확인하지 않았다면 이 EPS 로 낸 배수의 한계를 unknowns 에 적는다. "
+                "다시 수집해도 같은 값이 올 수 있으므로 재수집을 요청하는 자리가 "
+                "아니다"
+            ),
+        }
     return {
         "estimates_as_of": boundary,
         "latest_event_date": events[0]["filing_date"],
@@ -1612,8 +1784,14 @@ def _with_event_lag(
     asset_id: str,
     *,
     as_of_key: str,
+    estimates_key: str = "estimates_as_of",
 ) -> dict[str, Any] | None:
     """추정 기준일이 실린 블록에 사건 낙후를 붙인다.
+
+    전망의 갱신일(`estimates_key`)을 알면 그 날짜로 재고 `stale_across_event` 를
+    붙인다. 모르면 최신 목표가 보고일(`as_of_key`)로 재되, 반영 여부를 모른다는
+    뜻의 `unverified_across_event` 를 붙인다. 예전에는 목표가 보고일을 전망일로
+    바꿔 부르며 "반영하지 않았다"고 단정했다.
 
     배수가 계산되는 자리와 EPS 가 실린 자리 **둘 다**에 붙인다. 한 곳만 보고
     결론을 쓰는 경로가 실제로 있었다 — 2026-08-09 판단은 `multiples_at_review_price`
@@ -1622,9 +1800,17 @@ def _with_event_lag(
     """
     if not isinstance(block, dict):
         return block
-    lag = _estimates_event_lag(asset_id, block.get(as_of_key))
+    estimates_as_of = block.get(estimates_key)
+    if isinstance(estimates_as_of, str) and len(estimates_as_of) >= 10:
+        lag = _estimates_event_lag(asset_id, estimates_as_of)
+        if lag:
+            block["stale_across_event"] = lag
+        return block
+    lag = _estimates_event_lag(
+        asset_id, block.get(as_of_key), estimates_date_known=False
+    )
     if lag:
-        block["stale_across_event"] = lag
+        block["unverified_across_event"] = lag
     return block
 
 
@@ -1767,6 +1953,9 @@ def _etf_data_coverage(
         }
         if lookthrough.get("_warning"):
             entry["state"] = "STALE_HOLDINGS"
+        elif lookthrough.get("freshness"):
+            entry["state"] = "STALE"
+            entry["note"] = lookthrough.get("_freshness_note")
         return entry
 
     valuation = lookthrough.get("valuation") or {}
@@ -1873,6 +2062,18 @@ def _data_coverage(
         # 계속 "받으면 된다"고 말하고 모델은 그 요청을 반복한다.
         if isinstance(available_when, dict) and available_when.get("state") == "INVALID":
             return {"state": "REGISTERED_NOT_COLLECTED", "note": "산출물이 원문 재검증에 실패했다. refresh로 복구한다"}
+        if isinstance(available_when, dict) and available_when.get("freshness"):
+            return {
+                "state": "STALE",
+                "as_of": available_when.get("as_of"),
+                "note": available_when.get("_freshness_note"),
+            }
+        if isinstance(available_when, dict) and available_when.get("_state_note"):
+            return {
+                "state": available_when["state"],
+                "as_of": available_when.get("as_of"),
+                "note": available_when["_state_note"],
+            }
         if isinstance(available_when, dict) and available_when.get("state") in {"NETWORK_ERROR", "PARSE_ERROR", "NO_DATA", "PARTIAL", "STALE_AFTER_FAILURE"}:
             return {"state": available_when["state"], "last_attempt": available_when.get("last_attempt"),
                     "components": available_when.get("components"),
@@ -1903,6 +2104,46 @@ def _data_coverage(
             entry["note"] = note
         return entry
 
+    def joint_row(key: str, parts: dict[str, tuple[bool, Any]]) -> dict[str, Any]:
+        """수집기 둘이 한 줄을 이루는 항목.
+
+        예전에는 `a or b` 로 먼저 잡히는 하나만 봤다. 그래서 한쪽이 낡거나
+        깨져도 다른 쪽이 있으면 줄 전체가 가용하다고 읽혔다. 등록된 쪽을 각각
+        판정하고, 상태가 갈리면 갈린 그대로(parts) 낸다. 한쪽이 **그냥 없는**
+        것은 다른 쪽을 깎지 않는다 — 회사마다 공시하는 자리가 다르다. 한쪽이
+        낡았거나 계약을 어겼으면 줄은 PARTIAL 이다.
+        """
+        registered = {name: block for name, (on, block) in parts.items() if on}
+        rows = {
+            name: row(key, registered=True, available_when=block,
+                      market_supported=is_kr)
+            for name, block in registered.items()
+        }
+        if not is_kr or not rows:
+            return row(key, registered=bool(rows), available_when=None,
+                       market_supported=is_kr)
+        if len({entry["state"] for entry in rows.values()}) == 1:
+            return next(iter(rows.values()))
+        states = {name: entry["state"] for name, entry in rows.items()}
+        degraded = [
+            name for name, block in registered.items()
+            if isinstance(block, dict)
+            and (block.get("freshness") or block.get("state") in DEGRADED_STATES)
+        ]
+        available = [name for name, state in states.items() if state == "AVAILABLE"]
+        if available and not degraded:
+            return {**rows[available[0]], "parts": states}
+        if not available:
+            return {**rows[(degraded or list(rows))[0]], "parts": states}
+        return {
+            "state": "PARTIAL",
+            "parts": states,
+            "note": (
+                "이 줄을 이루는 자료의 상태가 서로 다르다. parts 에서 AVAILABLE 이 "
+                "아닌 쪽은 structured_optional 의 해당 항목에 사유가 있다"
+            ),
+        }
+
     coverage: dict[str, Any] = {
         "forward_estimates": row(
             "forward_estimates",
@@ -1918,19 +2159,21 @@ def _data_coverage(
         ),
         # 정기보고서 부문표(KR_SEGMENTS)와 잠정실적 품목군별 매출(KR_PRODUCT_SALES)
         # 둘 중 하나면 부문별 매출이 있는 것이다. 회사마다 공시하는 자리가 다르다.
-        "segment_revenue": row(
+        "segment_revenue": joint_row(
             "segment_revenue",
-            registered=bool({"KR_SEGMENTS", "KR_PRODUCT_SALES"} & enabled),
-            available_when=(
-                optional.get("kr_product_sales") or optional.get("segments")
-            ),
-            market_supported=is_kr,
+            {
+                "kr_product_sales": (
+                    "KR_PRODUCT_SALES" in enabled, optional.get("kr_product_sales")
+                ),
+                "segments": ("KR_SEGMENTS" in enabled, optional.get("segments")),
+            },
         ),
-        "flow_and_lending": row(
+        "flow_and_lending": joint_row(
             "flow",
-            registered=bool({"KR_FLOW", "KR_LENDING"} & enabled),
-            available_when=optional.get("kr_flow") or optional.get("kr_lending"),
-            market_supported=is_kr,
+            {
+                "kr_flow": ("KR_FLOW" in enabled, optional.get("kr_flow")),
+                "kr_lending": ("KR_LENDING" in enabled, optional.get("kr_lending")),
+            },
         ),
         "inventory": row(
             "inventory",
@@ -2117,9 +2360,94 @@ def _fx_quarters(
     }, source
 
 
+# packet 의 보조자료 항목 ↔ 그것을 만든 refresh 작업 ↔ 근거 ID 접두사.
+OPTIONAL_SUMMARY_TASKS = (
+    ("consensus", "consensus", "CONSENSUS"),
+    ("kr_flow", "flow", "KR_FLOW"),
+    ("kr_lending", "lending", "KR_LENDING"),
+    ("kr_inventory", "inventory", "KR_INVENTORY"),
+    ("segments", "segments", "KR_SEGMENTS"),
+    ("kr_product_sales", "product_sales", "KR_PRODUCT_SALES"),
+    ("epc_contract_notes", "epc", "KR_EPC"),
+    ("normalized_earnings", "normalized", "NORMALIZED_EARNINGS"),
+)
+# 값이 있더라도 그대로 믿을 수 없는 상태.
+DEGRADED_STATES = {
+    "INVALID", "PARTIAL", "NO_DATA", "NETWORK_ERROR", "PARSE_ERROR",
+    "STALE_AFTER_FAILURE",
+}
+STALE_VALUE_NOTE = (
+    "값은 과거 관측으로 남겼다. 현재 값으로 읽지 않고, 결론에 쓰려면 "
+    "`cio refresh <asset_id> --run --optional` 로 다시 받는다"
+)
+
+
+def _plan_for(
+    asset: dict[str, Any], refresh_tasks: list[Any] | None
+) -> list[Any]:
+    """넘겨받은 refresh 점검 결과, 없으면 이 자산 정의로 직접 점검한다."""
+    if refresh_tasks is not None:
+        return refresh_tasks
+    # refresh 는 자기 ROOT 아래를 본다. packet 이 다른 디렉터리의 산출물을 읽고
+    # 있으면(격리된 테스트·재현 실행) 그 점검 결과는 이 파일들의 것이 아니다.
+    from cio import refresh as refresh_module
+
+    if (
+        Path(refresh_module.ROOT).resolve() != Path(ROOT).resolve()
+        or Path(KNOWLEDGE_DIR).resolve()
+        != (Path(refresh_module.ROOT) / "knowledge").resolve()
+    ):
+        return []
+    try:
+        return inspect_asset_plan(asset, include_optional=True)
+    except (KeyError, TypeError, ValueError):
+        # 시장·상품 필드가 없는 부분 정의로는 계획을 세울 수 없다. 점검하지
+        # 못한 것이므로 상태를 붙이지 않는다.
+        return []
+
+
+def _apply_refresh_states(
+    summaries: dict[str, Any],
+    sources: list[dict[str, Any]],
+    asset_id: str,
+    refresh_tasks: list[Any],
+) -> None:
+    """refresh 가 낡았다고 본 보조자료를 packet 에서도 낡았다고 말하게 한다.
+
+    refresh 는 30일 된 수급을 STALE 이라 하는데 packet 은 같은 파일을 읽어
+    AVAILABLE 로 실었다. 숫자를 읽는 자리와 가용성 표가 서로 다른 말을 했고,
+    모델이 보는 것은 packet 쪽이다.
+
+    낡은 것과 틀린 것을 가른다. 기한이 지난 값은 과거 관측으로 남기고 표시를
+    붙인다. 계약을 어긴 값(다른 회사·다른 스키마·원문과 다른 숫자)은 싣지 않는다.
+    """
+    by_name = {getattr(task, "name", None): task for task in refresh_tasks}
+    for key, task_prefix, source_prefix in OPTIONAL_SUMMARY_TASKS:
+        task = by_name.get(f"{task_prefix}:{asset_id}")
+        summary = summaries.get(key)
+        if task is None or not isinstance(summary, dict) or task.state == "FRESH":
+            continue
+        if getattr(task, "contract_error", None):
+            summaries[key] = {
+                "available": False,
+                "state": "INVALID",
+                "problems": [task.contract_error],
+            }
+            source_id = f"{source_prefix}:{asset_id}"
+            sources[:] = [
+                item for item in sources if item.get("source_id") != source_id
+            ]
+            continue
+        summary["freshness"] = task.state
+        summary["_freshness_note"] = (
+            f"{task.reason or '수집 기한이 지났다'}. {STALE_VALUE_NOTE}"
+        )
+
+
 def _optional_collection_summaries(
     asset: dict[str, Any],
     *, fundamentals: dict[str, Any] | None = None,
+    refresh_tasks: list[Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     enabled = set(asset.get("optional_collectors") or [])
     asset_id = asset["asset_id"]
@@ -2253,22 +2581,36 @@ def _optional_collection_summaries(
             rows = _csv_rows(path)
             recent = rows[-20:]
             if recent:
-                institution = sum(
-                    _as_float(row.get("institution_net")) or 0 for row in recent
+                institution, institution_seen = _observed_sum(
+                    recent, "institution_net"
                 )
-                foreign = sum(
-                    _as_float(row.get("foreign_net")) or 0 for row in recent
-                )
+                foreign, foreign_seen = _observed_sum(recent, "foreign_net")
                 summaries["kr_flow"] = {
                     "as_of": recent[-1].get("date"),
                     "lookback_sessions": len(recent),
-                    "institution_net_shares": round(institution),
-                    "foreign_net_shares": round(foreign),
+                    "institution_net_shares": institution,
+                    "foreign_net_shares": foreign,
                     "foreign_ownership_pct": _as_float(
                         recent[-1].get("foreign_pct")
                     ),
                     "_warning": "2차 출처 수급이며 단독 매매 근거가 아니다",
                 }
+                # 결측을 0 으로 더하면 "순매수 0주"라는 관측이 만들어진다. 값이
+                # 없는 날은 합에서 빼고, 몇 거래일이 실제로 관측됐는지를 값 옆에
+                # 둔다. 하나도 없으면 합은 0 이 아니라 null 이다.
+                if min(institution_seen, foreign_seen) < len(recent):
+                    summaries["kr_flow"]["observed_sessions"] = {
+                        "institution": institution_seen,
+                        "foreign": foreign_seen,
+                    }
+                    summaries["kr_flow"]["state"] = (
+                        "PARTIAL" if institution_seen or foreign_seen else "NO_DATA"
+                    )
+                    summaries["kr_flow"]["_state_note"] = (
+                        "순매수 값이 없는 거래일이 있다. 합계는 observed_sessions "
+                        "만큼의 날만 더한 값이며 lookback_sessions 전체의 합이 "
+                        "아니다. null 은 0 이 아니라 관측 없음이다"
+                    )
                 sources.append(
                     {
                         "source_id": f"KR_FLOW:{asset_id}",
@@ -2375,6 +2717,14 @@ def _optional_collection_summaries(
                     "찾아야 한다. NO_TABLE_FOUND 는 다르다: 우리가 못 읽은 것일 수 "
                     "있으므로 결론이 부문에 걸리면 원문을 직접 본다"
                 ),
+            }
+        elif isinstance(data, dict) and data.get("asset_id") != asset_id:
+            # 파일 이름이 정체성을 만들면 안 된다. 원문 재추출까지 하는 전체
+            # 계약은 refresh 가 본다(아래 `_apply_refresh_states`).
+            summaries["segments"] = {
+                "available": False,
+                "state": "INVALID",
+                "problems": ["부문 자료의 asset_id가 요청 자산과 다르다"],
             }
         elif isinstance(data, dict) and data.get("latest_mix"):
             summaries["segments"] = {
@@ -2488,6 +2838,9 @@ def _optional_collection_summaries(
                 }
             )
 
+    _apply_refresh_states(
+        summaries, sources, asset_id, _plan_for(asset, refresh_tasks)
+    )
     return summaries, sources
 
 
@@ -4586,12 +4939,25 @@ def build_context(
                     ),
                 }
             )
+    plan = inspect_plan(asset["asset_id"], include_optional=True)
     fundamentals = None
     filings = None
     earnings_calendar = None
     if asset["asset_type"] == "STOCK":
         fundamentals, source = _latest_fundamentals(asset)
         sources.append(source)
+        # 계약을 어긴 재무는 숫자를 싣지 않는다. 필수 입력이라 packet 은 어차피
+        # BLOCKED 지만, 값이 실려 있으면 논지에 인용된다 — 원문에서 다시 나오지
+        # 않는 순부채(옛 분류로 만든 스냅샷)가 그렇게 근거가 됐다.
+        fundamentals_task = next(
+            (task for task in plan
+             if task.name == f"fundamentals:{asset['asset_id']}"), None)
+        if (
+            fundamentals
+            and not fundamentals.get("contract_errors")
+            and getattr(fundamentals_task, "contract_error", None)
+        ):
+            fundamentals = {"contract_errors": [fundamentals_task.contract_error]}
         filings, source = _filing_summary(asset)
         if source:
             sources.append(source)
@@ -4599,6 +4965,8 @@ def build_context(
         if source:
             sources.append(source)
         reporting_lag = _reporting_lag(fundamentals, filings)
+        if isinstance(filings, dict):
+            filings.pop("_lag_scan", None)
         if reporting_lag and fundamentals:
             fundamentals["reporting_lag"] = reporting_lag
             _mark_bridge_disclosures(
@@ -4628,18 +4996,49 @@ def build_context(
                 # TTM 영업이익이 로컬 94.1조 vs 공시 179.0조로 1.9배 벌어진
                 # 채로 통과했다. 색인에 제목만 있는 것은 근거가 아니다.
                 stored = stored_filing_keys(asset["asset_id"])
-                unfetched = (
-                    [
-                        item
-                        for item in pending
-                        if not (
-                            (item.get("accession_number") or "") in stored
-                            or (item.get("document_url") or "") in stored
-                        )
-                    ]
+                if stored is None:
+                    # 확인하지 못한 것은 "미수집 없음"이 아니다. 예전에는 문서
+                    # 목록을 못 읽으면 빈 목록으로 내려가 그대로 통과했다.
+                    problems.append(
+                        "로컬 재무보다 새 실적 공시가 있는데 그 원문을 받아 두었는지 "
+                        "확인하지 못했다 — 보존 원문 목록을 읽을 수 없다. "
+                        f"`python3.13 -m cio docs {asset['asset_id']}` 로 확인한 뒤 "
+                        "다시 만든다"
+                    )
+                unfetched = [
+                    item
+                    for item in pending
                     if stored is not None
-                    else []
-                )
+                    and not (
+                        (item.get("accession_number") or "") in stored
+                        or (item.get("document_url") or "") in stored
+                    )
+                ]
+                # 본체는 받았는데 숫자가 든 첨부를 안 받은 경우. 실적 8-K 의
+                # 본체는 대개 "실적 자료는 Exhibit 99.1" 이라는 한 문단이다.
+                without_exhibit = []
+                if stored is not None and asset.get("filing_source") == "SEC_EDGAR":
+                    for item in pending:
+                        url = item.get("document_url") or ""
+                        if item in unfetched or url not in stored:
+                            continue
+                        exhibits = unfetched_exhibits(asset["asset_id"], url)
+                        if exhibits:
+                            without_exhibit.append((item, exhibits))
+                if without_exhibit:
+                    problems.append(
+                        "실적 공시의 본체만 받았고 실적 수치가 있는 첨부"
+                        "(Exhibit 99)는 받지 않았다 "
+                        + ", ".join(
+                            f"{entry.get('filing_date')} "
+                            f"{entry.get('description') or entry.get('form')}"
+                            for entry, _ in without_exhibit[:3]
+                        )
+                        + " — 받은 뒤 다시 만든다: "
+                        + fetch_hint(
+                            asset, {"document_url": without_exhibit[0][1][0]}
+                        )
+                    )
                 if unfetched:
                     problems.append(
                         "로컬 재무보다 새 실적 공시가 있는데 그 원문이 없다 "
@@ -4678,14 +5077,15 @@ def build_context(
     if etf:
         for key, (block, block_source) in (
             ("issuer_facts", _etf_issuer_facts(asset, price_summary)),
-            ("lookthrough", _etf_lookthrough(asset, holdings_as_of=etf.get("as_of"))),
+            ("lookthrough", _etf_lookthrough(
+                asset, holdings_as_of=etf.get("as_of"), refresh_tasks=plan)),
         ):
             if block:
                 etf[key] = block
             if block_source:
                 sources.append(block_source)
-    plan = inspect_plan(asset["asset_id"], include_optional=True)
-    structured_optional, optional_sources = _optional_collection_summaries(asset, fundamentals=fundamentals)
+    structured_optional, optional_sources = _optional_collection_summaries(
+        asset, fundamentals=fundamentals, refresh_tasks=plan)
     sources.extend(optional_sources)
     us_summaries, us_sources = _us_automated_summaries(asset, refresh_tasks=plan)
     structured_optional.update(us_summaries)
@@ -4778,7 +5178,12 @@ def build_context(
 
     for task in plan:
         if task.required and task.state != "FRESH":
-            problems.append(f"{task.name}: {task.state}")
+            # 왜 막혔는지를 같이 적는다. "STALE" 만으로는 기한이 지난 것인지
+            # 내용이 원문과 어긋난 것인지 알 수 없다.
+            problems.append(
+                f"{task.name}: {task.state}"
+                + (f" — {task.reason}" if task.reason else "")
+            )
         elif not task.required and task.state != "FRESH":
             optional_gaps.append(
                 {

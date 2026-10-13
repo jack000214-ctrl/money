@@ -16,7 +16,11 @@ us-gaap 은 같은 돈을 총액 태그와 구성요소 태그로 **동시에** 
 import unittest
 
 from helpers import ROOT  # noqa: F401
-from collectors.edgar import resolve_optional_value, resolve_us_debt
+from collectors.edgar import (
+    resolve_optional_value,
+    resolve_us_debt,
+    resolve_us_debt_full,
+)
 
 PERIOD = "2026-06-30"
 
@@ -116,6 +120,127 @@ class TestFinanceLeaseOverlap(unittest.TestCase):
         debt, _detail, by_category, _notes = resolve_us_debt(points, PERIOD)
         self.assertEqual(by_category["LEASE"], 2_515_000_000)
         self.assertEqual(debt, 56_212_000_000 + 2_515_000_000)
+
+
+class TestCurrentDebtIsNotOneSlot(unittest.TestCase):
+    """유동 차입을 한 자리로 묶어 하나만 고르면 한쪽이 통째로 빠진다.
+
+    단기차입금(ShortTermBorrowings)과 장기차입금 유동분(LongTermDebtCurrent)은
+    뜻이 다른 계정이고 DebtCurrent 가 그 둘의 총계다.
+    """
+
+    def test_short_term_and_current_portion_are_both_counted(self):
+        points = {
+            "LongTermDebtNoncurrent": (PERIOD, 100),
+            "ShortTermBorrowings": (PERIOD, 20),
+            "LongTermDebtCurrent": (PERIOD, 30),
+        }
+        debt, detail, _by, _notes = resolve_us_debt(points, PERIOD)
+        self.assertEqual(debt, 150)
+        self.assertEqual(len(detail), 3)
+
+    def test_the_declared_total_replaces_its_components(self):
+        points = {
+            "LongTermDebtNoncurrent": (PERIOD, 100),
+            "ShortTermBorrowings": (PERIOD, 20),
+            "LongTermDebtCurrent": (PERIOD, 30),
+            "DebtCurrent": (PERIOD, 50),
+        }
+        debt, detail, _by, _notes = resolve_us_debt(points, PERIOD)
+        self.assertEqual(debt, 150)
+        self.assertEqual([d["tag"] for d in detail],
+                         ["LongTermDebtNoncurrent", "DebtCurrent"])
+
+    def test_a_stale_total_does_not_hide_current_components(self):
+        """IBM: DebtCurrent 는 2019년에서 멈췄고 구성항목이 현행이다."""
+        points = {
+            "DebtCurrent": ("2019-03-31", 10_250),
+            "ShortTermBorrowings": (PERIOD, 5_775),
+        }
+        debt, detail, _by, _notes = resolve_us_debt(points, PERIOD)
+        self.assertEqual(debt, 5_775)
+        self.assertEqual(detail[0]["tag"], "ShortTermBorrowings")
+
+    def test_one_balance_sheet_line_under_two_tags_is_counted_once(self):
+        """IBM 의 'Short-term debt' 한 줄이 5,775 와 5,772 로 두 태그에 나온다."""
+        points = {
+            "ShortTermBorrowings": (PERIOD, 5_775_000_000),
+            "LongTermDebtAndCapitalLeaseObligationsCurrent": (PERIOD, 5_772_000_000),
+        }
+        debt, detail, _by, _notes = resolve_us_debt(points, PERIOD)
+        self.assertEqual(debt, 5_775_000_000)
+        self.assertEqual(len(detail), 1)
+
+
+class TestFinanceLeaseOverlapIsPerMaturity(unittest.TestCase):
+    def test_noncurrent_overlap_does_not_drop_the_current_finance_lease(self):
+        """비유동 차입만 금융리스를 품고 있으면 유동 금융리스는 별개다."""
+        points = {
+            "LongTermDebtNoncurrent": (PERIOD, 100),
+            "LongTermDebtAndCapitalLeaseObligations": (PERIOD, 100),
+            "LongTermDebtCurrent": (PERIOD, 20),
+            "FinanceLeaseLiabilityNoncurrent": (PERIOD, 10),
+            "FinanceLeaseLiabilityCurrent": (PERIOD, 7),
+        }
+        debt, _detail, by_category, notes = resolve_us_debt(points, PERIOD)
+        self.assertEqual(debt, 127)
+        self.assertEqual(by_category["LEASE"], 7)
+        self.assertEqual(len(notes), 1)
+
+
+class TestOverlapCandidates(unittest.TestCase):
+    """값만으로는 포함관계를 가를 수 없는 조합.
+
+    태그 정의로는 포함인데 회사가 정의대로 쓰지 않는 일이 흔하다. 조용히 한쪽을
+    고르는 대신 더하고(덜 세면 회사가 싸 보인다), 겹칠 수 있는 금액을 남긴다.
+    """
+
+    def overlaps(self, points):
+        result = resolve_us_debt_full(points, PERIOD)
+        return result["debt"], {
+            (item["tag"], item["may_be_inside"]): item["value"]
+            for item in result["overlap_candidates"]
+        }
+
+    def test_long_term_debt_total_and_its_current_portion(self):
+        debt, overlaps = self.overlaps({
+            "LongTermDebt": (PERIOD, 100), "LongTermDebtCurrent": (PERIOD, 30)})
+        self.assertEqual(debt, 130)
+        self.assertEqual(overlaps, {("LongTermDebtCurrent", "LongTermDebt"): 30.0})
+
+    def test_convertible_that_may_sit_inside_the_borrowing_total(self):
+        debt, overlaps = self.overlaps({
+            "LongTermDebtNoncurrent": (PERIOD, 100),
+            "ConvertibleDebtNoncurrent": (PERIOD, 40)})
+        self.assertEqual(debt, 140)
+        self.assertEqual(
+            overlaps, {("ConvertibleDebtNoncurrent", "LongTermDebtNoncurrent"): 40.0})
+
+    def test_a_component_larger_than_the_total_cannot_be_inside_it(self):
+        _debt, overlaps = self.overlaps({
+            "LongTermDebtNoncurrent": (PERIOD, 30),
+            "ConvertibleDebtNoncurrent": (PERIOD, 40)})
+        self.assertEqual(overlaps, {})
+
+    def test_unambiguous_tags_leave_nothing_to_flag(self):
+        _debt, overlaps = self.overlaps({
+            "LongTermDebtNoncurrent": (PERIOD, 100),
+            "ShortTermBorrowings": (PERIOD, 20),
+            "LongTermDebtCurrent": (PERIOD, 30)})
+        self.assertEqual(overlaps, {})
+
+    def test_tesla_shape_is_summed_and_flagged(self):
+        """TSLA 2026-06-30. 합은 예전과 같고, 확인하지 못한 겹침이 따라온다."""
+        debt, overlaps = self.overlaps({
+            "LongTermDebt": (PERIOD, 7_721_000_000),
+            "DebtCurrent": (PERIOD, 1_340_000_000),
+            "FinanceLeaseLiabilityCurrent": (PERIOD, 78_000_000),
+        })
+        self.assertEqual(debt, 9_139_000_000)
+        self.assertEqual(overlaps, {
+            ("DebtCurrent", "LongTermDebt"): 1_340_000_000.0,
+            ("FinanceLeaseLiabilityCurrent", "DebtCurrent"): 78_000_000.0,
+        })
 
 
 class TestStaleness(unittest.TestCase):

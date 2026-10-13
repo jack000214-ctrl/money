@@ -58,6 +58,24 @@ class TestAssumptionMath(unittest.TestCase):
         spec = spec_fixture(); spec["comparison"] = {"basis": "POLICY_TARGET"}
         with self.assertRaises(AssumptionError): comparison(spec, {"context": {}})
 
+    def test_a_policy_target_in_another_currency_says_what_it_assumes(self):
+        """원화 목표수익률을 달러 수익률과 견주면 환율이 그대로라는 가정이 들어간다.
+
+        packet 의 다른 계산은 통화가 다르면 값을 비우는데 이 자리만 아무 말 없이
+        견줬다. 견주는 것을 막지는 않되 그 가정을 값 옆에 적는다.
+        """
+        spec = spec_fixture(); spec["comparison"] = {"basis": "POLICY_TARGET"}
+        policy = lambda currency: {"context": {"investor_policy": {  # noqa: E731
+            "base_currency": currency, "objective": {"target_annual_return_pct": 10}}}}
+        mismatched = comparison(spec, policy("KRW"))
+        self.assertAlmostEqual(mismatched["total_return_pct"], 10)
+        self.assertEqual(mismatched["currency_basis"]["matched"], False)
+        self.assertEqual((mismatched["currency_basis"]["policy_currency"],
+                          mismatched["currency_basis"]["return_currency"]), ("KRW", "USD"))
+        self.assertIn("환율", mismatched["currency_basis"]["_warning"])
+        self.assertNotIn("currency_basis", comparison(spec, policy("USD")))
+        self.assertNotIn("currency_basis", comparison(spec, policy(None)))
+
     def test_outside_search_range_has_no_fabricated_boundary(self):
         spec = spec_fixture(); spec["boundaries"][0]["high"] = 2
         boundary = analyze(spec, 10)["boundaries"][0]
@@ -388,6 +406,33 @@ class TestAssumptionPersistence(unittest.TestCase):
         write_json(report_path("TSLA", report["analysis_id"]), report)
         with self.assertRaisesRegex(AssumptionError, "재계산"):
             load_analysis("TSLA", report["analysis_id"], self.context)
+
+    def test_a_report_sealed_before_the_currency_note_still_loads(self):
+        """`currency_basis` 는 나중에 붙은 설명 필드다.
+
+        그 전에 봉인된 보고서에는 없다. 재계산 결과에 그 필드가 생겼다는 이유로
+        이미 기록된 판단을 계약 미달로 만들면 안 된다 — 실제로 RXRX 판단 하나가
+        그렇게 떨어졌다. 숫자는 여전히 대조한다.
+        """
+        ctx = deepcopy(self.context)
+        ctx["context"] = {**(ctx.get("context") or {}), "investor_policy": {
+            "base_currency": "KRW", "objective": {"target_annual_return_pct": 10}}}
+        ctx["context_id"] = context_id_for(ctx)
+        spec = deepcopy(self.spec); spec["comparison"] = {"basis": "POLICY_TARGET"}
+        report = create_analysis(spec, ctx)
+        self.assertFalse(report["comparison"]["currency_basis"]["matched"])
+        legacy = deepcopy(report)
+        del legacy["comparison"]["currency_basis"]
+        legacy["analysis_id"] = analysis_id(legacy)
+        write_json(report_path("TSLA", legacy["analysis_id"]), legacy)
+        self.assertEqual(
+            load_analysis("TSLA", legacy["analysis_id"], ctx)["analysis_id"],
+            legacy["analysis_id"])
+        legacy["comparison"]["total_return_pct"] += 1
+        legacy["analysis_id"] = analysis_id(legacy)
+        write_json(report_path("TSLA", legacy["analysis_id"]), legacy)
+        with self.assertRaisesRegex(AssumptionError, "재계산"):
+            load_analysis("TSLA", legacy["analysis_id"], ctx)
 
     def test_missing_or_modified_evidence_is_rejected(self):
         report = create_analysis(self.spec, self.context)

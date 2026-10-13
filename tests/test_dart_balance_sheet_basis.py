@@ -17,7 +17,13 @@ fundamentals 스냅샷을 만들 수 없었다.
 import unittest
 
 from helpers import ROOT  # noqa: F401
-from collectors.dart import debt_by_category, resolve_debt, resolve_shares
+from collectors.dart import (
+    debt_by_category,
+    resolve_debt,
+    resolve_shares,
+    resolve_short_investments,
+    unclassified_debt_rows,
+)
 
 
 def bs(account_id, name, value):
@@ -197,6 +203,177 @@ class TestDebtCoverage(unittest.TestCase):
     # 무차입 회귀(삼성E&A)는 TestDebtBasis 의
     # test_readable_sheet_without_debt_lines_is_zero_not_failure 가 이미 지킨다.
     # 같은 본문을 한 번 더 두면 한쪽만 고쳐지는 날이 온다.
+
+
+class TestDebtIsNotCompleteJustBecauseSomethingMatched(unittest.TestCase):
+    """몇 줄을 찾았다는 것이 전부 찾았다는 뜻으로 바뀌면 안 된다.
+
+    실측(SK하이닉스 000660, 2026-03-31): 차입금을 IFRS 표준코드
+    `CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings`·`LongtermBorrowings`
+    에 계정명 '차입금'으로만 낸다. 둘 다 목록에 없어서 19.3조가 통째로 빠졌고,
+    리스부채 2.5조만 잡힌 채 `MATCHED_LINE_ITEMS` 로 통과했다. 같은 분류기를
+    2026 반기 원문에 돌려도 18.6조가 빠졌다 — 재수집으로 고쳐지지 않는 결함이었다.
+    """
+
+    HYNIX = NO_DEBT_BALANCE_SHEET + [
+        bs("ifrs-full_CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",
+           "차입금", 5_890_940_000_000),
+        bs("ifrs-full_LongtermBorrowings", "차입금", 13_426_725_000_000),
+        bs("ifrs-full_CurrentLeaseLiabilities", "리스부채", 526_303_000_000),
+        bs("ifrs-full_NoncurrentLeaseLiabilities", "리스부채", 1_988_448_000_000),
+    ]
+
+    def setUp(self):
+        # 원문의 부채총계(58.4조)로 맞춘다. 차입 합이 부채총계를 넘으면 멈춘다.
+        self.rows = [bs("ifrs-full_Liabilities", "부채총계", 58_448_945_000_000),
+                     *self.HYNIX[1:]]
+
+    def test_standard_borrowing_concepts_are_debt(self):
+        debt, detail, basis = resolve_debt(self.rows)
+        self.assertEqual(debt, 21_832_416_000_000)
+        self.assertEqual(basis, "MATCHED_LINE_ITEMS")
+        self.assertEqual(debt_by_category(detail), {
+            "BORROWING": 19_317_665_000_000, "LEASE": 2_514_751_000_000})
+
+    def test_same_name_and_amount_on_two_lines_are_two_lines(self):
+        """유동·비유동이 같은 이름·같은 금액이어도 행이 다르면 둘 다 센다."""
+        rows = NO_DEBT_BALANCE_SHEET + [
+            {**bs("-표준계정코드 미사용-", "차입금", 100), "ord": "45"},
+            {**bs("-표준계정코드 미사용-", "차입금", 100), "ord": "56"},
+        ]
+        self.assertEqual(resolve_debt(rows)[0], 200)
+
+    def test_exchangeable_bonds_are_debt(self):
+        rows = NO_DEBT_BALANCE_SHEET + [
+            bs("dart_CurrentPortionOfExchangeableBond", "유동성교환사채", 7_000),
+            bs("dart_ExchangeableBonds", "장기교환사채", 3_000),
+        ]
+        debt, detail, _ = resolve_debt(rows)
+        self.assertEqual(debt, 10_000)
+        self.assertEqual({d["category"] for d in detail}, {"CONVERTIBLE"})
+
+    def test_redeemable_preferred_liability_is_debt_in_its_own_bucket(self):
+        """파마리서치(214450) 2026-06-30. 전환상환우선주부채 2,073억이 빠져 있었다.
+
+        회사의 자본관리 주석도 차입금을 '전환상환우선주부채 + 전환사채 + 차입금'
+        213,712,495,353원으로 적는다 — 아래 세 분류의 합과 원 단위까지 같다.
+        """
+        rows = NO_DEBT_BALANCE_SHEET + [
+            bs("dart_CurrentPortionOfConvertibleBonds", "유동성전환사채",
+               5_976_167_604),
+            bs("dart_CurrentPortionOfConvertibleRedeemablePreferredStockLiabilities",
+               "유동성전환상환우선주부채", 708_269_092),
+            bs("-표준계정코드 미사용-", "비유동전환상환우선주부채", 206_551_141_121),
+            bs("dart_CurrentPortionOfNoncurrentLoansReceived",
+               "장기 금융기관 차입금(사채 제외)의 유동성 대체 부분", 53_239_992),
+            bs("ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived", "장기차입금",
+               423_677_544),
+        ]
+        debt, detail, basis = resolve_debt(rows)
+        by_category = debt_by_category(detail)
+        self.assertEqual(by_category["REDEEMABLE_PREFERRED"], 207_259_410_213)
+        self.assertEqual(by_category["BORROWING"], 476_917_536)
+        self.assertEqual(debt, 213_712_495_353)
+        self.assertEqual(basis, "MATCHED_LINE_ITEMS")
+
+    def test_unlisted_debt_like_row_is_surfaced_not_summed(self):
+        """목록에 없는 차입성 계정은 더하지 않되, 있다는 사실을 값과 함께 남긴다."""
+        rows = NO_DEBT_BALANCE_SHEET + [
+            bs("ifrs-full_CurrentLeaseLiabilities", "리스부채", 10),
+            bs("-표준계정코드 미사용-", "차입금및사채", 300),
+        ]
+        debt, _detail, basis = resolve_debt(rows)
+        self.assertEqual(debt, 10)
+        self.assertEqual(basis, "UNCLASSIFIED_CANDIDATES")
+        self.assertEqual(unclassified_debt_rows(rows), [
+            {"label": "차입금및사채", "account_id": "-표준계정코드 미사용-",
+             "value": 300.0}])
+
+    def test_only_unlisted_debt_is_not_an_observation_of_no_debt(self):
+        rows = NO_DEBT_BALANCE_SHEET + [bs("ifrs-full_Borrowings", "총차입", 300)]
+        debt, detail, basis = resolve_debt(rows)
+        self.assertEqual((debt, detail), (0.0, []))
+        self.assertEqual(basis, "UNCLASSIFIED_CANDIDATES")
+
+    def test_assets_and_zero_balances_are_not_candidates(self):
+        rows = NO_DEBT_BALANCE_SHEET + [
+            bs("ifrs-full_FinanceLeaseReceivables", "금융리스채권", 9_000),
+            bs("dart_ShortTermLoans", "단기대여금", 4_000),
+            bs("-표준계정코드 미사용-", "회사채투자", 2_000),
+            bs("-표준계정코드 미사용-", "기타차입부채", 0),
+        ]
+        self.assertEqual(unclassified_debt_rows(rows), [])
+        self.assertEqual(resolve_debt(rows)[2], "NO_DEBT_LINE_ITEMS")
+
+
+CURRENT_ASSETS = bs("ifrs-full_CurrentAssets", "유동자산", 10_000_000)
+
+
+class TestShortTermInvestments(unittest.TestCase):
+    """순부채의 현금 쪽에도 같은 구멍이 있었다.
+
+    코드 셋만 보던 때 SK하이닉스의 단기투자자산 14.9조(`CurrentInvestments`)와
+    파마리서치의 유동성금융자산 3,753억(`OtherCurrentFinancialAssets`)이 0 으로
+    잡혔다. 차입 누락과 방향이 반대라 두 오차가 서로를 가렸고, 한쪽만 고치면
+    순부채가 더 틀린다. 파마리서치 판단은 이 누락을 여섯 번 요청했다.
+    """
+
+    def test_current_investments_are_counted(self):
+        total, detail, candidates = resolve_short_investments([
+            CURRENT_ASSETS,
+            bs("ifrs-full_ShorttermDepositsNotClassifiedAsCashEquivalents",
+               "단기금융상품", 1_822),
+            bs("ifrs-full_CurrentInvestments", "단기투자자산", 1_494),
+        ])
+        self.assertEqual(total, 3_316)
+        self.assertEqual([d["label"] for d in detail], ["단기금융상품", "단기투자자산"])
+        self.assertEqual(candidates, [])
+
+    def test_a_generic_code_counts_when_the_name_says_short_term_investment(self):
+        total, _detail, candidates = resolve_short_investments([
+            CURRENT_ASSETS,
+            bs("ifrs-full_OtherCurrentFinancialAssets", "유동성금융자산", 3_753),
+        ])
+        self.assertEqual(total, 3_753)
+        self.assertEqual(candidates, [])
+
+    def test_measurement_category_variants_are_the_same_line(self):
+        total, _detail, _ = resolve_short_investments([
+            CURRENT_ASSETS,
+            bs("-표준계정코드 미사용-", "유동성 상각후원가 측정 금융자산", 38),
+            bs("ifrs-full_CurrentFinancialAssetsAtFairValueThroughProfitOrLoss"
+               "MandatorilyMeasuredAtFairValue", "당기손익공정가치금융자산", 7),
+        ])
+        self.assertEqual(total, 45)
+
+    def test_other_financial_assets_are_surfaced_not_summed(self):
+        """'기타금융자산'에는 대여금·보증금이 섞인다. 세지 않고 후보로 남긴다."""
+        total, detail, candidates = resolve_short_investments([
+            CURRENT_ASSETS,
+            bs("ifrs-full_OtherCurrentFinancialAssets", "기타금융자산", 318),
+        ])
+        self.assertEqual((total, detail), (0.0, []))
+        self.assertEqual(candidates[0]["value"], 318.0)
+
+    def test_derivatives_receivables_and_noncurrent_are_neither(self):
+        total, _detail, candidates = resolve_short_investments([
+            CURRENT_ASSETS,
+            bs("ifrs-full_CurrentDerivativeFinancialAssets", "유동파생상품자산", 530),
+            bs("ifrs-full_OtherCurrentFinancialAssets", "유동성기타채권", 5),
+            bs("ifrs-full_OtherNoncurrentFinancialAssets", "금융자산", 500),
+            bs("ifrs-full_NoncurrentFinancialAssetsAtAmortisedCost",
+               "상각후원가 측정 금융자산", 6),
+        ])
+        self.assertEqual((total, candidates), (0.0, []))
+
+    def test_a_total_and_its_parts_counted_together_stops(self):
+        with self.assertRaises(SystemExit):
+            resolve_short_investments([
+                bs("ifrs-full_CurrentAssets", "유동자산", 100),
+                bs("ifrs-full_OtherCurrentFinancialAssets", "유동성금융자산", 90),
+                bs("ifrs-full_ShorttermDepositsNotClassifiedAsCashEquivalents",
+                   "단기금융상품", 80),
+            ])
 
 
 PARENT_NI = is_("ifrs-full_ProfitLossAttributableToOwnersOfParent",

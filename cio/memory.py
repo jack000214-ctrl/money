@@ -29,13 +29,14 @@ from cio.refresh import safe_symbol
 
 KST = dt.timezone(dt.timedelta(hours=9))
 
-# 새 평가가 쓰는 판. 1.1.0 에서 `counterfactual` 이 붙었다.
-EVALUATION_SCHEMA = "cio-evaluation/1.1.0"
+# 새 평가가 쓰는 판. 1.1.0 에서 `counterfactual` 이 붙었다. 1.2.0 에서 완료
+# 판정이 확정 종가에 묶였고 벤치마크의 관측일·완료 여부가 함께 실린다.
+EVALUATION_SCHEMA = "cio-evaluation/1.2.0"
 # 읽을 때는 옛 판도 받는다. 여기서 하나로 못 박으면 판을 올릴 때마다 이전
 # 평가가 packet 에서 조용히 사라진다 — 읽는 쪽은 `continue` 로 건너뛸 뿐이라
 # 무엇이 없어졌는지 아무도 모른다. 추가된 필드는 읽는 쪽이 안 보면 그만이다.
 READABLE_EVALUATION_SCHEMAS = frozenset(
-    {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0"}
+    {"cio-evaluation/1.0.0", "cio-evaluation/1.1.0", "cio-evaluation/1.2.0"}
 )
 
 # 지문에서 빼는 키. **라이터와 리더가 반드시 같은 집합을 써야 한다.**
@@ -258,6 +259,7 @@ def _first_trigger(
     field: str,
     level: float | None,
     direction: str,
+    start_factor: float,
 ) -> dict[str, Any] | None:
     """판단 시점 호가로 적은 문턱이 이 경로에서 처음 닿은 날.
 
@@ -276,10 +278,14 @@ def _first_trigger(
     조정하는 것이라, 판단 뒤에 2:1 분할이 한 번만 있어도 분할 전 구간의 저가가
     절반으로 읽혀 **닿은 적 없는 손절가가 닿았다고 기록된다.** 채점은 뒤늦게
     돌아보는 계산이라 이런 오차는 아무도 눈치채지 못한 채 track record 에 남는다.
+
+    `start_factor` 는 **판단일 봉**의 계수이고 호출하는 쪽이 넘긴다. `rows` 는
+    판단 다음 거래일부터라 그 첫 행의 계수를 쓰면 하루가 어긋난다 — 판단 바로
+    다음 날 2:1 분할이 있으면 계수가 0.5 가 아니라 1 로 읽혀, 손절 80(비교값
+    40)을 80 그대로 저가 49 와 견줘 닿지 않은 손절을 닿았다고 적었다.
     """
     if level is None:
         return None
-    start_factor = float(rows[0].get("split_adjustment_factor") or 1.0)
     comparable_level = level * start_factor
     for row in rows:
         value = float(row[field])
@@ -486,7 +492,7 @@ def _counterfactual(
     path_until_horizon: list[dict[str, Any]],
     end: dict[str, Any],
     latest: dict[str, Any],
-    adjustment_factor: float,
+    start_split_factor: float,
     realized: float,
     latest_return: float,
 ) -> dict[str, Any]:
@@ -519,13 +525,25 @@ def _counterfactual(
     if entry is not None:
         # 손절·분할매도와 같은 방식으로 관측한다(분할 보정 후 저가 대조).
         fill = _first_trigger(
-            path_until_horizon, field="low", level=entry, direction="down"
+            path_until_horizon, field="low", level=entry, direction="down",
+            start_factor=start_split_factor,
         )
         waited["filled"] = fill is not None
         waited["fill"] = fill
         if fill is not None:
-            # 진입가는 질문가와 같은 시점의 호가다. 조정계수도 같은 것을 쓴다.
-            adjusted_entry = entry * adjustment_factor
+            # 진입가는 질문가와 같은 시점의 호가라 분할 기준은 판단일 것을 쓴다.
+            # 배당은 다르다 — **체결된 날부터** 받는다. 판단일의 배당 조정계수를
+            # 진입 원가에 쓰면 체결 전에 지급된 배당이 수익으로 들어간다(판단가
+            # 100, 배당락 뒤 90 에 체결, 이후 90 유지면 수익은 0% 인데 +11.1% 로
+            # 적혔다). 체결일 봉의 조정종가/종가 비율이 그날 이후의 배당분이다.
+            fill_bar = next(
+                row for row in path_until_horizon if row["date"] == fill["date"]
+            )
+            dividend_factor_at_fill = (
+                fill_bar["adjusted_close"] / fill_bar["close"]
+                if fill_bar["close"] > 0 else 1.0
+            )
+            adjusted_entry = entry * start_split_factor * dividend_factor_at_fill
             to_end = (end["adjusted_close"] / adjusted_entry - 1) * 100
             waited["return_to_end_pct"] = round(to_end, 4)
             waited["return_to_latest_pct"] = round(
@@ -581,12 +599,34 @@ def _counterfactual(
 FIXED_HORIZON_MONTHS = (1, 3, 6, 12, 24)
 
 
+def _settled_through(
+    rows: list[dict[str, Any]], session: dict[str, Any] | None
+) -> str | None:
+    """확정 종가로 관측이 끝난 마지막 날짜.
+
+    마지막 봉이 장중 수집분이거나 확정 여부를 모르면 그 봉은 세지 않는다. 날짜가
+    목표일에 닿았다는 것과 그날의 종가를 봤다는 것은 다르다 — 평가 종료일 14시의
+    값으로 완료를 선언하면 Brier score 가 종가가 아닌 값 위에서 굳는다.
+    세션 정보가 아예 없으면(헤더 없는 시계열) 가를 수 없으므로 마지막 행을 쓴다.
+    """
+    if not rows:
+        return None
+    if (
+        session is not None
+        and session.get("last_bar") == rows[-1]["date"]
+        and session.get("session") != "SETTLED"
+    ):
+        return rows[-2]["date"] if len(rows) >= 2 else None
+    return rows[-1]["date"]
+
+
 def _return_at(
     rows: list[dict[str, Any]],
     *,
     start: dt.date,
     months: int,
     adjusted_cost: float,
+    settled_through: str | None = None,
 ) -> tuple[float | None, bool, str | None]:
     """기준일에서 N개월 뒤까지의 총수익률. 아직 안 지났으면 미완으로 남긴다."""
     target = _add_months(start, months)
@@ -596,7 +636,8 @@ def _return_at(
     last = window[-1]
     # 목표일이 아직 안 왔으면 값은 내되 complete=False 로 못박는다. 미완 값을
     # 완료된 것처럼 집계하면 최근 판단이 유리하거나 불리하게 치우친다.
-    complete = rows and rows[-1]["date"] >= target.isoformat()
+    boundary = settled_through if settled_through is not None else rows[-1]["date"]
+    complete = boundary >= target.isoformat()
     return (
         round((last["adjusted_close"] / adjusted_cost - 1) * 100, 4),
         bool(complete),
@@ -627,6 +668,7 @@ def _fixed_horizon_returns(
     adjusted_cost: float,
     benchmarks: list[str],
     asset_currency: str | None = None,
+    session: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """모델의 자기 선언과 무관한 고정 기간 수익률과 기준지수 대비 초과수익.
 
@@ -634,10 +676,12 @@ def _fixed_horizon_returns(
     원인 비중은 더더욱 아니다.
     """
     usable = [row for row in rows if row["date"] > start.isoformat()]
+    settled_through = _settled_through(usable, session)
     horizons: dict[str, Any] = {}
     for months in FIXED_HORIZON_MONTHS:
         value, complete, observed = _return_at(
-            usable, start=start, months=months, adjusted_cost=adjusted_cost
+            usable, start=start, months=months, adjusted_cost=adjusted_cost,
+            settled_through=settled_through if usable else None,
         )
         horizons[f"m{months}"] = {
             "return_pct": value,
@@ -665,17 +709,35 @@ def _fixed_horizon_returns(
         if not at_start or not base:
             continue
         base_cost = at_start[-1]["adjusted_close"]
+        benchmark_settled = _settled_through(base, _price_session(symbol))
         for months in FIXED_HORIZON_MONTHS:
-            value, _complete, _observed = _return_at(
-                base, start=start, months=months, adjusted_cost=base_cost
+            value, benchmark_complete, benchmark_observed = _return_at(
+                base, start=start, months=months, adjusted_cost=base_cost,
+                settled_through=benchmark_settled,
             )
-            own = horizons[f"m{months}"]["return_pct"]
+            own = horizons[f"m{months}"]
+            # 두 수익률이 **같은 구간**의 것일 때만 뺀다. 종목은 2/2 까지 +20% 인데
+            # 지수 파일이 1/5 에서 멈춰 +1% 면, 차감값 +19%p 는 초과수익이 아니라
+            # 28일치 종목 수익이다. 둘 다 목표일까지 끝났거나, 둘 다 진행 중이고
+            # 같은 날까지 관측됐을 때만 비교가 성립한다.
+            comparable = (
+                own["return_pct"] is not None
+                and value is not None
+                and (
+                    (own["complete"] and benchmark_complete)
+                    or (
+                        not own["complete"]
+                        and not benchmark_complete
+                        and own["observed_date"] == benchmark_observed
+                    )
+                )
+            )
             benchmark_rows.setdefault(symbol, {})[f"m{months}"] = {
                 "benchmark_return_pct": value,
+                "benchmark_complete": benchmark_complete,
+                "benchmark_observed_date": benchmark_observed,
                 "excess_pct": (
-                    round(own - value, 4)
-                    if own is not None and value is not None
-                    else None
+                    round(own["return_pct"] - value, 4) if comparable else None
                 ),
             }
     # 원화로 거래되는 해외 ETF 를 위안·홍콩달러 지수와 견주면 차감값에 환율이
@@ -709,7 +771,9 @@ def _fixed_horizon_returns(
         "_warning": (
             "excess_pct 는 beta=1 가정의 단순 차감이다. 위험조정 수익이 아니고 "
             "원인 비중은 더더욱 아니다. complete=false 인 값을 완료된 것과 같은 "
-            "통에 넣지 않는다"
+            "통에 넣지 않는다. excess_pct 가 null 인데 두 수익률이 다 있으면 "
+            "종목과 지수의 관측 구간이 달라 뺄 수 없었다는 뜻이다 "
+            "(benchmark_complete·benchmark_observed_date 참조)"
         ),
     }
 
@@ -750,9 +814,22 @@ def evaluate_assessment(
     if not usable:
         raise ContractError([f"{start} 다음 거래일부터의 가격이 없다"])
     latest = usable[-1]
-    complete = latest["date"] >= horizon.isoformat()
+    # 완료는 날짜가 아니라 **확정 종가**로 정한다. 평가 종료일의 봉이 장중
+    # 수집분이면 그 값으로 승패·Brier 를 굳히지 않는다.
+    settled_through = _settled_through(usable, session)
+    complete = (
+        settled_through is not None and settled_through >= horizon.isoformat()
+    )
     horizon_rows = [row for row in usable if row["date"] <= horizon.isoformat()]
-    end = horizon_rows[-1] if horizon_rows else usable[0]
+    if not horizon_rows:
+        # 사후 봉이 전부 평가 종료일 뒤다(그 사이 시계열이 비었다). 예전에는
+        # 종료일 뒤의 첫 봉을 기간 말 가격으로 썼고, 고가·저가를 낼 행이 없어
+        # ValueError 로 그 자산의 채점 전체가 죽었다. 기간 안의 관측이 없으면
+        # 그 기간의 수익률은 없다 — 이 건만 건너뛴다.
+        raise ContractError(
+            [f"{start} ~ {horizon} 평가 기간 안에 가격 관측이 없다"]
+        )
+    end = horizon_rows[-1]
     start_price = float(request["price"])
     first = usable[0]
     at_start = [row for row in rows if row["date"] <= start.isoformat()]
@@ -797,6 +874,7 @@ def evaluate_assessment(
         adjusted_cost=adjusted_cost,
         benchmarks=asset.get("benchmarks") or [],
         asset_currency=asset.get("currency"),
+        session=session,
     )
     evaluation = {
         "schema_version": EVALUATION_SCHEMA,
@@ -813,6 +891,7 @@ def evaluate_assessment(
             "first_observation_date": usable[0]["date"],
             "target_date": horizon.isoformat(),
             "latest_available_date": latest["date"],
+            "settled_through": settled_through,
             "complete": complete,
             # 마지막 관측이 확정 종가인가. 장중에 채점하면 진행 중인 봉이
             # price.latest 에 들어가는데, 그 사실이 남지 않으면 나중에 이
@@ -885,30 +964,19 @@ def evaluate_assessment(
             "failure_observed": failure_observed,
         },
         "triggers": {
-            "stop": _first_trigger(
+            name: _first_trigger(
                 path_until_horizon,
-                field="low",
-                level=plan.get("stop_price"),
-                direction="down",
-            ),
-            "scale_out_start": _first_trigger(
-                path_until_horizon,
-                field="high",
-                level=plan.get("scale_out_start"),
-                direction="up",
-            ),
-            "reask_below": _first_trigger(
-                path_until_horizon,
-                field="low",
-                level=plan.get("reask_below"),
-                direction="down",
-            ),
-            "reask_above": _first_trigger(
-                path_until_horizon,
-                field="high",
-                level=plan.get("reask_above"),
-                direction="up",
-            ),
+                field=field,
+                level=plan.get(level_name),
+                direction=direction,
+                start_factor=start_split_factor,
+            )
+            for name, level_name, field, direction in (
+                ("stop", "stop_price", "low", "down"),
+                ("scale_out_start", "scale_out_start", "high", "up"),
+                ("reask_below", "reask_below", "low", "down"),
+                ("reask_above", "reask_above", "high", "up"),
+            )
         },
         "action": _action_legs(assessment, realized, complete),
         "counterfactual": _counterfactual(
@@ -916,7 +984,7 @@ def evaluate_assessment(
             path_until_horizon=path_until_horizon,
             end=end,
             latest=latest,
-            adjustment_factor=adjustment_factor,
+            start_split_factor=start_split_factor,
             realized=realized,
             latest_return=latest_return,
         ),
@@ -960,7 +1028,7 @@ def evaluate_assessment(
     if assessment.get("entry_plan"):
         from cio.entry_plan import observations
         evaluation["entry_plan"] = observations(assessment, path_until_horizon,
-            start_factor=start_split_factor, adjustment_factor=adjustment_factor, end=end,
+            start_factor=start_split_factor, end=end,
             reviews=review_rows["entry_plan_checks"], decision_date=decision_date)
         evaluation["counterfactual"]["waited_for_entry"]["_note"] += " 조건부 분할계획의 실행 평가는 entry_plan에 별도로 표시한다. 이 단일 가격 비교를 전체 계획의 성과로 읽지 않는다."
     if assessment.get("exit_plan"):

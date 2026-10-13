@@ -259,6 +259,50 @@ CLAIM_EVIDENCE_FAMILIES = {
 }
 
 
+# 모델이 `sources` 에 직접 등록할 수 있는 로컬 ID 접두사. 보존한 원문과 저장된
+# 계산뿐이며, 그 ID 가 가리키는 파일이 실제로 있을 때만 그 갈래로 인정한다.
+MODEL_REGISTERABLE_PREFIXES = ("DARTDOC:", "WEBSNAP:", "CALC-", "NORM-")
+
+
+def _reserved_prefix(source_id: str) -> str | None:
+    """이 ID 가 로컬 근거의 이름(접두사)을 쓰고 있으면 그 접두사."""
+    return next(
+        (prefix for prefix, _ in EVIDENCE_FAMILY_BY_PREFIX
+         if source_id.startswith(prefix)),
+        None,
+    )
+
+
+def _model_source_family(source_id: str, asset_id: str | None) -> str:
+    """모델이 등록한 출처의 갈래. **이름이 아니라 가리키는 것이 있는가**로 정한다.
+
+    예전에는 ID 접두사만 봤다. 그래서 뉴스 기사에 `FUNDAMENTALS:…` 라는 이름을
+    붙이면 재무 자료로 분류돼 EARNINGS 주장을 CONFIRMED 로 닫을 수 있었다.
+    모델이 지은 ID 는 주장일 뿐이다 — 보존한 원문이나 저장된 계산을 실제로
+    가리킬 때만 그 갈래이고, 나머지는 전부 직접 조사한 출처다.
+    """
+    if source_id.startswith(("DARTDOC:", "WEBSNAP:")):
+        from cio.documents import preserved_document_ids
+
+        try:
+            preserved = preserved_document_ids()
+        except (ContractError, OSError, ValueError):
+            preserved = set()
+        return "PRIMARY_DOCUMENT" if source_id in preserved else "MODEL_RESEARCH"
+    if source_id.startswith("CALC-"):
+        path = KNOWLEDGE_DIR / "calculations" / f"{source_id}.json"
+        try:
+            stored = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return "MODEL_RESEARCH"
+        return (
+            "CALCULATION"
+            if isinstance(stored, dict) and stored.get("instrument_id") == asset_id
+            else "MODEL_RESEARCH"
+        )
+    return "MODEL_RESEARCH"
+
+
 def _evidence_family(source_id: str, kind: Any) -> str:
     """이 근거가 어느 갈래의 자료인가."""
     for prefix, family in EVIDENCE_FAMILY_BY_PREFIX:
@@ -289,6 +333,7 @@ def _validate_assertion_checks(
     *,
     expected_ids: set[str],
     evidence_kinds: dict[str, Any] | None = None,
+    model_families: dict[str, str] | None = None,
 ) -> None:
     """사용자가 사실이라고 말한 것을 확인했는지 본다.
 
@@ -386,7 +431,11 @@ def _validate_assertion_checks(
                 continue
             if not claim_kind:
                 continue
-            family = _evidence_family(ref, evidence_kinds[ref])
+            family = (
+                model_families[ref]
+                if model_families is not None and ref in model_families
+                else _evidence_family(ref, evidence_kinds[ref])
+            )
             if family not in allowed:
                 errors.append(
                     f"{label}.evidence_refs: {claim_kind} 주장을 {family} 자료"
@@ -1074,6 +1123,16 @@ def context_id_for(data: dict[str, Any]) -> str:
     )
 
 
+def _context_date(value: Any) -> dt.date | None:
+    """날짜 또는 ISO 시각의 날짜 부분. 날짜가 아니면(정책 판 이름 등) None."""
+    if not isinstance(value, str) or len(value) < 10:
+        return None
+    try:
+        return dt.date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
 def validate_context_integrity(
     data: dict[str, Any],
     *,
@@ -1128,6 +1187,26 @@ def validate_context_integrity(
             errors.append(f"evidence_index[{index}] 파일이 없다: {locator}")
         elif content_hash(path) != digest:
             errors.append(f"evidence_index[{index}] 파일 지문이 달라졌다: {locator}")
+
+    # 모델이 조사한 출처는 회수시각이 판단보다 늦을 수 없다. 로컬 근거에는 그
+    # 순서 검사가 없어서, 기준일이 context 보다 뒤인 자료를 과거 판단이 인용해도
+    # 통과했다. 그때 볼 수 없던 자료로 그때의 판단을 뒷받침할 수는 없다.
+    #
+    # 사용자 원장은 보지 않는다. 그 기준일은 수집한 관측의 날짜가 아니라 사용자가
+    # 적은 거래의 날짜(결제일)라 context 보다 며칠 뒤일 수 있다 — 저장된 context
+    # 75건에서 기준일이 생성일보다 늦은 근거는 전부 POSITION_LEDGER 였다(1~4일).
+    created = _context_date(data.get("created_at"))
+    if created is not None:
+        for index, item in enumerate(data.get("evidence_index") or []):
+            if not isinstance(item, dict) or item.get("kind") == "USER_DATA":
+                continue
+            as_of = _context_date(item.get("data_as_of"))
+            if as_of is not None and as_of > created + dt.timedelta(days=1):
+                errors.append(
+                    f"evidence_index[{index}]({item.get('source_id')}): 기준일 "
+                    f"{as_of.isoformat()} 이 context 생성일 {created.isoformat()} 보다 "
+                    "뒤다. 그때 없던 자료를 근거로 실을 수 없다"
+                )
 
     model_contract = data.get("model_contract") or {}
     for path_key, hash_key in (
@@ -1575,6 +1654,14 @@ def validate_decision(
                 if source_id in model_source_ids:
                     errors.append(f"{field}.source_id: 중복 {source_id}")
                 model_source_ids.add(source_id)
+                reserved = _reserved_prefix(source_id)
+                if reserved and reserved not in MODEL_REGISTERABLE_PREFIXES:
+                    errors.append(
+                        f"{field}.source_id: `{reserved}` 는 로컬 근거의 이름이다. "
+                        "직접 조사한 출처에 그 이름을 붙일 수 없다 — packet 의 "
+                        "evidence_index 에 있는 ID 를 그대로 인용하거나 다른 "
+                        "ID 를 쓴다"
+                    )
             _nonempty(source.get("type"), f"{field}.type", errors)
             locator = _nonempty(
                 source.get("locator"), f"{field}.locator", errors
@@ -1676,6 +1763,11 @@ def validate_decision(
             for item in context.get("evidence_index") or []
             if isinstance(item, dict) and item.get("source_id")
         }
+        model_families = {
+            source_id: _model_source_family(source_id, asset_id)
+            for source_id in model_source_ids
+            if source_id not in evidence_kinds
+        }
         for source_id in model_source_ids:
             evidence_kinds.setdefault(source_id, None)
         _validate_assertion_checks(
@@ -1687,6 +1779,7 @@ def validate_decision(
                 if isinstance(row, dict) and row.get("claim_id")
             },
             evidence_kinds=evidence_kinds,
+            model_families=model_families,
         )
         # 사용자가 정한 stop_style 과 이번 산출물이 어긋나는지 본다. 어디서
         # 팔지는 모델이 정하고, PC 는 팔 수 있는 자리가 있는지만 센다.

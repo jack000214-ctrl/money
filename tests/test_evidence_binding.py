@@ -18,13 +18,20 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cio.decision import context_id_for, validate_decision
+from calculators.contracts import content_hash
+from cio.decision import (
+    context_id_for,
+    validate_context_integrity,
+    validate_decision,
+)
 from test_cio_core import valid_context, valid_decision
 
 BASIS = {
@@ -137,25 +144,33 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
             [],
         )
 
+    DART_SOURCE = {
+        "source_id": "DARTDOC:20260730800077",
+        "type": "DART_DOCUMENT",
+        "locator": "https://dart.fss.or.kr/x",
+        "published_at": "2026-07-30T00:00:00+09:00",
+        "retrieved_at": "2026-07-30T01:00:00+09:00",
+    }
+
+    def cite_original(self, *, preserved):
+        with patch("cio.documents.preserved_document_ids", return_value=preserved):
+            return _errors(
+                _context(),
+                _check(evidence_refs=["DARTDOC:20260730800077"]),
+                sources=[dict(self.DART_SOURCE)],
+            )
+
     def test_a_preserved_original_document_can_confirm_earnings(self):
         """공시 원문을 로컬에 보존해 인용하는 것이 1차 출처다."""
-        context = _context()
         self.assertEqual(
-            _errors(
-                context,
-                _check(evidence_refs=["DARTDOC:20260730800077"]),
-                sources=[
-                    {
-                        "source_id": "DARTDOC:20260730800077",
-                        "type": "DART_DOCUMENT",
-                        "locator": "https://dart.fss.or.kr/x",
-                        "published_at": "2026-07-30T00:00:00+09:00",
-                        "retrieved_at": "2026-07-30T01:00:00+09:00",
-                    }
-                ],
-            ),
-            [],
-        )
+            self.cite_original(preserved={"DARTDOC:20260730800077"}), [])
+
+    def test_an_original_that_was_never_preserved_is_only_a_name(self):
+        """`DARTDOC:` 라는 이름은 주장이다. 가리키는 원문이 로컬에 없으면 직접
+        조사한 출처와 다를 것이 없고, 그것으로 실적을 확인했다고 할 수 없다."""
+        errors = self.cite_original(preserved=set())
+        self.assertEqual(len(errors), 1)
+        self.assertIn("MODEL_RESEARCH", errors[0])
 
     def test_earnings_confirmed_by_a_news_article_is_rejected(self):
         """1차 출처를 두고 2차 출처를 쓰는 것을 막는다."""
@@ -256,6 +271,87 @@ class TestClaimMustSayWhatItMeasures(unittest.TestCase):
         row = _check(status="UNVERIFIABLE", basis=None, evidence_refs=[])
         del row["claim_kind"]
         self.assertTrue(_errors(context, row))
+
+
+class TestAModelCannotBorrowALocalEvidenceName(unittest.TestCase):
+    """출처의 갈래는 ID 접두사가 아니라 그 ID 가 실제로 가리키는 것이 정한다.
+
+    예전에는 접두사만 봤다. 그래서 뉴스 기사에 `FUNDAMENTALS:…` 라는 이름을
+    붙이면 재무 자료로 분류돼 EARNINGS 주장을 CONFIRMED 로 닫을 수 있었다 —
+    바꾼 것은 ID 문자열 하나뿐이다.
+    """
+
+    def news(self, source_id):
+        return {
+            "source_id": source_id,
+            "type": "NEWS",
+            "locator": "https://example.invalid/not-a-financial-statement",
+            "published_at": "2026-07-27T00:00:00+00:00",
+            "retrieved_at": "2026-07-27T01:00:00+00:00",
+        }
+
+    def errors(self, source_id):
+        context = _context()
+        data = valid_decision()
+        data["context_id"] = context["context_id"]
+        data["sources"] = [self.news(source_id)]
+        data["user_assertion_checks"] = [_check(evidence_refs=[source_id])]
+        return validate_decision(data, context=context)
+
+    def test_a_news_source_named_like_financials_is_refused(self):
+        errors = self.errors("FUNDAMENTALS:UNPRESERVED_NEWS")
+        self.assertTrue(any("로컬 근거의 이름" in error for error in errors))
+        self.assertTrue(any("MODEL_RESEARCH" in error for error in errors))
+
+    def test_the_same_source_under_an_honest_name_fails_the_same_way(self):
+        errors = self.errors("NEWS-1")
+        self.assertFalse(any("로컬 근거의 이름" in error for error in errors))
+        self.assertTrue(any("MODEL_RESEARCH" in error for error in errors))
+
+    def test_a_calculation_id_that_points_at_nothing_is_not_a_calculation(self):
+        errors = self.errors("CALC-00000000000000000000")
+        self.assertTrue(any("MODEL_RESEARCH" in error for error in errors))
+
+
+class TestLocalEvidenceCannotPostDateTheContext(unittest.TestCase):
+    """모델이 조사한 출처는 회수시각이 판단보다 늦을 수 없다. 로컬 근거도 같다.
+
+    그 순서 검사가 로컬 쪽에는 없어서, 기준일이 context 보다 뒤인 자료를 과거
+    판단이 인용해도 통과했다.
+    """
+
+    def integrity(self, data_as_of, kind="FILING_DERIVED"):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "evidence.json"
+            path.write_text("{}", encoding="utf-8")
+            context = valid_context()
+            context["evidence_index"].append({
+                "source_id": "FUNDAMENTALS:TSLA", "kind": kind,
+                "path": path.name, "content_sha256": content_hash(path),
+                "data_as_of": data_as_of})
+            context["context_id"] = context_id_for(context)
+            with patch("cio.decision.ROOT", Path(tmp)):
+                return [error for error in validate_context_integrity(context)
+                        if "FUNDAMENTALS:TSLA" in error]
+
+    def test_evidence_dated_after_the_context_is_refused(self):
+        errors = self.integrity("2026-12-31")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("그때 없던 자료", errors[0])
+
+    def test_evidence_from_the_past_and_the_same_day_passes(self):
+        self.assertEqual(self.integrity("2026-06-30"), [])
+        self.assertEqual(self.integrity("2026-07-28T08:59:00+09:00"), [])
+
+    def test_a_value_that_is_not_a_date_is_not_judged(self):
+        self.assertEqual(self.integrity("policy-v3"), [])
+        self.assertEqual(self.integrity(None), [])
+
+    def test_the_users_own_ledger_is_dated_by_the_user(self):
+        """원장의 기준일은 사용자가 적은 거래의 날짜(결제일)다. 수집한 관측이
+        아니므로 이 검사로 재지 않는다 — 재면 그 원장을 실은 과거 판단이 전부
+        채점에서 떨어진다. 실제로 폐기 판단 5건이 그렇게 빠졌다."""
+        self.assertEqual(self.integrity("2026-08-01", kind="USER_DATA"), [])
 
 
 if __name__ == "__main__":

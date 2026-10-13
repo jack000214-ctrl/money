@@ -57,11 +57,11 @@ class EntryPlanContract(unittest.TestCase):
         a={'assessment_id':'old','created_at':'2026-01-01T00:00:00+00:00','entry_plan':plan_fixture()}
         bars=[{'date':date,'low':low,'split_adjustment_factor':1,'adjusted_close':110} for date,low in [('2026-01-02',80),('2026-01-03',80),('2026-01-04',100),('2026-01-05',85)]]
         check={'assessment_id':'old','stage_id':'first','state':'SATISFIED','recorded_at':'2026-01-03T09:00:00+00:00'}
-        r=observations(a,bars,start_factor=1,adjustment_factor=1,end=bars[-1],reviews=[check])
+        r=observations(a,bars,start_factor=1,end=bars[-1],reviews=[check])
         self.assertEqual(r['stages'][0]['price_touch_date'],'2026-01-02')
         self.assertEqual(r['stages'][0]['eligible_price_touch_date'],'2026-01-05')
         self.assertIsNone(r['strategy_return_pct'])
-        no_review=observations(a,bars,start_factor=1,adjustment_factor=1,end=bars[-1])
+        no_review=observations(a,bars,start_factor=1,end=bars[-1])
         self.assertEqual(no_review['stages'][0]['observation'],'UNVERIFIABLE')
         self.assertIsNone(no_review['stages'][0]['hypothetical_return_pct'])
 
@@ -69,7 +69,7 @@ class EntryPlanContract(unittest.TestCase):
         a={'assessment_id':'old','entry_plan':plan_fixture()}
         check={'assessment_id':'old','stage_id':'first','state':'CANCELLED','recorded_at':'2026-01-02T09:00:00+00:00'}
         bars=[{'date':'2026-01-03','low':80,'adjusted_close':100,'split_adjustment_factor':1}]
-        r=observations(a,bars,start_factor=1,adjustment_factor=1,end=bars[-1],reviews=[check])
+        r=observations(a,bars,start_factor=1,end=bars[-1],reviews=[check])
         self.assertIsNone(r['stages'][0]['eligible_price_touch_date'])
 
     def test_bonus_is_not_profit_and_wrong_share_basis_is_not_a_touch(self):
@@ -77,7 +77,7 @@ class EntryPlanContract(unittest.TestCase):
         check={'assessment_id':'old','stage_id':'first','state':'SATISFIED','recorded_at':'2026-01-02T09:00:00+00:00'}
         bars=[{'date':'2026-01-03','low':40,'adjusted_close':45,'split_adjustment_factor':.5},
               {'date':'2026-01-04','low':40,'adjusted_close':45,'split_adjustment_factor':1}]
-        r=observations(a,bars,start_factor=.5,adjustment_factor=.5,end=bars[-1],reviews=[check])
+        r=observations(a,bars,start_factor=.5,end=bars[-1],reviews=[check])
         self.assertEqual(r['stages'][0]['eligible_price_touch_date'],'2026-01-04')
         self.assertEqual(r['stages'][0]['hypothetical_return_pct'],0)
 

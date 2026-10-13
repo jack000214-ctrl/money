@@ -457,7 +457,7 @@ def cmd_backfill(a, key):
     spec = BENCHMARKS[a.market]
 
     def fetch_bar(date: str) -> dict | None:
-        payload = request(spec["endpoint"], {"basDd": date.replace("-", "")}, key)
+        payload = request(spec["endpoint"], {"basDd": date.replace("-", "")}, key())
         found = payload.get("OutBlock_1") or payload.get("outBlock_1") or []
         row = next((r for r in found if r.get(F_IDX_NM) == spec["index_name"]), None)
         if row is None:
@@ -484,7 +484,7 @@ def cmd_backfill_stock(a, key):
     market = a.market or ("KOSDAQ" if suffix == "KQ" else "KOSPI")
 
     def fetch_bar(date: str) -> dict | None:
-        row = pick(fetch_day(market, date, key), a.stock_code)
+        row = pick(fetch_day(market, date, key()), a.stock_code)
         if row is None:
             return None
         return {
@@ -589,7 +589,18 @@ def main():
                     help="한 번에 메울 최대 일수 (날짜당 1회 호출)")
 
     a = p.parse_args()
-    key = load_key()
+    if a.cmd in ("backfill", "backfill-stock"):
+        # 구멍이 있는지는 로컬 파일만으로 안다. 메울 것이 없으면 거래소를 부르지
+        # 않으므로 키도 필요 없다 — 키를 먼저 요구하면 키 없는 설치에서는
+        # "구멍 없음"조차 기록하지 못한다. 실제로 부를 때 처음 읽는다.
+        cached: list[str] = []
+
+        def key() -> str:
+            if not cached:
+                cached.append(load_key())
+            return cached[0]
+    else:
+        key = load_key()
     {"verify": cmd_verify, "snapshot": cmd_snapshot, "history": cmd_history,
      "index": cmd_index, "backfill": cmd_backfill,
      "backfill-stock": cmd_backfill_stock}[a.cmd](a, key)

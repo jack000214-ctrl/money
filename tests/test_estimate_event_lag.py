@@ -213,21 +213,30 @@ class TestItReachesThePacket(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def test_the_eps_block_carries_it(self):
-        summaries, _ = _optional_collection_summaries(
-            {
-                "asset_id": "214450",
-                "market": "KR",
-                "optional_collectors": [],
-                "peers": [],
-            }
+    ASSET = {
+        "asset_id": "214450",
+        "market": "KR",
+        "optional_collectors": [],
+        "peers": [],
+    }
+
+    def consensus_block(self, **changes):
+        (self.knowledge / "consensus" / "214450.json").write_text(
+            json.dumps({**CONSENSUS, **changes}), encoding="utf-8"
         )
-        lag = summaries["consensus"]["stale_across_event"]
+        summaries, _ = _optional_collection_summaries(self.ASSET)
+        return summaries["consensus"]
+
+    def test_the_eps_block_carries_it(self):
+        # 전망의 갱신일을 알고, 그 뒤에 실적 공시가 나왔다 — 반영하지 않았다.
+        lag = self.consensus_block(estimates_as_of="2026-07-28")["stale_across_event"]
         self.assertEqual(lag["latest_event_date"], "2026-08-07")
+        self.assertEqual(lag["estimates_as_of"], "2026-07-28")
 
     def test_the_multiple_block_carries_it(self):
         block = _with_event_lag(
-            {"consensus_as_of": "2026-07-28", "rows": []},
+            {"consensus_as_of": "2026-07-28", "estimates_as_of": "2026-07-28",
+             "rows": []},
             "214450",
             as_of_key="consensus_as_of",
         )
@@ -242,6 +251,41 @@ class TestItReachesThePacket(unittest.TestCase):
             as_of_key="consensus_as_of",
         )
         self.assertNotIn("stale_across_event", block)
+        self.assertNotIn("unverified_across_event", block)
+
+    def test_target_report_date_is_not_the_estimate_date(self):
+        """목표가 보고일은 EPS 전망의 갱신일이 아니다.
+
+        목표가 보고가 7/28 에 멈춰 있어도 전망은 실적(8/7) 뒤인 8/9 에 갱신됐을
+        수 있다. 예전에는 보고일을 전망일로 바꿔 부르며 "반영하지 않았다"고
+        단정했다.
+        """
+        block = self.consensus_block(estimates_as_of="2026-08-09")
+        self.assertEqual(block["as_of"], "2026-07-28")
+        self.assertNotIn("stale_across_event", block)
+        self.assertNotIn("unverified_across_event", block)
+
+    def test_unknown_estimate_date_is_unknown_not_unreflected(self):
+        """전망 갱신일을 모르면 반영 여부도 모른다 — 단정하지 않되 숨기지도 않는다."""
+        block = self.consensus_block(estimates_as_of=None)
+        self.assertNotIn("stale_across_event", block)
+        unverified = block["unverified_across_event"]
+        self.assertIsNone(unverified["estimates_as_of"])
+        self.assertEqual(unverified["latest_target_report_date"], "2026-07-28")
+        self.assertEqual(unverified["latest_event_date"], "2026-08-07")
+        self.assertIn("모른다", unverified["_role"])
+        self.assertNotIn("반영하지 않았다", unverified["_role"])
+
+    def test_the_multiple_block_says_unknown_too(self):
+        block = _with_event_lag(
+            {"consensus_as_of": "2026-07-28", "estimates_as_of": None, "rows": []},
+            "214450",
+            as_of_key="consensus_as_of",
+        )
+        self.assertNotIn("stale_across_event", block)
+        self.assertEqual(
+            block["unverified_across_event"]["latest_event_date"], "2026-08-07"
+        )
 
     def test_a_missing_block_stays_missing(self):
         # 미국 종목은 multiples_at_review_price 가 None 이다. 그 자리에

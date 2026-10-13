@@ -11,6 +11,7 @@ DART 공시검색 화면은 JavaScript 기반이라 웹 도구로 목록을 가�
 """
 
 import argparse
+import contextlib
 import io
 import json
 import math
@@ -29,7 +30,7 @@ from xml.etree import ElementTree
 
 from calculators.contracts import change_pct, ratio_pct
 from cio.display import cell, pad
-from cio.documents import stored_filing_keys
+from cio.documents import archive_filing_rows, stored_filing_keys
 
 BASE = "https://opendart.fss.or.kr/api"
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,6 +42,7 @@ from calculators.contracts import (
     SCHEMA_VERSION,
     ContractError,
     canonical_payload_hash,
+    fundamentals_differences,
     fundamentals_id_for,
     load_raw_snapshot,
     save_validated_fundamentals,
@@ -632,6 +634,15 @@ def cmd_documents(a, key):
     return 1 if result["failed"] and not result["fetched"] else 0
 
 
+def _indexed_rows(index_path):
+    """지금 저장돼 있는 공시 색인의 행. 없거나 못 읽으면 빈 목록."""
+    try:
+        rows = json.loads(Path(index_path).read_text(encoding="utf-8")).get("filings")
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
 def cmd_filings(a, key):
     info = resolve(a.stock_code, key)
     until = a.until or date.today().strftime("%Y%m%d")
@@ -690,6 +701,9 @@ def cmd_filings(a, key):
     }
     FILING_DIR.mkdir(parents=True, exist_ok=True)
     index_path = FILING_DIR / f"{a.stock_code}.json"
+    # 색인은 60건에서 잘린다. 덮어쓰기 전에, 곧 창 밖으로 밀릴 행까지 자산별
+    # 보관 목록에 남긴다 — 받아 둔 원문과 자산의 연결이 색인과 함께 사라지지 않게.
+    archive_filing_rows(a.stock_code, [*_indexed_rows(index_path), *rows])
     tmp = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -810,11 +824,38 @@ IS_EXPENSE_IDS = [
 
 # 재무상태 — 시점값
 BS_CASH_IDS = ["ifrs-full_CashAndCashEquivalents"]
-BS_SHORT_INV_IDS = [
-    "ifrs-full_ShorttermDepositsNotClassifiedAsCashEquivalents",
-    "ifrs-full_CurrentFinancialAssetsAtFairValueThroughProfitOrLoss",
-    "dart_ShortTermTradingFinancialAssets",
-]
+# 순부채에서 현금과 함께 빼는 단기 금융투자. 차입 쪽과 같은 이유로 표준코드와
+# 계정명을 둘 다 본다(_account_code 로 접두사를 걷어낸 코드).
+#
+# 예전 목록은 코드 셋뿐이었고, 그 밖의 코드로 내는 회사는 단기투자가 0 으로
+# 잡혔다. SK하이닉스의 단기투자자산 14.9조(CurrentInvestments)와 파마리서치의
+# 유동성금융자산 3,753억(OtherCurrentFinancialAssets — 단기금융상품 3,178억 +
+# 유동 당기손익금융자산 575억)이 그렇게 빠졌다. 파마리서치는 판단이 이 누락을
+# 여섯 번 요청했고 회사의 자본관리 주석도 그 금융상품을 현금과 함께 차감한다.
+# 차입만 고치고 이쪽을 두면 순부채가 반대 방향으로 더 틀린다.
+BS_SHORT_INV_CODES = (
+    "ShorttermDepositsNotClassifiedAsCashEquivalents",
+    "CurrentFinancialAssetsAtFairValueThroughProfitOrLoss",
+    "ShortTermTradingFinancialAssets",
+    "CurrentInvestments",
+    "CurrentFinancialAssetsAtAmortisedCost",
+)
+# 코드가 뭉뚱그린 것(OtherCurrentFinancialAssets 등)이거나 표준코드를 안 써도
+# 이름이 단기 금융투자임을 말하면 센다. 공백은 지우고 대조한다. 측정 범주가 붙은
+# 이름(유동성상각후원가측정금융자산, 단기당기손익-공정가치금융자산)도 같은 줄이다.
+BS_SHORT_INV_NAME = re.compile(
+    r"^(?:유동성?|단기)(?:금융상품|투자자산|금융자산)$"
+    r"|^(?:유동성?|단기)\S*(?:상각후원가|당기손익)\S*(?:금융자산|유가증권)$")
+# 현금성일 수 있는데 위에 없는 유동 금융자산을 찾는 그물. **합산에는 쓰지 않는다**
+# — '기타금융자산'에는 대여금·보증금이 섞이기 때문이다. 걸린 행은
+# short_term_investments_unclassified 로 값과 함께 남긴다.
+BS_SHORT_INV_CANDIDATE_CODE = re.compile(
+    r"^(?:Other)?Current\w*(?:FinancialAssets|Investments)\w*$")
+BS_SHORT_INV_CANDIDATE_NAME = re.compile(r"(?:유동|단기)\S*(?:금융자산|금융상품|투자자산)")
+# 파생상품자산·채권(받을 돈)·대여금은 현금성이 아니고, 비유동·장기는 단기투자가
+# 아니다.
+BS_NOT_SHORT_INV_NAME = re.compile(r"파생|비유동|장기|채권|대여")
+BS_NOT_SHORT_INV_CODE = re.compile(r"Derivative|Noncurrent|NonCurrent|LongTerm")
 # 총차입으로 세는 계정. 분류마다 (표준계정코드, 계정명) 을 둘 다 둔다.
 #
 # 코드만 보면 안 되는 이유: 같은 계정이 회사마다 ifrs-full_ / ifrs_ / dart_ 로
@@ -826,26 +867,50 @@ BS_SHORT_INV_IDS = [
 # 코드는 접두사를 걷어내고 대조한다(_account_code). 그래야 ifrs-full_ 과
 # ifrs_ 가 같은 계정으로 잡힌다.
 BS_DEBT_ACCOUNTS = (
+    # 'CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings' 와
+    # 'LongtermBorrowings' 는 IFRS 표준 개념인데 오래 빠져 있었다. SK하이닉스가
+    # 차입금을 이 두 코드에 계정명 '차입금' 으로만 내서, 2026 반기 차입금 18.6조가
+    # 통째로 빠지고 리스부채 2.5조만 총차입으로 저장됐다(순현금이 그만큼 부풀었다).
     ("BORROWING",
      ("ShorttermBorrowings", "LoansReceived", "LongTermBorrowingsGross",
       "NoncurrentPortionOfNoncurrentLoans",
       "NoncurrentPortionOfNoncurrentLoansReceived",
       "CurrentPortionOfLongtermBorrowings",
-      "CurrentLoansReceivedAndCurrentPortionOfNoncurrentLoansReceived"),
+      "CurrentLoansReceivedAndCurrentPortionOfNoncurrentLoansReceived",
+      "CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",
+      "LongtermBorrowings", "CurrentLoansReceived",
+      "CurrentPortionOfNoncurrentLoansReceived"),
      ("단기차입금", "장기차입금", "유동성장기차입금", "유동성장기부채",
-      "유동 차입금(사채 포함)")),
+      "유동성장기채무", "차입금", "유동 차입금(사채 포함)")),
     ("BOND",
      ("Bonds", "BondsIssued", "NoncurrentPortionOfNoncurrentBonds",
       "NoncurrentPortionOfNoncurrentBondsIssued", "CurrentPortionOfBonds"),
      ("사채", "유동성사채")),
-    # 전환사채·신주인수권부사채는 상환의무가 있으므로 차입이다. 전환되면 주식수가
-    # 늘어 주당가치가 희석되므로, 부채로도 주식수로도 잡히지 않는 구간이 있으면
-    # 그 회사는 양쪽에서 싸 보인다.
+    # 전환사채·신주인수권부사채·교환사채는 상환의무가 있으므로 차입이다. 전환되면
+    # 주식수가 늘어 주당가치가 희석되므로, 부채로도 주식수로도 잡히지 않는 구간이
+    # 있으면 그 회사는 양쪽에서 싸 보인다.
     ("CONVERTIBLE",
      ("ConvertibleBonds", "CurrentPortionOfConvertibleBonds",
-      "BondWithWarrant", "CurrentPortionOfBondWithWarrant"),
+      "BondWithWarrant", "CurrentPortionOfBondWithWarrant",
+      "ExchangeableBonds", "CurrentPortionOfExchangeableBond"),
      ("전환사채", "전환사채(유동)", "유동성전환사채",
-      "신주인수권부사채", "신주인수권부사채(유동)", "유동성신주인수권부사채")),
+      "신주인수권부사채", "신주인수권부사채(유동)", "유동성신주인수권부사채",
+      "교환사채", "유동성교환사채", "장기교환사채")),
+    # 부채로 분류된 전환상환우선주(RCPS)도 같은 이유로 여기 든다 — 상환청구권이
+    # 있어 재무상태표의 금융부채이고, 전환되면 주식수가 는다. 전환사채와 섞지
+    # 않고 따로 두는 것은 금액이 크고(파마리서치 2026 반기 2,073억 — 그동안 총차입
+    # 137억에 통째로 빠져 있었다) 자본으로 볼지 부채로 볼지가 방법론에 따라
+    # 갈리기 때문이다. 빼고 보려면 debt_by_category 에서 덜어내면 된다.
+    ("REDEEMABLE_PREFERRED",
+     ("ConvertibleRedeemablePreferredStockLiabilities",
+      "ConvertibleRedeemablePreferredStockLiabilitiesNet",
+      "CurrentPortionOfConvertibleRedeemablePreferredStockLiabilities",
+      "RedeemableConvertiblePreferredStockLiabilities",
+      "RedeemablePreferredStockLiabilities"),
+     ("전환상환우선주부채", "전환상환우선주부채(유동)",
+      "유동성전환상환우선주부채", "비유동전환상환우선주부채",
+      "상환전환우선주부채", "유동성상환전환우선주부채",
+      "비유동상환전환우선주부채", "상환우선주부채")),
     # IFRS16 이후 리스부채는 차입이다. 이 저장소가 쓰는 영업현금흐름이 이미
     # IFRS16 기준(리스료 원금이 재무활동으로 빠진 뒤)이라, 현금흐름은 그 기준을
     # 쓰면서 부채에서만 리스를 빼면 리스가 많은 회사가 조용히 싸 보인다.
@@ -871,6 +936,18 @@ BS_DEBT_CODE_TO_CATEGORY = {
     for category, codes, _ in BS_DEBT_ACCOUNTS
     for code in codes
 }
+# 차입처럼 보이는데 위 목록에 없는 행을 찾는 그물이다. **합산에는 쓰지 않는다** —
+# 합산행인지 구성항목인지, 자본인지 부채인지를 이름만으로 정할 수 없어서다.
+# 이 그물의 일은 하나다: 몇 줄을 찾았다는 사실이 전부 찾았다는 뜻으로 바뀌지
+# 않게 하는 것. 걸린 행은 debt_unclassified 로 값과 함께 남고 debt_basis 가
+# 달라지므로, 목록에 없는 계정을 쓰는 회사를 만나도 조용히 순현금이 되지 않는다.
+BS_DEBT_CANDIDATE_NAME = re.compile(r"차입|사채|리스부채|상환우선주|유동성장기")
+BS_DEBT_CANDIDATE_CODE = re.compile(
+    r"Borrowing|LoansReceived|Bond|Debenture|LeaseLiabilit|RedeemablePreferred"
+    r"|NotesPayable|CommercialPaper")
+# 이름에 같은 낱말이 들어가도 자산인 것들 (금융리스채권·회사채 투자·대여금).
+BS_NOT_DEBT_NAME = re.compile(r"자산|채권|대여|투자")
+BS_NOT_DEBT_CODE = re.compile(r"Asset|Receivable|Investment")
 
 
 # 전체계정 API가 빈 보고서는 필요한 계정을 XBRL 개념명으로 보충한다.
@@ -911,12 +988,47 @@ def periodic_rcept(corp_code, year, report, key):
     return None
 
 
+# 보고서별 연초 누계 구간의 길이(일). 1/1~3/31 은 89~90일, 1/1~12/31 은 364~365일이다.
+XBRL_YTD_DAYS = {"1q": (80, 100), "half": (170, 190),
+                 "3q": (260, 285), "annual": (350, 380)}
+XBRL_QUARTER_DAYS = (80, 100)
+
+
+def xbrl_period_values(facts, year, report):
+    """한 개념의 사실들에서 (단독 3개월 값, 연초 누계 값) 을 고른다.
+
+    반기·3분기 XBRL 에는 같은 기말로 끝나는 구간이 둘 있다 — 3개월과 연초 누계.
+    예전에는 가장 긴 구간 하나를 골라 두 자리에 모두 넣었고, 손익 복원이 누계를
+    단독 분기로 읽어 2분기 매출이 반기 매출이 됐다(Q2 15, 반기 25 → Q2 25).
+    구간 길이로 둘을 따로 고르고, 없는 쪽은 비워 둔다.
+    """
+    at_end = {}
+    for fact in facts:
+        if not fact.get("start") or not fact.get("end") or fact.get("value") is None:
+            continue
+        if not fact["end"].startswith(str(year)):
+            continue
+        days = (date.fromisoformat(fact["end"]) - date.fromisoformat(fact["start"])).days
+        at_end.setdefault(fact["end"], []).append((days, fact["value"]))
+    if not at_end:
+        return None, None
+    spans = at_end[max(at_end)]
+
+    def pick(low, high):
+        matched = [value for days, value in spans if low <= days <= high]
+        return matched[0] if matched else None
+
+    ytd = pick(*XBRL_YTD_DAYS[report])
+    standalone = ytd if report in ("1q", "annual") else pick(*XBRL_QUARTER_DAYS)
+    return standalone, ytd
+
+
 def xbrl_rows(corp_code, year, report, key):
     """013 인 보고서를 XBRL 원본으로 보충해 fnlttSinglAcntAll 모양으로 돌려준다.
 
-    연간 보고서의 사실은 1/1~12/31 구간이다. 손익은 그 구간값을
-    thstrm_amount 로, 현금흐름은 누계이므로 마찬가지로 thstrm_amount 로 둔다 —
-    아래 복원 로직이 기대하는 관습과 같다.
+    fnlttSinglAcntAll 의 관습을 그대로 따른다 — 손익은 thstrm_amount 가 그 보고서의
+    단독 기간(분기 보고서면 3개월, 사업보고서면 연간)이고 thstrm_add_amount 가
+    연초 누계다. 현금흐름은 누계만 있으므로 thstrm_amount 에 누계를 둔다.
     """
     rcept = periodic_rcept(corp_code, year, report, key)
     if not rcept:
@@ -932,25 +1044,55 @@ def xbrl_rows(corp_code, year, report, key):
 
     rows = []
     for sj_div, account_id, account_nm, concept in XBRL_SUPPLEMENT:
-        facts = by_concept.get(concept, [])
-        # 해당 사업연도의 가장 긴 구간(= 연초 누계 또는 연간)을 고른다
-        best, best_days = None, -1
-        for f in facts:
-            if not f.get("start") or not f.get("end"):
-                continue
-            if not f["end"].startswith(str(year)):
-                continue
-            days = (date.fromisoformat(f["end"]) - date.fromisoformat(f["start"])).days
-            if days > best_days:
-                best, best_days = f, days
-        if best is None or best["value"] is None:
+        standalone, ytd = xbrl_period_values(
+            by_concept.get(concept, []), year, report)
+        current = ytd if sj_div == "CF" else standalone
+        if current is None and ytd is None:
             continue
-        rows.append({"sj_div": sj_div, "account_id": account_id,
-                     "account_nm": account_nm,
-                     "thstrm_amount": str(best["value"]),
-                     "thstrm_add_amount": str(best["value"]),
-                     "_source": "xbrl"})
+        row = {"sj_div": sj_div, "account_id": account_id,
+               "account_nm": account_nm, "_source": XBRL_ROW_SOURCE}
+        if current is not None:
+            row["thstrm_amount"] = str(current)
+        if ytd is not None:
+            row["thstrm_add_amount"] = str(ytd)
+        rows.append(row)
     return rows
+
+
+# 예전 보충 행("xbrl")은 반기·3분기 손익의 thstrm_amount 에 누계가 들어 있다.
+# 저장된 원문을 다시 읽을 때 그 칸을 단독 분기로 쓰지 않게 판을 구분한다.
+XBRL_ROW_SOURCE = "xbrl/2"
+
+
+def _normalize_xbrl_row(row, report):
+    if (row.get("_source") == "xbrl" and report in ("half", "3q")
+            and row.get("sj_div") in ("IS", "CIS")):
+        return {k: v for k, v in row.items() if k != "thstrm_amount"}
+    return row
+
+
+def reports_by_year(raw):
+    """저장된 원문 payload 에서 {연도: {보고서: 행 목록}} 을 다시 만든다.
+
+    수집 직후와 나중의 재생 검사가 같은 함수로 같은 구조를 읽는다. 보고서 순서는
+    REPORT_SEQUENCE 를 따른다 — 아래 도출이 '그 해의 첫 보고서'를 쓰는 자리가 있다.
+    """
+    years = sorted({int(key[:4]) for key in raw
+                    if re.fullmatch(r"\d{4}_(1q|half|3q|annual)(_xbrl)?", key)})
+    by_year = {}
+    for year in years:
+        by_report = {}
+        for report, _ in REPORT_SEQUENCE:
+            data = raw.get(f"{year}_{report}")
+            if isinstance(data, dict) and data.get("list"):
+                by_report[report] = data["list"]
+                continue
+            rows = raw.get(f"{year}_{report}_xbrl")
+            if isinstance(rows, list) and rows:
+                by_report[report] = [_normalize_xbrl_row(r, report) for r in rows]
+        if by_report:
+            by_year[year] = by_report
+    return by_year
 
 
 def acct(rows, sj_divs, ids=(), names=()):
@@ -1037,16 +1179,30 @@ def restore_cf_quarters(by_report, ids, label, names=()):
 
 
 def restore_is_quarters(by_report, ids, names=()):
-    """손익 3개월 값. 4분기만 연간 − 3분기누계로 만든다."""
-    out = {}
+    """손익 3개월 값.
+
+    보고서가 단독 분기 값을 주면 그대로 쓴다. 누계만 있는 보고서(XBRL 로 보충한
+    것 등)는 누계 차감으로 만든다 — 누계를 단독 분기 자리에 넣지 않는다.
+    4분기는 언제나 연간 − 3분기누계다.
+    """
+    out, cumulative = {}, {}
     for report, q in REPORT_SEQUENCE[:3]:
         rows = by_report.get(report)
         if not rows:
             continue
         row = acct(rows, ("IS", "CIS"), ids, names)
         value = amount(row)
+        ytd = amount(row, "thstrm_add_amount")
+        if q == 1 and ytd is None:
+            ytd = value
+        if ytd is not None:
+            cumulative[q] = ytd
         if value is not None:
             out[q] = {"val": float(value), "derived": False}
+    for q in (2, 3):
+        if q not in out and q in cumulative and q - 1 in cumulative:
+            out[q] = {"val": float(cumulative[q] - cumulative[q - 1]),
+                      "derived": True}
 
     annual_rows, third_rows = by_report.get("annual"), by_report.get("3q")
     if annual_rows and third_rows:
@@ -1105,6 +1261,90 @@ def classify_debt_row(row):
     return BS_DEBT_NAME_TO_CATEGORY.get(name)
 
 
+def _is_short_investment(row):
+    # 코드는 접두 일치로 본다 — 당기손익 금융자산은 뒤에 측정 방식이 붙은 변형
+    # (…MandatorilyMeasuredAtFairValue)으로도 온다.
+    if _account_code(row.get("account_id")).startswith(BS_SHORT_INV_CODES):
+        return True
+    name = (row.get("account_nm") or "").replace(" ", "")
+    return bool(BS_SHORT_INV_NAME.match(name)) and not BS_NOT_SHORT_INV_NAME.search(name)
+
+
+def resolve_short_investments(bs_report):
+    """단기 금융투자와 그 근거를 낸다. → (합, 센 행, 세지 않은 후보)
+
+    센 행은 계정 하나씩 남긴다 — 무엇을 현금성으로 봤는지가 값 옆에 있어야
+    모델이 덜어내고 다시 셀 수 있다. 후보는 현금성일 수 있지만 이름만으로 정할
+    수 없어 세지 않은 유동 금융자산이며, 잔액이 0 이면 내지 않는다.
+    """
+    total, detail, candidates, seen = 0.0, [], [], set()
+    for row in bs_report:
+        if row.get("sj_div") != "BS":
+            continue
+        value = amount(row)
+        if value is None:
+            continue
+        code = _account_code(row.get("account_id"))
+        name = (row.get("account_nm") or "").replace(" ", "")
+        marker = (row.get("account_id"), row.get("account_nm"),
+                  row.get("thstrm_amount"), row.get("ord"))
+        if marker in seen:
+            continue
+        item = {"label": row.get("account_nm"),
+                "account_id": row.get("account_id"), "value": float(value)}
+        if _is_short_investment(row):
+            seen.add(marker)
+            total += float(value)
+            detail.append(item)
+        elif value and not (
+                BS_NOT_SHORT_INV_NAME.search(name)
+                or BS_NOT_SHORT_INV_CODE.search(code)) and (
+                BS_SHORT_INV_CANDIDATE_CODE.match(code)
+                or BS_SHORT_INV_CANDIDATE_NAME.search(name)):
+            seen.add(marker)
+            candidates.append(item)
+    if detail:
+        # 단기투자가 유동자산을 넘으면 합계 줄과 그 구성 줄을 같이 센 것이다.
+        current_assets = amount(
+            acct(bs_report, "BS", ["ifrs-full_CurrentAssets"], ["유동자산"]))
+        if current_assets is not None and total > float(current_assets) + 1.0:
+            fail(f"단기투자 {total:,.0f} 이 유동자산 {float(current_assets):,.0f} 을 "
+                 "넘는다. 합산행과 구성항목을 같이 세었을 가능성이 크므로 "
+                 "순부채를 내지 않는다")
+    return total, detail, candidates
+
+
+def unclassified_debt_rows(bs_report):
+    """차입처럼 보이지만 분류하지 못한 재무상태표 행. → [{label, account_id, value}]
+
+    잔액이 0 인 행은 내지 않는다 — 총차입을 바꾸지 않는 것을 경고로 올리면
+    정말 빠진 것이 그 사이에 묻힌다.
+    """
+    out, seen = [], set()
+    for row in bs_report:
+        if row.get("sj_div") != "BS" or classify_debt_row(row) is not None:
+            continue
+        code = _account_code(row.get("account_id"))
+        name = (row.get("account_nm") or "").replace(" ", "")
+        if BS_NOT_DEBT_NAME.search(name) or BS_NOT_DEBT_CODE.search(code):
+            continue
+        if not (BS_DEBT_CANDIDATE_NAME.search(name)
+                or BS_DEBT_CANDIDATE_CODE.search(code)):
+            continue
+        value = amount(row)
+        if not value:
+            continue
+        marker = (row.get("account_id"), row.get("account_nm"),
+                  row.get("thstrm_amount"), row.get("ord"))
+        if marker in seen:
+            continue
+        seen.add(marker)
+        out.append({"label": row.get("account_nm"),
+                    "account_id": row.get("account_id"),
+                    "value": float(value)})
+    return out
+
+
 def debt_by_category(debt_detail):
     """분류별 차입 합.
 
@@ -1131,7 +1371,13 @@ def resolve_debt(bs_report):
 
     값이 0 인 차입 계정은 남긴다. '계정은 있고 잔액이 0' 과 '계정 자체가 없다'
     는 다른 관측이다.
+
+    basis 는 셋이다. MATCHED_LINE_ITEMS 는 **찾은 줄을 합했다**는 뜻이지 전부
+    찾았다는 뜻이 아니었다 — 리스부채 두 줄만 잡고 차입금 18.6조를 놓친 것이
+    그 이름으로 통과했다. 그래서 차입처럼 보이는데 분류하지 못한 행이 남아
+    있으면 UNCLASSIFIED_CANDIDATES 로 내려 합계가 하한임을 말한다.
     """
+    unclassified = unclassified_debt_rows(bs_report)
     debt, debt_detail, seen = 0.0, [], set()
     for row in bs_report:
         if row.get("sj_div") != "BS":
@@ -1139,10 +1385,10 @@ def resolve_debt(bs_report):
         category = classify_debt_row(row)
         if category is None or amount(row) is None:
             continue
-        # 같은 행이 코드와 이름 양쪽에 걸려도 한 번만 센다. 계정명만으로 묶으면
-        # 유동·비유동이 같은 이름·같은 금액일 때 한쪽이 사라지므로 코드도 넣는다.
+        # 같은 행이 두 번 실려 와도 한 번만 센다. 계정명만으로 묶으면 유동·비유동이
+        # 같은 이름·같은 금액일 때 한쪽이 사라지므로 코드와 행 순번도 넣는다.
         marker = (row.get("account_id"), row.get("account_nm"),
-                  row.get("thstrm_amount"))
+                  row.get("thstrm_amount"), row.get("ord"))
         if marker in seen:
             continue
         seen.add(marker)
@@ -1161,7 +1407,8 @@ def resolve_debt(bs_report):
             fail(f"총차입 {debt:,.0f} 이 부채총계 {float(total_liabilities):,.0f} 을 "
                  "넘는다. 합산행과 구성항목을 같이 세었을 가능성이 크므로 "
                  "순부채를 내지 않는다")
-        return debt, debt_detail, "MATCHED_LINE_ITEMS"
+        return debt, debt_detail, (
+            "UNCLASSIFIED_CANDIDATES" if unclassified else "MATCHED_LINE_ITEMS")
 
     anchors = [
         acct(bs_report, "BS", ["ifrs-full_Liabilities"], ["부채총계"]),
@@ -1172,6 +1419,9 @@ def resolve_debt(bs_report):
         fail("차입금 계정을 하나도 찾지 못했고 부채총계·유동·비유동 구분도 "
              "잡히지 않았다. 재무상태표를 못 읽은 것이므로 무차입이라고 "
              "단정하지 않는다")
+    if unclassified:
+        # 표는 읽혔지만 차입일 수 있는 줄이 남아 있다. 무차입은 관측이 아니다.
+        return 0.0, [], "UNCLASSIFIED_CANDIDATES"
     return 0.0, [], "NO_DEBT_LINE_ITEMS"
 
 
@@ -1226,34 +1476,17 @@ def resolve_shares(bs_report, *, fs_div="CFS"):
     return float(parent_ni) / float(eps), eps_basis
 
 
-def cmd_fundamentals(a, key):
-    info = resolve(a.stock_code, key)
-    corp, name = info["corp_code"], info["corp_name"]
-    years = list(range(a.year - 2, a.year + 1))
+def derive_fundamentals(raw, *, fs, period_end=None, income_quarters=8):
+    """저장된 원문 payload 하나에서 재무 스냅샷의 숫자를 전부 만든다.
 
-    raw, by_year, supplemented = {}, {}, []
-    for year in years:
-        by_report = {}
-        for report, _ in REPORT_SEQUENCE:
-            data = fetch_all(corp, year, report, a.fs, key)
-            if data:
-                by_report[report] = data["list"]
-                raw[f"{year}_{report}"] = data
-                continue
-            # 013 — XBRL 원본으로 보충한다. 없는 채로 두면 4분기 복원이 막힌다.
-            rows = xbrl_rows(corp, year, report, key)
-            if rows:
-                by_report[report] = rows
-                raw[f"{year}_{report}_xbrl"] = rows
-                supplemented.append(f"{year} {report}")
-        if by_report:
-            by_year[year] = by_report
-    if supplemented:
-        print(f"※ fnlttSinglAcntAll 이 013 이라 XBRL 원본으로 보충: "
-              f"{', '.join(supplemented)}", file=sys.stderr)
-
+    네트워크를 타지 않는다. 수집 직후의 저장과 나중의 재생 검사
+    (`replay_fundamentals`)가 이 함수 하나를 쓴다 — 그래야 "스냅샷이 원문에서
+    그대로 다시 나오는가"가 지문 대조가 아니라 값 대조가 된다. 지문은 파일이
+    보존됐다는 증거일 뿐 그 안의 숫자가 원문과 같다는 증거가 아니다.
+    """
+    by_year = reports_by_year(raw)
     if not by_year:
-        fail(f"{name}: {years} 구간에서 재무제표를 받지 못했다")
+        fail("원문 payload 에 재무제표가 없다")
 
     # --- 현금흐름 4분기 ---
     ocf, capex, intangible = {}, {}, {}
@@ -1281,11 +1514,11 @@ def cmd_fundamentals(a, key):
         fail("영업현금흐름과 capex가 함께 있는 분기를 하나도 확보하지 못했다. "
              f"영업현금흐름 확보: {sorted(ocf)} / capex 확보: {sorted(capex)}")
     latest = max(common_cf)
-    if a.period_end:
+    if period_end:
         want = [k for k in sorted(ocf)
-                if f"{k[0]}-{QUARTER_END[k[1]]}" == a.period_end]
+                if f"{k[0]}-{QUARTER_END[k[1]]}" == period_end]
         if not want:
-            fail(f"--period-end {a.period_end} 에 해당하는 분기가 없다")
+            fail(f"--period-end {period_end} 에 해당하는 분기가 없다")
         latest = want[0]
 
     ocf_rows = series_rows(ocf, 4, latest)
@@ -1323,9 +1556,9 @@ def cmd_fundamentals(a, key):
         for year, by_report in by_year.items():
             for q, row in restore_is_quarters(by_report, ids, names).items():
                 per_year[(year, q)] = row
-        rows = series_rows(per_year, a.income_quarters, latest)
+        rows = series_rows(per_year, income_quarters, latest)
         if rows is None:
-            fail(f"손익 {key_name}: {latest} 기준 연속 {a.income_quarters}분기를 "
+            fail(f"손익 {key_name}: {latest} 기준 연속 {income_quarters}분기를 "
                  f"확보하지 못했다 (확보: {sorted(per_year)})")
         for row in rows:
             row["end"] = f"{row['fy']}-{QUARTER_END[row['quarter']]}"
@@ -1364,34 +1597,21 @@ def cmd_fundamentals(a, key):
         fail("현금및현금성자산을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
     cash = float(amount(cash_row))
 
-    short_inv, short_inv_detail = 0.0, []
-    for aid in BS_SHORT_INV_IDS:
-        row = acct(bs_report, "BS", [aid])
-        if row is not None and amount(row) is not None:
-            short_inv += float(amount(row))
-            short_inv_detail.append({"label": row.get("account_nm"),
-                                     "account_id": aid, "value": float(amount(row))})
-    if not short_inv_detail:
-        row = acct(bs_report, "BS", (), ["단기금융상품"])
-        if row is not None and amount(row) is not None:
-            short_inv = float(amount(row))
-            short_inv_detail.append({"label": "단기금융상품", "account_id": None,
-                                     "value": short_inv})
+    short_inv, short_inv_detail, short_inv_unclassified = (
+        resolve_short_investments(bs_report))
 
     debt, debt_detail, debt_basis = resolve_debt(bs_report)
+    debt_unclassified = unclassified_debt_rows(bs_report)
 
     # --- 주식수: 지배주주 순이익 ÷ 주당이익 ---
-    shares, eps_basis = resolve_shares(bs_report, fs_div=a.fs)
+    shares, eps_basis = resolve_shares(bs_report, fs_div=fs)
 
-    total = request("stockTotqySttus.json",
-                    {"corp_code": corp, "bsns_year": str(a.year - 1),
-                     "reprt_code": REPORTS["annual"]}, key, allow_empty=True)
     # isu_stock_totqy 는 **발행할** 주식의 총수(수권주식)다 — 삼성전자는 250억주로
     # 실제 발행주식과 4배 가까이 다르다. 합계 행을 그대로 쓰면 대조가 무의미하다.
     # 실제 유통주식은 종류주식별 distb_stock_co 의 합이다.
     share_cross = None
+    total = raw.get("stockTotqySttus")
     if total:
-        raw["stockTotqySttus"] = total
         outstanding = 0.0
         for r in total.get("list", []):
             if (r.get("se") or "").strip() in ("합계", "비고"):
@@ -1400,6 +1620,130 @@ def cmd_fundamentals(a, key):
             if value:
                 outstanding += float(value)
         share_cross = outstanding or None
+
+    quarter_keys = ("fy", "quarter", "end", "filed", "val", "derived")
+    return {
+        "period_end": period_end,
+        "currency": declared_currency(bs_report),
+        "quarters": {
+            "ocf": [{k: r[k] for k in quarter_keys} for r in ocf_rows],
+            "capex": [{k: r[k] for k in quarter_keys} for r in capex_rows],
+        },
+        "values": {
+            "ocf_ttm": ocf_ttm,
+            "capex_ttm": capex_ttm,
+            "fcf_ttm": ocf_ttm - capex_ttm,
+            "shares_diluted": shares,
+            "cash_and_equivalents": cash,
+            "short_term_investments": short_inv,
+            "long_term_debt": debt,
+            "net_debt": debt - cash - short_inv,
+        },
+        "intangible_capex_ttm": (
+            sum(intangible[k]["val"] for k in [(r["fy"], r["quarter"]) for r in ocf_rows]
+                if k in intangible)
+            if all((r["fy"], r["quarter"]) in intangible for r in ocf_rows) else None),
+        "short_term_investments_detail": short_inv_detail,
+        "short_term_investments_unclassified": short_inv_unclassified,
+        "debt_detail": debt_detail,
+        "debt_by_category": debt_by_category(debt_detail),
+        "debt_basis": debt_basis,
+        "debt_unclassified": debt_unclassified,
+        "eps_basis": eps_basis,
+        "expense_lines": expense_lines,
+        "income_statement": income,
+        "share_count_cross_check": share_cross,
+    }
+
+
+# 재생 검사가 대조하는 필드. 스냅샷에만 있는 설명·식별자·시각은 비교하지 않는다.
+REPLAYED_FIELDS = ("currency", "quarters", "values", "debt_by_category",
+                   "debt_basis", "income_statement", "eps_basis")
+
+
+def replay_fundamentals(snapshot, raw):
+    """스냅샷의 숫자가 봉인된 원문에서 지금 코드로 그대로 다시 나오는가.
+
+    → 어긋난 것을 설명하는 문장 목록(같으면 빈 목록).
+
+    두 가지를 함께 잡는다. 스냅샷만 고쳐진 경우(값이 원문과 다르다)와, 추출
+    규칙이 바뀌어 옛 규칙으로 만든 스냅샷이 낡은 경우(SK하이닉스의 총차입은 옛
+    분류로 2.5조, 지금 분류로 21.8조다). 뒤의 경우 재수집이 답이다.
+    """
+    income = snapshot.get("income_statement") or {}
+    quarters = len((income.get("revenue") or {}).get("quarters") or []) or 8
+    try:
+        with contextlib.redirect_stderr(io.StringIO()) as captured:
+            derived = derive_fundamentals(
+                raw, fs=snapshot.get("fs_div") or "CFS",
+                period_end=snapshot.get("period_end"), income_quarters=quarters)
+    except SystemExit:
+        reason = captured.getvalue().strip().splitlines()
+        return ["원문에서 재무를 다시 만들 수 없다"
+                + (f": {reason[0][:160]}" if reason else "")]
+    except (KeyError, TypeError, ValueError, StopIteration) as exc:
+        return [f"원문에서 재무를 다시 만들 수 없다: {type(exc).__name__}"]
+    differences = fundamentals_differences(snapshot, derived, REPLAYED_FIELDS)
+    for field, label in (
+            ("debt_unclassified", "분류하지 못한 차입 후보"),
+            ("short_term_investments_unclassified", "세지 않은 단기 금융자산 후보")):
+        if derived[field] and snapshot.get(field) != derived[field]:
+            differences.append(f"{field}: 원문에 {label}가 있는데 스냅샷에 없다")
+    return differences
+
+
+def cmd_fundamentals(a, key):
+    info = resolve(a.stock_code, key)
+    corp, name = info["corp_code"], info["corp_name"]
+    years = list(range(a.year - 2, a.year + 1))
+
+    raw, supplemented = {}, []
+    for year in years:
+        for report, _ in REPORT_SEQUENCE:
+            data = fetch_all(corp, year, report, a.fs, key)
+            if data:
+                raw[f"{year}_{report}"] = data
+                continue
+            # 013 — XBRL 원본으로 보충한다. 없는 채로 두면 4분기 복원이 막힌다.
+            rows = xbrl_rows(corp, year, report, key)
+            if rows:
+                raw[f"{year}_{report}_xbrl"] = rows
+                supplemented.append(f"{year} {report}")
+    if supplemented:
+        print(f"※ fnlttSinglAcntAll 이 013 이라 XBRL 원본으로 보충: "
+              f"{', '.join(supplemented)}", file=sys.stderr)
+
+    if not reports_by_year(raw):
+        fail(f"{name}: {years} 구간에서 재무제표를 받지 못했다")
+
+    total = request("stockTotqySttus.json",
+                    {"corp_code": corp, "bsns_year": str(a.year - 1),
+                     "reprt_code": REPORTS["annual"]}, key, allow_empty=True)
+    if total:
+        raw["stockTotqySttus"] = total
+
+    derived = derive_fundamentals(raw, fs=a.fs, period_end=a.period_end,
+                                  income_quarters=a.income_quarters)
+    period_end, values = derived["period_end"], derived["values"]
+    ocf_rows, capex_rows = derived["quarters"]["ocf"], derived["quarters"]["capex"]
+    ocf_ttm, capex_ttm = values["ocf_ttm"], values["capex_ttm"]
+    shares, cash = values["shares_diluted"], values["cash_and_equivalents"]
+    short_inv, debt = values["short_term_investments"], values["long_term_debt"]
+    income, expense_lines = derived["income_statement"], derived["expense_lines"]
+    debt_detail, debt_basis = derived["debt_detail"], derived["debt_basis"]
+    debt_unclassified = derived["debt_unclassified"]
+    short_inv_unclassified = derived["short_term_investments_unclassified"]
+    eps_basis, share_cross = derived["eps_basis"], derived["share_count_cross_check"]
+    if short_inv_unclassified:
+        print("⚠ 현금성일 수 있는데 세지 않은 유동 금융자산이 있다 — 단기투자는 "
+              "하한이고 순부채는 그만큼 크게 잡혀 있을 수 있다: "
+              + ", ".join(f"{d['label']} {d['value']/1e8:,.0f}억"
+                          for d in short_inv_unclassified), file=sys.stderr)
+    if debt_unclassified:
+        print("⚠ 차입처럼 보이는데 분류하지 못한 계정이 있다 — 총차입에 넣지 않았고 "
+              "합계는 하한이다: "
+              + ", ".join(f"{d['label']} {d['value']/1e8:,.0f}억"
+                          for d in debt_unclassified), file=sys.stderr)
     gap_pct = shares_cross_check_pct(shares, share_cross)
     if gap_pct is not None and gap_pct > 5.0:
         print(f"⚠ 희석주식수 {shares:,.0f} 와 유통주식수 합 {share_cross:,.0f} 가 "
@@ -1412,23 +1756,12 @@ def cmd_fundamentals(a, key):
     }
     raw_path = save_raw(f"fundamentals_{a.stock_code}", raw)
 
-    values = {
-        "ocf_ttm": ocf_ttm,
-        "capex_ttm": capex_ttm,
-        "fcf_ttm": ocf_ttm - capex_ttm,
-        "shares_diluted": shares,
-        "cash_and_equivalents": cash,
-        "short_term_investments": short_inv,
-        "long_term_debt": debt,
-        "net_debt": debt - cash - short_inv,
-    }
-
     snapshot = {
         "schema_version": SCHEMA_VERSION,
         "instrument_id": a.stock_code,
         "company_name": name,
         "corp_code": corp,
-        "currency": declared_currency(bs_report),
+        "currency": derived["currency"],
         "period_end": period_end,
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(
             timespec="seconds"),
@@ -1438,18 +1771,36 @@ def cmd_fundamentals(a, key):
             # 이 두 줄이 없으면 다른 시장 스냅샷과 말없이 다른 것을 비교하게 된다.
             "capex": "유형자산의 취득만. 무형자산 취득은 intangible_capex_ttm 에 따로 둔다"
                      " (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
-            "long_term_debt": "총차입. 차입금·사채·전환사채·리스부채를 모두 "
-                              "합했다 (분류별 합은 debt_by_category, 계정명은 "
+            "long_term_debt": "총차입. 차입금·사채·전환사채·교환사채·부채로 "
+                              "분류된 전환상환우선주·리스부채를 모두 합했다 "
+                              "(분류별 합은 debt_by_category, 계정명은 "
                               "debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 "
                               "덜어내고 다시 센다",
             "debt_by_category": "BORROWING=차입금 BOND=사채 "
-                                "CONVERTIBLE=전환사채·신주인수권부사채 "
-                                "LEASE=리스부채. 리스 포함 여부는 방법론에 따라 "
-                                "갈리므로 합계만 주지 않고 분류를 함께 낸다",
-            "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했다. "
+                                "CONVERTIBLE=전환사채·신주인수권부사채·교환사채 "
+                                "REDEEMABLE_PREFERRED=부채로 분류된 "
+                                "전환상환우선주 LEASE=리스부채. 포함 여부는 "
+                                "방법론에 따라 갈리므로 합계만 주지 않고 분류를 "
+                                "함께 낸다. 희석주식수가 전환을 이미 반영했다면 "
+                                "전환증권은 부채와 주식수 양쪽에 잡힌다",
+            "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했고 "
+                          "차입처럼 보이는 미분류 계정이 없다. "
                           "NO_DEBT_LINE_ITEMS=재무상태표는 읽혔는데 차입 계정이 "
-                          "없어 0으로 뒀다(무차입). 후자에서 0은 결측이 아니라 "
-                          "관측이다",
+                          "없어 0으로 뒀다(무차입, 0은 관측이다). "
+                          "UNCLASSIFIED_CANDIDATES=차입처럼 보이는데 분류하지 "
+                          "못한 계정이 debt_unclassified 에 있다. 총차입은 그것을 "
+                          "뺀 하한이고 순부채는 그만큼 작게 잡혀 있을 수 있다",
+            "debt_unclassified": "차입일 수 있지만 합산행인지·자본인지 이름만으로 "
+                                 "정할 수 없어 총차입에 넣지 않은 재무상태표 행",
+            "short_term_investments": "순부채에서 현금과 함께 뺀 단기 금융투자 "
+                                      "(단기금융상품·단기투자자산·유동 상각후원가/"
+                                      "당기손익 금융자산). 센 계정은 "
+                                      "short_term_investments_detail 에 있다. "
+                                      "장기금융상품은 넣지 않았다",
+            "short_term_investments_unclassified": "현금성일 수 있지만 대여금·"
+                                                   "보증금이 섞였을 수 있어 세지 "
+                                                   "않은 유동 금융자산. 현금성이면 "
+                                                   "순부채는 그만큼 작다",
             "shares_diluted": "지배기업 소유주지분 순이익 ÷ 주당이익. 어느 "
                               "주당이익을 썼는지는 eps_basis 참조 — "
                               "BASIC_NO_DILUTED_DISCLOSED 면 희석 공시가 없어 "
@@ -1459,21 +1810,15 @@ def cmd_fundamentals(a, key):
             "income_period": "손익계산서 thstrm_amount 는 이미 3개월이다. "
                              "4분기만 연간 − 3분기누계로 만들었다",
         },
-        "quarters": {
-            "ocf": [{k: r[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
-                    for r in ocf_rows],
-            "capex": [{k: r[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
-                      for r in capex_rows],
-        },
+        "quarters": derived["quarters"],
         "values": values,
-        "intangible_capex_ttm": (
-            sum(intangible[k]["val"] for k in [(r["fy"], r["quarter"]) for r in ocf_rows]
-                if k in intangible)
-            if all((r["fy"], r["quarter"]) in intangible for r in ocf_rows) else None),
-        "short_term_investments_detail": short_inv_detail,
+        "intangible_capex_ttm": derived["intangible_capex_ttm"],
+        "short_term_investments_detail": derived["short_term_investments_detail"],
+        "short_term_investments_unclassified": short_inv_unclassified,
         "debt_detail": debt_detail,
-        "debt_by_category": debt_by_category(debt_detail),
+        "debt_by_category": derived["debt_by_category"],
         "debt_basis": debt_basis,
+        "debt_unclassified": debt_unclassified,
         "eps_basis": eps_basis,
         "expense_lines": expense_lines,
         "income_statement": income,
@@ -1522,6 +1867,9 @@ def cmd_fundamentals(a, key):
     if debt_detail:
         totals = debt_by_category(debt_detail)
         print("  " + "  ".join(f"{k} {v/unit:,.0f}억" for k, v in sorted(totals.items())))
+    for d in debt_unclassified:
+        print(f"  {d['label']:<24}{d['value']/unit:>12,.0f}억  "
+              "미분류 — 총차입에 넣지 않음")
     if debt_basis == "NO_DEBT_LINE_ITEMS":
         print("  차입 계정 없음 — 재무상태표는 읽혔고 그 안에 차입이 없다(무차입).")
         print("  ※ 리스부채가 독립 계정이 아니라 기타부채에 묶여 있으면 여기 "

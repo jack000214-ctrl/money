@@ -284,6 +284,17 @@ def cmd_stock(a):
     rows = fetch_stock(a.code, a.days)
     if not rows:
         fail(f"{a.code}: 수집된 행이 없다")
+    # 날짜는 왔는데 순매수가 한 칸도 없으면 응답 형식이 바뀐 것이다. 빈 칸만
+    # 담은 파일을 저장하면 하류는 그것을 순매수 0 으로 더한다.
+    if not any(
+        row.get(field) is not None
+        for row in rows
+        for field in ("institution_net", "foreign_net")
+    ):
+        fail(
+            f"{a.code}: {len(rows)}거래일을 받았지만 기관·외국인 순매수 값이 "
+            "하나도 없다. 응답 형식이 바뀌었을 수 있다 — 저장하지 않는다"
+        )
     path = save(a.code, STOCK_FIELDS, rows, "주")
     print(f"{a.code}  {len(rows)}거래일  {rows[0]['date']} ~ {rows[-1]['date']}")
     print(f"저장: {path.relative_to(ROOT)}")

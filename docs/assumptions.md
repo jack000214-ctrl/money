@@ -180,6 +180,11 @@ EPS는 `net_income / shares × price_unit_multiplier`와 대조한다. 순이익
 누적 수익률로 환산한다. 정책이 없으면 기본값을 만들지 않고 오류를 낸다.
 또는 `basis: MODEL`, `total_return_pct`, `rationale`로 모델이 비교선을 선택한다.
 
+목표수익률은 정책 기준통화의 수익률이고 계산의 수익률은 자산 통화다. 둘이 다르면
+(원화 목표 대 달러 수익률) 이 비교는 환율이 그대로라는 가정을 품는다. 막지는
+않되 결과에 `currency_basis`(두 통화와 `matched: false`, 그 가정을 적은 경고)를
+붙인다. 환율 변동을 반영하려면 `MODEL` 기준선으로 직접 정한다.
+
 이 비교선은 매도 지시가 아니다. 모델이 기대수익과 비교할 숫자다.
 
 ### tests와 boundaries

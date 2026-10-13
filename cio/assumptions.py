@@ -29,8 +29,26 @@ def comparison(spec, context):
             total = ((1 + annual / 100) ** (months / 12) - 1) * 100
         except OverflowError as exc:
             raise AssumptionError("목표수익률 환산 결과가 유한하지 않다") from exc
-        return {"basis": "POLICY_TARGET", "annual_return_pct": annual, "total_return_pct": total,
-                "horizon_months": months, "source": "context.investor_policy.objective.target_annual_return_pct"}
+        result = {"basis": "POLICY_TARGET", "annual_return_pct": annual, "total_return_pct": total,
+                  "horizon_months": months, "source": "context.investor_policy.objective.target_annual_return_pct"}
+        # 목표는 정책 기준통화의 수익률이고 이 계산의 수익률은 자산 통화다. 다르면
+        # 이 비교는 환율이 그대로라는 가정을 품는다. packet 의 다른 계산은 통화가
+        # 다르면 값을 비우는데 이 자리만 아무 말 없이 견줬다.
+        policy_currency = policy.get("base_currency")
+        return_currency = (spec.get("inputs") or {}).get("currency")
+        if policy_currency and return_currency and policy_currency != return_currency:
+            result["currency_basis"] = {
+                "policy_currency": policy_currency,
+                "return_currency": return_currency,
+                "matched": False,
+                "_warning": (
+                    f"목표수익률은 {policy_currency} 기준인데 이 계산의 수익률은 "
+                    f"{return_currency} 기준이다. 이 비교는 환율이 변하지 않는다고 "
+                    "가정한 것과 같다 — 환율 변동이 결론을 바꿀 수 있으면 그 가정을 "
+                    "해석에 적고, 환율을 반영하려면 MODEL 기준선으로 직접 정한다"
+                ),
+            }
+        return result
     if selection["basis"] != "MODEL":
         raise AssumptionError("comparison.basis: POLICY_TARGET 또는 MODEL")
     number(selection.get("total_return_pct"), "comparison.total_return_pct", low=-100)
@@ -204,6 +222,10 @@ def load_analysis(asset_id, identifier, context):
     if report.get("asset_id") != asset_id or report.get("context_id") != context.get("context_id"):
         raise AssumptionError("다른 종목·context의 가정 분석을 인용했다")
     reference, outputs = _bound_outputs(report["spec"], context)
+    # currency_basis 는 나중에 붙은 설명 필드다. 그 전에 봉인된 보고서에는 없고,
+    # 그것만으로 이미 기록된 판단을 계약 미달로 만들지 않는다. 숫자는 그대로 대조한다.
+    if "currency_basis" not in report["comparison"]:
+        reference = {k: v for k, v in reference.items() if k != "currency_basis"}
     if reference != report["comparison"] or outputs != report["outputs"]:
         raise AssumptionError("가정 분석의 산출값이 재계산과 다르다")
     expected_refs = {ref for basis in report["spec"]["bases"] for ref in basis["evidence_refs"]}

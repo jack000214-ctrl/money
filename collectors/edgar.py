@@ -9,6 +9,8 @@ XBRL 태그는 회사·기간마다 다르게 쓰이므로 후보를 여러 개 
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import sys
@@ -26,6 +28,7 @@ from calculators.contracts import (
     ContractError,
     canonical_payload_hash,
     change_pct,
+    fundamentals_differences,
     fundamentals_id_for,
     load_raw_snapshot,
     ratio_pct,
@@ -66,32 +69,42 @@ OCF_TAGS = ["NetCashProvidedByUsedInOperatingActivities",
 #   TSLA 7,721M → 16,080M   IBM 56,212M → 65,272M   RXRX 723K → 72.4M
 # 분류는 KR(collectors/dart.py) 과 같은 이름을 쓴다. 두 시장을 나란히 놓고
 # 볼 때 같은 낱말이 다른 것을 뜻하면 안 된다.
-US_DEBT_SLOTS = (
-    ("BORROWING", ("LongTermDebtNoncurrent", "LongTermDebt",
-                   "LongTermDebtAndCapitalLeaseObligations")),
-    ("BORROWING", ("ShortTermBorrowings", "DebtCurrent",
-                   "LongTermDebtAndCapitalLeaseObligationsCurrent",
-                   "LongTermDebtCurrent", "CommercialPaper",
-                   "NotesPayableCurrent")),
-    ("CONVERTIBLE", ("ConvertibleDebtNoncurrent",
-                     "ConvertibleNotesPayableNoncurrent")),
-    ("CONVERTIBLE", ("ConvertibleDebtCurrent",
-                     "ConvertibleNotesPayableCurrent")),
-    ("LEASE", ("OperatingLeaseLiabilityNoncurrent",)),
-    ("LEASE", ("OperatingLeaseLiabilityCurrent",)),
-    # 금융리스는 차입 값이 이미 품고 있을 수 있다. 아래 겹침 판정을 거친다.
-    ("LEASE", ("FinanceLeaseLiabilityNoncurrent",
-               "CapitalLeaseObligationsNoncurrent")),
-    ("LEASE", ("FinanceLeaseLiabilityCurrent",
-               "CapitalLeaseObligationsCurrent")),
-)
+#
+# 유동 차입은 한 자리가 아니라 셋이다. 예전에는 한 자리로 묶어 하나만 골랐고,
+# 그래서 단기차입금(ShortTermBorrowings)과 장기차입금 유동분(LongTermDebtCurrent)을
+# 따로 내는 회사에서 한쪽이 통째로 빠졌다. 둘은 뜻이 다른 계정이고 DebtCurrent 가
+# 그 둘의 총계다.
+US_NONCURRENT_BORROWING_TAGS = (
+    "LongTermDebtNoncurrent", "LongTermDebt",
+    "LongTermDebtAndCapitalLeaseObligations")
+US_CURRENT_TOTAL_TAGS = ("DebtCurrent",)
+US_SHORT_TERM_TAGS = ("ShortTermBorrowings", "CommercialPaper",
+                      "NotesPayableCurrent")
+US_CURRENT_PORTION_TAGS = ("LongTermDebtAndCapitalLeaseObligationsCurrent",
+                           "LongTermDebtCurrent")
+US_CONVERTIBLE_NONCURRENT_TAGS = ("ConvertibleDebtNoncurrent",
+                                  "ConvertibleNotesPayableNoncurrent")
+US_CONVERTIBLE_CURRENT_TAGS = ("ConvertibleDebtCurrent",
+                               "ConvertibleNotesPayableCurrent")
+US_OPERATING_LEASE_NONCURRENT_TAGS = ("OperatingLeaseLiabilityNoncurrent",)
+US_OPERATING_LEASE_CURRENT_TAGS = ("OperatingLeaseLiabilityCurrent",)
+# 금융리스는 차입 값이 이미 품고 있을 수 있다. 아래 겹침 판정을 거친다.
+US_FINANCE_LEASE_NONCURRENT_TAGS = ("FinanceLeaseLiabilityNoncurrent",
+                                    "CapitalLeaseObligationsNoncurrent")
+US_FINANCE_LEASE_CURRENT_TAGS = ("FinanceLeaseLiabilityCurrent",
+                                 "CapitalLeaseObligationsCurrent")
 # '차입금+금융리스' 결합 태그. 이것이 채택한 차입 값과 같은 날짜·같은 금액이면
 # 그 차입에 금융리스가 이미 들어 있다는 뜻이다 (IBM 이 그렇다).
-US_COMBINED_LEASE_TAGS = {
-    "LongTermDebtAndCapitalLeaseObligations": 0,
-    "LongTermDebtAndCapitalLeaseObligationsCurrent": 1,
-}
-US_FINANCE_LEASE_SLOTS = (6, 7)
+US_COMBINED_LEASE_NONCURRENT = "LongTermDebtAndCapitalLeaseObligations"
+US_COMBINED_LEASE_CURRENT = "LongTermDebtAndCapitalLeaseObligationsCurrent"
+# 총차입 판정이 읽는 모든 태그. 수집기는 이 목록을 받아 온다.
+US_DEBT_TAGS = tuple(dict.fromkeys(
+    US_NONCURRENT_BORROWING_TAGS + US_CURRENT_TOTAL_TAGS + US_SHORT_TERM_TAGS
+    + US_CURRENT_PORTION_TAGS + US_CONVERTIBLE_NONCURRENT_TAGS
+    + US_CONVERTIBLE_CURRENT_TAGS + US_OPERATING_LEASE_NONCURRENT_TAGS
+    + US_OPERATING_LEASE_CURRENT_TAGS + US_FINANCE_LEASE_NONCURRENT_TAGS
+    + US_FINANCE_LEASE_CURRENT_TAGS
+    + (US_COMBINED_LEASE_NONCURRENT, US_COMBINED_LEASE_CURRENT)))
 # 결합 태그와 차입 값이 이 비율 안에서 같으면 같은 줄로 본다. IBM 은 유동 쪽이
 # 5,772M 과 5,775M 로 3M 어긋나는데, 이는 같은 줄의 표기 차이다.
 US_SAME_LINE_TOLERANCE = 0.01
@@ -111,51 +124,167 @@ SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding",
 PERIODIC_FORMS = {"10-Q", "10-K", "10-Q/A", "10-K/A"}
 
 
-def resolve_us_debt(points_by_tag, period_end):
-    """자리마다 태그를 하나씩 골라 총차입을 낸다.
+def _freshest(points_by_tag, tags, period_end, notes):
+    """자리 후보 중 가장 최근 태그 하나. → (tag, end, value) 또는 None
 
-    → (debt, detail, by_category, notes)
+    최근 것 우선, 같은 날짜면 앞에 적은(뜻이 분명한) 태그 우선. 고른 값이
+    너무 묵었으면 쓰지 않고 그 사실을 남긴다.
+    """
+    best = None
+    for rank, tag in enumerate(tags):
+        point = points_by_tag.get(tag)
+        if not point:
+            continue
+        end, value = point
+        if value is None or end is None:
+            continue
+        key = (end, -rank)
+        if best is None or key > best[0]:
+            best = (key, tag, end, float(value))
+    if best is None:
+        return None
+    _key, tag, end, value = best
+    if _stale_days(end, period_end) > US_MAX_STALE_DAYS:
+        notes.append(
+            f"{tag}: 기준일 {end} 이 {period_end} 보다 "
+            f"{US_MAX_STALE_DAYS}일 넘게 앞서 총차입에서 뺐다"
+        )
+        return None
+    return tag, end, value
+
+
+def _same_line(left, right):
+    """두 값이 같은 재무제표 줄의 표기 차이인가."""
+    return bool(left) and (
+        abs(float(left) - float(right)) / abs(float(left))
+        <= US_SAME_LINE_TOLERANCE)
+
+
+def resolve_us_debt_full(points_by_tag, period_end):
+    """자리마다 태그를 골라 총차입을 내고, 확인하지 못한 겹침을 함께 낸다.
 
     `points_by_tag` 는 {태그: (기준일, 값)} 이다. 네트워크를 타지 않는 순수
     함수라 실제 공시 조합으로 그대로 시험할 수 있다.
-    """
-    chosen = []          # (slot_index, category, tag, end, value)
-    notes = []
-    for index, (category, tags) in enumerate(US_DEBT_SLOTS):
-        best = None
-        for rank, tag in enumerate(tags):
-            point = points_by_tag.get(tag)
-            if not point:
-                continue
-            end, value = point
-            if value is None or end is None:
-                continue
-            # 최근 것 우선, 같은 날짜면 앞에 적은(뜻이 분명한) 태그 우선.
-            key = (end, -rank)
-            if best is None or key > best[0]:
-                best = (key, tag, end, float(value))
-        if best is None:
-            continue
-        _key, tag, end, value = best
-        if _stale_days(end, period_end) > US_MAX_STALE_DAYS:
-            notes.append(
-                f"{tag}: 기준일 {end} 이 {period_end} 보다 "
-                f"{US_MAX_STALE_DAYS}일 넘게 앞서 총차입에서 뺐다"
-            )
-            continue
-        chosen.append((index, category, tag, end, value))
 
-    chosen = _drop_double_counted_finance_lease(chosen, points_by_tag, notes)
+    us-gaap 태그는 정의상 포함관계가 있는데 회사가 정의대로 쓰지 않는 일이
+    흔하다 (LongTermDebt 는 정의상 유동분을 포함한 총액이지만 비유동 줄에 붙이는
+    회사가 많다). 값만으로는 어느 쪽인지 알 수 없는 조합이 있고, 그때 조용히
+    한쪽을 고르면 틀렸을 때 아무 신호가 없다. 그래서 **더하되 겹칠 수 있는
+    금액을 overlap_candidates 로 남긴다** — 합은 상한이고, 겹침이 전부 사실이면
+    그만큼 작다. 더하는 쪽을 고른 이유는 방향 때문이다: 덜 세면 회사가 싸
+    보이고, 더 세면 덜 싸 보인다.
+    """
+    notes = []
+    overlaps = []
+    chosen = []          # (role, category, tag, end, value)
+
+    def take(role, category, tags):
+        found = _freshest(points_by_tag, tags, period_end, notes)
+        if found:
+            chosen.append((role, category, *found))
+        return found
+
+    noncurrent = take("NONCURRENT", "BORROWING", US_NONCURRENT_BORROWING_TAGS)
+
+    # 유동 차입: 총계가 구성항목만큼 최신이면 총계 하나만 쓴다.
+    total = _freshest(points_by_tag, US_CURRENT_TOTAL_TAGS, period_end, notes)
+    short = _freshest(points_by_tag, US_SHORT_TERM_TAGS, period_end, notes)
+    portion = _freshest(points_by_tag, US_CURRENT_PORTION_TAGS, period_end, notes)
+    component_end = max((x[1] for x in (short, portion) if x), default="")
+    current = []
+    if total and total[1] >= component_end:
+        current.append(total)
+    elif (short and portion and short[1] == portion[1]
+          and _same_line(short[2], portion[2])):
+        # IBM: 'Short-term debt' 한 줄이 두 태그로 나온다. 한 번만 센다.
+        current.append(short)
+    else:
+        current.extend(x for x in (short, portion) if x)
+        if short and portion and short[1] == portion[1] and short[2] > portion[2]:
+            overlaps.append({
+                "tag": portion[0], "value": portion[2],
+                "may_be_inside": short[0],
+                "reason": "단기차입 총액이 장기차입금 유동분을 포함해 공시된 "
+                          "것일 수 있다",
+            })
+    for tag, end, value in current:
+        chosen.append(("CURRENT", "BORROWING", tag, end, value))
+
+    # LongTermDebt 는 정의상 유동분을 포함한 총액이다.
+    if noncurrent and noncurrent[0] == "LongTermDebt":
+        for tag, end, value in current:
+            if (end == noncurrent[1] and tag not in US_SHORT_TERM_TAGS
+                    and value <= noncurrent[2]):
+                overlaps.append({
+                    "tag": tag, "value": value, "may_be_inside": "LongTermDebt",
+                    "reason": "LongTermDebt 는 us-gaap 정의상 유동성 대체분을 "
+                              "포함한 총액이다. 회사가 이 태그를 비유동분에만 "
+                              "썼다면 겹치지 않는다",
+                })
+
+    for role, tags, base in (
+            ("NONCURRENT", US_CONVERTIBLE_NONCURRENT_TAGS, [noncurrent]),
+            ("CURRENT", US_CONVERTIBLE_CURRENT_TAGS, current)):
+        convertible = take(role, "CONVERTIBLE", tags)
+        if not convertible:
+            continue
+        for borrowing in base:
+            if (borrowing and borrowing[1] == convertible[1]
+                    and convertible[2] <= borrowing[2]):
+                overlaps.append({
+                    "tag": convertible[0], "value": convertible[2],
+                    "may_be_inside": borrowing[0],
+                    "reason": "us-gaap 계산 관계상 전환사채는 차입 총액의 "
+                              "구성항목이다. 재무상태표에 따로 적은 줄이면 "
+                              "겹치지 않는다",
+                })
+                break
+
+    take("NONCURRENT", "LEASE", US_OPERATING_LEASE_NONCURRENT_TAGS)
+    take("CURRENT", "LEASE", US_OPERATING_LEASE_CURRENT_TAGS)
+
+    # 금융리스는 **같은 만기 쪽** 차입이 품고 있을 때만 뺀다. 예전에는 한쪽에서
+    # 겹침을 확인하면 유동·비유동 금융리스를 모두 뺐고, 비유동만 겹치는 회사의
+    # 유동 금융리스가 사라졌다.
+    for role, tags, combined_tag in (
+            ("NONCURRENT", US_FINANCE_LEASE_NONCURRENT_TAGS,
+             US_COMBINED_LEASE_NONCURRENT),
+            ("CURRENT", US_FINANCE_LEASE_CURRENT_TAGS,
+             US_COMBINED_LEASE_CURRENT)):
+        if _bundled_finance_lease(
+                [row for row in chosen
+                 if row[0] == role and row[1] == "BORROWING"],
+                points_by_tag.get(combined_tag), combined_tag, notes):
+            continue
+        lease = take(role, "LEASE", tags)
+        # DebtCurrent 는 정의상 리스 의무까지 포함한 유동 차입 총계다.
+        if lease and role == "CURRENT":
+            for tag, end, value in current:
+                if (tag in US_CURRENT_TOTAL_TAGS and end == lease[1]
+                        and lease[2] <= value):
+                    overlaps.append({
+                        "tag": lease[0], "value": lease[2], "may_be_inside": tag,
+                        "reason": "DebtCurrent 는 us-gaap 정의상 리스 의무를 "
+                                  "포함할 수 있다",
+                    })
 
     debt = 0.0
     detail = []
     by_category = {}
-    for _index, category, tag, end, value in chosen:
+    for _role, category, tag, end, value in chosen:
         debt += value
         detail.append({"tag": tag, "category": category,
                        "as_of": end, "value": value})
         by_category[category] = by_category.get(category, 0.0) + value
-    return debt, detail, by_category, notes
+    return {"debt": debt, "detail": detail, "by_category": by_category,
+            "notes": notes, "overlap_candidates": overlaps}
+
+
+def resolve_us_debt(points_by_tag, period_end):
+    """→ (debt, detail, by_category, notes). 겹침 후보는 resolve_us_debt_full."""
+    result = resolve_us_debt_full(points_by_tag, period_end)
+    return (result["debt"], result["detail"], result["by_category"],
+            result["notes"])
 
 
 def resolve_optional_value(value, at, period_end, *, label):
@@ -189,35 +318,27 @@ def _stale_days(end, period_end):
     return (b - a).days
 
 
-def _drop_double_counted_finance_lease(chosen, points_by_tag, notes):
-    """차입 값이 금융리스를 이미 품고 있으면 금융리스 자리를 뺀다.
+def _bundled_finance_lease(borrowings, combined_point, combined_tag, notes):
+    """이 만기 쪽 차입 값이 금융리스를 이미 품고 있는가.
 
     IBM 의 LongTermDebtNoncurrent 는 LongTermDebtAndCapitalLeaseObligations 와
     같은 날 같은 금액이다 — 즉 그 값에 금융리스가 들어 있다. 거기에 금융리스를
     또 더하면 순부채가 그만큼 부풀고, 그 오차는 EV 전체에 곱해진다.
     """
-    borrowing = {index: (tag, end, value)
-                 for index, category, tag, end, value in chosen
-                 if category == "BORROWING"}
-    bundled = False
-    for combined_tag, slot in US_COMBINED_LEASE_TAGS.items():
-        point = points_by_tag.get(combined_tag)
-        if not point or slot not in borrowing:
-            continue
-        combined_end, combined_value = point
-        tag, end, value = borrowing[slot]
+    if not combined_point:
+        return False
+    combined_end, combined_value = combined_point
+    for _role, _category, tag, end, value in borrowings:
         if combined_end != end or not value:
             continue
         if abs(float(combined_value) - value) / abs(value) <= US_SAME_LINE_TOLERANCE:
-            bundled = True
             notes.append(
                 f"{tag}({end}) 는 금융리스를 포함한 값이다"
                 + ("" if tag == combined_tag else f" — {combined_tag} 과 같은 줄이다")
                 + ". 금융리스를 따로 더하지 않았다"
             )
-    if not bundled:
-        return chosen
-    return [row for row in chosen if row[0] not in US_FINANCE_LEASE_SLOTS]
+            return True
+    return False
 
 
 def fail(msg) -> NoReturn:
@@ -637,7 +758,20 @@ def cmd_filings(a, ua):
         "raw_locator": str(path.relative_to(ROOT)),
         "filings": filings,
     }
-    index_path = save_json(FILING_DIR / f"{a.ticker.upper()}.json", snapshot)
+    # 색인은 최근 50건에서 잘린다. 덮어쓰기 전에, 곧 창 밖으로 밀릴 행까지 자산별
+    # 보관 목록에 남긴다 — 받아 둔 원문과 자산의 연결이 색인과 함께 사라지지 않게.
+    from cio.documents import archive_filing_rows
+
+    index_file = FILING_DIR / f"{a.ticker.upper()}.json"
+    try:
+        previous = json.loads(index_file.read_text(encoding="utf-8")).get("filings")
+    except (OSError, ValueError, AttributeError):
+        previous = None
+    archive_filing_rows(
+        a.ticker.upper(),
+        [*(row for row in previous or [] if isinstance(row, dict)), *filings],
+    )
+    index_path = save_json(index_file, snapshot)
 
     print(f"{info['name']} ({a.ticker.upper()}) — CIK {info['cik']}")
     print(f"원본 저장: {path.relative_to(ROOT)}")
@@ -711,15 +845,33 @@ def cmd_balance(a, ua):
     print(f"\n원본 저장: {path.relative_to(ROOT)}")
 
 
-def cmd_fundamentals(a, ua):
-    """역산 DCF 입력을 EDGAR 원문에서 만들어 스냅샷으로 남긴다."""
-    info = resolve(a.ticker, ua)
-    cik, ticker = info["cik"], a.ticker.upper()
-    raw = {"_instrument": {"instrument_id": ticker, "cik": cik}}
+US_INCOME_PLAN = (
+    ("revenue", REVENUE_TAGS),
+    ("gross_profit", ["GrossProfit"]),
+    ("rnd", ["ResearchAndDevelopmentExpense"]),
+    ("sgna", ["SellingGeneralAndAdministrativeExpense"]),
+    ("operating_income", OPINC_TAGS),
+    ("net_income", ["NetIncomeLoss"]),
+)
+# DCF 필수값과 표시용 손익을 구분한다. 찾지 못한 표시값은 근사하지 않고
+# null과 누락 사유를 남긴다.
+US_REQUIRED_INCOME = {"revenue", "net_income"}
+US_QUARTER_KEYS = ("fy", "quarter", "end", "filed", "val", "derived")
+
+
+def derive_us_fundamentals(raw):
+    """저장된 원문 payload 하나에서 재무 스냅샷의 숫자를 전부 만든다.
+
+    네트워크를 타지 않는다. 수집 직후의 저장과 나중의 재생 검사
+    (`replay_fundamentals`)가 이 함수 하나를 쓴다 — 지문은 파일이 보존됐다는
+    증거일 뿐 그 안의 숫자가 원문과 같다는 증거가 아니기 때문이다.
+    """
+    def series(label):
+        entry = raw.get(label) or {}
+        return entry.get("tag"), entry.get("units") or []
 
     def flow(label, tags):
-        tag, pts = concept(cik, tags, ua, as_of=a.as_of)
-        raw[label] = {"tag": tag, "units": pts}
+        tag, pts = series(label)
         if not pts:
             fail(f"{label}: 태그를 찾지 못했다 ({', '.join(tags)})")
         total, quarters = trailing_four_quarters(pts)
@@ -731,20 +883,10 @@ def cmd_fundamentals(a, ua):
     capex_tag, capex_ttm, capex_q = flow("capex", CAPEX_TAGS)
 
     # 손익계산서 분기값. 화면과 분석이 같은 원문을 보게 하려고 함께 담는다.
-    #
-    # DCF 필수값과 표시용 손익을 구분한다. 찾지 못한 표시값은 근사하지 않고
-    # null과 누락 사유를 남긴다.
-    REQUIRED_INCOME = {"revenue", "net_income"}
-    income_series = {}
+    income = {}
     income_missing = {}
-    for key, tags in (("revenue", REVENUE_TAGS), ("gross_profit", ["GrossProfit"]),
-                      ("rnd", ["ResearchAndDevelopmentExpense"]),
-                      ("sgna", ["SellingGeneralAndAdministrativeExpense"]),
-                      ("operating_income", OPINC_TAGS),
-                      ("net_income", ["NetIncomeLoss"])):
-        tag, pts = concept(cik, tags, ua, as_of=a.as_of)
-        raw[f"손익_{key}"] = {"tag": tag, "units": pts}
-
+    for key, tags in US_INCOME_PLAN:
+        tag, pts = series(f"손익_{key}")
         reason = None
         total = None
         recent: list = []
@@ -761,44 +903,36 @@ def cmd_fundamentals(a, ua):
                 if len(recent) < INCOME_QUARTERS:
                     reason = (f"전년 동기 비교에 필요한 {INCOME_QUARTERS}분기를 "
                               f"확보하지 못했다 ({len(recent)}개)")
-
         if reason:
-            if key in REQUIRED_INCOME:
+            if key in US_REQUIRED_INCOME:
                 fail(f"손익 {key}: {reason}")
             income_missing[key] = reason
-            income_series[key] = {"tag": tag, "ttm": None, "quarters": [],
-                                  "unknown_reason": reason}
+            # 왜 없는지를 스냅샷 밖에 두면 packet 에서는 그냥 빈칸이 된다. IBM 은
+            # 영업이익이 통째로 비어 있는 채로 재무 계약을 통과했고, 모델은 이
+            # 회사가 그 줄을 공시하지 않는다는 사실 자체를 알 수 없었다.
+            income[key] = {"tag": tag, "ttm": None, "quarters": [],
+                           "absent_reason": reason}
             continue
-        income_series[key] = {"tag": tag, "ttm": float(total), "quarters": recent}
-
-    if income_missing:
-        for key, reason in income_missing.items():
-            print(f"※ 손익 {key}: {reason} → UNKNOWN 으로 남긴다 "
-                  "(DCF 입력에는 쓰이지 않는 표시용 항목이다)", file=sys.stderr)
+        income[key] = {
+            "tag": tag, "ttm": float(total),
+            "quarters": [{k: q[k] for k in US_QUARTER_KEYS} for q in recent],
+        }
 
     if [(q["fy"], q["quarter"]) for q in ocf_q] != [(q["fy"], q["quarter"]) for q in capex_q]:
         fail("영업현금흐름과 capex 의 분기 구간이 다르다. 서로 다른 기간을 "
              "빼면 FCF 가 아니다")
 
-    def point(label, tags, unit="USD"):
-        tag, pts = concept(cik, tags, ua, unit=unit, as_of=a.as_of)
-        raw[label] = {"tag": tag, "units": pts}
-        if not pts:
-            return None, None, None
-        p = instant(pts)[0] if unit == "USD" and not pts[0].get("start") else None
-        if p is None:
-            rows = instant(pts)
-            if rows:
-                p = rows[0]
-        if p is None:
+    def point(label):
+        tag, pts = series(label)
+        rows = instant(pts)
+        if not rows:
             return tag, None, None
-        return tag, p["val"], p["end"]
+        return tag, rows[0]["val"], rows[0]["end"]
 
-    cash_tag, cash, cash_at = point("현금성자산", CASH_TAGS)
-    inv_tag, short_inv, inv_at = point("단기투자자산", SHORT_INV_TAGS)
+    cash_tag, cash, cash_at = point("현금성자산")
+    inv_tag, short_inv, inv_at = point("단기투자자산")
 
-    shares_tag, shares_pts = concept(cik, SHARES_TAGS, ua, unit="shares", as_of=a.as_of)
-    raw["희석주식수"] = {"tag": shares_tag, "units": shares_pts}
+    shares_tag, shares_pts = series("희석주식수")
     shares_q = quarterly(shares_pts) if shares_pts else []
     if not shares_q:
         fail("희석주식수를 찾지 못했다")
@@ -818,14 +952,110 @@ def cmd_fundamentals(a, ua):
     short_inv, short_inv_basis, short_inv_note = resolve_optional_value(
         short_inv, inv_at, period_end, label="단기투자자산"
     )
-    if short_inv_note:
-        print(f"※ {short_inv_note}", file=sys.stderr)
 
-    # 총차입은 자리마다 태그를 하나씩 골라 더한다. 어느 자리가 언제 것인지
-    # 기준일이 필요하므로 period_end 가 정해진 뒤에 푼다.
+    # 총차입은 자리마다 태그를 골라 더한다. 어느 자리가 언제 것인지 기준일이
+    # 필요하므로 period_end 가 정해진 뒤에 푼다.
+    debt_points = {
+        tag: (item["end"], item["val"])
+        for tag, item in (raw.get("차입_후보태그") or {}).items()
+    }
+    resolved_debt = resolve_us_debt_full(debt_points, period_end)
+    debt, debt_detail = resolved_debt["debt"], resolved_debt["detail"]
+    if not debt_detail:
+        fail("차입 계정을 하나도 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
+    # 부채총계를 넘으면 같은 돈을 두 번 셌다는 뜻이다 (KR 쪽과 같은 불변식).
+    total_liabilities = point("부채총계")[1]
+    if total_liabilities is not None and debt > float(total_liabilities) + 1.0:
+        fail(f"총차입 {debt:,.0f} 이 부채총계 {float(total_liabilities):,.0f} 을 "
+             "넘는다. 같은 금액을 두 자리에서 세었을 가능성이 크므로 "
+             "순부채를 내지 않는다")
+
+    return {
+        "period_end": period_end,
+        "tags": {"ocf": ocf_tag, "capex": capex_tag, "shares": shares_tag,
+                 "cash": cash_tag, "short_term_investments": inv_tag,
+                 "long_term_debt": "+".join(d["tag"] for d in debt_detail)},
+        "as_of": {"cash": cash_at, "short_term_investments": inv_at,
+                  "long_term_debt": max((d["as_of"] for d in debt_detail),
+                                        default=None),
+                  "shares": shares_at},
+        "share_period": {"start": shares_q[0].get("start"),
+                         "filed": shares_q[0].get("filed")},
+        "quarters": {
+            "ocf": [{k: q[k] for k in US_QUARTER_KEYS} for q in ocf_q],
+            "capex": [{k: q[k] for k in US_QUARTER_KEYS} for q in capex_q],
+        },
+        "values": {
+            "ocf_ttm": float(ocf_ttm),
+            "capex_ttm": float(capex_ttm),
+            "fcf_ttm": float(ocf_ttm - capex_ttm),
+            "shares_diluted": float(shares),
+            "cash_and_equivalents": float(cash),
+            "short_term_investments": float(short_inv),
+            "long_term_debt": float(debt),
+            "net_debt": float(debt - cash - short_inv),
+        },
+        "debt_detail": debt_detail,
+        "debt_by_category": resolved_debt["by_category"],
+        "debt_notes": resolved_debt["notes"],
+        "debt_overlap_candidates": resolved_debt["overlap_candidates"],
+        "short_term_investments_basis": short_inv_basis,
+        "short_term_investments_note": short_inv_note,
+        "income_statement": income,
+        "income_missing": income_missing,
+    }
+
+
+# 재생 검사가 대조하는 필드. 스냅샷에만 있는 설명·식별자·시각은 비교하지 않는다.
+US_REPLAYED_FIELDS = ("quarters", "values", "debt_detail", "debt_by_category",
+                      "short_term_investments_basis", "income_statement", "tags",
+                      "as_of")
+
+
+def replay_fundamentals(snapshot, raw):
+    """스냅샷의 숫자가 봉인된 원문에서 지금 코드로 그대로 다시 나오는가.
+
+    → 어긋난 것을 설명하는 문장 목록(같으면 빈 목록).
+    """
+    try:
+        with contextlib.redirect_stderr(io.StringIO()) as captured:
+            derived = derive_us_fundamentals(raw)
+    except SystemExit:
+        reason = captured.getvalue().strip().splitlines()
+        return ["원문에서 재무를 다시 만들 수 없다"
+                + (f": {reason[0][:160]}" if reason else "")]
+    except (KeyError, TypeError, ValueError, IndexError) as exc:
+        return [f"원문에서 재무를 다시 만들 수 없다: {type(exc).__name__}"]
+    differences = fundamentals_differences(snapshot, derived, US_REPLAYED_FIELDS)
+    if (derived["debt_overlap_candidates"]
+            and snapshot.get("debt_overlap_candidates")
+            != derived["debt_overlap_candidates"]):
+        differences.append(
+            "debt_overlap_candidates: 원문에 겹칠 수 있는 차입 태그가 있는데 "
+            "스냅샷에 없다")
+    return differences
+
+
+def cmd_fundamentals(a, ua):
+    """역산 DCF 입력을 EDGAR 원문에서 만들어 스냅샷으로 남긴다."""
+    info = resolve(a.ticker, ua)
+    cik, ticker = info["cik"], a.ticker.upper()
+    raw = {"_instrument": {"instrument_id": ticker, "cik": cik}}
+
+    def collect(label, tags, unit="USD"):
+        tag, pts = concept(cik, tags, ua, unit=unit, as_of=a.as_of)
+        raw[label] = {"tag": tag, "units": pts}
+
+    collect("영업현금흐름", OCF_TAGS)
+    collect("capex", CAPEX_TAGS)
+    for key, tags in US_INCOME_PLAN:
+        collect(f"손익_{key}", tags)
+    collect("현금성자산", CASH_TAGS)
+    collect("단기투자자산", SHORT_INV_TAGS)
+    collect("희석주식수", SHARES_TAGS, unit="shares")
+
     debt_points = {}
-    for tag in sorted({t for _category, tags in US_DEBT_SLOTS for t in tags}
-                      | set(US_COMBINED_LEASE_TAGS)):
+    for tag in sorted(US_DEBT_TAGS):
         data = get(CONCEPT.format(cik=cik, tag=tag), ua, tolerate_404=True)
         time.sleep(0.12)  # SEC 권장 10 req/s 이하
         rows = instant(as_of_filter(
@@ -835,22 +1065,34 @@ def cmd_fundamentals(a, ua):
     raw["차입_후보태그"] = {
         tag: {"end": end, "val": val} for tag, (end, val) in debt_points.items()
     }
-    debt, debt_detail, debt_by_cat, debt_notes = resolve_us_debt(
-        debt_points, period_end
-    )
-    if not debt_detail:
-        fail("차입 계정을 하나도 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
-    # 부채총계를 넘으면 같은 돈을 두 번 셌다는 뜻이다 (KR 쪽과 같은 불변식).
-    total_liabilities = point("부채총계", ["Liabilities"])[1]
-    if total_liabilities is not None and debt > float(total_liabilities) + 1.0:
-        fail(f"총차입 {debt:,.0f} 이 부채총계 {float(total_liabilities):,.0f} 을 "
-             "넘는다. 같은 금액을 두 자리에서 세었을 가능성이 크므로 "
-             "순부채를 내지 않는다")
+    collect("부채총계", ["Liabilities"])
+
+    derived = derive_us_fundamentals(raw)
+    period_end, values = derived["period_end"], derived["values"]
+    ocf_q, capex_q = derived["quarters"]["ocf"], derived["quarters"]["capex"]
+    ocf_ttm, capex_ttm = values["ocf_ttm"], values["capex_ttm"]
+    shares, cash = values["shares_diluted"], values["cash_and_equivalents"]
+    short_inv, debt = values["short_term_investments"], values["long_term_debt"]
+    ocf_tag, capex_tag = derived["tags"]["ocf"], derived["tags"]["capex"]
+    cash_at = derived["as_of"]["cash"]
+    inv_at = derived["as_of"]["short_term_investments"]
+    shares_at = derived["as_of"]["shares"]
+    debt_detail, debt_notes = derived["debt_detail"], derived["debt_notes"]
+    debt_overlaps = derived["debt_overlap_candidates"]
+    short_inv_basis = derived["short_term_investments_basis"]
+    short_inv_note = derived["short_term_investments_note"]
+
+    for key, reason in derived["income_missing"].items():
+        print(f"※ 손익 {key}: {reason} → UNKNOWN 으로 남긴다 "
+              "(DCF 입력에는 쓰이지 않는 표시용 항목이다)", file=sys.stderr)
+    if short_inv_note:
+        print(f"※ {short_inv_note}", file=sys.stderr)
     for note in debt_notes:
         print(f"※ {note}", file=sys.stderr)
-
-    debt_at = max((d["as_of"] for d in debt_detail), default=None)
-    debt_tag = "+".join(d["tag"] for d in debt_detail)
+    for item in debt_overlaps:
+        print(f"⚠ {item['tag']} {item['value']/1e6:,.0f}M 은 {item['may_be_inside']} 에 "
+              "이미 들어 있을 수 있다. 더했으므로 총차입은 상한이다",
+              file=sys.stderr)
     # 기준일이 손익 기준일과 어긋나면 순부채가 다른 시점 값이다.
     # 단기투자자산이 묵어서 빠진 경우는 위에서 이미 알렸으므로 겹쳐 쓰지 않는다.
     if cash_at != period_end:
@@ -864,16 +1106,6 @@ def cmd_fundamentals(a, ua):
             print(f"⚠ {item['tag']} 기준일 {item['as_of']} 이 손익 기준일 "
                   f"{period_end} 과 다르다", file=sys.stderr)
 
-    values = {
-        "ocf_ttm": float(ocf_ttm),
-        "capex_ttm": float(capex_ttm),
-        "fcf_ttm": float(ocf_ttm - capex_ttm),
-        "shares_diluted": float(shares),
-        "cash_and_equivalents": float(cash),
-        "short_term_investments": float(short_inv),
-        "long_term_debt": float(debt),
-        "net_debt": float(debt - cash - short_inv),
-    }
     raw_path = save_raw(f"fundamentals_{ticker}", raw)
 
     snapshot = {
@@ -885,17 +1117,14 @@ def cmd_fundamentals(a, ua):
         "period_end": period_end,
         "created_at": datetime.now(timezone.utc).astimezone().isoformat(
             timespec="seconds"),
-        "tags": {"ocf": ocf_tag, "capex": capex_tag, "shares": shares_tag,
-                 "cash": cash_tag, "short_term_investments": inv_tag,
-                 "long_term_debt": debt_tag},
-        "as_of": {"cash": cash_at, "short_term_investments": inv_at,
-                  "long_term_debt": debt_at, "shares": shares_at},
+        "tags": derived["tags"],
+        "as_of": derived["as_of"],
         "eps_basis": "DILUTED",
         "share_count_basis": {
             "kind": "WEIGHTED_AVERAGE_DILUTED_EPS",
-            "period_start": shares_q[0].get("start"),
+            "period_start": derived["share_period"]["start"],
             "period_end": shares_at,
-            "filed": shares_q[0].get("filed"),
+            "filed": derived["share_period"]["filed"],
             "is_current_outstanding": False,
             "_note": (
                 "values.shares_diluted는 해당 분기의 가중평균 희석 EPS 분모다. "
@@ -904,12 +1133,7 @@ def cmd_fundamentals(a, ua):
                 "미래 주당가치에는 공시 표지의 실제 주식수와 이후 발행을 별도 확인한다"
             ),
         },
-        "quarters": {
-            "ocf": [{k: q[k] for k in ("fy", "quarter", "end", "filed", "val",
-                                       "derived")} for q in ocf_q],
-            "capex": [{k: q[k] for k in ("fy", "quarter", "end", "filed", "val",
-                                         "derived")} for q in capex_q],
-        },
+        "quarters": derived["quarters"],
         "values": values,
         "definitions": {
             "long_term_debt": "총차입. 차입금·전환사채·리스부채를 겹치지 않는 "
@@ -923,6 +1147,11 @@ def cmd_fundamentals(a, ua):
             "debt_detail": "자리마다 채택한 us-gaap 태그와 그 기준일. 분기마다 "
                            "공시하지 않는 항목이 있어 as_of 가 period_end 보다 "
                            "앞설 수 있다",
+            "debt_overlap_candidates": "더했지만 다른 태그 값에 이미 들어 있을 수 "
+                                       "있는 금액. 태그 정의상 포함관계인데 "
+                                       "회사가 정의대로 썼는지 값만으로는 확인할 "
+                                       "수 없는 조합이다. 전부 겹침이면 총차입은 "
+                                       "그 합만큼 작다",
             "short_term_investments_basis": "OBSERVED=공시된 값이다(0 이면 정말 "
                                             "0 이다). STALE_EXCLUDED=너무 묵어서 "
                                             "뺐다. NOT_DISCLOSED=태그가 없다. "
@@ -931,29 +1160,12 @@ def cmd_fundamentals(a, ua):
                                             "돼 있다",
         },
         "debt_detail": debt_detail,
-        "debt_by_category": debt_by_cat,
+        "debt_by_category": derived["debt_by_category"],
         "debt_notes": debt_notes,
+        "debt_overlap_candidates": debt_overlaps,
         "short_term_investments_basis": short_inv_basis,
         "short_term_investments_note": short_inv_note,
-        # 왜 없는지를 스냅샷 밖에 두면 packet 에서는 그냥 빈칸이 된다. IBM 은
-        # 영업이익이 통째로 비어 있는 채로 재무 계약을 통과했고, 모델은 이
-        # 회사가 그 줄을 공시하지 않는다는 사실 자체를 알 수 없었다.
-        "income_statement": {
-            key: {
-                "tag": series["tag"],
-                "ttm": series["ttm"],
-                "quarters": [
-                    {k: q[k] for k in ("fy", "quarter", "end", "filed", "val", "derived")}
-                    for q in series["quarters"]
-                ],
-                **(
-                    {"absent_reason": series["unknown_reason"]}
-                    if series.get("unknown_reason")
-                    else {}
-                ),
-            }
-            for key, series in income_series.items()
-        },
+        "income_statement": derived["income_statement"],
         "raw_locator": str(raw_path.relative_to(ROOT)),
         "raw_payload_sha256": raw_path.stem,
     }

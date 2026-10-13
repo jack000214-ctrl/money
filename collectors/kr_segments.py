@@ -27,7 +27,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from calculators.contracts import ContractError, load_json
+from calculators.contracts import ContractError, load_json, load_raw_snapshot
 from cio.paths import KNOWLEDGE_DIR, ROOT
 
 SCHEMA = "segment-summary/1.0.0"
@@ -194,16 +194,22 @@ def _periodic_filing(asset_id: str) -> dict[str, Any]:
             f"{asset_id}: 공시 색인이 없다. "
             f"`python3.13 -m collectors.dart filings {asset_id} --since ...` 먼저"
         )
-    data = load_json(path)
+    latest = latest_periodic_filing(load_json(path))
+    if latest is None:
+        fail(f"{asset_id}: 공시 색인에 정기보고서가 없다")
+    return latest
+
+
+def latest_periodic_filing(index: dict[str, Any]) -> dict[str, Any] | None:
+    """공시 색인에서 가장 최근 정기보고서. 수집과 계약 검사가 같은 규칙을 쓴다."""
     rows = [
         row
-        for row in data.get("filings") or []
+        for row in index.get("filings") or []
         if isinstance(row, dict) and row.get("form") in PERIODIC_FORMS
     ]
     if not rows:
-        fail(f"{asset_id}: 공시 색인에 정기보고서가 없다")
-    rows.sort(key=lambda row: str(row.get("filing_date") or ""), reverse=True)
-    return rows[0]
+        return None
+    return max(rows, key=lambda row: str(row.get("filing_date") or ""))
 
 
 def _stored_document(rcept_no: str) -> tuple[str, Path] | None:
@@ -239,10 +245,13 @@ def _fetched_document(rcept_no: str) -> tuple[str, Path]:
     return stored
 
 
-def collect(asset_id: str) -> dict[str, Any]:
-    filing = _periodic_filing(asset_id)
-    rcept_no = filing["accession_number"]
-    document, object_path = _fetched_document(rcept_no)
+def extract(document: str) -> dict[str, Any]:
+    """정기보고서 원문 하나에서 부문 배분을 뽑는다.
+
+    네트워크·시각·식별자가 없는 순수 함수다. 수집과 계약 검사
+    (`contract_errors`)가 같은 함수를 지나므로, 저장된 자료가 원문에서 그대로
+    다시 나오는지를 값으로 대조할 수 있다.
+    """
     table = find_segment_table(document)
     if table is None:
         # 표가 없는 이유는 둘이고, 그 둘은 완전히 다르다 — 나눌 게 없거나(회사의
@@ -250,40 +259,11 @@ def collect(asset_id: str) -> dict[str, Any]:
         # K-IFRS 1108 은 단일 영업부문인 회사도 그 사실을 공시하게 한다.
         statement = single_segment_statement(document)
         return {
-            "schema_version": SCHEMA,
-            "asset_id": asset_id,
-            "source": "DART_PERIODIC_REPORT",
-            "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(
-                timespec="seconds"
-            ),
             "available": False,
-            "rcept_no": rcept_no,
-            "report_name": filing.get("description"),
-            "filing_date": filing.get("filing_date"),
-            "raw_payload_sha256": object_path.stem,
-            "raw_locator": str(object_path.relative_to(ROOT)),
             "absence": "SINGLE_SEGMENT" if statement else "NO_TABLE_FOUND",
             "single_segment_statement": statement,
-            "_reason": (
-                f"이 회사는 단일 영업부문이라 부문 배분이 존재하지 않는다. "
-                f"공시 원문이 그렇게 적고 있다 — \"{statement}\""
-                if statement else
-                f"{filing.get('description')} 에서 사업부문별 요약 표를 특정하지 "
-                "못했고, 단일 영업부문이라는 공시도 없다. 표 형식이 바뀌었을 수 "
-                "있으므로 원문을 직접 본다. 부문 배분을 지어내지 않는다"
-            ),
-            "_retry_note": (
-                "회사의 사실이므로 다시 받을 것이 없다. 사업 구조가 바뀌어 "
-                "부문이 나뉘면 그때 표가 생긴다"
-                if statement else
-                "같은 보고서에 대해 다시 돌려도 결과는 같다. 다음 정기보고서가 "
-                "나오면 표 형식이 바뀌었을 수 있으므로 그때 다시 받는다"
-            ),
         }
-    try:
-        periods, segments = parse_segment_table(table)
-    except ContractError as exc:
-        fail("; ".join(exc.errors))
+    periods, segments = parse_segment_table(table)
     latest = periods[0]
     ranked = sorted(
         (
@@ -312,6 +292,89 @@ def collect(asset_id: str) -> dict[str, Any]:
         reverse=True,
     )
     return {
+        "unit": "억원",
+        "periods": periods,
+        "latest_period": latest,
+        "segments": segments,
+        "latest_mix": ranked,
+    }
+
+
+def contract_errors(
+    data: Any,
+    asset_id: str,
+    *,
+    index: dict[str, Any] | None = None,
+    root: Path = ROOT,
+) -> list[str]:
+    """저장된 부문 자료가 이 회사의 것이고 원문에서 그대로 다시 나오는가.
+
+    이 검사가 없을 때는 파일 이름이 정체성이었다 — `segments/005930.json` 안에
+    다른 회사의 asset_id 와 근거 없는 `latest_mix` 만 넣어도 packet 은 그것을
+    삼성전자의 부문 비중으로 실었다.
+    """
+    if not isinstance(data, dict):
+        return ["부문 자료가 JSON 객체가 아니다"]
+    if data.get("schema_version") != SCHEMA:
+        return [f"{SCHEMA}이 필요하다"]
+    if data.get("asset_id") != asset_id:
+        return ["부문 자료의 asset_id가 요청 자산과 다르다"]
+    rcept_no = data.get("rcept_no")
+    if not isinstance(rcept_no, str) or not re.fullmatch(r"\d{14}", rcept_no):
+        return ["부문 자료에 정기보고서 접수번호가 없다"]
+    if index is not None:
+        # 접수번호가 이 자산의 색인에 있어야 그 보고서가 이 회사의 것이다.
+        # 색인의 최신 정기보고서와 다르면 새 보고서가 나온 것이므로 낡았다.
+        latest = latest_periodic_filing(index)
+        if latest is None:
+            return ["공시 색인에 정기보고서가 없어 부문 자료의 보고서를 대조할 수 없다"]
+        if latest.get("accession_number") != rcept_no:
+            return [
+                f"공시 색인의 최신 정기보고서는 {latest.get('accession_number')} 인데 "
+                f"부문 자료는 {rcept_no} 에서 만들었다"
+            ]
+    digest = data.get("raw_payload_sha256")
+    locator = f"data/raw/dart/objects/{digest}.json"
+    if (
+        not isinstance(digest, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        or data.get("raw_locator") != locator
+    ):
+        return ["부문 자료의 원문 지문 또는 위치가 유효하지 않다"]
+    try:
+        raw = load_raw_snapshot(
+            Path(root) / locator,
+            expected_digest=digest,
+            expected_source="opendart.fss.or.kr",
+        )
+    except (OSError, ValueError):
+        return ["부문 자료의 원문이 없거나 내용 지문이 다르다"]
+    payload = raw["payload"]
+    documents = payload.get("documents")
+    if payload.get("rcept_no") != rcept_no or not isinstance(documents, dict) \
+            or not documents:
+        return ["부문 자료와 원문의 접수번호가 다르다"]
+    try:
+        derived = extract(max(documents.values(), key=len))
+    except ContractError:
+        return ["원문에서 부문표를 다시 읽을 수 없다"]
+    if (data.get("available") is False) != (derived.get("available") is False):
+        return ["부문 자료의 가용 여부가 원문에서 다시 읽은 결과와 다르다"]
+    changed = [key for key, value in derived.items() if data.get(key) != value]
+    if changed:
+        return [f"부문 자료가 원문에서 그대로 다시 나오지 않는다 ({', '.join(changed)})"]
+    return []
+
+
+def collect(asset_id: str) -> dict[str, Any]:
+    filing = _periodic_filing(asset_id)
+    rcept_no = filing["accession_number"]
+    document, object_path = _fetched_document(rcept_no)
+    try:
+        content = extract(document)
+    except ContractError as exc:
+        fail("; ".join(exc.errors))
+    packet = {
         "schema_version": SCHEMA,
         "asset_id": asset_id,
         "source": "DART_PERIODIC_REPORT",
@@ -321,21 +384,36 @@ def collect(asset_id: str) -> dict[str, Any]:
         "rcept_no": rcept_no,
         "report_name": filing.get("description"),
         "filing_date": filing.get("filing_date"),
-        "report_date": filing.get("report_date"),
-        "unit": "억원",
-        "periods": periods,
-        "latest_period": latest,
         "raw_payload_sha256": object_path.stem,
         "raw_locator": str(object_path.relative_to(ROOT)),
-        "segments": segments,
-        "latest_mix": ranked,
-        "_note": (
-            "부문 배분은 정기보고서 '사업부문별 요약 재무 현황' 표에서 그대로 "
-            "옮긴 값이다. 비중은 회사가 적은 값이며 부문 간 내부거래 제거 방식에 "
-            "따라 합이 100을 넘거나 모자랄 수 있다. 최신 기간은 정기보고서 "
-            "기준이라 그 이후 분기는 반영되지 않는다"
-        ),
+        **content,
     }
+    if content.get("available") is False:
+        statement = content["single_segment_statement"]
+        packet["_reason"] = (
+            f"이 회사는 단일 영업부문이라 부문 배분이 존재하지 않는다. "
+            f"공시 원문이 그렇게 적고 있다 — \"{statement}\""
+            if statement else
+            f"{filing.get('description')} 에서 사업부문별 요약 표를 특정하지 "
+            "못했고, 단일 영업부문이라는 공시도 없다. 표 형식이 바뀌었을 수 "
+            "있으므로 원문을 직접 본다. 부문 배분을 지어내지 않는다"
+        )
+        packet["_retry_note"] = (
+            "회사의 사실이므로 다시 받을 것이 없다. 사업 구조가 바뀌어 "
+            "부문이 나뉘면 그때 표가 생긴다"
+            if statement else
+            "같은 보고서에 대해 다시 돌려도 결과는 같다. 다음 정기보고서가 "
+            "나오면 표 형식이 바뀌었을 수 있으므로 그때 다시 받는다"
+        )
+        return packet
+    packet["report_date"] = filing.get("report_date")
+    packet["_note"] = (
+        "부문 배분은 정기보고서 '사업부문별 요약 재무 현황' 표에서 그대로 "
+        "옮긴 값이다. 비중은 회사가 적은 값이며 부문 간 내부거래 제거 방식에 "
+        "따라 합이 100을 넘거나 모자랄 수 있다. 최신 기간은 정기보고서 "
+        "기준이라 그 이후 분기는 반영되지 않는다"
+    )
+    return packet
 
 
 def save(packet: dict[str, Any]) -> Path:

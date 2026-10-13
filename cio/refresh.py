@@ -148,6 +148,10 @@ class RefreshTask:
     data_as_of: str | None = None
     resolved_path: str | None = None
     reason: str | None = None
+    # 낡은 것과 틀린 것은 다르다. 둘 다 state 는 STALE 이지만, 기한이 지난 값은
+    # 과거 관측으로 실을 수 있고 계약을 어긴 값(다른 회사·다른 스키마·원문과
+    # 다른 숫자)은 실으면 안 된다. packet 조립이 이 칸으로 둘을 가른다.
+    contract_error: str | None = None
 
 
 def _price_task(symbol: str, *, required: bool = True) -> RefreshTask:
@@ -185,6 +189,11 @@ def _benchmark_backfill_task(
     `companions` 는 같은 계획에서 함께 수집되는 한국 시계열이다. 거래일 달력이
     그 파일들의 합집합이라, 다른 파일에 새 날짜가 들어오면 이 지수의 구멍이
     그때 처음 보인다 — 자기 파일만 의존성으로 걸면 "구멍 없음" 기록이 낡는다.
+
+    필수가 아니다. 이것은 가격이 아니라 가격의 **보완**이다. 필수로 두면 KRX
+    키가 없는 설치에서는 Yahoo 가격과 재무가 멀쩡해도 표식 파일 하나가 없다는
+    이유로 모든 한국 자산의 판단이 막힌다. 메우지 못한 구멍은 packet 의
+    `session_gaps` 가 말하고, 그 날을 지나는 값은 packet 이 싣지 않는다.
     """
     market = KR_INDEX_MARKETS[symbol]
     filename = safe_symbol(symbol)
@@ -200,6 +209,7 @@ def _benchmark_backfill_task(
             "backfill",
             market,
         ],
+        required=False,
         dependencies=[
             f"knowledge/prices/{filename}.csv",
             *(f"knowledge/prices/{safe_symbol(other)}.csv"
@@ -257,7 +267,12 @@ def _asset_backfill_task(asset: dict[str, Any]) -> RefreshTask | None:
 
 
 def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshTask]:
-    asset = get_asset(asset_id)
+    return tasks_for_asset(get_asset(asset_id), include_optional=include_optional)
+
+
+def tasks_for_asset(
+    asset: dict[str, Any], *, include_optional: bool = False
+) -> list[RefreshTask]:
     tasks: list[RefreshTask] = [_price_task(asset["price_symbol"])]
 
     market_symbols = list(asset["benchmarks"])
@@ -531,10 +546,13 @@ def tasks_for(asset_id: str, *, include_optional: bool = False) -> list[RefreshT
                     *([
                         "knowledge/prices/_backfill/"
                         f"{safe_symbol(primary_benchmark)}.json"
-                    ] if primary_benchmark in KR_INDEX_MARKETS else []),
-                    # 종목 쪽 백필은 필수가 아니라 표식이 없을 수 있다. 없는
-                    # 입력을 의존성으로 걸면 급변 대조가 통째로 막히므로,
-                    # 한 번이라도 돈 뒤에만 건다.
+                    ] if primary_benchmark in KR_INDEX_MARKETS and (
+                        ROOT / "knowledge" / "prices" / "_backfill"
+                        / f"{safe_symbol(primary_benchmark)}.json").exists()
+                      else []),
+                    # 백필은 필수가 아니라 표식이 없을 수 있다. 없는 입력을
+                    # 의존성으로 걸면 급변 대조가 통째로 막히므로, 지수·종목
+                    # 모두 한 번이라도 돈 뒤에만 건다.
                     *([asset_backfill.artifact] if asset_backfill and (
                         ROOT / asset_backfill.artifact).exists() else []),
                 ],
@@ -688,10 +706,13 @@ def _append_optional(tasks: list[RefreshTask], asset: dict[str, Any]) -> None:
                 name=f"segments:{asset['asset_id']}",
                 capability="KR_SEGMENTS",
                 artifact=f"knowledge/segments/{asset['asset_id']}.json",
-                # 정기보고서에서 나오므로 분기에 한 번만 바뀐다.
+                # 정기보고서에서 나오므로 분기에 한 번만 바뀐다. 공시 색인에
+                # 시간 의존을 걸지 않는다 — 걸면 색인을 다시 받을 때마다(매일)
+                # 같은 보고서에서 같은 표를 다시 뽑는다. 무효화는 내용으로 한다:
+                # 색인의 최신 정기보고서가 이 자료의 보고서와 다를 때만 낡았다
+                # (`collectors.kr_segments.contract_errors`).
                 max_age_hours=2160,
                 required=False,
-                dependencies=[f"knowledge/filings/{asset['asset_id']}.json"],
                 command=[
                     sys.executable,
                     "-m",
@@ -913,6 +934,58 @@ def _latest_fundamentals_period(asset_id: str) -> str | None:
     return max(periods) if periods else None
 
 
+# 2차 출처 CSV 의 계약: (이름, 있어야 하는 열, 최근 행에 값이 있어야 하는 열).
+#
+# 이 셋에는 계약 분기가 아예 없었다. 그래서 순매수 열이 통째로 없는 수급 파일이
+# FRESH 로 통과했고 packet 은 결측을 순매수 0주로 실었다.
+SECONDARY_CSV_CONTRACTS = {
+    "KR_FLOW": ("수급", ("date", "institution_net", "foreign_net"),
+                ("institution_net", "foreign_net")),
+    "KR_LENDING": ("대차잔고", ("date", "balance_shares"), ("balance_shares",)),
+    "KR_INVENTORY": ("재고자산", ("period_end", "inventories"), ("inventories",)),
+}
+SECONDARY_CSV_RECENT_ROWS = 20
+
+
+def _finite(value: Any) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _secondary_csv_error(
+    path: Path,
+    asset_id: str,
+    *,
+    label: str,
+    required: tuple[str, ...],
+    value_columns: tuple[str, ...],
+) -> str | None:
+    try:
+        with path.open(encoding="utf-8-sig") as handle:
+            lines = list(handle)
+    except OSError:
+        return f"{label} 파일을 읽을 수 없다"
+    # 파일 이름이 아니라 파일이 스스로 말하는 종목을 본다. 수집기는 첫 줄에
+    # 종목코드를 적는다.
+    first = lines[0] if lines else ""
+    if not re.match(rf"#\s*{re.escape(asset_id)}(\s|$)", first):
+        return f"{label} 파일 머리말의 종목이 요청 자산과 다르거나 없다"
+    rows = list(
+        csv.DictReader(line for line in lines if not line.lstrip().startswith("#"))
+    )
+    if not rows or not set(required).issubset(rows[0]):
+        return f"{label} 파일에 필수 열({', '.join(required)}) 또는 행이 없다"
+    recent = rows[-SECONDARY_CSV_RECENT_ROWS:]
+    if not any(_finite(row.get(column)) for row in recent for column in value_columns):
+        return (
+            f"{label} 파일의 최근 {len(recent)}행에 {'·'.join(value_columns)} 값이 "
+            "하나도 없다 — 결측을 0 으로 읽지 않는다"
+        )
+    return None
+
+
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
     if task.capability in {"US_CAPITAL", "US_SEGMENTS", "US_EARNINGS"}:
         import importlib
@@ -939,7 +1012,8 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
                     if not line.lstrip().startswith("#")
                 )
                 header = next(body, [])
-                dates = [row[0] for row in body if row]
+                data_rows = [row for row in body if row]
+                dates = [row[0] for row in data_rows]
         except OSError:
             return "가격 파일을 읽을 수 없다"
         if first_line != "# schema_version price-series/2.1.0":
@@ -993,12 +1067,68 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             return "가격 파일의 마지막 봉 날짜가 유효하지 않다"
         if session_metadata.group(1) != dates[-1]:
             return "가격 파일의 last_bar 날짜가 실제 마지막 행과 다르다 — 세션 상태를 적용할 수 없다"
+        # 마지막 행의 종가가 숫자가 아니면 packet 은 그 행을 버리고 하루 전 값을
+        # 현재가로 쓰면서, 세션 상태는 버린 날짜의 것을 그대로 붙인다.
+        try:
+            last_close = float(data_rows[-1][header.index("close")])
+        except (IndexError, ValueError):
+            last_close = math.nan
+        if not math.isfinite(last_close):
+            return "가격 파일 마지막 행의 종가가 숫자가 아니다"
+        # 신선도는 회수시각으로 잰다. 그러나 **지금 받았다는 것과 지금의 시세라는
+        # 것은 다르다** — 과거에 끝난 시계열을 오늘 받아도 회수시각은 오늘이다.
+        # 마지막 봉이 회수일과 너무 멀면 현재 시세가 아니고, 회수일보다 뒤면
+        # 관측이 아니다.
+        lag_days = (retrieved_at.date() - dt.date.fromisoformat(dates[-1])).days
+        if lag_days < -1:
+            return (
+                f"가격 파일의 마지막 봉 {dates[-1]} 이 회수시각보다 뒤다 — "
+                "미래 날짜의 시세는 관측이 아니다"
+            )
+        if lag_days > MAX_PRICE_BAR_LAG_DAYS:
+            return (
+                f"가격 파일의 마지막 봉이 {dates[-1]} 로 회수일보다 {lag_days}일 "
+                "앞선다 — 거래정지·상장폐지이거나 응답이 과거 구간만 실었다. "
+                "현재 시세로 쓸 수 없다"
+            )
         # 한 행 = 하루라는 것이 이 파일을 읽는 모든 계산의 전제다. 수집기가
         # 월봉 저장을 막지만 그것은 앞으로 저장될 파일에만 걸린다 — 이미
         # 디스크에 있는 파일은 여기서 걸러야 모델에 실려 나가지 않는다.
         error = _non_daily_reason(dates)
         if error:
             return error
+    if task.capability in SECONDARY_CSV_CONTRACTS:
+        label, required, value_columns = SECONDARY_CSV_CONTRACTS[task.capability]
+        error = _secondary_csv_error(
+            path, task.name.split(":", 1)[-1],
+            label=label, required=required, value_columns=value_columns,
+        )
+        if error:
+            return error
+    if task.capability == "KR_SEGMENTS":
+        from collectors.kr_segments import contract_errors as segment_errors
+
+        asset_id = task.name.split(":", 1)[-1]
+        index_path = ROOT / "knowledge" / "filings" / f"{asset_id}.json"
+        try:
+            errors = segment_errors(
+                load_json(path), asset_id,
+                index=load_json(index_path) if index_path.exists() else None,
+                root=ROOT,
+            )
+        except (OSError, ValueError) as exc:
+            return f"부문 자료를 읽을 수 없다: {exc}"
+        if errors:
+            return errors[0]
+    if task.capability == "KR_PRODUCT_SALES":
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            return "품목군별 매출 자료를 읽을 수 없다"
+        if data.get("schema_version") != "kr-product-sales/1.0.0":
+            return "kr-product-sales/1.0.0이 필요하다"
+        if data.get("asset_id") != task.name.split(":", 1)[-1]:
+            return "품목군별 매출 자료의 asset_id가 요청 자산과 다르다"
     if task.capability == "KR_EPC":
         from collectors.kr_epc import contract_errors
         try:
@@ -1134,6 +1264,22 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             return "재무 스냅샷 원문의 내용 지문이 유효하지 않다"
         if (raw_document.get("payload") or {}).get("_instrument") != raw_identity:
             return "재무 스냅샷과 원문의 자산 식별자가 다르다"
+        # 지문은 파일이 보존됐다는 증거이지 그 안의 숫자가 원문과 같다는 증거가
+        # 아니다. 수집기의 도출 함수를 봉인된 원문에 다시 돌려 값을 대조한다.
+        # 추출 규칙이 바뀌어 옛 규칙의 스냅샷이 틀려진 경우도 여기서 걸린다 —
+        # SK하이닉스의 총차입은 옛 분류로 2.5조, 지금 분류로 21.8조다.
+        if raw_kind == "dart":
+            from collectors.dart import replay_fundamentals
+        else:
+            from collectors.edgar import replay_fundamentals
+        differences = replay_fundamentals(data, raw_document["payload"])
+        if differences:
+            return (
+                "재무 스냅샷이 봉인된 원문에서 그대로 다시 나오지 않는다 — "
+                f"{differences[0]}"
+                + (f" 외 {len(differences) - 1}건" if len(differences) > 1 else "")
+                + ". 다시 수집한다"
+            )
     if task.capability == "FILINGS":
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -1429,6 +1575,7 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
 
 # 한국 영업일 기준으로 가장 긴 연휴(추석+주말)도 열흘을 넘지 않는다.
 MAX_HOLDINGS_LAG_DAYS = 14
+MAX_PRICE_BAR_LAG_DAYS = 14
 
 
 def _holdings_retrieved_at(path: Path) -> dt.datetime | None:
@@ -1505,6 +1652,7 @@ def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> Refres
     if contract_error:
         task.state = "STALE"
         task.reason = contract_error
+        task.contract_error = contract_error
 
     dependency_times = [
         observed
@@ -1525,6 +1673,16 @@ def inspect_plan(
     return [
         inspect_task(task)
         for task in tasks_for(asset_id, include_optional=include_optional)
+    ]
+
+
+def inspect_asset_plan(
+    asset: dict[str, Any], *, include_optional: bool = False
+) -> list[RefreshTask]:
+    """registry 를 다시 읽지 않고, 넘겨받은 자산 정의 그대로 계획을 점검한다."""
+    return [
+        inspect_task(task)
+        for task in tasks_for_asset(asset, include_optional=include_optional)
     ]
 
 
