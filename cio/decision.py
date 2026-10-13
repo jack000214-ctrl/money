@@ -1100,7 +1100,9 @@ def _string_list(
 
 
 def find_context(context_id: str) -> tuple[dict[str, Any], Path]:
-    if not CONTEXT_ID_RE.fullmatch(context_id):
+    # 호출부마다 str() 로 감싸게 두지 않는다. `validate` 는 감싸지 않았고, 모델이
+    # context_id 를 목록으로 내면 정규식이 TypeError 로 끝나 traceback 이 났다.
+    if not isinstance(context_id, str) or not CONTEXT_ID_RE.fullmatch(context_id):
         raise ContractError([f"context_id {context_id}: CTX-<20자리 16진수> 형식이 아니다"])
     matches = list(
         (KNOWLEDGE_DIR / "contexts").glob(f"*/{context_id}.json")
@@ -1239,7 +1241,92 @@ def normalize_decision(data: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+DECISION_SCHEMA_PATH = ROOT / "schemas" / "cio-decision.schema.json"
+JSON_TYPE_LABELS = {
+    "object": "객체", "array": "목록", "string": "문자열", "number": "숫자",
+    "integer": "정수", "boolean": "참·거짓", "null": "null",
+}
+
+
+def _json_type(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    return "object" if isinstance(value, dict) else type(value).__name__
+
+
+def _shape_errors(value: Any, schema: Any, field: str = "") -> list[str]:
+    """schema 의 `type` 만 따라 내려가며 JSON 형이 다른 자리를 찾는다.
+
+    값의 범위·열거·조건부 규칙은 보지 않는다. 그것은 아래 값 검사의 일이고,
+    여기는 그 검사가 성립하지 않을 때 **어느 필드의 형이 틀렸는지**만 답한다.
+    """
+    if not isinstance(schema, dict):
+        return []
+    declared = schema.get("type")
+    if declared is None:
+        # 열거값은 대개 type 없이 enum 만 적는다. 형은 그 원소들의 형이다.
+        members = schema.get("enum") or (
+            [schema["const"]] if "const" in schema else [])
+        declared = sorted({_json_type(member) for member in members}) or None
+    if isinstance(declared, (str, list)):
+        allowed = [declared] if isinstance(declared, str) else declared
+        actual = _json_type(value)
+        whole = actual == "number" and float(value).is_integer()
+        if actual not in allowed and not ("integer" in allowed and whole):
+            wanted = "·".join(JSON_TYPE_LABELS.get(name, name) for name in allowed)
+            return [
+                f"{field or '판단'}: 형이 계약과 다르다 — {wanted} 자리에 "
+                f"{JSON_TYPE_LABELS.get(actual, actual)}"
+            ]
+    errors: list[str] = []
+    properties = schema.get("properties")
+    if isinstance(value, dict) and isinstance(properties, dict):
+        for key, child in properties.items():
+            if key in value:
+                errors.extend(_shape_errors(
+                    value[key], child, f"{field}.{key}" if field else key))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            errors.extend(
+                _shape_errors(item, schema.get("items"), f"{field}[{index}]"))
+    return errors
+
+
 def validate_decision(
+    data: dict[str, Any],
+    *,
+    context: dict[str, Any] | None = None,
+) -> list[str]:
+    """판단이 계약을 지키는지 본다. 지키면 빈 목록.
+
+    값 검사는 객체 자리에는 객체가, 열거값 자리에는 문자열이 있다고 믿고
+    내려간다. 모델이 `"action": "HOLD"` 처럼 형을 틀리면 그 믿음이 깨져 검사가
+    예외로 끝나고, CLI 는 어느 필드인지 말하지 않는 traceback 을 낸다 — 모델이
+    스스로 고칠 단서가 없다. 그때는 schema 로 형이 다른 자리를 찾아 계약 오류로
+    돌려준다. schema 가 설명하지 못하는 예외는 검증기의 결함이므로 숨기지 않는다.
+    """
+    try:
+        return _validate_decision_values(data, context=context)
+    except (AttributeError, TypeError):
+        try:
+            schema = json.loads(DECISION_SCHEMA_PATH.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            schema = None
+        shape = _shape_errors(data, schema)
+        if not shape:
+            raise
+        return shape
+
+
+def _validate_decision_values(
     data: dict[str, Any],
     *,
     context: dict[str, Any] | None = None,

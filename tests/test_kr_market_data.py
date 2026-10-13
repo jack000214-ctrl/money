@@ -318,6 +318,34 @@ class TestStockSeriesIsFilledFromTheExchange(unittest.TestCase):
                 limit=kwargs.get("limit", 20))
         return calls
 
+    def test_a_failed_write_leaves_the_stored_history_untouched(self):
+        """메운 결과를 제자리에서 열어 썼다. 쓰다 죽으면 잘린 파일만 남는다.
+
+        이 파일에는 야후가 더는 주지 않는 과거 봉이 있어 다시 받을 수 없다.
+        """
+        class Failing:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def writeheader(self):
+                pass
+
+            def writerows(self, rows):
+                raise ValueError("행이 FIELDS 와 어긋난다")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self._files(directory, extra="# missing_sessions 2026-10-12 / 사라졌다\n")
+            before = (directory / "214450_KQ.csv").read_bytes()
+            with patch.object(krx.csv, "DictWriter", Failing), \
+                    self.assertRaises(ValueError):
+                self._run(directory, {"2026-10-12": {
+                    "close": 297000.0, "high": 306500.0, "low": 296500.0,
+                    "volume": 69710.0}})
+            self.assertEqual((directory / "214450_KQ.csv").read_bytes(), before)
+            self.assertEqual(sorted(p.name for p in directory.iterdir() if p.is_file()),
+                             ["214450_KQ.csv", "KS11.csv"])
+
     def test_the_lost_session_is_filled_with_the_exchange_close(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)

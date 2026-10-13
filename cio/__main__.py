@@ -269,6 +269,9 @@ def cmd_requests(args) -> int:
 
 
 def cmd_pipeline(args) -> int:
+    # 조회도 등록부를 거친다. 오타 난 자산에 "기록된 파이프라인이 없다"를 exit 0 으로
+    # 답하면 없는 종목의 논지가 비었다는 안내가 된다.
+    get_asset(args.asset_id)
     if not args.name:
         print(format_pipeline(args.asset_id))
         return 0

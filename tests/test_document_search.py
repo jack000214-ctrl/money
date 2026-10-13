@@ -462,10 +462,11 @@ class TestUnfetchedExhibits(unittest.TestCase):
     PRIMARY = "https://www.sec.gov/Archives/edgar/data/1/000000000026000999/earnings.htm"
     EXHIBIT = "https://www.sec.gov/Archives/edgar/data/1/000000000026000999/ex991.htm"
 
-    def exhibits(self, body, *, stored_exhibit=False):
+    def exhibits(self, body, *, stored_exhibit=False, stored=()):
         available = [{"url": self.PRIMARY, "locator": "primary.json"}]
         if stored_exhibit:
             available.append({"url": self.EXHIBIT, "locator": "exhibit.json"})
+        available.extend({"url": url, "locator": "other.json"} for url in stored)
         with patch.object(documents_module, "documents_for",
                           return_value={"available": available}), \
                 patch.object(documents_module, "load_json",
@@ -494,6 +495,21 @@ class TestUnfetchedExhibits(unittest.TestCase):
                           side_effect=OSError("읽을 수 없다")):
             self.assertIsNone(
                 documents_module.unfetched_exhibits("TSLA", self.PRIMARY))
+
+    # 실제 8-K 본체의 모양(TSLA 2026-10-02). inline XBRL 이라 자기 스키마를 먼저
+    # 가리키고, 첨부 링크의 글자에는 "99.1" 이 없다.
+    INLINE = ("<link:schemaRef xlink:type='simple' xlink:href='earnings.xsd'/>"
+              "<p>Tesla published the press release which is attached hereto as "
+              "Exhibit 99.1.</p><table><tr><td>99.1</td>"
+              "<td><a href='ex991.htm'>Press release</a></td></tr></table>")
+    SCHEMA = PRIMARY.rsplit("/", 1)[0] + "/earnings.xsd"
+
+    def test_the_inline_xbrl_schema_is_not_an_exhibit(self):
+        self.assertEqual(self.exhibits(self.INLINE), [self.EXHIBIT])
+
+    def test_fetching_the_schema_does_not_complete_the_filing(self):
+        self.assertEqual(
+            self.exhibits(self.INLINE, stored=[self.SCHEMA]), [self.EXHIBIT])
 
 
 class TestFetchHintAcrossAssetTypes(unittest.TestCase):

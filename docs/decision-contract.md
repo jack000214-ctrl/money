@@ -710,6 +710,12 @@ context에서는 숫자 verdict를 기록할 수 없으며 null 수치의 `INSUF
 quarantine 자산으로 남는다. `assessment_id`는 내용의 지문으로 프로그램이
 계산하므로 모델은 생략해도 된다.
 
+형이 틀린 출력(`"verdict": ["WAIT"]`, `"action": "HOLD"`)도 계약 오류다. 값 검사는
+객체·문자열이 제자리에 있다고 믿고 내려가므로 형이 틀리면 검사 자체가 성립하지
+않는다. 그때는 `schemas/cio-decision.schema.json`의 `type`으로 형이 다른 필드를
+전부 찾아 `<필드>: 형이 계약과 다르다 — <기대> 자리에 <실제>`로 알린다. 형 진단은
+값 검사가 성립하지 않을 때만 쓰며 평소의 오류 메시지를 대신하지 않는다.
+
 `record`가 검증을 통과한 판단은 `knowledge/assessments/<asset_id>/`에 저장된다.
 실패한 출력은 공식 기억에 섞지 않고 `knowledge/quarantine/<asset_id>/`에 오류와
 함께 보존해 모델 평가 자료로 사용한다.

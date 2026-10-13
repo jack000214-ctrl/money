@@ -26,10 +26,11 @@ from unittest.mock import patch
 import helpers  # noqa: F401  (저장소 루트를 sys.path 에 올린다)
 from calculators.contracts import ContractError
 from cio import __main__ as cli
+from cio.assets import AssetRegistryError
 from cio.context import INTENTS
 from cio.documents import DocumentError
 from cio.pipeline import PipelineError
-from cio.retire import RetireError
+from cio.retire import RetireError, retire as retire_judgments
 
 
 def run(argv):
@@ -188,10 +189,21 @@ class TestErrorPathsExitTwo(unittest.TestCase):
             code, _ = run(["pipeline", "RXRX", "--name", "REC-1"])
         self.assertEqual(code, 2)
 
+    def test_pipeline_lookup_of_an_unregistered_asset_is_an_error(self):
+        """오타 난 자산에 '기록된 파이프라인이 없다'를 exit 0 으로 답했다."""
+        with self.assertRaises(AssetRegistryError):
+            run(["pipeline", "NOPE"])
+
     def test_retire_error_exits_two(self):
         with patch.object(cli, "retire", side_effect=RetireError("대상이 없다")):
             code, _ = run(["retire", "TSLA", "--reason", "구버전"])
         self.assertEqual(code, 2)
+
+    def test_retire_refuses_a_pasted_placeholder_reason(self):
+        """안내문의 `--reason "<사유>"` 를 그대로 넣은 폐기가 기록에 남았다."""
+        for reason in ("<사유>", "  <reason> "):
+            with self.subTest(reason=reason), self.assertRaises(RetireError):
+                retire_judgments("TSLA", reason=reason)
 
     def test_retire_without_reason_only_surveys(self):
         """사유 없이 부르면 조회다. 실수로 폐기가 일어나면 안 된다."""

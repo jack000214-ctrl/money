@@ -20,6 +20,7 @@ import datetime as dt
 import json
 import os
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -428,17 +429,32 @@ def backfill_series(csv_path: Path, *, symbol: str, endpoint: str, fetch_bar,
                          if d not in present]
         kept = [ln for ln in header if not ln.startswith(
             (price_series.BACKFILLED_PREFIX, price_series.MISSING_SESSIONS_PREFIX))]
-        with csv_path.open("w", newline="", encoding="utf-8") as f:
-            f.writelines(kept)
-            f.write(f"{price_series.BACKFILLED_PREFIX}{','.join(backfilled)} / "
-                    f"source KRX Open API ({endpoint}) — 거래소 원문\n")
-            if still_missing:
-                f.write(f"{price_series.MISSING_SESSIONS_PREFIX}"
-                        f"{','.join(still_missing)} / 봉이 저장됐다가 응답에서 "
-                        "사라졌고 확정값으로 재확인되지 않았다\n")
-            w = csv.DictWriter(f, fieldnames=price_series.FIELDS)
-            w.writeheader()
-            w.writerows(rows)
+        # 제자리에서 열어 쓰지 않는다. 이 파일에는 야후가 더는 주지 않는 과거 봉이
+        # 들어 있어서, 쓰는 도중 끊기거나 행 하나가 FIELDS 와 어긋나 writerows 가
+        # 죽으면 잘린 파일만 남고 그 이력은 다시 받을 수 없다. 주 수집기
+        # (`price.save`)처럼 옆에 다 쓴 뒤 바꿔 놓는다.
+        temporary_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                    "w", newline="", encoding="utf-8", dir=csv_path.parent,
+                    delete=False) as f:
+                temporary_name = f.name
+                f.writelines(kept)
+                f.write(f"{price_series.BACKFILLED_PREFIX}{','.join(backfilled)} / "
+                        f"source KRX Open API ({endpoint}) — 거래소 원문\n")
+                if still_missing:
+                    f.write(f"{price_series.MISSING_SESSIONS_PREFIX}"
+                            f"{','.join(still_missing)} / 봉이 저장됐다가 응답에서 "
+                            "사라졌고 확정값으로 재확인되지 않았다\n")
+                w = csv.DictWriter(f, fieldnames=price_series.FIELDS)
+                w.writeheader()
+                w.writerows(rows)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary_name, csv_path)
+        finally:
+            if temporary_name and Path(temporary_name).exists():
+                Path(temporary_name).unlink()
 
     write_marker(filled, unfilled, reasons)
 

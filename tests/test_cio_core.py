@@ -289,6 +289,23 @@ class TestCompactContext(unittest.TestCase):
                 "cio.context.inspect_plan",
                 return_value=[FreshTask("price:TSLA")],
             ),
+            # 여기서 재는 것은 고정 입력으로 만든 packet 의 뼈대다. 아래를 실제
+            # 저장소에서 읽으면 크기가 그날 수집된 양과 이 PC 의 투자자 정책
+            # (.gitignore)에 따라 달라진다 — TSLA 자본·부문 수집이 생긴 날
+            # 34,874 B 가 되어 코드 변경 없이 실패했다.
+            patch(
+                "cio.context._optional_collection_summaries",
+                return_value=({}, []),
+            ),
+            patch("cio.context._us_automated_summaries", return_value=({}, [])),
+            patch(
+                "cio.context._earnings_calendar_section",
+                return_value=(None, None),
+            ),
+            patch("cio.context.load_policy", return_value=(None, [])),
+            patch("cio.context.documents_for_context", return_value=None),
+            patch("cio.context.open_requests_for_context", return_value=[]),
+            patch("cio.capital.section", return_value=(None, [])),
         ):
             packet, path = build_context(
                 "TSLA",
@@ -304,7 +321,7 @@ class TestCompactContext(unittest.TestCase):
         size = len(
             json.dumps(packet, ensure_ascii=False, separators=(",", ":")).encode()
         )
-        self.assertLess(size, 30_000)
+        self.assertLess(size, 15_000)
 
 
 class TestDecisionBoundary(unittest.TestCase):

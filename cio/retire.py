@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ RETIRED_DIR = KNOWLEDGE_DIR / "retired"
 
 CONTRACT_FAILURE = "CONTRACT_FAILURE"
 USER_DECLARED = "USER_DECLARED"
+PLACEHOLDER_RE = re.compile(r"<[^<>]{1,40}>")
 
 
 class RetireError(Exception):
@@ -168,6 +170,13 @@ def retire(
         raise RetireError(
             "폐기 사유가 필요하다. 왜 못 믿는지가 기록에 남아야 나중에 "
             "'그때 왜 버렸지'에 답할 수 있다"
+        )
+    # 안내문의 `--reason "<사유>"` 를 그대로 붙여 넣으면 빈 사유와 같은데도
+    # 통과했다. 그 문자열이 폐기 기록에 남고, 이후 모든 packet 의
+    # prior_assessments.retired 에 사유로 실린다(214450, 2026-10-13).
+    if PLACEHOLDER_RE.fullmatch(reason):
+        raise RetireError(
+            f"폐기 사유가 자리표시자 그대로다({reason}). 왜 못 믿는지를 문장으로 적는다"
         )
     state = survey(asset_id)
     if assessment_id:

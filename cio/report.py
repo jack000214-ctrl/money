@@ -690,22 +690,28 @@ def format_evaluations(asset_id: str, *, with_plan: bool = False) -> str:
         lines.append("  기록된 판단이 없다")
         return "\n".join(lines)
 
+    # 결론 칸은 가장 긴 값에 맞춘다. 14칸 고정일 때 `WAIT/UNDETERMINED` 가 칸을
+    # 넘쳐 실현% 와 붙어 `WAIT/UNDETERMINED-33.6%` 로 찍혔다.
+    decisions = [
+        f"{row.get('verdict') or '—'}/{row.get('action') or '—'}"
+        for row in report["rows"]
+    ]
+    decision_width = max([14, *(cell_width(text) + 2 for text in decisions)])
     header = (
         f"  {_pad('판단시각', 17)}{_pad('ID', 10)}{_pad('출처', 9)}"
-        f"{_pad('기준가', 10)}{_pad('결론', 14)}{_pad('실현%', 8)}"
+        f"{_pad('기준가', 10)}{_pad('결론', decision_width)}{_pad('실현%', 8)}"
     )
     if with_plan:
         header += f"{_pad('선호진입', 10)}{_pad('손절', 10)}{_pad('분할매도', 10)}"
     lines += ["", header, "  " + "-" * (WIDTH - 4)]
-    for row in report["rows"]:
+    for row, decision in zip(report["rows"], decisions):
         created = str(row.get("created_at") or "")[:16].replace("T", " ")
-        decision = f"{row.get('verdict') or '—'}/{row.get('action') or '—'}"
         line = (
             f"  {_pad(created, 17)}"
             f"{_pad(str(row['assessment_id'])[4:12], 10)}"
             f"{_pad(row['source'], 9)}"
             f"{_pad(_exact_num(row.get('asked_price')), 10)}"
-            f"{_pad(decision, 14)}"
+            f"{_pad(decision, decision_width)}"
             f"{_pad(_signed(row.get('return_to_latest_pct')), 8)}"
         )
         if with_plan:

@@ -285,6 +285,23 @@ class TestExitPlanReport(unittest.TestCase):
         self.assertIn("가격 2026-01-03", output)
         self.assertIn("실제 집행 미확인", output)
 
+    def test_evals_keeps_the_longest_decision_apart_from_the_return(self):
+        """결론 칸이 14칸 고정이라 `WAIT/UNDETERMINED-33.6%` 로 붙어 찍혔다."""
+        rows = [{"created_at": "2026-01-01T12:00:00-05:00",
+                 "assessment_id": "CIO-" + str(index) * 20, "source": "LIVE",
+                 "asked_price": 100.0, "verdict": verdict, "action": action,
+                 "return_to_latest_pct": -33.6, "triggered": []}
+                for index, (verdict, action) in enumerate(
+                    (("WAIT", "HOLD"), ("INSUFFICIENT", "UNDETERMINED")))]
+        report = {"asset_id": "TSLA", "name": "Tesla", "assessment_count": 2,
+                  "scored_count": 2, "unscored_count": 0, "rows": rows}
+        with patch("cio.report.evaluations_for", return_value=report):
+            lines = format_evaluations("TSLA").splitlines()
+        short, long = (next(line for line in lines if text in line)
+                       for text in ("WAIT/HOLD", "INSUFFICIENT/UNDETERMINED"))
+        self.assertIn("INSUFFICIENT/UNDETERMINED  -33.6%", long)
+        self.assertEqual(short.index("-33.6%"), long.index("-33.6%"))
+
 
 if __name__ == "__main__":
     unittest.main()

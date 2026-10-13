@@ -653,6 +653,10 @@ def preserved_document_ids() -> frozenset[str]:
 
 EXHIBIT_REFERENCE_RE = re.compile(r"Exhibit\s*99|EX-99", re.IGNORECASE)
 HREF_RE = re.compile(r"""href\s*=\s*["']([^"'#]+)["']""", re.IGNORECASE)
+# 첨부로 세는 것은 읽을 문서뿐이다. inline XBRL 본체는 자기 스키마(.xsd)를
+# xlink:href 로 가리키는데, 같은 폴더의 링크라는 이유로 그것을 첨부로 세면 받을
+# 것으로 스키마를 안내하고, 스키마를 받으면 첨부를 가졌다고 통과시킨다.
+EXHIBIT_DOCUMENT_SUFFIXES = (".htm", ".html", ".txt", ".pdf")
 
 
 def unfetched_exhibits(asset_id: str, document_url: str) -> list[str] | None:
@@ -688,6 +692,8 @@ def unfetched_exhibits(asset_id: str, document_url: str) -> list[str] | None:
     linked = []
     for href in HREF_RE.findall(body):
         url = href if "://" in href else directory + href.lstrip("./")
+        if not url.split("?", 1)[0].lower().endswith(EXHIBIT_DOCUMENT_SUFFIXES):
+            continue
         if url.startswith(directory) and url != document_url and url not in linked:
             linked.append(url)
     if any(url in stored for url in linked):
