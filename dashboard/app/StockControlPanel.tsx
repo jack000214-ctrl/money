@@ -483,7 +483,7 @@ export function StockControlPanel({
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "20px" }}>📈</span>
             <span style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.02em", color: "#38bdf8" }}>
-              Personal-CIO
+              SIA
             </span>
           </div>
 

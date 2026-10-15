@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 > nul
-title Personal-CIO Launcher
+title SIA Launcher
 
 echo ==========================================================
-echo   Personal-CIO (자산 증식 의사결정 시스템) 원클릭 실행기
+echo   SIA (자산 증식 의사결정 시스템) 원클릭 실행기
 echo ==========================================================
 echo.
 

@@ -830,6 +830,7 @@ IS_EXPENSE_IDS = [
     # 회사마다 표준코드와 IS/CIS 위치가 달라 후보를 넓게 잡고 항등식으로 검증한다.
     ("ifrs-full_SellingGeneralAndAdministrativeExpense", "판매비와관리비"),
     ("ifrs-full_ResearchAndDevelopmentExpense", "연구개발비"),
+    ("dart_OrdinaryDevelopmentExpense", "연구개발비"),
     ("dart_SellingExpenses", "판매비"),
     ("dart_AdministrativeExpenses", "관리비"),
 ]

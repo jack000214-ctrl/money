@@ -1,5 +1,5 @@
 """
-Personal-CIO LLM 인터페이스 — Bob Shell CLI 연동 모듈.
+SIA LLM 인터페이스 — Bob Shell CLI 연동 모듈.
 
 Bob Shell CLI (`bob run`)를 서브프로세스로 호출하여:
 1. CIO 시스템 프롬프트(prompts/cio-system.md) 기반의 투자 판단(BUY_NOW/WAIT/AVOID) 생성
@@ -157,7 +157,7 @@ def run_bob_shell(
 
 
 class LLMInterface:
-    """Personal-CIO 전용 LLM(Bob) 인터페이스."""
+    """SIA 전용 LLM(Bob) 인터페이스."""
 
     def __init__(self):
         _load_env_file()
