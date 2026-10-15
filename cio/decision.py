@@ -59,6 +59,11 @@ PRICE_KEYS = {
     "reask_above",
     "reask_events",
 }
+# 진입가가 가격 말고도 기다리는 것. `required` 에 넣지 않은 것은 의도다 —
+# 필수로 만들면 이 필드가 없는 기존 판단이 전부 계약 미달로 끊긴다. 대신 그것을
+# 선언한 새 context 에서, 검토 가격이 진입 범위 상단 이하인데 새 자금을 넣지
+# 않을 때만 요구한다 (아래 context 블록).
+PRICE_OPTIONAL_KEYS = {"entry_conditions"}
 TOP_LEVEL_KEYS = {
     "entry_plan",
     "entry_plan_checks",
@@ -233,6 +238,9 @@ EVIDENCE_FAMILY_BY_PREFIX = (
     ("PORTFOLIO:", "USER_DATA"),
     ("POLICY:", "USER_DATA"),
     ("POSITION_LEDGER:", "USER_DATA"),
+    # 살아 있는 직전 판단의 원문. 그 판단이 **무엇을 말했는가**만 답한다 —
+    # 그 안의 숫자는 그때 모델의 서술이지 재무·가격 자료가 아니다.
+    ("ASSESSMENT:", "PRIOR_JUDGMENT"),
     ("NORMALIZED_EARNINGS:", "CALCULATION"),
     ("CALC-", "CALCULATION"),
     ("NORM-", "CALCULATION"),
@@ -253,9 +261,15 @@ CLAIM_EVIDENCE_FAMILIES = {
         "PRIMARY_DOCUMENT", "MODEL_RESEARCH", "SECONDARY", "ETF_HOLDINGS",
         "FINANCIALS",
     },
-    "MARKET": {"MARKET_STATE", "PRICE", "MODEL_RESEARCH", "SECONDARY"},
+    # 보존한 시황 기사(PRIMARY_DOCUMENT)를 받지 않으면서 보존하지 않은 같은
+    # 기사(MODEL_RESEARCH)는 받았다 — 보존한 쪽이 불리했다.
+    "MARKET": {
+        "MARKET_STATE", "PRICE", "MODEL_RESEARCH", "SECONDARY", "PRIMARY_DOCUMENT",
+    },
     "EVENT_DATE": {"FILING_INDEX", "PRIMARY_DOCUMENT", "MODEL_RESEARCH"},
     "PORTFOLIO": {"USER_DATA"},
+    # "지난번에 X라고 했다" — 사용자가 기억한 과거 조언은 저장된 그 판단으로만 닫는다.
+    "PRIOR_JUDGMENT": {"PRIOR_JUDGMENT"},
 }
 
 
@@ -1595,9 +1609,19 @@ def _validate_decision_values(
 
     price_plan = data.get("price_plan")
     price_values: dict[str, float | None] = {}
-    if not isinstance(price_plan, dict) or set(price_plan) != PRICE_KEYS:
+    entry_conditions: list[str] = []
+    if (
+        not isinstance(price_plan, dict)
+        or set(price_plan) - PRICE_OPTIONAL_KEYS != PRICE_KEYS
+    ):
         errors.append("price_plan: 계약 필드가 정확히 필요하다")
     else:
+        if "entry_conditions" in price_plan:
+            entry_conditions = _string_list(
+                price_plan.get("entry_conditions"),
+                "price_plan.entry_conditions",
+                errors,
+            )
         if price_plan.get("currency") not in {"KRW", "USD"}:
             errors.append("price_plan.currency: KRW 또는 USD여야 한다")
         for key in PRICE_KEYS - {"currency", "reask_events"}:
@@ -2078,6 +2102,26 @@ def _validate_decision_values(
                 errors.append("price_plan.reask_below: 입력 가격보다 낮아야 한다")
             if above is not None and above <= requested_price:
                 errors.append("price_plan.reask_above: 입력 가격보다 높아야 한다")
+            # 진입가는 "그 가격이면 산다"로 읽힌다. 검토 가격이 이미 자기 진입
+            # 범위 상단 이하인데 새 자금을 넣지 않는다면 가격 말고 기다리는 것이
+            # 있다는 뜻이고, 그것이 서술에만 있으면 사용자는 그 가격마다 다시
+            # 와서 같은 답을 듣는다(2026-10-13 → 15 파마리서치 262,000원).
+            # 무엇을 기다릴지는 모델이 정한다. PC 는 그 자리가 비었는지만 본다.
+            entry_high = price_values.get("entry_range_high")
+            if (
+                (context.get("model_contract") or {}).get("entry_conditions_required")
+                and verdict in {"WAIT", "AVOID"}
+                and entry_high is not None
+                and requested_price <= entry_high
+                and not entry_conditions
+            ):
+                errors.append(
+                    f"price_plan.entry_conditions: 검토 가격 {requested_price:g} 이 "
+                    f"진입 범위 상단 {entry_high:g} 이하인데 verdict 가 {verdict} 다. "
+                    "가격 말고 무엇을 기다리는지(실적 확인, 매수 예산, 정책 한도 등)를 "
+                    "관측 가능한 문장으로 적는다 — 비워 두면 진입가는 '이 가격이면 "
+                    "산다'로 읽힌다"
+                )
         if isinstance(trade, dict):
             if trade.get("currency") != request.get("amount_currency"):
                 errors.append("proposed_trade.currency: 입력 금액 통화와 달라선 안 된다")

@@ -91,6 +91,26 @@ class TestTheResponseMustBeTheRequestedSymbol(unittest.TestCase):
         del payload["chart"]["result"][0]["meta"]["symbol"]
         self.assertIsNotNone(fetch(payload)[0])
 
+    def test_the_usd_fx_alias_is_the_same_pair(self):
+        """KRW=X 요청에 USDKRW=X 가 오는 것은 같은 쌍이다 (2026-10-15 실측).
+
+        막았더니 달러/원 시계열이 이틀 동안 멈췄고 packet 의 환율이 낡았다.
+        """
+        result, _ = fetch(chart(DAYS, [1340, 1341, 1346], symbol="USDKRW=X"),
+                          symbol="KRW=X")
+        self.assertEqual(len(result[1]), 3)
+        result, _ = fetch(chart(DAYS, [1340, 1341, 1346], symbol="KRW=X"),
+                          symbol="USDKRW=X")
+        self.assertEqual(len(result[1]), 3)
+
+    def test_another_currency_or_a_cross_pair_is_still_refused(self):
+        for responded in ("USDJPY=X", "JPY=X", "CNYKRW=X"):
+            with self.subTest(responded=responded):
+                result, message = fetch(chart(DAYS, [1, 1, 1], symbol=responded),
+                                        symbol="KRW=X")
+                self.assertIsNone(result)
+                self.assertIn(responded, message)
+
 
 class TestBrokenAndFutureBars(unittest.TestCase):
     def test_a_close_that_is_not_a_number_stops_the_fetch(self):

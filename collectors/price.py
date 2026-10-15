@@ -158,6 +158,25 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def same_instrument(requested: str, responded: str) -> bool:
+    """요청한 이름과 응답이 말한 이름이 같은 종목인가.
+
+    Yahoo 의 달러 기준 환율에는 이름이 둘이다 — `KRW=X` 는 `USDKRW=X` 의
+    약칭이다. 같은 요청에도 조회 기간에 따라 응답의 `meta.symbol` 이 둘 중
+    하나로 바뀌어 온다(2026-10-15 실측: range=1mo·5y 는 KRW=X, 2y 는 USDKRW=X).
+    이것을 다른 종목으로 막자 달러/원 시계열이 이틀 동안 갱신되지 않았다.
+    동치로 보는 것은 이 약칭 하나뿐이다. 교차쌍(`CNYKRW=X`)과 다른 통화
+    (`JPY=X`)는 여전히 다른 종목이다.
+    """
+    def canonical(symbol: str) -> str:
+        upper = symbol.upper()
+        if len(upper) == 5 and upper.endswith("=X") and upper[:3].isalpha():
+            return f"USD{upper[:3]}=X"
+        return upper
+
+    return canonical(requested) == canonical(responded)
+
+
 def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
     request = urllib.request.Request(
         CHART.format(symbol=symbol, range=range_name),
@@ -183,7 +202,7 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
     if (
         isinstance(response_symbol, str)
         and response_symbol
-        and response_symbol.upper() != symbol.upper()
+        and not same_instrument(symbol, response_symbol)
     ):
         fail(
             f"{symbol}: 응답은 {response_symbol} 의 시세다. 다른 종목의 가격을 "

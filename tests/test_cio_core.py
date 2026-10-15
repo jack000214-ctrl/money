@@ -1,8 +1,12 @@
 """CIO 경계, 자산 라우팅, 결정 기록의 핵심 회귀 테스트."""
 
+import contextlib
 import json
+import shutil
+import tempfile
 import unittest
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import patch
 
 from cio.assets import AssetRegistryError, validate_registry
@@ -222,7 +226,7 @@ class FreshTask:
 
 
 class TestCompactContext(unittest.TestCase):
-    def test_price_and_amount_are_first_class_and_packet_is_small(self):
+    def _build(self, memory=None, *extra_patches):
         price = {
             "symbol": "TSLA",
             "currency": "USD",
@@ -284,7 +288,10 @@ class TestCompactContext(unittest.TestCase):
                 "cio.context._portfolio_summary",
                 return_value=({"available": False}, None),
             ),
-            patch("cio.context._memory_digest", return_value=[]),
+            patch(
+                "cio.context._memory_digest",
+                return_value=[] if memory is None else memory,
+            ),
             patch(
                 "cio.context.inspect_plan",
                 return_value=[FreshTask("price:TSLA")],
@@ -306,14 +313,20 @@ class TestCompactContext(unittest.TestCase):
             patch("cio.context.documents_for_context", return_value=None),
             patch("cio.context.open_requests_for_context", return_value=[]),
             patch("cio.capital.section", return_value=(None, [])),
+            contextlib.ExitStack() as stack,
         ):
-            packet, path = build_context(
+            for extra in extra_patches:
+                stack.enter_context(extra)
+            return build_context(
                 "TSLA",
                 price=100.0,
                 amount=10_000_000,
                 amount_currency="KRW",
                 save=False,
             )
+
+    def test_price_and_amount_are_first_class_and_packet_is_small(self):
+        packet, path = self._build()
         self.assertIsNone(path)
         self.assertEqual(packet["request"]["price"], 100.0)
         self.assertEqual(packet["request"]["amount"], 10_000_000)
@@ -322,6 +335,38 @@ class TestCompactContext(unittest.TestCase):
             json.dumps(packet, ensure_ascii=False, separators=(",", ":")).encode()
         )
         self.assertLess(size, 15_000)
+
+    def test_a_new_packet_declares_the_entry_condition_rule(self):
+        """소급하지 않는 계약은 그것을 요구하는 context 가 선언한다."""
+        packet, _path = self._build()
+        self.assertIs(packet["model_contract"]["entry_conditions_required"], True)
+
+    def test_the_live_prior_judgment_is_sealed_as_evidence(self):
+        """"지난번에 X라고 했다"를 닫으려면 그 판단이 근거 색인에 있어야 한다."""
+        repo = Path(__file__).resolve().parent.parent
+        assessment_id = "CIO-0123456789abcdef0123"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("prompts/cio-system.md", "schemas/cio-decision.schema.json"):
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(repo / name, root / name)
+            stored = root / "knowledge" / "assessments" / "TSLA" / f"{assessment_id}.json"
+            stored.parent.mkdir(parents=True)
+            stored.write_text('{"assessment_id": "%s"}' % assessment_id, encoding="utf-8")
+            memory = {"live": [{"assessment_id": assessment_id,
+                                "created_at": "2026-07-26T09:00:00+09:00"}]}
+            packet, _path = self._build(
+                memory,
+                patch("cio.context.ROOT", root),
+                patch("cio.context.KNOWLEDGE_DIR", root / "knowledge"),
+            )
+        entry = next(
+            item for item in packet["evidence_index"]
+            if item["source_id"] == f"ASSESSMENT:{assessment_id}"
+        )
+        self.assertEqual(entry["kind"], "PRIOR_JUDGMENT")
+        self.assertEqual(entry["path"], f"knowledge/assessments/TSLA/{assessment_id}.json")
+        self.assertEqual(entry["data_as_of"], "2026-07-26T09:00:00+09:00")
 
 
 class TestDecisionBoundary(unittest.TestCase):

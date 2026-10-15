@@ -99,6 +99,23 @@ class TestNothingTheModelWroteIsDropped(unittest.TestCase):
         self.assertIn("약속 파기", output)
         self.assertIn("일회성 충당금이며 현금 유출이 아니다", output)
 
+    def test_entry_conditions_sit_under_the_entry_price(self):
+        """조건이 화면에서 빠지면 진입가는 다시 '이 가격이면 산다'로만 읽힌다.
+
+        2026-10-13 판단의 화면은 `선호 진입 262,000` 만 보여 줬고, 사용자는 그
+        가격에 와서 매수를 물었다. 조건은 논지 문단 안에만 있었다.
+        """
+        decision = valid_decision()
+        condition = "3분기 잠정실적에서 내수 매출이 전년동기를 넘는다"
+        decision["price_plan"]["entry_conditions"] = [condition]
+        output = _render(decision)
+        self.assertIn(condition, output)
+        lines = output.splitlines()
+        entry = next(i for i, line in enumerate(lines) if "진입 범위 상단" in line)
+        self.assertIn("진입 조건", lines[entry + 1])
+        stop = next(i for i in range(entry, len(lines)) if lines[i].strip().startswith("손절"))
+        self.assertLess(entry + 1, stop)
+
     def test_unknowns_are_never_collapsed(self):
         """모르는 것을 접으면 확신도가 근거 없이 올라간다."""
         decision = valid_decision()

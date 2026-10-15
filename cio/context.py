@@ -5404,6 +5404,48 @@ def build_context(
     for source in capital_sources:
         if source["source_id"] not in {s.get("source_id") for s in sources if s}:
             sources.append(source)
+    prior_assessments = _memory_digest(
+        asset["asset_id"],
+        latest_close=(price_summary or {}).get("close"),
+        close_date=(price_summary or {}).get("as_of"),
+        close_is_settled=(
+            ((price_summary or {}).get("last_bar") or {}).get(
+                "is_settled_close"
+            )
+        ),
+        target_annual_return_pct=(
+            ((investor_policy or {}).get("objective") or {}).get(
+                "target_annual_return_pct"
+            )
+        ),
+        return_currency=asset["currency"],
+        objective_currency=(investor_policy or {}).get("base_currency"),
+        daily_ranges=_daily_ranges(asset["price_symbol"]),
+    )
+    # 살아 있는 직전 판단을 근거로 봉인한다. 사용자는 "지난번에 X라고 했다"며
+    # 묻는데, 그 기억이 맞는지 닫을 근거가 없으면 모델은 packet 에서 그 기록을
+    # 보고도 확인불가로만 답할 수 있었다. 폐기된 판단은 싣지 않는다 — 폐기의
+    # 뜻이 "근거로 인용하지 않는다"이다.
+    live_rows = (
+        prior_assessments.get("live") if isinstance(prior_assessments, dict) else None
+    )
+    for row in live_rows or []:
+        assessment_id = row.get("assessment_id") if isinstance(row, dict) else None
+        if not assessment_id:
+            continue
+        stored = KNOWLEDGE_DIR / "assessments" / asset["asset_id"] / f"{assessment_id}.json"
+        try:
+            locator = str(stored.relative_to(ROOT))
+        except ValueError:
+            continue
+        sources.append(
+            {
+                "source_id": f"ASSESSMENT:{assessment_id}",
+                "kind": "PRIOR_JUDGMENT",
+                "path": locator,
+                "data_as_of": row.get("created_at"),
+            }
+        )
     evidence_index = []
     evidence_by_id: dict[str, dict[str, Any]] = {}
     for item in sources:
@@ -5441,6 +5483,11 @@ def build_context(
         "prompt": "prompts/cio-system.md",
         "prompt_version": _prompt_version(prompt_path),
         "assumption_review_required": True,
+        # 검토 가격이 진입 범위 상단 이하인데 WAIT·AVOID 면 가격 말고 기다리는
+        # 것을 price_plan.entry_conditions 에 적어야 한다. context 가 선언하는
+        # 이유는 assumption_review_required 와 같다 — 저장된 판단은 당시 context
+        # 로 재검증되므로 소급되지 않는다.
+        "entry_conditions_required": True,
         "assumption_spec": "schemas/cio-assumptions.schema.json",
         "prompt_sha256": prompt_digest,
         "decision_schema_sha256": schema_digest,
@@ -5520,24 +5567,7 @@ def build_context(
             ),
             "portfolio": portfolio,
             "investor_policy": investor_policy,
-            "prior_assessments": _memory_digest(
-                asset["asset_id"],
-                latest_close=(price_summary or {}).get("close"),
-                close_date=(price_summary or {}).get("as_of"),
-                close_is_settled=(
-                    ((price_summary or {}).get("last_bar") or {}).get(
-                        "is_settled_close"
-                    )
-                ),
-                target_annual_return_pct=(
-                    ((investor_policy or {}).get("objective") or {}).get(
-                        "target_annual_return_pct"
-                    )
-                ),
-                return_currency=asset["currency"],
-                objective_currency=(investor_policy or {}).get("base_currency"),
-                daily_ranges=_daily_ranges(asset["price_symbol"]),
-            ),
+            "prior_assessments": prior_assessments,
             "research_requirements": _research_requirements(asset, filings, etf),
             "open_research_requests": open_requests_for_context(
                 asset["asset_id"]

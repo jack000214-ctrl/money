@@ -465,6 +465,90 @@ class TestAModelCannotBorrowALocalEvidenceName(unittest.TestCase):
         self.assertTrue(any("MODEL_RESEARCH" in error for error in errors))
 
 
+PRIOR = "ASSESSMENT:CIO-0123456789abcdef0123"
+PRIOR_BASIS = {
+    "metric": "직전 판단의 재질문 가격과 선호 진입가",
+    "period": "2026-10-13 판단",
+    "comparison": "사용자가 기억한 지시와 저장된 가격계획 대조",
+}
+
+
+class TestAClaimAboutAPriorJudgmentIsClosedByThatJudgment(unittest.TestCase):
+    """"지난번에 262,000원이면 다시 오라고 했다"는 저장된 판단으로 닫는다.
+
+    2026-10-15 이 주장은 반만 맞았다 — 262,000원은 재질문가가 아니라 선호
+    진입가였다. 그런데 과거 판단을 가리키는 근거 갈래가 없어 모델이 그 기록을
+    packet 에서 보고도 UNVERIFIABLE 로만 닫을 수 있었다. 사용자가 과거 조언을
+    잘못 기억하는 것은 반복되는 실패이고, 반박할 수 있어야 한다.
+    """
+
+    def context(self):
+        return _context(
+            claims=(("UA-aaa1", "지난번에 262,000원이면 다시 오라고 했다"),),
+            evidence=[
+                {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA"},
+                {"source_id": PRIOR, "kind": "PRIOR_JUDGMENT"},
+            ],
+        )
+
+    def test_the_stored_judgment_can_refute_a_misremembered_instruction(self):
+        self.assertEqual(
+            _errors(self.context(), _check(
+                claim_kind="PRIOR_JUDGMENT", status="REFUTED",
+                basis=dict(PRIOR_BASIS), evidence_refs=[PRIOR])),
+            [],
+        )
+
+    def test_a_price_file_cannot_say_what_the_judgment_said(self):
+        self.assertTrue(_errors(self.context(), _check(
+            claim_kind="PRIOR_JUDGMENT", basis=dict(PRIOR_BASIS),
+            evidence_refs=["PRICE:TSLA"])))
+
+    def test_a_past_judgment_is_not_a_source_for_earnings(self):
+        """과거 판단이 적은 숫자는 그 판단의 서술이지 재무 자료가 아니다."""
+        self.assertTrue(_errors(self.context(), _check(evidence_refs=[PRIOR])))
+
+    def test_a_model_cannot_name_its_own_source_as_a_judgment(self):
+        context = _context(claims=(("UA-aaa1", "지난번에 사라고 했다"),))
+        data = valid_decision()
+        data["context_id"] = context["context_id"]
+        data["sources"] = [{
+            "source_id": PRIOR, "type": "NOTE",
+            "locator": "https://example.invalid/memo",
+            "published_at": None, "retrieved_at": "2026-07-27T01:00:00+00:00"}]
+        data["user_assertion_checks"] = [_check(
+            claim_kind="PRIOR_JUDGMENT", basis=dict(PRIOR_BASIS),
+            evidence_refs=[PRIOR])]
+        errors = validate_decision(data, context=context)
+        self.assertTrue(any("로컬 근거의 이름" in error for error in errors))
+
+
+class TestAPreservedArticleCanCloseAMarketClaim(PreservedStore):
+    """보존한 시황 기사가 보존하지 않은 같은 기사보다 불리하면 안 된다.
+
+    MARKET 주장은 조사한 출처(MODEL_RESEARCH)를 받으면서 보존한 원문
+    (PRIMARY_DOCUMENT)은 거부했다. 2026-10-13·15 두 판단 모두 사이드카 기사를
+    보존하고도 시장 주장의 근거에서 빼야 했다.
+    """
+
+    def test_a_preserved_market_report_closes_a_market_claim(self):
+        source_id, _path = self.preserve_page("https://example.org/market/sidecar")
+        context = _context(claims=(("UA-aaa1", "지금 시장이 크게 빠지고 있다"),))
+        self.assertEqual(
+            _errors(
+                context,
+                _check(
+                    claim_kind="MARKET",
+                    basis={"metric": "지수 등락률", "period": "당일 장중",
+                           "comparison": "전 거래일 종가"},
+                    evidence_refs=[source_id],
+                ),
+                sources=[self.source(source_id, "https://example.org/market/sidecar")],
+            ),
+            [],
+        )
+
+
 class TestLocalEvidenceCannotPostDateTheContext(unittest.TestCase):
     """모델이 조사한 출처는 회수시각이 판단보다 늦을 수 없다. 로컬 근거도 같다.
 

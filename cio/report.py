@@ -401,6 +401,11 @@ def format_assessment(
         ("재질문 상단", "reask_above"),
     ):
         lines.append(f"  {_pad(label, 22)}{_money(plan.get(key), currency):>12}")
+        # 진입가 바로 아래에 둔다. 조건이 재질문 사건들 사이에 섞이면 진입가는
+        # 다시 "이 가격이면 산다"로만 읽힌다.
+        if key == "entry_range_high":
+            for condition in plan.get("entry_conditions") or []:
+                lines.extend(_wrap(f"진입 조건(가격 외): {condition}", indent="    "))
     for event in plan.get("reask_events") or []:
         lines.extend(_wrap(f"· {event}", indent="  "))
 
