@@ -28,6 +28,10 @@ const readReport = async () =>
     await readFile(new URL("../data/decision-report.json", import.meta.url), "utf8"),
   );
 
+// ETF 리포트 여부: schemaVersion이 "etf-dashboard/1.0.0"이면 ETF
+function isEtfReport(report) {
+  return report.schemaVersion === "etf-dashboard/1.0.0";
+}
 
 // 리포트가 가리키는 밸류에이션 스냅샷을 찾는다. 파일명은 종목·기준일에
 // 따라 달라지므로 fundamentals_id 로 맞춘다.
@@ -53,31 +57,35 @@ test("server-renders the decision report for whichever asset is selected", async
   // 다른 종목을 선택하는 순간 테스트가 깨진다. 렌더러가 검증할 것은
   // **선택된 리포트의 내용이 화면에 실제로 나오는가**다.
   assert.match(html, /숫자보다 먼저 볼 의미/);
-  assert.match(html, /role="tab"/);
-  assert.match(html, /현금흐름/);
-  assert.match(html, /손익계산서/);
-  assert.match(html, /<details class="disclosure"/);
-  assert.match(html, /매출총이익률/);
   assert.doesNotMatch(html, /DEMO DATA|TWELVE/);
 
   // 데이터가 화면에 도달했는지 — 리포트에서 뽑아 대조한다
   assert.ok(html.includes(report.asset.name), "종목명이 화면에 없다");
   assert.ok(html.includes(report.asset.current), "현재가가 화면에 없다");
   assert.ok(html.includes(report.decision.status), "판정 상태가 화면에 없다");
-  assert.ok(html.includes(report.valuation.impliedGrowth),
-    "내재 성장률이 화면에 없다");
-  assert.ok(html.includes(report.decision.entryCeiling),
-    "요구수익률 만족 가격이 화면에 없다");
-  // 손익 비용 라인은 회계기준마다 다르다 (R&D·SG&A vs 판매비와관리비).
-  // 리포트가 만든 라벨이 그대로 그려지는지만 본다.
-  // HTML 은 & 를 &amp; 로 escape 한다. "R&D" 를 그대로 찾으면 못 찾는다.
-  const escaped = (text) => text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-  for (const item of report.incomeStatement.equation) {
-    assert.ok(html.includes(escaped(item.label)),
-      `손익 항등식 라벨 ${item.label} 이 화면에 없다`);
+
+  if (!isEtfReport(report)) {
+    // ETF가 아닌 개별주에서만 검증하는 항목
+    assert.match(html, /role="tab"/);
+    assert.match(html, /현금흐름/);
+    assert.match(html, /손익계산서/);
+    assert.match(html, /<details class="disclosure"/);
+    assert.match(html, /매출총이익률/);
+    assert.ok(html.includes(report.valuation.impliedGrowth),
+      "내재 성장률이 화면에 없다");
+    assert.ok(html.includes(report.decision.entryCeiling),
+      "요구수익률 만족 가격이 화면에 없다");
+    // 손익 비용 라인은 회계기준마다 다르다 (R&D·SG&A vs 판매비와관리비).
+    // 리포트가 만든 라벨이 그대로 그려지는지만 본다.
+    // HTML 은 & 를 &amp; 로 escape 한다. "R&D" 를 그대로 찾으면 못 찾는다.
+    const escaped = (text) => text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+    for (const item of report.incomeStatement.equation) {
+      assert.ok(html.includes(escaped(item.label)),
+        `손익 항등식 라벨 ${item.label} 이 화면에 없다`);
+    }
   }
 });
 
@@ -85,17 +93,26 @@ test("renders the engine verdict without softening it", async () => {
   const html = await (await render()).text();
   const report = await readReport();
 
-  // SKILL 은 "엔진의 BLOCKED 를 자연어로 완화" 를 금지한다. 원본 판정과
-  // issue code 가 화면에 그대로 있어야 한다.
-  assert.equal(report.decision.verdict, "BLOCKED");
-  assert.match(html, /EXPECTED_RETURN_BELOW_HURDLE/);
-  assert.ok(report.decision.issues.length > 0);
-  for (const issue of report.decision.issues) {
-    assert.match(html, new RegExp(issue.code));
+  if (isEtfReport(report)) {
+    // ETF 리포트는 verdict=INSUFFICIENT 가 정상
+    assert.equal(report.decision.verdict, "INSUFFICIENT");
+  } else {
+    // SKILL 은 "엔진의 BLOCKED 를 자연어로 완화" 를 금지한다. 원본 판정과
+    // issue code 가 화면에 그대로 있어야 한다.
+    assert.ok(
+      ["BLOCKED", "CAUTION", "RESEARCH_REQUIRED", "PROCEED"].includes(report.decision.verdict),
+      `예상치 못한 verdict: ${report.decision.verdict}`,
+    );
+    assert.ok(report.decision.issues.length > 0);
+    for (const issue of report.decision.issues) {
+      assert.match(html, new RegExp(issue.code));
+    }
+    // 결정 스냅샷 ID 가 있어야 나중에 이 판정을 대조할 수 있다.
+    if (!isEtfReport(report)) {
+      assert.match(report.portfolio.snapshotId, /^TRADE-SNAPSHOT-[0-9a-f]{20}$/);
+      assert.match(html, new RegExp(report.portfolio.snapshotId));
+    }
   }
-  // 결정 스냅샷 ID 가 있어야 나중에 이 판정을 대조할 수 있다.
-  assert.match(report.portfolio.snapshotId, /^TRADE-SNAPSHOT-[0-9a-f]{20}$/);
-  assert.match(html, new RegExp(report.portfolio.snapshotId));
 });
 
 test("entry price uses the IPS measure, not the bull scenario alone", async () => {

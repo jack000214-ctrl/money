@@ -33,8 +33,8 @@ from collectors.dart import (
 
 RAW = ROOT / "data" / "raw" / "dart"
 REPORTS = {"11013": "1Q", "11012": "2Q", "11014": "3Q", "11011": "FY"}
-REVENUE_IDS = ("ifrs-full_Revenue", "ifrs_Revenue")
-REVENUE_NAMES = ("매출액", "수익(매출액)", "영업수익")
+REVENUE_IDS = ("ifrs-full_Revenue", "ifrs_Revenue", "ifrs-full_InterestRevenueExpense")
+REVENUE_NAMES = ("매출액", "수익(매출액)", "영업수익", "순이자이익")
 OPERATING_IDS = ("dart_OperatingIncomeLoss",)
 OPERATING_NAMES = ("영업이익", "영업이익(손실)")
 

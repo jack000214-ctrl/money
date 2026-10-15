@@ -15,6 +15,7 @@ const MARKS: Record<Verdict, { tone: string; label: string }> = {
   RESEARCH_REQUIRED: { tone: "hold", label: "조사 필요" },
   CAUTION: { tone: "hold", label: "주의" },
   PROCEED: { tone: "approved", label: "통과" },
+  INSUFFICIENT: { tone: "hold", label: "해당없음" },
 };
 
 export function VerdictMark({

@@ -1,4 +1,4 @@
-# Personal CIO
+# Money
 
 한·미 주식과 ETF에 대해 다음 질문에 답하기 위한 개인용 시스템이다.
 
@@ -38,7 +38,7 @@ Codex 개인 스킬로 등록하려면 다음을 한 번 실행한다. 프로젝
 연결하므로 개선 내용이 설치본에도 바로 반영되고 개인정보를 복사하지 않는다.
 
 ```bash
-python3.13 skills/decide-investment/scripts/install.py
+python skills/decide-investment/scripts/install.py
 ```
 
 등록 후 `$decide-investment`로 사용한다. 다른 작업 폴더에서도 설치된 스킬의
@@ -132,15 +132,15 @@ SEC 로그인 아이디를 넣는 칸이 아니라, 요청자를 식별할 User-
 저장소 루트에서 등록 자산과 필요한 수집 작업을 확인한다.
 
 ```bash
-python3.13 -m cio assets
-python3.13 -m cio refresh 005930
+python -m cio assets
+python -m cio refresh 005930
 ```
 
 필요한 기본 수집을 실행한다. `--optional`은 해당 자산에 등록된 보조 수집기까지
 포함한다.
 
 ```bash
-python3.13 -m cio refresh 005930 --run --optional
+python -m cio refresh 005930 --run --optional
 ```
 
 모델이 "이 종목이 좋은가"를 판단해도 "그래서 내 돈 얼마를 쓰는가"는 사용자만 아는
@@ -149,7 +149,7 @@ python3.13 -m cio refresh 005930 --run --optional
 그 공백이 결론에 걸리면 모델은 `action.direction = UNDETERMINED`로 답한다.
 
 ```bash
-python3.13 -m cio policy          # 정한 한도와 아직 정하지 않은 한도
+python -m cio policy          # 정한 한도와 아직 정하지 않은 한도
 ```
 
 **이것은 사람이 보는 화면이지 판단 절차가 아니다.** 모델이 쓰는 값은 전부
@@ -169,7 +169,7 @@ python3.13 -m cio policy          # 정한 한도와 아직 정하지 않은 한
 검토 가격과 최대 사용 금액으로 모델용 최소 컨텍스트를 만든다.
 
 ```bash
-python3.13 -m cio prepare 005930 \
+python -m cio prepare 005930 \
   --price 185000 \
   --amount 5000000 \
   --amount-currency KRW \
@@ -184,15 +184,15 @@ python3.13 -m cio prepare 005930 \
 받지 않는다.
 
 ```bash
-python3.13 -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --quantity 30
-python3.13 -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --target-quantity 60
+python -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --quantity 30
+python -m cio prepare 214450 --price 399500 --intent TRIM_REVIEW --target-quantity 60
 ```
 
 질문에 보유수량·평단을 직접 제시했다면 `--held-quantity`·`--average-cost`로
 이번 분석의 조건을 보존한다. `--quantity`는 보유수량이 아니라 **검토 매도수량**이다.
 
 ```bash
-python3.13 -m cio prepare 028050 --price 50000 --intent HOLD_REVIEW \
+python -m cio prepare 028050 --price 50000 --intent HOLD_REVIEW \
   --held-quantity 100 --average-cost 45000 --verbatim "100주 보유 중인데 팔까?"
 ```
 
@@ -200,7 +200,7 @@ python3.13 -m cio prepare 028050 --price 50000 --intent HOLD_REVIEW \
 `--average-cost-currency KRW`를 명시한다. 아래 가격은 사용 예시다.
 
 ```bash
-python3.13 -m cio prepare RXRX --price 5 --intent HOLD_REVIEW \
+python -m cio prepare RXRX --price 5 --intent HOLD_REVIEW \
   --held-quantity 100 --average-cost 6000 --average-cost-currency KRW \
   --verbatim "100주, 평단 6000원으로 들고 있는데 팔까?"
 ```
@@ -242,8 +242,8 @@ python3.13 -m cio prepare RXRX --price 5 --intent HOLD_REVIEW \
 판단을 유지할지 바꿀지는 모델이 답한다.
 
 ```bash
-python3.13 -m cio assumptions data/decision-assumptions.json --context CTX-...
-python3.13 -m cio assumptions ASM-... --asset 028050 --json
+python -m cio assumptions data/decision-assumptions.json --context CTX-...
+python -m cio assumptions ASM-... --asset 028050 --json
 ```
 
 계산과 근거는 해당 context에 결속된다. 판단의 `assumption_review`가 계산 ID와
@@ -251,15 +251,15 @@ python3.13 -m cio assumptions ASM-... --asset 028050 --json
 있다. 입력 형식·예제·지원 범위는 [가정 검토](docs/assumptions.md)에 있다.
 
 ```bash
-python3.13 -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
-python3.13 -m cio record decision.json
+python -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
+python -m cio record decision.json
 ```
 
 저장한 판단은 사람이 읽을 수 있게 펼쳐 본다.
 
 ```bash
-python3.13 -m cio show 005930           # 살아 있는 것 중 최신
-python3.13 -m cio show 005930 --id CIO-319aa4b74a186eea9544
+python -m cio show 005930           # 살아 있는 것 중 최신
+python -m cio show 005930 --id CIO-319aa4b74a186eea9544
 ```
 
 **이 화면은 아무것도 판정하지 않는다.** 모델이 쓴 값을 자리에 놓을 뿐이며
@@ -298,7 +298,7 @@ python3.13 -m cio show 005930 --id CIO-319aa4b74a186eea9544
 가격 이력이 쌓인 뒤 과거 판단을 사후 평가한다.
 
 ```bash
-python3.13 -m cio score 005930
+python -m cio score 005930
 ```
 
 `score`는 **폐기된 판단도 채점한다.** 폐기의 뜻은 "근거로 인용하지 않는다"이지
@@ -329,8 +329,8 @@ packet은 **살아 있는 판단 최대 3건에 스칼라 다섯 개**만 싣는
 `evals`가 한다.
 
 ```bash
-python3.13 -m cio evals 214450           # 판단별 최신 채점
-python3.13 -m cio evals 214450 --plan    # 그때의 진입·손절·분할매도 문턱까지
+python -m cio evals 214450           # 판단별 최신 채점
+python -m cio evals 214450 --plan    # 그때의 진입·손절·분할매도 문턱까지
 ```
 
 `--plan`이 있는 이유는 실제로 그 열에서 결함이 보였기 때문이다. 12일간 판단
@@ -344,7 +344,7 @@ python3.13 -m cio evals 214450 --plan    # 그때의 진입·손절·분할매�
 것을 보게 된다.** 어떤 판단이 살아 있고 무엇이 끊겼는지 먼저 확인한다.
 
 ```bash
-python3.13 -m cio retire 214450          # 살아 있음 / 계약 미달 / 폐기됨
+python -m cio retire 214450          # 살아 있음 / 계약 미달 / 폐기됨
 ```
 
 더 못 믿을 판단은 명시적으로 폐기한다. 자동으로 치우지 않는 이유는 계약 미달이
@@ -355,17 +355,17 @@ packet에는 첫 80자만 싣는다. 사유에 옛 지정가·논지를 길게 �
 17.5KB(예산의 22%)가 됐고 살아 있는 판단의 논지를 밀어냈다. 전문은 `cio retire` 화면에 있다.
 
 ```bash
-python3.13 -m cio retire 214450 --reason "구버전 산물"            # 대상만 확인
-python3.13 -m cio retire 214450 --reason "구버전 산물" --confirm  # 실제 이관
-python3.13 -m cio retire 214450 --reason "..." --all --confirm    # 유효한 것까지
+python -m cio retire 214450 --reason "구버전 산물"            # 대상만 확인
+python -m cio retire 214450 --reason "구버전 산물" --confirm  # 실제 이관
+python -m cio retire 214450 --reason "..." --all --confirm    # 유효한 것까지
 ```
 
 모델이 판단에 남긴 수집 요청은 사용자가 읽고 닫는 대기열이다. 처리되기 전까지
 다음 컨텍스트에 다시 실려 나간다.
 
 ```bash
-python3.13 -m cio requests 005930
-python3.13 -m cio requests 005930 --resolve REQ-3e547a42822d --state DONE \
+python -m cio requests 005930
+python -m cio requests 005930 --resolve REQ-3e547a42822d --state DONE \
   --note "collectors/dart.py filings 배선"
 ```
 
@@ -374,8 +374,8 @@ python3.13 -m cio requests 005930 --resolve REQ-3e547a42822d --state DONE \
 수량별 눈금을 함께 낸다.
 
 ```bash
-python3.13 -m calculators.position 214450 --price 331000
-python3.13 -m calculators.position 214450 --price 331000 --add 5 10 20
+python -m calculators.position 214450 --price 331000
+python -m calculators.position 214450 --price 331000 --add 5 10 20
 ```
 
 평단은 **두 경로로 나오고 둘을 합치지 않는다** — 거래 원장의 이동평균과 스냅샷의
@@ -386,8 +386,8 @@ python3.13 -m calculators.position 214450 --price 331000 --add 5 10 20
 매매 일곱 건을 잃었고, 팔고 없는 30주를 보유로 읽은 판단이 기록됐다.
 
 ```bash
-python3.13 -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf   # 읽기 전용
-python3.13 -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf   # 조회 기간의 원장 행 교체
+python -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf   # 읽기 전용
+python -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf   # 조회 기간의 원장 행 교체
 ```
 
 내역서의 모든 행에는 그 거래 뒤의 잔액이 찍혀 있어서, 빠뜨리거나 잘못 읽은 행이
@@ -405,8 +405,8 @@ holdings.csv는 고치지 않고 수량이 어긋난 종목만 보고한다. PDF
 모델이 자동으로 받지 못하며, 결론에 쓰려면 조사 결과로 직접 인용해야 한다.
 
 ```bash
-python3.13 -m calculators.peer_kr 214450 145020 214150 278470   # 한국 동종 비교
-python3.13 -m calculators.sector_strength --highlight 헬스케어    # 미국 섹터 상대강도
+python -m calculators.peer_kr 214450 145020 214150 278470   # 한국 동종 비교
+python -m calculators.sector_strength --highlight 헬스케어    # 미국 섹터 상대강도
 ```
 
 가격 시계열은 재수집으로 봉을 잃지 않는다. Yahoo가 응답에서 하루를 빼도 저장된
@@ -416,8 +416,8 @@ python3.13 -m calculators.sector_strength --highlight 헬스케어    # 미국 �
 [규칙과 한계](docs/data-policy.md#가격-시계열의-함정)
 
 ```bash
-python3.13 -m collectors.krx backfill-stock 214450   # 종목 시계열의 빈 거래일
-python3.13 -m collectors.krx backfill KOSDAQ         # 지수 시계열의 빈 거래일
+python -m collectors.krx backfill-stock 214450   # 종목 시계열의 빈 거래일
+python -m collectors.krx backfill KOSDAQ         # 지수 시계열의 빈 거래일
 ```
 
 한국 주식의 packet에는 달러/원을 그 회사의 결산 분기에 맞춘 표가 실린다
@@ -431,10 +431,10 @@ ETF는 구성종목을 들여다본다. 가격만 보면 "3개월에 34% 내렸�
 이익의 몇 배인지는 보이지 않는다. 실제로 그 둘이 결론을 정했다.
 
 ```bash
-python3.13 -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → 구성종목
-python3.13 -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
-python3.13 -m calculators.etf_lookthrough 0053L0    # 가중 PER·적자 비중·종목/환율 분해
-python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
+python -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → 구성종목
+python -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
+python -m calculators.etf_lookthrough 0053L0    # 가중 PER·적자 비중·종목/환율 분해
+python -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
 ```
 
 앞의 둘은 `refresh --run --optional`이 돌리고 결과는 packet의 `etf.lookthrough`에
@@ -455,8 +455,8 @@ python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8
 남기면 다음 판단의 packet 으로 실려 나온다.
 
 ```bash
-python3.13 -m cio pipeline RXRX                       # 기록된 것 보기
-python3.13 -m cio pipeline RXRX --name REC-4881 \
+python -m cio pipeline RXRX                       # 기록된 것 보기
+python -m cio pipeline RXRX --name REC-4881 \
   --stage PHASE2 --readout 2026-11-30 --source <URL>
 ```
 
@@ -465,7 +465,7 @@ python3.13 -m cio pipeline RXRX --name REC-4881 \
 남았는지가 판단 입력에서 빠져 있었다.
 
 ```bash
-python3.13 -m collectors.kr_calendar 214450
+python -m collectors.kr_calendar 214450
 ```
 
 미국 주식은 SEC 정기보고서 원문에서 발행주식 수·주식보상·발행 관련 수치와
@@ -487,7 +487,7 @@ python3.13 -m collectors.kr_calendar 214450
 매출액과 대조한다). [데이터 정책](docs/data-policy.md#품목군별-매출은-그-원문에서-시계열로-만든다)
 
 ```bash
-python3.13 -m collectors.kr_product_sales 214450
+python -m collectors.kr_product_sales 214450
 ```
 
 모델이 조사한 원문은 인용하기 전에 로컬에 보존한다. 받은 그대로 저장하며
@@ -499,24 +499,24 @@ python3.13 -m collectors.kr_product_sales 214450
 packet에 연결되어 있다.
 
 ```bash
-python3.13 -m collectors.kr_epc 028050
+python -m collectors.kr_epc 028050
 ```
 
 누적값의 인접 분기 차감과 같은 기준일 재무의 비율은 PC가 계산한다. 이익의
 반복성·선수금의 성격은 모델이 판단한다. [추출 범위와 한계](docs/data-policy.md#epc-연결-도급공사계약-주석).
 
 ```bash
-python3.13 -m cio snapshot <URL> --asset 005930 --label dram-price-2026q3
-python3.13 -m collectors.dart document 20260730800077   # 한국 공시 원문
+python -m cio snapshot <URL> --asset 005930 --label dram-price-2026q3
+python -m collectors.dart document 20260730800077   # 한국 공시 원문
 ```
 
 보존한 원문은 통째로 읽는 것이 아니라 필요한 자리만 찾아 쓴다. 사업보고서
 하나가 100만 자라 컨텍스트에 넣을 수 없기 때문이다.
 
 ```bash
-python3.13 -m cio docs 005930                  # 무엇이 있고 무엇을 안 받았나
-python3.13 -m cio search 005930 "부 문 \|"     # 부문별 매출 표
-python3.13 -m cio search 005930 "주요 매출처"
+python -m cio docs 005930                  # 무엇이 있고 무엇을 안 받았나
+python -m cio search 005930 "부 문 \|"     # 부문별 매출 표
+python -m cio search 005930 "주요 매출처"
 ```
 
 부문별 매출·비중, 주요 매출처, 수주잔고, 생산능력, 원재료 공급처, 시장점유율은
@@ -534,7 +534,7 @@ python3.13 -m cio search 005930 "주요 매출처"
 결론을 강제하는 규칙이 아니다. ETF에 회사 DCF를 적용하거나 적자 임상 바이오에
 정률성장 DCF를 적용하지 않는다.
 
-새 자산은 `python3.13 -m cio register`로 등록한다. 상세 필드와 수집 정책은
+새 자산은 `python -m cio register`로 등록한다. 상세 필드와 수집 정책은
 [데이터 정책](docs/data-policy.md)을 참고한다.
 
 ## 문서

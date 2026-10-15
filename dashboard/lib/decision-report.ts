@@ -36,7 +36,7 @@ export interface DecisionReport {
   };
   decision: {
     /** 엔진의 원본 판정. 자연어로 완화하지 않는다. */
-    verdict: "BLOCKED" | "RESEARCH_REQUIRED" | "CAUTION" | "PROCEED";
+    verdict: "BLOCKED" | "RESEARCH_REQUIRED" | "CAUTION" | "PROCEED" | "INSUFFICIENT";
     status: string;
     verdictNote: string;
     primaryReason: string;

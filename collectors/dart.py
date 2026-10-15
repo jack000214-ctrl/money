@@ -13,6 +13,7 @@ DART 공시검색 화면은 JavaScript 기반이라 웹 도구로 목록을 가�
 import argparse
 import contextlib
 import io
+import itertools
 import json
 import math
 import os
@@ -645,7 +646,8 @@ def _indexed_rows(index_path):
 
 def cmd_filings(a, key):
     info = resolve(a.stock_code, key)
-    until = a.until or date.today().strftime("%Y%m%d")
+    since = (a.since or "").replace("-", "")
+    until = (a.until or date.today().strftime("%Y%m%d")).replace("-", "")
     raw_sources = []
     row_groups = []
     for type_code, type_name in DART_FILING_TYPES:
@@ -653,7 +655,7 @@ def cmd_filings(a, key):
             "list.json",
             {
                 "corp_code": info["corp_code"],
-                "bgn_de": a.since,
+                "bgn_de": since,
                 "end_de": until,
                 "pblntf_ty": type_code,
                 "page_count": "100",
@@ -731,7 +733,7 @@ def cmd_filings(a, key):
         )
 
 
-REV_NAMES = ["매출액", "수익(매출액)", "영업수익"]
+REV_NAMES = ["매출액", "수익(매출액)", "영업수익", "순이자이익"]
 OP_NAMES = ["영업이익", "영업이익(손실)"]
 
 
@@ -805,8 +807,18 @@ CF_INTANGIBLE_IDS = [
     "ifrs-full_PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"]
 
 # 손익 — 이미 3개월이다
-IS_REVENUE_IDS = ["ifrs-full_Revenue"]
-IS_GROSS_IDS = ["ifrs-full_GrossProfit"]
+IS_REVENUE_IDS = [
+    "ifrs-full_Revenue",
+    # 금융업 은행·보험지주 fallback: 순이자이익
+    "ifrs-full_InterestRevenueExpense",
+]
+IS_GROSS_IDS = [
+    "ifrs-full_GrossProfit",
+    # 금융업 fallback: 매출총이익 개념이 없어 영업이익이 그대로다.
+    # gross = op 이면 항등식에서 비용 0 조합이 성립한다.
+    "dart_OperatingIncomeLoss",
+    "ifrs-full_ProfitLossFromOperatingActivities",
+]
 IS_OPINC_IDS = ["dart_OperatingIncomeLoss", "ifrs-full_ProfitLossFromOperatingActivities"]
 IS_NET_IDS = ["ifrs-full_ProfitLoss"]
 IS_NET_PARENT_IDS = ["ifrs-full_ProfitLossAttributableToOwnersOfParent"]
@@ -959,6 +971,7 @@ XBRL_SUPPLEMENT = [
     ("CF", "ifrs-full_PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities",
      "무형자산의 취득", "PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"),
     ("IS", "ifrs-full_Revenue", "매출액", "Revenue"),
+    ("IS", "ifrs-full_InterestRevenueExpense", "순이자이익", "InterestRevenueExpense"),
     ("IS", "ifrs-full_GrossProfit", "매출총이익", "GrossProfit"),
     ("IS", "dart_OperatingIncomeLoss", "영업이익", "OperatingIncomeLoss"),
     ("IS", "ifrs-full_ProfitLoss", "당기순이익", "ProfitLoss"),
@@ -1536,22 +1549,16 @@ def derive_fundamentals(raw, *, fs, period_end=None, income_quarters=8):
     capex_ttm = sum(r["val"] for r in capex_rows)
 
     # --- 손익 8분기 (전년 동기 비교용) ---
+    # base_plan(revenue/gross/op/net)을 먼저 수집한 뒤 비용 후보 전체를 탐색하고
+    # itertools.combinations로 항등식 잔차가 최소인 최적 조합 선택
     income, expense_lines = {}, []
-    plan = [("revenue", IS_REVENUE_IDS, REV_NAMES),
-            ("gross_profit", IS_GROSS_IDS, ["매출총이익"]),
-            ("operating_income", IS_OPINC_IDS, OP_NAMES),
-            ("net_income", IS_NET_IDS, ["당기순이익", "분기순이익", "반기순이익"])]
+    base_plan = [("revenue", IS_REVENUE_IDS, REV_NAMES),
+                 ("gross_profit", IS_GROSS_IDS, ["매출총이익"]),
+                 ("operating_income", IS_OPINC_IDS, OP_NAMES),
+                 ("net_income", IS_NET_IDS, ["당기순이익", "분기순이익", "반기순이익"])]
 
-    present = [(aid, label) for aid, label in IS_EXPENSE_IDS
-               if acct(by_year[latest[0]].get("1q") or
-                       next(iter(by_year[latest[0]].values())),
-                       ("IS", "CIS"), [aid])]
-    for aid, label in present:
-        key_name = f"expense_{len(expense_lines)}"
-        expense_lines.append({"key": key_name, "label": label})
-        plan.append((key_name, [aid], [label]))
-
-    for key_name, ids, names in plan:
+    # base_plan 먼저 수집
+    for key_name, ids, names in base_plan:
         per_year = {}
         for year, by_report in by_year.items():
             for q, row in restore_is_quarters(by_report, ids, names).items():
@@ -1566,14 +1573,59 @@ def derive_fundamentals(raw, *, fs, period_end=None, income_quarters=8):
         income[key_name] = {"tag": ids[0], "ttm": sum(r["val"] for r in rows[-4:]),
                             "quarters": rows}
 
-    # 손익 항등식 확인 — 매출총이익 − 비용라인 = 영업이익
-    #
-    # 비용 라인이 없을 때도 누락을 놓치지 않도록 항등식을 검사한다.
+    # IS_EXPENSE_IDS 후보 전체 수집 (데이터가 있는 것만)
+    candidate_expenses = []
+    ref_report = (by_year[latest[0]].get("1q") or
+                  next(iter(by_year[latest[0]].values())))
+    for aid, label in IS_EXPENSE_IDS:
+        if not acct(ref_report, ("IS", "CIS"), [aid]):
+            continue
+        per_year = {}
+        for year, by_report in by_year.items():
+            for q, row in restore_is_quarters(by_report, [aid], [label]).items():
+                per_year[(year, q)] = row
+        rows = series_rows(per_year, income_quarters, latest)
+        if rows is None:
+            continue
+        for row in rows:
+            row["end"] = f"{row['fy']}-{QUARTER_END[row['quarter']]}"
+            row["filed"] = None
+        key_name = f"expense_{len(candidate_expenses)}"
+        candidate_expenses.append({
+            "key": key_name, "label": label, "aid": aid,
+            "rows": rows,
+        })
+
+    # itertools.combinations로 항등식 잔차 최소 조합 선택 (k=0 포함 — 금융업 지원)
     gross = income["gross_profit"]["quarters"][-1]["val"]
-    spend = sum(income[e["key"]]["quarters"][-1]["val"] for e in expense_lines)
     op = income["operating_income"]["quarters"][-1]["val"]
-    expenses = [income[e["key"]]["quarters"][-1]["val"] for e in expense_lines]
-    residual, tolerance = income_identity_residual(gross, expenses, op)
+    best_combo: tuple = ()
+    best_residual: float = float("inf")
+    for k in range(0, len(candidate_expenses) + 1):
+        for combo in itertools.combinations(range(len(candidate_expenses)), k):
+            expenses_vals = [candidate_expenses[i]["rows"][-1]["val"] for i in combo]
+            residual, _ = income_identity_residual(gross, expenses_vals, op)
+            if abs(residual) < best_residual:
+                best_residual = residual
+                best_combo = combo
+
+    # best_combo 반영
+    expense_lines = []
+    plan = list(base_plan)
+    for i in best_combo:
+        cand = candidate_expenses[i]
+        key_name = cand["key"]
+        expense_lines.append({"key": key_name, "label": cand["label"]})
+        income[key_name] = {
+            "tag": cand["aid"],
+            "ttm": sum(r["val"] for r in cand["rows"][-4:]),
+            "quarters": cand["rows"],
+        }
+
+    # 항등식 최종 검증
+    expenses_final = [income[e["key"]]["quarters"][-1]["val"] for e in expense_lines]
+    residual, tolerance = income_identity_residual(gross, expenses_final, op)
+    spend = sum(expenses_final)
     if abs(residual) > tolerance:
         detail = (", ".join(f"{e['label']} {income[e['key']]['quarters'][-1]['val']/1e8:,.0f}억"
                             for e in expense_lines)

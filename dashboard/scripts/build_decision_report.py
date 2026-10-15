@@ -23,7 +23,9 @@ from pathlib import Path
 
 DASHBOARD = Path(__file__).resolve().parent.parent
 ROOT = DASHBOARD.parent
+sys.path.insert(0, str(ROOT / "calculators"))
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT))
 
 from contracts import load_calculation, load_json  # noqa: E402
 from reverse_dcf import equity_value_per_share  # noqa: E402
@@ -412,10 +414,11 @@ def build(args) -> dict:
     # US-GAAP 은 R&D·SG&A 로 갈라지지만 K-IFRS 는 판매비와관리비 한 줄이고
     # R&D 는 그 안에 있다 (주석에만 분리). 고정 키로 쓰면 삼성전자에서
     # 항등식이 깨지거나, 맞추려고 없는 R&D 를 지어내게 된다.
-    expense_lines = fundamentals.get("expense_lines")
-    if not expense_lines:
-        expense_lines = [{"key": "rnd", "label": "R&D"},
-                         {"key": "sgna", "label": "SG&A"}]
+    _expense_lines_raw = fundamentals.get("expense_lines")
+    expense_lines = _expense_lines_raw if _expense_lines_raw is not None else [
+        {"key": "rnd", "label": "R&D"},
+        {"key": "sgna", "label": "SG&A"},
+    ]
 
     def growth(now, before):
         return f"전년 동기 대비 {(now / before - 1) * 100:+.1f}%"
@@ -514,7 +517,7 @@ def build(args) -> dict:
                      f"CapEx {money_m(capex_q[-1]['val'])}를 쓰고 남은 금액입니다.",
           "confidence": "공시 확정", "confidenceLevel": "high", "signal": "good"}),
         {"meaning": "성장은 가격 부담을 지우지 못합니다",
-         "value": f"PER {per:.1f}x · PSR {psr:.1f}x",
+         "value": f"PER {(f'{per:.2f}x' if per < 10 else f'{per:.1f}x') if per else '—'} · PSR {(f'{psr:.2f}x' if psr < 10 else f'{psr:.1f}x') if psr else '—'}",
          "context": "현재가 기준입니다. 동종사 대비 프리미엄이 이미 반영돼 있습니다.",
          "confidence": "시장·공시 데이터", "confidenceLevel": "high", "signal": "watch"},
         {"meaning": ("본업의 매출은 성장 중입니다" if rev_now >= rev_yoy
@@ -636,9 +639,9 @@ def build(args) -> dict:
                 f"{money_m(-values['net_debt'])} · {horizon}개월 수렴"
             ),
             "multiples": [
-                {"label": "PER", "value": f"{per:.1f}x" if per else "—",
+                {"label": "PER", "value": (f"{per:.2f}x" if per < 10 else f"{per:.1f}x") if per else "—",
                  "basis": f"TTM 순이익 {money_m(net_income_ttm)} · 현재가 기준"},
-                {"label": "PSR", "value": f"{psr:.1f}x" if psr else "—",
+                {"label": "PSR", "value": (f"{psr:.2f}x" if psr < 10 else f"{psr:.1f}x") if psr else "—",
                  "basis": f"TTM 매출 {money_m(revenue_ttm)} · 현재가 기준"},
                 # 역산 DCF 가 실제로 푸는 배수. PER·PSR 보다 이 판정에 직결된다.
                 {"label": "EV/FCF",
@@ -670,8 +673,8 @@ def build(args) -> dict:
                 "company": args.name,
                 "basis": f"{fundamentals['period_end']} TTM",
                 "revenue": money_m(revenue_ttm),
-                "per": f"{per:.1f}x" if per else "—",
-                "psr": f"{psr:.1f}x" if psr else "—",
+                "per": (f"{per:.2f}x" if per < 10 else f"{per:.1f}x") if per else "—",
+                "psr": (f"{psr:.2f}x" if psr < 10 else f"{psr:.1f}x") if psr else "—",
                 "focus": True,
             }] + narrative["peers"]["rows"],
         },

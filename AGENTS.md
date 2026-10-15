@@ -1,64 +1,57 @@
-# Codex bootstrap for money (Personal CIO)
+# AGENTS.md
 
-이 프로젝트의 공통 지침과 누적 판단은 Claude와 Codex가 같은 정본을 사용한다.
-이 `AGENTS.md`는 내용을 복제하는 파일이 아니라 정본의 위치를 알려 주는
-부트스트랩이다. 따라서 정본이 바뀌어도 별도 사본을 동기화할 필요가 없다.
+This file provides guidance to agents when working with code in this repository.
 
-이 저장소에는 `CLAUDE.md`가 없다. 프로젝트 지침의 정본은 `README.md`와 `docs/`이며,
-판단 규칙의 정본은 `prompts/cio-system.md`, 작업 절차의 정본은
-`skills/decide-investment/SKILL.md`다 (`.claude/skills/decide-investment`는
-같은 디렉터리를 가리키는 심볼릭 링크다).
+## 세션 모드 (최우선 확인)
 
-## 먼저 세션 모드를 확인한다
+첫 메시지 앞의 `[분석]` / `[개발]` 접두사로 읽을 파일이 달라진다. 없으면 투자 질문은 `[분석]`으로 취급.
 
-사용자는 첫 메시지 맨 앞에 `[분석]` 또는 `[개발]`을 붙인다. **이 접두사가 아래
-어떤 파일을 읽을지를 정하므로 다른 무엇보다 먼저 본다.** 접두사가 없으면 질문의
-성격으로 판단하되, 실제 매매 질문은 `[분석]`으로 취급한다.
+- **`[분석]`**: 세션 메모리 일절 사용 금지. `README.md` → `skills/decide-investment/SKILL.md` → `prompts/cio-system.md` + `cio prepare` 패킷 순서로만 진행. 같은 종목·같은 가격에 두 번 물었을 때 답이 달라지면 안 된다.
+- **`[개발]`**: `README.md` → `MEMORY.md`(경로: `/Users/jaehoseo/.claude/projects/-Users-jaehoseo-Desktop-vswrk-money/memory/MEMORY.md`) → 관련 `docs/` 순으로 읽은 뒤 작업. 이미 기록된 결정·기각된 제안을 재검증하지 않는다.
 
-### `[분석]` — 실제 투자 질문
+## 역할 경계 (핵심 불변 규칙)
 
-**메모리를 읽지 않는다.** 프로젝트가 정의한 절차 그대로 수행한다.
+- PC의 `validation = PASS | BLOCKED` = 데이터 준비 상태 (판단 아님)
+- 모델의 `verdict` = 투자 판단
+- 파이썬 규칙으로 판정을 대신 만들지 않는다. 숫자는 `build_decision_report.py`에서 생성하고 산문은 `narrative.json`에 쓴다.
+- **커밋 금지**: `git add`/`git commit` 실행 불가. 작업 후 `git diff` 요약만 보고.
 
-1. `README.md`의 빠른 시작
-2. `skills/decide-investment/SKILL.md` (워크플로)
-3. `prompts/cio-system.md` (판단 규칙) + `cio prepare`가 만든 packet
+## 명령 모음
 
-판단에 필요한 것은 전부 packet과 사용자 원문에 있다. 세션 메모리를 섞으면 판단의
-입력이 재현 불가능해지고, 같은 종목·같은 가격에 두 번 물었을 때 답이 달라진다.
-그런 시스템은 `cio score`로 평가할 수 없다.
+```bash
+# Python (외부 패키지 없음, stdlib만 사용)
+python3.13 -m cio assets                        # 등록 자산 목록
+python3.13 -m cio prepare <ticker> --price ...  # 컨텍스트 패킷 생성
+python3.13 tests/run.py                         # 전체 Python 테스트
+python3.13 -m unittest tests.test_<name>        # 단일 Python 테스트
 
-### `[개발]` — 시스템 자체를 고치는 세션
+# Dashboard (dashboard/ 디렉터리에서 실행)
+npm run test    # vinext build 후 node --test tests/rendered-html.test.mjs 실행 (build 필요)
+npm run lint    # eslint (dist, .next 제외)
+npm run dev     # 개발 서버 (vinext dev, port 3000)
 
-역할 경계와 과거 결정이 중요하므로, 저장소를 탐색하거나 계획을 세우기 전에 다음
-파일을 순서대로 끝까지 읽는다.
+# 전체 시스템 실행 (Windows)
+./start.ps1     # API서버(3001) + 대시보드(3000) 동시 기동
+```
 
-1. `README.md`
-2. `/Users/jaehoseo/.claude/projects/-Users-jaehoseo-Desktop-vswrk-money/memory/MEMORY.md`
-3. 현재 요청과 관련된 `docs/` 문서 (`architecture.md`, `data-policy.md`,
-   `decision-contract.md`, `evaluation.md`)
+## 비표준 패턴
 
-`MEMORY.md` 안의 상대 링크는 그 파일이 있는 `memory/` 디렉터리를 기준으로 해석하고,
-현재 요청과 관련된 링크만 추가로 읽는다. 이미 기록된 결정·기각된 제안·검증 완료
-사실을 처음부터 다시 추적하거나 재검증하지 않는다. 사용자가 명시적으로 요청했거나
-현재 저장소 상태와 기록이 충돌할 때만 다시 확인한다.
+- **대시보드 빌드**: Next.js가 아니라 `vinext`(Vite 기반 RSC) 사용. `next build` 아님.
+- **Python 런타임**: `python3.13` 고정. `python` / `python3` 은 버전이 다를 수 있음.
+- **API 서버**: `scripts/api_server.py` (Python stdlib `http.server`, port 3001). 프레임워크 없음.
+- **`.env` 로딩**: `scripts/stock_service.py`의 `load_env_file()`이 직접 파싱. `python-dotenv` 없음. 값에 따옴표 넣으면 따옴표까지 전송됨.
+- **대시보드 테스트**: `dist/server/index.js`를 직접 import해 Worker로 실행. 테스트 전 반드시 `npm run build` 선행.
+- **리포트 JSON 경로**: `dashboard/data/decision-report.json` — 빌드 타임에 정적 import. 선택된 종목이 바뀌면 `api/select` → `window.location.reload()`.
+- **tickers.json**: `dashboard/scripts/tickers.json` — `stock_service.py`가 수집 완료 후 자동 동기화.
 
-## 두 세션 모두에 적용되는 것
+## 민감 파일 (`.gitignore` 대상 — 읽기만, 저장소 외부로 이동 금지)
 
-역할 경계가 이 프로젝트의 핵심이다 — 사용자는 종목·가격·금액을 고르고 주문을
-결정하며, 로컬 PC는 수집·계산·검사만 하고, 모델이 모든 투자 판단을 한다. PC의
-`validation = PASS | BLOCKED`은 데이터 준비 상태이고, 모델의 `verdict`가 투자
-판단이다. 둘을 합치거나 PC 검사 결과를 판단처럼 표현하지 않는다. 파이썬 규칙으로
-판정을 대신 만들지 않는다.
+- `config/investor-policy.json` — 투자 한도·계좌 유형
+- `knowledge/` 하위 실제 데이터 파일
+- `.env`
 
-**커밋은 사용자가 직접 한다.** 코드만 고치고 `git add`/`git commit`을 실행하지
-않으며, 커밋해줄지 묻지도 않는다. 작업을 마치면 `git diff` 요약만 보고하고 멈춘다.
+## 대시보드 CSS 규칙
 
-발견한 데이터 함정이나 시스템 결함은 대화나 메모리에만 남기지 말고 계약·패킷·
-검사 코드로 옮긴다. 다음 세션의 모델이 읽는 것은 그쪽이다.
-
-기준 런타임은 Python 3.13(`python3.13 -m cio ...`)이고 외부 패키지는 필요 없다.
-`config/investor-policy.json`과 보유 내역은 `.gitignore` 대상이므로 그 내용을
-저장소나 외부로 옮기지 않는다.
-
-상위 우선순위 지침이나 사용자의 현재 요청과 충돌하면 상위 지침과 현재 요청을
-따른다.
+- CSS 변수: `--halt`(차단), `--hold`(보류), `--approved`(승인) — 판정 색. 시세 색(`--rise`/`--fall`)과 절대 혼용 금지.
+- `StockControlPanel.tsx`는 Tailwind 없이 순수 inline style 사용 (다크 배경 `#0b1120` 기반).
+- 리포트 뷰(`page.tsx`)는 Tailwind + CSS 변수 혼용.

@@ -37,7 +37,7 @@ export function AnalysisDialog({
 
         <div className="dialog-body">
           <section className="dialog-narrative">
-            {analysis.paragraphs.map((paragraph) => (
+            {(analysis.paragraphs ?? []).map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </section>
@@ -46,7 +46,7 @@ export function AnalysisDialog({
             <section>
               <h3>확인된 사실</h3>
               <ul>
-                {analysis.confirmed.map((item) => (
+                {(analysis.confirmed ?? []).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -54,7 +54,7 @@ export function AnalysisDialog({
             <section>
               <h3>아직 확인되지 않은 것</h3>
               <ul>
-                {analysis.unresolved.map((item) => (
+                {(analysis.unresolved ?? []).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -62,7 +62,7 @@ export function AnalysisDialog({
             <section>
               <h3>논지 훼손 신호</h3>
               <ul>
-                {analysis.failureSignals.map((item) => (
+                {(analysis.failureSignals ?? []).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -70,7 +70,7 @@ export function AnalysisDialog({
             <section>
               <h3>이 분석의 한계</h3>
               <ul>
-                {analysis.caveats.map((item) => (
+                {(analysis.caveats ?? []).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>

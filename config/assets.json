@@ -16,8 +16,6 @@
       "asset_type": "STOCK",
       "currency": "KRW",
       "price_symbol": "005930.KS",
-      "filing_source": "DART",
-      "filing_profile": "DART_KIFRS",
       "sector_code": "TECH_SEMICONDUCTORS",
       "industry": "메모리·전자기기",
       "analysis_lens": "SEMICONDUCTOR_CYCLE",
@@ -34,7 +32,9 @@
         "KR_INVENTORY",
         "NORMALIZED_EARNINGS",
         "KR_SEGMENTS"
-      ]
+      ],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
     },
     "214450": {
       "name": "파마리서치",
@@ -43,8 +43,6 @@
       "asset_type": "STOCK",
       "currency": "KRW",
       "price_symbol": "214450.KQ",
-      "filing_source": "DART",
-      "filing_profile": "DART_KIFRS",
       "sector_code": "HEALTHCARE_DEVICES",
       "industry": "에스테틱 의료기기·화장품",
       "analysis_lens": "QUALITY_GROWTH",
@@ -61,20 +59,8 @@
         "KR_INVENTORY",
         "KR_PRODUCT_SALES"
       ],
-      "peers": [
-        {
-          "asset_id": "145020",
-          "name": "휴젤"
-        },
-        {
-          "asset_id": "214150",
-          "name": "클래시스"
-        },
-        {
-          "asset_id": "278470",
-          "name": "에이피알"
-        }
-      ]
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
     },
     "TSLA": {
       "name": "Tesla",
@@ -83,8 +69,6 @@
       "asset_type": "STOCK",
       "currency": "USD",
       "price_symbol": "TSLA",
-      "filing_source": "SEC_EDGAR",
-      "filing_profile": "SEC_DOMESTIC_US_GAAP",
       "sector_code": "CONSUMER_AUTOMOTIVE",
       "industry": "자동차·에너지·AI",
       "analysis_lens": "CAPITAL_INTENSIVE_GROWTH",
@@ -99,10 +83,8 @@
       "optional_collectors": [
         "NORMALIZED_EARNINGS"
       ],
-      "ir_sources": [
-        "https://ir.tesla.com/",
-        "https://ir.tesla.com/press"
-      ]
+      "filing_source": "SEC_EDGAR",
+      "filing_profile": "SEC_DOMESTIC_US_GAAP"
     },
     "IBM": {
       "name": "IBM",
@@ -111,8 +93,6 @@
       "asset_type": "STOCK",
       "currency": "USD",
       "price_symbol": "IBM",
-      "filing_source": "SEC_EDGAR",
-      "filing_profile": "SEC_DOMESTIC_US_GAAP",
       "sector_code": "TECH_SERVICES",
       "industry": "기업용 소프트웨어·인프라·컨설팅",
       "analysis_lens": "MATURE_TECHNOLOGY",
@@ -127,9 +107,8 @@
       "optional_collectors": [
         "NORMALIZED_EARNINGS"
       ],
-      "ir_sources": [
-        "https://www.ibm.com/investor/events"
-      ]
+      "filing_source": "SEC_EDGAR",
+      "filing_profile": "SEC_DOMESTIC_US_GAAP"
     },
     "RXRX": {
       "name": "Recursion Pharmaceuticals",
@@ -138,8 +117,6 @@
       "asset_type": "STOCK",
       "currency": "USD",
       "price_symbol": "RXRX",
-      "filing_source": "SEC_EDGAR",
-      "filing_profile": "SEC_DOMESTIC_US_GAAP",
       "sector_code": "HEALTHCARE_BIOTECH",
       "industry": "임상단계 AI 신약개발",
       "analysis_lens": "CLINICAL_BIOTECH",
@@ -151,9 +128,8 @@
         "XBI"
       ],
       "optional_collectors": [],
-      "ir_sources": [
-        "https://ir.recursion.com/news-events/events"
-      ]
+      "filing_source": "SEC_EDGAR",
+      "filing_profile": "SEC_DOMESTIC_US_GAAP"
     },
     "SCHD": {
       "name": "Schwab U.S. Dividend Equity ETF",
@@ -171,13 +147,6 @@
       "benchmarks": [
         "^GSPC"
       ],
-      "etf": {
-        "strategy": "PASSIVE_BROAD",
-        "derivative_use": false,
-        "leverage": 1.0,
-        "holdings_source": "SECONDARY",
-        "distribution_policy": "DIVIDEND"
-      },
       "optional_collectors": []
     },
     "MSTY": {
@@ -198,14 +167,6 @@
         "MSTR",
         "^GSPC"
       ],
-      "etf": {
-        "strategy": "COVERED_CALL_SINGLE_STOCK",
-        "underlying": "MSTR",
-        "derivative_use": true,
-        "leverage": 1.0,
-        "holdings_source": "ISSUER",
-        "distribution_policy": "OPTION_INCOME"
-      },
       "optional_collectors": []
     },
     "028050": {
@@ -260,13 +221,7 @@
         "KR_SEGMENTS"
       ],
       "filing_source": "DART",
-      "filing_profile": "DART_KIFRS",
-      "peers": [
-        {
-          "asset_id": "005930",
-          "name": "삼성전자"
-        }
-      ]
+      "filing_profile": "DART_KIFRS"
     },
     "290650": {
       "name": "엘앤씨바이오",
@@ -309,18 +264,172 @@
       ],
       "optional_collectors": [
         "ETF_CONSTITUENTS"
+      ]
+    },
+    "066570": {
+      "name": "LG전자",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "066570.KS",
+      "sector_code": "TECH_SERVICES",
+      "industry": "가전·TV·전장부품",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
       ],
-      "etf": {
-        "strategy": "PASSIVE_THEMATIC",
-        "derivative_use": false,
-        "leverage": 1.0,
-        "holdings_source": "ISSUER",
-        "distribution_policy": "DIVIDEND_QUARTERLY",
-        "issuer": "MIRAE_TIGER",
-        "isin": "KR70053L0005",
-        "currency_hedged": false,
-        "total_fee_pct": 0.49
-      }
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "005380": {
+      "name": "현대차",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "005380.KS",
+      "sector_code": "CONSUMER_AUTOMOTIVE",
+      "industry": "자동차 제조",
+      "analysis_lens": "CAPITAL_INTENSIVE_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "316140": {
+      "name": "우리금융지주",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "316140.KS",
+      "sector_code": "FINANCIALS_BANKING",
+      "industry": "은행·금융지주",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "0167A0": {
+      "name": "SOL AI반도체TOP2플러스",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "ETF",
+      "currency": "KRW",
+      "price_symbol": "0167A0.KS",
+      "sector_code": "TECH_SEMICONDUCTORS",
+      "industry": "AI 반도체 테마 ETF",
+      "analysis_lens": "ETF_NAV",
+      "valuation_family": [
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": []
+    },
+    "000080": {
+      "name": "하이트진로",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "000080.KS",
+      "sector_code": "CONSUMER_STAPLES",
+      "industry": "주류·음료",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "454910": {
+      "name": "현대로보틱스",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "454910.KS",
+      "sector_code": "INDUSTRIALS_AUTOMATION",
+      "industry": "산업용 로봇·자동화",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "000100": {
+      "name": "유한양행",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "000100.KS",
+      "sector_code": "HEALTHCARE_PHARMA",
+      "industry": "제약",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "039130": {
+      "name": "하나투어",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "039130.KS",
+      "sector_code": "CONSUMER_TRAVEL",
+      "industry": "여행·관광",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
     }
   }
 }

@@ -10,6 +10,7 @@ import { FinancialTabs } from "./FinancialTabs";
 import { PositioningTabs } from "./PositioningTabs";
 import { PriceChart } from "./PriceChart";
 import { SensitivityModel } from "./SensitivityModel";
+import { StockControlPanel } from "./StockControlPanel";
 import { VerdictMark } from "./VerdictMark";
 
 const report = reportData as unknown as DecisionReport;
@@ -52,6 +53,10 @@ function SectionTitle({
 
 export default function Home() {
   return (
+    <StockControlPanel
+      currentTicker={report.asset.ticker.split(" · ")[0]}
+      currentName={report.asset.name}
+    >
     <main>
       <header className="site-header">
         <a href="#top" className="site-name">
@@ -118,7 +123,9 @@ export default function Home() {
           </aside>
         </section>
 
-        <SensitivityModel model={report.sensitivity} />
+        {report.sensitivity?.current ? (
+          <SensitivityModel model={report.sensitivity} />
+        ) : null}
 
         <section className="decision-evidence" aria-label="판정을 결정한 핵심 근거">
           <div className="evidence-intro">
@@ -472,5 +479,6 @@ export default function Home() {
         </footer>
       </article>
     </main>
+    </StockControlPanel>
   );
 }
