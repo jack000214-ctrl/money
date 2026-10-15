@@ -1,9 +1,0 @@
-# MSTY (YieldMax MSTR Option Income Strategy ETF) 관통 기준
-# 조회일: 2026-07-25 / 데이터 기준일: 2026-07-22
-# 출처: https://www.yieldmaxetfs.com/our-etfs/msty/
-# 구조: MSTR을 직접 보유하지 않음. 합성 롱(롱콜+숏풋) + 콜스프레드 매도.
-#       상승은 캡, 하락은 거의 그대로 → 하락 위험 기준으로는 MSTR 100% 노출로 본다.
-# 분배율 85.59% (2026-07-22). 투자설명서: 분배금에 원금 환급 포함, NAV를 낮춤.
-# 설정 2024-02-21 / NAV $12.49 (2026-06-30) / 설정 이후 가격 -83.5%
-etf_id,holding_id,holding_name,weight_pct,market,sector,as_of
-MSTY,MSTR,Strategy (MicroStrategy),100.0,US,암호화폐,2026-07-22

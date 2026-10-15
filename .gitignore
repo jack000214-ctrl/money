@@ -5,10 +5,15 @@ __pycache__/
 *.pyc
 .python-version
 
-# ── 로컬 빌드·캐시 ──────────────────────────────────────────────────
-data/raw/
-data/logs/
-data/cache/
+# ── 로컬 수집 데이터 전체 (2026-10-15 결정) ─────────────────────────
+# 저장소에는 코드·계약·문서만 올린다. 시장 데이터는 각자 API 키로
+# `cio refresh` 해서 받는다. 컨센서스 history 처럼 다시 받을 수 없는 시점
+# 기록도 이 PC 에만 남는다 — 저장소는 백업이 아니다.
+# data/ 에는 원문(raw)·로그·캐시와 판단 초안이 섞인다. 초안 이름이 규칙을
+# 비껴가 보유 수량·평단이 담긴 파일이 커밋된 적이 있어(data/pharmaresearch-*)
+# 폴더째 막는다.
+knowledge/
+data/
 
 # ── 개인 투자 정책 ───────────────────────────────────────────────────
 # 월소득·목표수익·최대손실 등 민감 재무정보 포함
@@ -28,9 +33,6 @@ knowledge/evaluations/
 knowledge/evidence/
 knowledge/quarantine/
 knowledge/retired/
-# `cio record` 에 넣기 전의 판단 초안. 기록본과 같은 내용(보유 수량·평단·정책)을
-# 담는데 knowledge/ 밖이라 위 규칙에 걸리지 않는다. 실제로 커밋될 뻔했다.
-data/decision-*.json
 
 # ── 대시보드 생성물 (총자산·평가액·수량 포함) ──────────────────────
 dashboard/data/
