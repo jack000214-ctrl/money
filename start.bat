@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 > nul
-title SIA Launcher
+title Money Launcher
 
 echo ==========================================================
-echo   SIA (자산 증식 의사결정 시스템) 원클릭 실행기
+echo   Money (Smart Investment Advisor) 원클릭 실행기
 echo ==========================================================
 echo.
 

@@ -101,6 +101,11 @@ def pct(value: float, digits: int = 1) -> str:
     return f"{value:+.{digits}f}%"
 
 
+def limited(value: float) -> float:
+    """주당가치의 하한은 0이다(유한책임). 음수에 소수 지수를 쓰면 복소수가 된다."""
+    return max(value, 0.0)
+
+
 def entry_price_for_hurdle(scenarios, probabilities, horizon_months, required_pct):
     """IPS 측정 기준으로 요구수익률을 만족하는 가격을 푼다.
 
@@ -110,12 +115,22 @@ def entry_price_for_hurdle(scenarios, probabilities, horizon_months, required_pc
     자가 아니다. 측정 기준을 섞으면 화면이 엔진과 다른 답을 낸다.
     """
     k = 12.0 / horizon_months
-    total = sum(probabilities[name] * scenarios[name] ** k for name in scenarios)
+    total = sum(probabilities[name] * limited(scenarios[name]) ** k for name in scenarios)
     return (total / (1 + required_pct / 100.0)) ** (1 / k)
 
 
 def annualized(value: float, price: float, horizon_months: int) -> float:
-    return ((value / price) ** (12.0 / horizon_months) - 1) * 100.0
+    return ((limited(value) / price) ** (12.0 / horizon_months) - 1) * 100.0
+
+
+def _scen_return(scen: dict) -> float:
+    """시나리오에서 연율 수익률을 꺼낸다.
+
+    구형 파일은 return_pct, 신형 파일은 annualized_return_pct 를 쓴다.
+    """
+    return float(scen.get("return_pct") or scen.get("annualized_return_pct", 0))
+
+
 
 
 def nice_ceiling(value: float) -> tuple[float, float]:
@@ -228,7 +243,7 @@ def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
 
     cells = []
     for growth in growths:
-        bull_value = equity_value_per_share(fcf, growth / 100.0, **common)
+        bull_value = limited(equity_value_per_share(fcf, growth / 100.0, **common))
         plane = []
         for p_bull in probs:
             rest = 1 - p_bull
@@ -237,8 +252,8 @@ def build_sensitivity(calc_inputs, per_share, probabilities, horizon,
             row = []
             for price in prices:
                 weighted = (
-                    p_bear * ((per_share["bear"] / price) ** k - 1)
-                    + p_base * ((per_share["base"] / price) ** k - 1)
+                    p_bear * ((limited(per_share["bear"]) / price) ** k - 1)
+                    + p_base * ((limited(per_share["base"]) / price) ** k - 1)
                     + p_bull * ((bull_value / price) ** k - 1)
                 ) * 100
                 gap = weighted - required
@@ -286,7 +301,10 @@ def build(args) -> dict:
                  "이 값은 급락 전 주가 또는 다른 측정 기준으로 만들어진 값이라 "
                  "생성기가 만드는 값과 화면에서 충돌한다")
 
-    ips = load_json(args.ips)
+    try:
+        ips = load_json(args.ips)
+    except FileNotFoundError:
+        ips = None
     fundamentals = load_json(args.fundamentals)
     values = fundamentals["values"]
 
@@ -308,28 +326,57 @@ def build(args) -> dict:
         new_asset_market=args.market,
         new_asset_risk_class=args.risk_class,
     )
-    analysis = load_json(args.analysis)
-    expected = analysis["expected_return"]
-    calculation_id = expected["calculation_id"]
-    # 하드코딩된 ID 를 그냥 찍지 않는다. 실제로 열리는지 확인한다.
-    calculation = load_calculation(calculation_id, args.calculations)
-    calc_inputs = calculation["inputs"]
-    calc_scen = calculation["outputs"]["scenarios"]
+    if args.analysis:
+        analysis = load_json(args.analysis)
+        expected = analysis["expected_return"]
+        calculation_id = expected["calculation_id"]
+        # 하드코딩된 ID 를 그냥 찍지 않는다. 실제로 열리는지 확인한다.
+        calculation = load_calculation(calculation_id, args.calculations)
+        calc_inputs = calculation["inputs"]
+        calc_scen = calculation["outputs"]["scenarios"]
 
-    provenance = calc_inputs.get("input_provenance") or {}
-    if not provenance.get("verified"):
-        fail(f"{calculation_id}: 손입력 계산으로는 리포트를 만들지 않는다")
-    if provenance.get("fundamentals_id") != fundamentals["fundamentals_id"]:
-        fail("계산이 참조한 스냅샷과 --fundamentals 가 다르다")
+        provenance = calc_inputs.get("input_provenance") or {}
+        if not provenance.get("verified"):
+            fail(f"{calculation_id}: 손입력 계산으로는 리포트를 만들지 않는다")
+        if provenance.get("fundamentals_id") != fundamentals["fundamentals_id"]:
+            fail("계산이 참조한 스냅샷과 --fundamentals 가 다르다")
 
-    horizon = int(expected["horizon_months"])
-    required = float(expected["required_return_pct"])
-    probabilities = {n: expected["scenarios"][n]["probability"] for n in calc_scen}
+        horizon = int(expected["horizon_months"])
+        required = float(expected["required_return_pct"])
+        probabilities = {n: expected["scenarios"][n]["probability"] for n in calc_scen}
+    else:
+        # --analysis 없이 --calculation 파일만 있을 때 fallback
+        if not args.calculation or not Path(args.calculation).is_file():
+            fail("--analysis 와 --calculation 이 모두 없다. 둘 중 하나가 필요하다")
+        calculation = load_json(Path(args.calculation))
+        calculation_id = calculation.get("calculation_id", "")
+        calc_inputs = calculation["inputs"]
+        calc_scen = calculation["outputs"]["scenarios"]
+
+        provenance = calc_inputs.get("input_provenance") or {}
+        # fallback 경로에서는 자동 생성 계산도 허용한다 (verified 미적용)
+        if provenance.get("fundamentals_id") != fundamentals["fundamentals_id"]:
+            fail("계산이 참조한 스냅샷과 --fundamentals 가 다르다")
+
+        horizon = int(calc_inputs.get("horizon_months", 24))
+        required = float(10.0)  # IPS 기본 요구 수익률
+        # analysis 확률 없이 시나리오 수에 따라 균등 배분
+        n_scen = len(calc_scen)
+        probabilities = {n: 1.0 / n_scen for n in calc_scen}
+
+    # 음수 FCF 플레이스홀더: DCF 모델을 적용할 수 없는 상태임을 표시한다.
+    is_negative_fcf = (calculation.get("model") == "negative_fcf")
+
     per_share = {n: calc_scen[n]["value_per_share"] for n in calc_scen}
     price_native = float(calc_inputs["price"])
 
-    hurdle_price = entry_price_for_hurdle(per_share, probabilities, horizon, required)
-    bull_only_price = per_share["bull"] / (1 + required / 100.0) ** (horizon / 12.0)
+    if is_negative_fcf:
+        # DCF 가 없으므로 hurdle/bull 가격을 의미있게 풀 수 없다.
+        hurdle_price = 0.0
+        bull_only_price = 0.0
+    else:
+        hurdle_price = entry_price_for_hurdle(per_share, probabilities, horizon, required)
+        bull_only_price = per_share["bull"] / (1 + required / 100.0) ** (horizon / 12.0)
 
     income = fundamentals["income_statement"]
     net_income_ttm = income["net_income"]["ttm"]
@@ -368,17 +415,22 @@ def build(args) -> dict:
         ],
         "bearBudget": {
             "used": f"{basis.get('bear_loss_contribution_pct', 0):.2f}%",
-            "limit": f"{ips['decision_policy']['max_bear_loss_contribution_pct']:.2f}%",
+            "limit": (f"{ips['decision_policy']['max_bear_loss_contribution_pct']:.2f}%"
+                      if ips else "—"),
             "note": "약세 시나리오가 실현될 때 이 포지션 하나가 총자산에 입히는 손실",
-            "withinBudget": basis.get("bear_loss_contribution_pct", 0)
-            <= ips["decision_policy"]["max_bear_loss_contribution_pct"],
+            "withinBudget": (basis.get("bear_loss_contribution_pct", 0)
+                             <= ips["decision_policy"]["max_bear_loss_contribution_pct"]
+                             if ips else None),
         },
-        "costs": {
-            "총계": f"₩{basis['costs_and_tax'].get('total_krw', 0):,.0f}",
-            "내역": (f"수수료 ₩{basis['costs_and_tax'].get('commission_krw', 0):,.0f} · "
-                     f"슬리피지 ₩{basis['costs_and_tax'].get('slippage_krw', 0):,.0f} · "
-                     f"환전 ₩{basis['costs_and_tax'].get('fx_cost_krw', 0):,.0f}"),
-        } if isinstance(basis.get("costs_and_tax"), dict) else None,
+        "costs": (
+            {
+                "총계": f"₩{basis['costs_and_tax'].get('total_krw') or 0:,.0f}",
+                "내역": (f"수수료 ₩{basis['costs_and_tax'].get('commission_krw') or 0:,.0f} · "
+                         f"슬리피지 ₩{basis['costs_and_tax'].get('slippage_krw') or 0:,.0f} · "
+                         f"환전 ₩{basis['costs_and_tax'].get('fx_cost_krw') or 0:,.0f}"),
+            }
+            if isinstance(basis.get("costs_and_tax"), dict) else None
+        ),
         "snapshotId": result["metadata"]["decision_snapshot_id"],
     }
 
@@ -487,10 +539,14 @@ def build(args) -> dict:
          "value": pct((price_native / lo[1] - 1) * 100),
          "explanation": f"저점 {price_str(lo[1])} ({lo[0]}) 대비.", "signal": "good"},
         {"label": f"요구수익률 {required:.0f}% 만족 가격",
-         "value": price_str(hurdle_price),
-         "explanation": "IPS 측정 기준으로 푼 값. 현재가의 "
-                        f"{hurdle_price / price_native * 100:.0f}% 수준이라 "
-                        "가격 조정으로 해소될 수준이 아닙니다.",
+         "value": "—" if is_negative_fcf else price_str(hurdle_price),
+         "explanation": (
+             "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가입니다."
+             if is_negative_fcf else
+             "IPS 측정 기준으로 푼 값. 현재가의 "
+             f"{hurdle_price / price_native * 100:.0f}% 수준이라 "
+             "가격 조정으로 해소될 수준이 아닙니다."
+         ),
          "signal": "bad"},
     ]
 
@@ -499,9 +555,14 @@ def build(args) -> dict:
     highlights = [
         {"meaning": "목표 수익률에 못 미칩니다",
          "value": f"{basis.get('position_return_pct', 0):.1f}% < 목표 {required:.1f}%",
-         "context": "세 시나리오를 확률로 섞은 값입니다. 강세 시나리오만 "
-                    f"따로 봐도 {calc_scen['bull']['return_pct']:+.1f}%로 "
-                    "목표에 못 미칩니다.",
+         "context": (
+             "FCF 가 음수로 DCF 시나리오를 산출할 수 없습니다. "
+             "FCF 흑자 전환 여부가 핵심 관전 포인트입니다."
+             if is_negative_fcf else
+             "세 시나리오를 확률로 섞은 값입니다. 강세 시나리오만 "
+             f"따로 봐도 {_scen_return(calc_scen['bull']):+.1f}%로 "
+             "목표에 못 미칩니다."
+         ),
          "confidence": "투자정책 판정", "confidenceLevel": "high", "signal": "bad"},
         # 부호를 보고 문장을 고른다. "현금이 회수되지 않았다"를 박아두면
         # 분기 FCF 가 양수인 종목에서 화면이 사실과 반대로 말한다.
@@ -529,9 +590,15 @@ def build(args) -> dict:
          "signal": "good" if rev_now >= rev_yoy else "bad"},
     ]
 
-    sensitivity = build_sensitivity(
-        calc_inputs, per_share, probabilities, horizon, required, price_native,
-        float(calc_inputs["fcf"]), currency)
+    if is_negative_fcf:
+        sensitivity = {
+            "unavailable": True,
+            "reason": "잉여현금흐름(FCF)이 음수입니다. 정률성장 DCF 모델을 적용할 수 없어 민감도 분석을 생략합니다.",
+        }
+    else:
+        sensitivity = build_sensitivity(
+            calc_inputs, per_share, probabilities, horizon, required, price_native,
+            float(calc_inputs["fcf"]), currency)
 
     report = {
         "schemaVersion": SCHEMA,
@@ -593,15 +660,20 @@ def build(args) -> dict:
                 f"연 수익률 {basis.get('position_return_pct', 0):.1f}% · "
                 f"목표 {required:.1f}%"
             ),
-            "entryCeiling": price_str(hurdle_price),
+            "entryCeiling": "—" if is_negative_fcf else price_str(hurdle_price),
             "entryCeilingNote": (
+                "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가. "
+                "FCF 흑자 전환 후 재산출이 필요합니다."
+                if is_negative_fcf else
                 f"세 시나리오를 확률로 섞어 계산했을 때 목표 {required:.1f}%를 "
                 f"만족하는 가격이다. 현재가의 {hurdle_price / price_native * 100:.0f}% "
                 "수준이라, 가격이 내려온다고 풀릴 문제가 아니다. "
                 "FCF 궤적이 바뀌어야 한다."
             ),
-            "bullOnlyCeiling": price_str(bull_only_price),
+            "bullOnlyCeiling": "—" if is_negative_fcf else price_str(bull_only_price),
             "bullOnlyNote": (
+                "FCF 가 음수이므로 강세 단독 기준 가격 산출 불가."
+                if is_negative_fcf else
                 "강세 시나리오 하나만 쓰면 이 가격이 나온다. IPS 가 정한 자가 "
                 "아니므로 매수 기준으로 쓰지 않는다 — 이 가격에서도 세 시나리오를 "
                 f"섞은 연 수익률은 "
@@ -630,9 +702,16 @@ def build(args) -> dict:
         "portfolio": portfolio,
         "valuation": {
             **narrative["sectionTitles"]["valuation"],
-            "impliedGrowth": f"10년 FCF 연 "
-                             f"{calculation['outputs']['implied_growth_pct']:.1f}%",
+            "impliedGrowth": (
+                "DCF 불가 — FCF 음수"
+                if is_negative_fcf else
+                f"10년 FCF 연 {calculation['outputs']['implied_growth_pct']:.1f}%"
+            ),
             "modelInputs": (
+                f"TTM FCF {money_m(values['fcf_ttm'])} · FCF 음수로 DCF 적용 불가. "
+                "금융 자회사가 연결된 자동차·지주사는 영업현금흐름에 금융부문이 "
+                "포함되므로 별도의 수정 모델이 필요합니다."
+                if is_negative_fcf else
                 f"TTM FCF {money_m(values['fcf_ttm'])} · 할인율 "
                 f"{calc_inputs['discount_rate_pct']:.0f}% · 영구성장률 "
                 f"{calc_inputs['terminal_growth_pct']:.0f}% · 순현금 "
@@ -643,24 +722,32 @@ def build(args) -> dict:
                  "basis": f"TTM 순이익 {money_m(net_income_ttm)} · 현재가 기준"},
                 {"label": "PSR", "value": (f"{psr:.2f}x" if psr < 10 else f"{psr:.1f}x") if psr else "—",
                  "basis": f"TTM 매출 {money_m(revenue_ttm)} · 현재가 기준"},
-                # 역산 DCF 가 실제로 푸는 배수. PER·PSR 보다 이 판정에 직결된다.
-                {"label": "EV/FCF",
-                 "value": f"{(mcap + values['net_debt']) / values['fcf_ttm']:.1f}x",
-                 "basis": f"EV {money_m(mcap + values['net_debt'])} ÷ "
-                          f"TTM FCF {money_m(values['fcf_ttm'])}"},
+                # FCF 음수 시 EV/FCF 배수는 의미 없으므로 표시하지 않는다.
+                *([{"label": "EV/FCF",
+                  "value": f"{(mcap + values['net_debt']) / values['fcf_ttm']:.1f}x",
+                  "basis": f"EV {money_m(mcap + values['net_debt'])} ÷ "
+                           f"TTM FCF {money_m(values['fcf_ttm'])}"}]
+                  if not is_negative_fcf and values.get("fcf_ttm") else []),
             ],
-            "scenarios": [
-                {
-                    "name": {"bear": "약세", "base": "기준", "bull": "강세"}[name],
-                    "probability": f"{probabilities[name] * 100:.0f}%",
-                    "fcfGrowth": f"10년간 {calc_inputs['scenario_growth_pct'][name]:.0f}%",
-                    "valuePerShare": price_str(per_share[name]),
-                    "totalGap": f"현재가 대비 {calc_scen[name]['total_return_pct']:+.1f}%",
-                    "annualizedReturn": f"{calc_scen[name]['return_pct']:+.1f}% p.a.",
-                    "signal": "bad" if calc_scen[name]["return_pct"] < 0 else "watch",
-                }
-                for name in ("bear", "base", "bull")
-            ],
+            "scenarios": (
+                [{"name": "—", "probability": "—",
+                  "fcfGrowth": "FCF 음수 — DCF 시나리오 산출 불가",
+                  "valuePerShare": "—", "totalGap": "—",
+                  "annualizedReturn": "—", "signal": "bad"}]
+                if is_negative_fcf else
+                [
+                    {
+                        "name": {"bear": "약세", "base": "기준", "bull": "강세"}[name],
+                        "probability": f"{probabilities[name] * 100:.0f}%",
+                        "fcfGrowth": f"10년간 {calc_inputs['scenario_growth_pct'][name]:.0f}%",
+                        "valuePerShare": price_str(per_share[name]),
+                        "totalGap": f"현재가 대비 {calc_scen[name]['total_return_pct']:+.1f}%",
+                        "annualizedReturn": f"{_scen_return(calc_scen[name]):+.1f}% p.a.",
+                        "signal": "bad" if _scen_return(calc_scen[name]) < 0 else "watch",
+                    }
+                    for name in ("bear", "base", "bull")
+                ]
+            ),
         },
         "cashFlow": {**narrative["sectionTitles"]["cashFlow"],
                      "rows": cash_rows, "chart": cash_chart},
@@ -707,7 +794,9 @@ def main() -> None:
     p.add_argument("--as-of", required=True)
     p.add_argument("--holdings", default=str(ROOT / "knowledge/portfolio/holdings.csv"))
     p.add_argument("--ips", default=str(ROOT / "knowledge/portfolio/ips.json"))
-    p.add_argument("--analysis", required=True)
+    p.add_argument("--analysis", default=None)
+    p.add_argument("--calculation", default=None,
+                   help="--analysis 없을 때 fallback으로 사용할 계산 파일 경로")
     p.add_argument("--calculations", default=str(ROOT / "knowledge/calculations"))
     p.add_argument("--fundamentals", required=True)
     p.add_argument("--market", default="KR", help="보유하지 않은 종목의 시장")

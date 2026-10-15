@@ -72,6 +72,27 @@ class TestCalculatorNamesItsUnits(unittest.TestCase):
         )
         self.assertNotIn("return_pct", outputs["scenarios"]["base"])
 
+
+    def test_negative_equity_value_floors_total_return_at_minus_100(self):
+        """순부채가 현금흐름 가치보다 크면 주당가치가 음수다. 주식의 손실은 -100% 까지다."""
+        from calculators.reverse_dcf import scenario_outputs
+
+        outputs = scenario_outputs(
+            fcf=5.5e10,
+            price=17000.0,
+            growth={"bear": -5.0, "base": 3.0, "bull": 8.0},
+            horizon_months=24,
+            discount_rate=0.10,
+            terminal_growth=0.02,
+            years=10,
+            net_debt=8.3e11,
+            shares=6.96e7,
+        )
+        bear = outputs["scenarios"]["bear"]
+        self.assertLess(bear["value_per_share"], 0)
+        self.assertEqual(bear["total_return_pct"], -100.0)
+        self.assertEqual(bear["annualized_return_pct"], -100.0)
+
     def test_twelve_month_horizon_makes_the_two_equal(self):
         value = equity_value_per_share(
             1e11, 0.05, discount_rate=0.10, terminal_growth=0.02,

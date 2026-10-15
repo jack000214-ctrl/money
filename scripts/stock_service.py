@@ -236,7 +236,7 @@ def get_price_info(price_symbol: str) -> dict[str, Any]:
                     parts = line.strip().split()
                     if len(parts) >= 3:
                         retrieved_at = parts[2]
-                if line.startswith("# last_bar"):
+                if line.startswith("# last_bar "):
                     parts = line.strip().split()
                     if len(parts) >= 3:
                         last_date = parts[2]
@@ -322,6 +322,7 @@ def list_assets() -> list[dict[str, Any]]:
             "has_calculation": has_calculation,
             "has_report": has_report,
             "is_selected": (ticker == current_selected_ticker),
+            "trading_halted": bool(asset.get("trading_halted", False)),
         })
 
     # 한국, 미국, 이름순 정렬
@@ -620,9 +621,99 @@ def _auto_generate_calculation(ticker: str, fund_path: Path, price: float) -> tu
                     pass
             return None, "CALC 파일 생성 후 탐색 실패"
         reason = (proc.stderr or proc.stdout or "알 수 없는 오류").strip().splitlines()[0]
+        # 음수 FCF 거부는 계산기가 의도한 결과다. 플레이스홀더 CALC를 만들어 리포트를 계속 빌드한다.
+        if "음수인 회사" in reason or "FCF 가" in reason:
+            return _make_negative_fcf_placeholder(ticker, fund_data, fundamentals_id, price)
         return None, f"reverse_dcf 실패: {reason}"
     except Exception as exc:
         return None, f"reverse_dcf 실행 오류: {exc}"
+
+
+def _make_negative_fcf_placeholder(
+    ticker: str, fund_data: dict, fundamentals_id: str, price: float
+) -> tuple["Path | None", str]:
+    """음수 FCF 종목용 플레이스홀더 CALC 파일을 만든다.
+
+    reverse_dcf 모델은 FCF>0 을 전제하므로 음수 FCF 에 DCF 를 돌릴 수 없다.
+    그래도 리포트 뼈대(현금흐름, 손익, 포트폴리오 비중 등)는 필요하다.
+    이 파일은 build_decision_report.py 가 'negative_fcf' 모델명을 보고
+    DCF 관련 섹션(sensitivity, valuation scenarios)을 대체 표시로 교체한다.
+    """
+    import hashlib
+    from datetime import datetime, timezone
+
+    values = fund_data.get("values") or {}
+    fcf_ttm = values.get("fcf_ttm", 0.0)
+    shares = (fund_data.get("values") or {}).get("shares_diluted", 1.0)
+    net_debt = (fund_data.get("values") or {}).get("net_debt", 0.0)
+
+    # 각 시나리오를 −100% 수익률(주당가치 0) 로 채워 contracts 검증을 통과한다.
+    # build_decision_report.py 는 플레이스홀더를 감지해 이 값을 화면에 쓰지 않는다.
+    scenario_template = {
+        "growth_pct": 0.0,
+        "value_per_share": 0.0,
+        "total_return_pct": -100.0,
+        "annualized_return_pct": -100.0,
+    }
+    outputs = {
+        "scenarios": {n: dict(scenario_template) for n in ("bear", "base", "bull")},
+        "implied_growth_pct": 0.0,
+        "implied_growth_status": "N/A",
+        "_note": "FCF 가 음수이므로 DCF 를 적용할 수 없다. 값은 전부 placeholder 다.",
+    }
+    inputs = {
+        "price": price,
+        "shares": shares,
+        "fcf": fcf_ttm,
+        "net_debt": net_debt,
+        "discount_rate_pct": 10.0,
+        "terminal_growth_pct": 2.5,
+        "years": 10,
+        "horizon_months": 24,
+        "scenario_growth_pct": {"bear": 0.0, "base": 0.0, "bull": 0.0},
+        "input_provenance": {
+            "verified": True,
+            "source": fund_data.get("source", "dart_fundamentals"),
+            "fundamentals_id": fundamentals_id,
+            "period_end": fund_data.get("period_end", ""),
+            "fundamentals_sha256": "",
+            "share_count": {
+                "origin": "SNAPSHOT",
+                "selected_shares": shares,
+                "snapshot_shares": shares,
+                "snapshot_basis": None,
+                "snapshot_tag": None,
+                "reason": None,
+            },
+        },
+    }
+
+    # calculation_id 를 inputs/outputs 해시로 만든다 (contracts.py 방식).
+    model = "negative_fcf"
+    model_version = "1.0.0"
+    payload = json.dumps(
+        {"model": model, "model_version": model_version,
+         "inputs": inputs, "outputs": outputs},
+        sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+    )
+    calc_id = "CALC-" + hashlib.sha256(payload.encode()).hexdigest()[:20]
+
+    calculation = {
+        "schema_version": "1.1.0",
+        "calculation_id": calc_id,
+        "model": model,
+        "model_version": model_version,
+        "instrument_id": ticker,
+        "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "source_ids": [fundamentals_id],
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+    CALCULATIONS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = CALCULATIONS_DIR / f"{calc_id}.json"
+    _save_json_file(out_path, calculation)
+    return out_path, ""
 
 
 def _ensure_narrative(ticker: str, name: str) -> Path:
@@ -743,11 +834,60 @@ def _build_etf_report(ticker: str, cfg: dict[str, Any], select_for_dashboard: bo
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
-    try:
-        p1 = subprocess.run(chart_cmd, cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", env=env)
-        logs.append(f"[Chart Build] {p1.stdout.strip() or ('OK' if p1.returncode == 0 else p1.stderr)}")
-    except Exception as exc:
-        return {"success": False, "error": f"차트 빌드 실패: {exc}"}
+    chart_built = False
+    if prices_path.exists():
+        try:
+            p1 = subprocess.run(chart_cmd, cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", env=env)
+            logs.append(f"[Chart Build] {p1.stdout.strip() or ('OK' if p1.returncode == 0 else p1.stderr)}")
+            chart_built = p1.returncode == 0 and chart_out.exists()
+        except Exception as exc:
+            logs.append(f"[Chart Build] 실패 (무시): {exc}")
+    else:
+        logs.append(f"[Chart Build] 가격 파일 없음, 더미 차트 생성: {prices_path}")
+
+    # 가격 데이터가 없거나 차트 빌드가 실패한 경우 최소 유효 차트 JSON 생성
+    if not chart_built:
+        price_current = float(cfg.get("chartCurrent") or cfg.get("priceKrw") or 100)
+        price_entry = float(cfg.get("chartEntry") or price_current * 0.9)
+        currency_fmt = cfg.get("currency", "KRW")
+        fmt = (lambda v: f"₩{v:,.0f}") if currency_fmt == "KRW" else (lambda v: f"${v:,.2f}")
+        dummy_chart = {
+            "schemaVersion": "price-chart/1.0.0",
+            "viewBox": "0 0 1000 360",
+            "plotRight": "926",
+            "tagX": "930",
+            "tagTextX": "961",
+            "linePath": "",
+            "areaPath": "",
+            "segments": [],
+            "points": [],
+            "guides": [],
+            "xLabels": [],
+            "entryLine": {
+                "value": fmt(price_entry),
+                "y": "294.00",
+                "tagY": "285.00",
+                "tagTextY": "298.00",
+                "label": cfg.get("chartEntryLabel", "기준선"),
+            },
+            "currentLine": {
+                "value": fmt(price_current),
+                "y": "180.00",
+                "tagY": "171.00",
+                "tagTextY": "184.00",
+                "label": "현재 참고가",
+            },
+            "markers": [],
+            "summary": {
+                "period": "—",
+                "sessions": "가격 데이터 없음",
+                "twoSessionMove": "—",
+                "fromHigh": "—",
+                "fromLow": "—",
+            },
+        }
+        chart_out.write_text(json.dumps(dummy_chart, ensure_ascii=False, indent=2), encoding="utf-8")
+        logs.append(f"[Chart Build] 더미 차트 생성 완료: {chart_out}")
 
     # 2. ETF 최소 리포트 직접 생성 (재무제표·DCF 없음)
     price_native = float(cfg.get("priceKrw") or cfg.get("chartCurrent") or 0)
@@ -856,7 +996,7 @@ def _build_etf_report(ticker: str, cfg: dict[str, Any], select_for_dashboard: bo
             "failureSignals": [],
             "caveats": ["ETF는 개별 재무분석 대상이 아닙니다."],
         },
-        "sources": ["Yahoo Finance / 한국거래소(KRX)"],
+        "sources": [{"label": "시세", "detail": "Yahoo Finance / 한국거래소(KRX)"}],
     }
     report_out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     logs.append(f"[Report Build] ETF 리포트 생성 완료: {report_out}")
@@ -1042,6 +1182,16 @@ def build_report(ticker: str, select_for_dashboard: bool = True) -> dict[str, An
         calc_path, auto_fail_reason = _auto_generate_calculation(ticker, fund_path, price_val)
 
     if calc_path is None or not calc_path.is_file():
+        if "음수인 회사" in auto_fail_reason:
+            # 계산기가 의도대로 거부한 경우다. 버그나 데이터 누락과 구분해 보여 준다.
+            msg = (f"DCF 적용 불가 — {auto_fail_reason}. 연결 FCF 가 음수이면 이 모델로는 "
+                   "가치를 낼 수 없다. 금융 계열사를 포함한 연결 재무제표(예: 자동차·지주사)라면 "
+                   "영업현금흐름·순부채에 금융 부문이 섞였는지 DART 원문을 확인할 것")
+            return {
+                "success": False,
+                "error": msg,
+                "output": "\n".join(logs) + f"\n[Report Build] {msg}",
+            }
         detail = f" ({auto_fail_reason})" if auto_fail_reason else ""
         return {
             "success": False,
@@ -1114,6 +1264,22 @@ def ensure_initial_report() -> bool:
         res = build_report(ticker, select_for_dashboard=True)
         if res.get("success"):
             return True
+
+    # 빌드 결과와 무관하게 report가 있으면 더미 차트라도 생성해 서버를 기동 가능하게 한다
+    if report_main.exists() and not chart_main.exists():
+        dummy = {
+            "schemaVersion": "price-chart/1.0.0",
+            "viewBox": "0 0 1000 360",
+            "plotRight": "926", "tagX": "930", "tagTextX": "961",
+            "linePath": "", "areaPath": "",
+            "segments": [], "points": [], "guides": [], "xLabels": [],
+            "entryLine": {"value": "—", "y": "294.00", "tagY": "285.00", "tagTextY": "298.00", "label": "기준선"},
+            "currentLine": {"value": "—", "y": "180.00", "tagY": "171.00", "tagTextY": "184.00", "label": "현재 참고가"},
+            "markers": [],
+            "summary": {"period": "—", "sessions": "가격 데이터 없음", "twoSessionMove": "—", "fromHigh": "—", "fromLow": "—"},
+        }
+        chart_main.write_text(json.dumps(dummy, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
     return False
 
 

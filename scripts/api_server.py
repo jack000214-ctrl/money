@@ -104,7 +104,7 @@ class APIServerHandler(BaseHTTPRequestHandler):
 
         # 헬스체크
         if path == "/api/health" or path == "":
-            self._send_json({"status": "ok", "service": "SIA API"})
+            self._send_json({"status": "ok", "service": "Money API"})
             return
 
         self._send_json({"error": "Not Found"}, status=HTTPStatus.NOT_FOUND)
@@ -236,7 +236,7 @@ class APIServerHandler(BaseHTTPRequestHandler):
 def run_server(port: int = 3001, host: str = "127.0.0.1") -> None:
     ensure_initial_report()
     server = ThreadingHTTPServer((host, port), APIServerHandler)
-    print(f"SIA Backend API Server running at http://{host}:{port}/")
+    print(f"Money Backend API Server running at http://{host}:{port}/")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -245,7 +245,7 @@ def run_server(port: int = 3001, host: str = "127.0.0.1") -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SIA API Server")
+    parser = argparse.ArgumentParser(description="Money API Server")
     parser.add_argument("--port", type=int, default=3001, help="Server port (default: 3001)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
     args = parser.parse_args()

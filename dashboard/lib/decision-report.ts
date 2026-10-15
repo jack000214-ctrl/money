@@ -2,18 +2,21 @@ export type Signal = "good" | "watch" | "bad" | "plain";
 
 export interface DecisionReport {
   schemaVersion: string;
-  /** "무엇이 바뀌어야 통과하는가" 격자. 화면은 조회만 한다. */
-  sensitivity: {
-    axes: Record<
-      "growth" | "probability" | "price",
-      { label: string; unit: string; values: number[]; labels: string[] }
-    >;
-    current: { growth: number; probability: number; price: number };
-    requiredReturn: number;
-    /** [성장률][확률][가격] = [연 수익률, 통과 여부, 목표 대비 %p] */
-    cells: Array<Array<Array<[number, number, number]>>>;
-    note: string;
-  };
+  /** "무엇이 바뀌어야 통과하는가" 격자. 화면은 조회만 한다.
+   *  FCF 가 음수이면 `unavailable: true` 와 `reason` 만 포함한다. */
+  sensitivity:
+    | {
+        axes: Record<
+          "growth" | "probability" | "price",
+          { label: string; unit: string; values: number[]; labels: string[] }
+        >;
+        current: { growth: number; probability: number; price: number };
+        requiredReturn: number;
+        /** [성장률][확률][가격] = [연 수익률, 통과 여부, 목표 대비 %p] */
+        cells: Array<Array<Array<[number, number, number]>>>;
+        note: string;
+      }
+    | { unavailable: true; reason: string };
   meta: {
     asOf: string;
     priceAsOf: string;

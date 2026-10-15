@@ -116,7 +116,8 @@ def scenario_outputs(*, fcf, price, growth, horizon_months, **common):
             "growth_pct": growth[name],
             "value_per_share": value,
             # 판단 계약의 expected_return_pct 로 가는 값은 이쪽이다.
-            "total_return_pct": (value / price - 1) * 100,
+            # 주식의 손실은 -100% 까지다. 주당가치가 음수여도 하한을 둔다.
+            "total_return_pct": max(-100.0, (value / price - 1) * 100),
             "annualized_return_pct": annualized_pct(value, price, horizon_months),
         }
     return {

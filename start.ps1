@@ -1,4 +1,4 @@
-# SIA Integrated Launcher (PowerShell)
+# Money Integrated Launcher (PowerShell)
 #
 # 1. Check & auto-update today's market prices
 # 2. Start Backend API Server (Port 3001)
@@ -12,7 +12,7 @@ $RootDir = $PSScriptRoot
 $DashboardDir = Join-Path $RootDir "dashboard"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  SIA System Launcher" -ForegroundColor Cyan
+Write-Host "  Money System Launcher" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # 1. Detect Python

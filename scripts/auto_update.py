@@ -14,7 +14,7 @@ from scripts.stock_service import check_and_update_prices
 
 def main() -> int:
     print("=" * 60)
-    print("  SIA: 오늘 시세 자동 업데이트 검사")
+    print("  Money: 오늘 시세 자동 업데이트 검사")
     print("=" * 60)
     res = check_and_update_prices()
     print(f"기준일자: {res['target_date']}")

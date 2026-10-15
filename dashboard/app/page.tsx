@@ -60,7 +60,7 @@ export default function Home() {
     <main>
       <header className="site-header">
         <a href="#top" className="site-name">
-          자산 증식 프로그램
+          종목 지표 분석 리포트
         </a>
         <nav aria-label="보고서 바로가기">
           <a href="#portfolio">내 비중</a>
@@ -123,7 +123,7 @@ export default function Home() {
           </aside>
         </section>
 
-        {report.sensitivity?.current ? (
+        {'current' in report.sensitivity ? (
           <SensitivityModel model={report.sensitivity} />
         ) : null}
 
@@ -209,8 +209,8 @@ export default function Home() {
               <small>{report.decision.verdictNote}</small>
             </summary>
             <ul className="issue-list">
-              {report.decision.issues.map((issue) => (
-                <li className={`issue issue-${issue.severity}`} key={issue.code}>
+              {report.decision.issues.map((issue, i) => (
+                <li className={`issue issue-${issue.severity}`} key={`${issue.code}-${i}`}>
                   <p>{issue.message}</p>
                   <div className="issue-tags">
                     <span className="issue-severity">{issue.severity}</span>
@@ -460,8 +460,8 @@ export default function Home() {
             </p>
           </div>
           <ul>
-            {report.sources.map((source) => (
-              <li key={source.label}>
+            {report.sources.map((source, i) => (
+              <li key={`${source.label}-${i}`}>
                 <span>{source.label}</span>
                 {source.url ? (
                   <a href={source.url} target="_blank" rel="noreferrer">

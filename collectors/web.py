@@ -37,7 +37,7 @@ OBJECT_DIR = DATA_DIR / "raw" / "web" / "objects"
 INDEX_DIR = KNOWLEDGE_DIR / "evidence" / "web"
 MAX_BYTES = 8 * 1024 * 1024
 TIMEOUT_SECONDS = 45
-USER_AGENT = "SIA/1.0 (research snapshot; contact: local user)"
+USER_AGENT = "Money/1.0 (research snapshot; contact: local user)"
 LABEL_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 KST = dt.timezone(dt.timedelta(hours=9))

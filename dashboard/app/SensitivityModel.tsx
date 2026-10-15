@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { DecisionReport } from "../lib/decision-report";
 
-type Sensitivity = DecisionReport["sensitivity"];
+type SensitivityFull = Extract<DecisionReport["sensitivity"], { current: unknown }>;
 
 /**
  * "무엇이 바뀌어야 통과하는가" 계기판.
@@ -13,7 +13,7 @@ type Sensitivity = DecisionReport["sensitivity"];
  * 축 인덱스로 셀을 **조회**할 뿐이다. 브라우저가 값을 다시 만들면 화면이
  * 엔진과 다른 답을 낼 수 있다.
  */
-export function SensitivityModel({ model }: { model: Sensitivity }) {
+export function SensitivityModel({ model }: { model: SensitivityFull }) {
   const [growth, setGrowth] = useState(model.current.growth);
   const [probability, setProbability] = useState(model.current.probability);
   const [price, setPrice] = useState(model.current.price);

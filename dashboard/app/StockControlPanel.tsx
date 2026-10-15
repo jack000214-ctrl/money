@@ -46,6 +46,7 @@ interface AssetSummary {
   has_calculation: boolean;
   has_report: boolean;
   is_selected: boolean;
+  trading_halted: boolean;
 }
 
 interface SearchResult {
@@ -108,15 +109,35 @@ export function StockControlPanel({
   // 수집 제어 상태
   const [selectedCollectTicker, setSelectedCollectTicker] = useState<string>(currentTicker);
   const [collectingStep, setCollectingStep] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);          // 탭2: 수동 수집 로그
+  const [autoLogs, setAutoLogs] = useState<string[]>([]);  // 탭3: 자동 업데이트 로그
   const logContainerRef = useRef<HTMLPreElement>(null);
+  const autoLogContainerRef = useRef<HTMLPreElement>(null);
   const [showRunAllConfirm, setShowRunAllConfirm] = useState(false);
+
+  // 리로드 후 자동 복원: select 직후 reload 시 sessionStorage 플래그로 report 뷰 복귀
+  // SSR/클라이언트 불일치를 막기 위해 반드시 useEffect 안에서만 sessionStorage 접근.
+  // 마운트 즉시 한 번만 실행되므로 setState-in-effect 경고는 의도된 패턴.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (sessionStorage.getItem("open-report") === "1") {
+      sessionStorage.removeItem("open-report");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setViewMode("report");
+    }
+  }, []);
 
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
+
+  useEffect(() => {
+    if (autoLogContainerRef.current) {
+      autoLogContainerRef.current.scrollTop = autoLogContainerRef.current.scrollHeight;
+    }
+  }, [autoLogs]);
 
   // 자동 업데이트 상태
   const [autoStatus, setAutoStatus] = useState<{
@@ -302,11 +323,13 @@ export function StockControlPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker }),
       });
-      if (res.ok) {
+      // API 는 빌드 실패도 HTTP 200 + success:false 로 돌려준다.
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success !== false) {
+        sessionStorage.setItem("open-report", "1");
         window.location.reload();
       } else {
-        const err = await res.json();
-        alert(`종목 전환 실패: ${err.error || "오류"}`);
+        alert(`종목 전환 실패: ${data.error || "오류"}`);
       }
     } catch (err) {
       alert(`전환 실패: ${err}`);
@@ -319,6 +342,11 @@ export function StockControlPanel({
   const appendLog = (msg: string) => {
     const time = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, `[${time}] ${msg}`]);
+  };
+
+  const appendAutoLog = (msg: string) => {
+    const time = new Date().toLocaleTimeString();
+    setAutoLogs((prev) => [...prev, `[${time}] ${msg}`]);
   };
 
   const runCollect = async (endpoint: string, payload: Record<string, unknown>, stepName: string) => {
@@ -351,19 +379,19 @@ export function StockControlPanel({
   const handleRunAutoUpdate = async () => {
     try {
       setCollectingStep("오늘 시세 자동 업데이트");
-      appendLog("▶ 오늘 시세 자동 업데이트 검사 및 수집 시작...");
+      appendAutoLog("▶ 오늘 시세 자동 업데이트 검사 및 수집 시작...");
       const res = await fetch(`${API_BASE}/api/auto-update`, {
         method: "POST",
       });
       const data = await res.json();
       if (data.logs) {
-        data.logs.forEach((l: string) => appendLog(l));
+        data.logs.forEach((l: string) => appendAutoLog(l));
       }
-      appendLog(`✓ 자동 업데이트 완료 (대상: ${data.stale_count}개, 성공: ${data.updated_count}개)`);
+      appendAutoLog(`✓ 자동 업데이트 완료 (대상: ${data.stale_count}개, 성공: ${data.updated_count}개)`);
       await fetchAssets();
       await checkAutoStatus();
     } catch (err) {
-      appendLog(`✗ 자동 업데이트 오류: ${err}`);
+      appendAutoLog(`✗ 자동 업데이트 오류: ${err}`);
     } finally {
       setCollectingStep(null);
     }
@@ -479,50 +507,16 @@ export function StockControlPanel({
         justifyContent: "space-between",
         color: "#f8fafc",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "20px" }}>📈</span>
-            <span style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.02em", color: "#38bdf8" }}>
-              SIA
-            </span>
-          </div>
-
-          {/* 뷰 전환 탭 */}
-          <nav style={{ display: "flex", gap: "6px", background: "#1e293b", padding: "3px", borderRadius: "6px" }}>
-            <button
-              type="button"
-              onClick={() => setViewMode("stocks")}
-              style={{
-                background: viewMode === "stocks" ? "#2563eb" : "transparent",
-                color: viewMode === "stocks" ? "#ffffff" : "#94a3b8",
-                border: "none",
-                padding: "6px 14px",
-                borderRadius: "4px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              📁 내 종목 & 데이터 수집실
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("report")}
-              style={{
-                background: viewMode === "report" ? "#2563eb" : "transparent",
-                color: viewMode === "report" ? "#ffffff" : "#94a3b8",
-                border: "none",
-                padding: "6px 14px",
-                borderRadius: "4px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              📄 투자 리포트 ({currentName})
-            </button>
-          </nav>
-        </div>
+        <button
+          type="button"
+          onClick={() => setViewMode("stocks")}
+          style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        >
+          <span style={{ fontSize: "20px" }}>📈</span>
+          <span style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.02em", color: "#38bdf8" }}>
+            Smart Investment Advisor
+          </span>
+        </button>
 
         {/* 우측 퀵 컨트롤 */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -992,8 +986,21 @@ export function StockControlPanel({
                         }}
                       >
                         <td style={{ padding: "14px 16px" }}>
-                          <div style={{ fontWeight: 700, fontSize: "15px", color: asset.is_selected ? "#60a5fa" : "#f8fafc" }}>
+                          <div style={{ fontWeight: 700, fontSize: "15px", color: asset.is_selected ? "#60a5fa" : "#f8fafc", display: "flex", alignItems: "center", gap: "6px" }}>
                             {asset.name}
+                            {asset.trading_halted && (
+                              <span style={{
+                                background: "#7f1d1d",
+                                color: "#fca5a5",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                                padding: "2px 6px",
+                                borderRadius: "3px",
+                                letterSpacing: "0.02em",
+                              }}>
+                                거래중지
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: "12px", color: "#94a3b8" }}>
                             {asset.ticker} · {asset.exchange}
@@ -1062,7 +1069,7 @@ export function StockControlPanel({
                                 opacity: loading ? 0.7 : 1,
                               }}
                             >
-                              {loading ? "전환 중..." : "📄 리포트 열기"}
+                              {loading ? "전환 중..." : "📄 리포트"}
                             </button>
                             <button
                               type="button"
@@ -1172,16 +1179,34 @@ export function StockControlPanel({
                   >
                     {assets.map((a) => (
                       <option key={a.ticker} value={a.ticker}>
-                        {a.name} ({a.ticker}) - {a.market}
+                        {a.name} ({a.ticker}) - {a.market}{a.trading_halted ? " ⛔ 거래중지" : ""}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* 거래중지 종목 선택 시 경고 배너 */}
+                {assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted && (
+                  <div style={{
+                    background: "#450a0a",
+                    border: "1px solid #dc2626",
+                    borderRadius: "6px",
+                    padding: "10px 14px",
+                    marginBottom: "16px",
+                    color: "#fca5a5",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}>
+                    ⛔ <strong>{assets.find((a) => a.ticker === selectedCollectTicker)?.name}</strong>은(는) 거래중지 상태입니다. 시세 수집 및 리포트 생성을 진행할 수 없습니다.
+                  </div>
+                )}
+
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px" }}>
                   <button
                     type="button"
-                    disabled={!!collectingStep}
+                    disabled={!!collectingStep || !!assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted}
                     onClick={() => runCollect("/api/collect/price", { ticker: selectedCollectTicker, range: "5y" }, "1단계: 시세 수집")}
                     style={{
                       background: "#1e40af",
@@ -1201,7 +1226,7 @@ export function StockControlPanel({
 
                   <button
                     type="button"
-                    disabled={!!collectingStep}
+                    disabled={!!collectingStep || !!assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted}
                     onClick={() => runCollect("/api/collect/fundamentals", { ticker: selectedCollectTicker }, "2단계: 실적/공시 수집")}
                     style={{
                       background: "#0e7490",
@@ -1209,7 +1234,7 @@ export function StockControlPanel({
                       border: "none",
                       borderRadius: "6px",
                       padding: "14px",
-                      cursor: collectingStep ? "not-allowed" : "pointer",
+                      cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
                   >
@@ -1221,7 +1246,7 @@ export function StockControlPanel({
 
                   <button
                     type="button"
-                    disabled={!!collectingStep}
+                    disabled={!!collectingStep || !!assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted}
                     onClick={() => runCollect("/api/collect/build", { ticker: selectedCollectTicker, select: true }, "3단계: 리포트 생성")}
                     style={{
                       background: "#047857",
@@ -1229,7 +1254,7 @@ export function StockControlPanel({
                       border: "none",
                       borderRadius: "6px",
                       padding: "14px",
-                      cursor: collectingStep ? "not-allowed" : "pointer",
+                      cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
                   >
@@ -1241,7 +1266,7 @@ export function StockControlPanel({
 
                   <button
                     type="button"
-                    disabled={!!collectingStep}
+                    disabled={!!collectingStep || !!assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted}
                     onClick={() => runCollect("/api/collect/ai-analyze", { ticker: selectedCollectTicker }, "4단계: Bob AI 투자 판단 생성")}
                     style={{
                       background: "#d97706",
@@ -1249,7 +1274,7 @@ export function StockControlPanel({
                       border: "none",
                       borderRadius: "6px",
                       padding: "14px",
-                      cursor: collectingStep ? "not-allowed" : "pointer",
+                      cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
                   >
@@ -1261,7 +1286,7 @@ export function StockControlPanel({
 
                   <button
                     type="button"
-                    disabled={!!collectingStep}
+                    disabled={!!collectingStep || !!assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted}
                     onClick={() => setShowRunAllConfirm(true)}
                     style={{
                       background: "#7c3aed",
@@ -1269,7 +1294,7 @@ export function StockControlPanel({
                       border: "none",
                       borderRadius: "6px",
                       padding: "14px",
-                      cursor: collectingStep ? "not-allowed" : "pointer",
+                      cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
                   >
@@ -1336,13 +1361,14 @@ export function StockControlPanel({
 
           {/* 탭 3: 자동 시세 수집 현황 */}
           {activeTab === "auto" && (
-            <div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
               <div style={{
                 background: "#1e293b",
                 padding: "20px",
                 borderRadius: "8px",
-                marginBottom: "20px",
+                marginBottom: "16px",
                 border: "1px solid #334155",
+                flexShrink: 0,
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                   <div>
@@ -1368,7 +1394,7 @@ export function StockControlPanel({
                       cursor: collectingStep ? "not-allowed" : "pointer",
                     }}
                   >
-                    🔄 지금 즉시 일괄 검사 & 업데이트
+                    🔄 즉시 업데이트
                   </button>
                 </div>
 
@@ -1379,22 +1405,87 @@ export function StockControlPanel({
                       padding: "12px 16px",
                       borderRadius: "6px",
                       display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      flexDirection: "column",
+                      gap: "4px",
                       fontSize: "13px",
                     }}>
-                      <span>
-                        <strong>{a.name}</strong> ({a.ticker})
-                      </span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                        <span>
+                          <strong>{a.name}</strong> ({a.ticker})
+                        </span>
+                        <span style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "14px" }}>
+                          {a.price_info.last_close != null
+                            ? a.currency === "KRW"
+                              ? `${a.price_info.last_close.toLocaleString()} 원`
+                              : `$${a.price_info.last_close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : "—"}
+                        </span>
+                      </div>
                       <span style={{
                         color: a.price_info.exists ? "#34d399" : "#f87171",
-                        fontWeight: 600,
+                        fontWeight: 500,
+                        fontSize: "11px",
+                        textAlign: "right",
+                        display: "block",
                       }}>
-                        {a.price_info.exists ? `최신: ${a.price_info.last_date}` : "시세 없음"}
+                        {a.price_info.exists
+                          ? `조회 ${a.price_info.retrieved_at ? formatDateTime(a.price_info.retrieved_at) : a.price_info.last_date}`
+                          : "시세 없음"}
                       </span>
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* 실시간 로그 콘솔 */}
+              <div style={{
+                background: "#020617",
+                border: "1px solid #1e293b",
+                borderRadius: "8px",
+                padding: "16px",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "260px",
+              }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "10px",
+                  flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 700 }}>
+                    실시간 실행 콘솔 로그 {collectingStep ? `[진행 중: ${collectingStep}]` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAutoLogs([])}
+                    style={{ background: "transparent", color: "#64748b", border: "none", fontSize: "12px", cursor: "pointer" }}
+                  >
+                    로그 지우기
+                  </button>
+                </div>
+                <pre
+                  ref={autoLogContainerRef}
+                  style={{
+                    margin: 0,
+                    flex: 1,
+                    minHeight: "160px",
+                    overflowY: "auto",
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    lineHeight: "1.6",
+                    color: "#38bdf8",
+                    whiteSpace: "pre-wrap",
+                    background: "#050b18",
+                    padding: "14px",
+                    borderRadius: "6px",
+                    border: "1px solid #1e293b",
+                  }}
+                >
+                  {autoLogs.length === 0 ? "실행 대기 중... 위의 업데이트 버튼을 클릭하면 로그가 표시됩니다." : autoLogs.join("\n")}
+                </pre>
               </div>
             </div>
           )}
