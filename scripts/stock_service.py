@@ -589,6 +589,21 @@ def _auto_generate_calculation(ticker: str, fund_path: Path, price: float) -> tu
         "--growth", "bear=-5.0", "base=5.0", "bull=15.0",
         "--save",
     ]
+
+    share_basis = fund_data.get("share_count_basis") or {}
+    share_tag = (fund_data.get("tags") or {}).get("shares")
+    current_outstanding = (
+        share_basis.get("is_current_outstanding") is True
+        and not str(share_basis.get("kind", "")).startswith("WEIGHTED_AVERAGE")
+        and not str(share_tag or "").startswith("WeightedAverage")
+    )
+    if not current_outstanding:
+        shares = (fund_data.get("values") or {}).get("shares_diluted")
+        if shares and shares > 0:
+            calc_cmd.extend([
+                "--shares", str(shares),
+                "--shares-reason", f"자동 파이프라인: 스냅샷({fundamentals_id}) 희석주식수({shares:,.0f}주) 적용",
+            ])
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"

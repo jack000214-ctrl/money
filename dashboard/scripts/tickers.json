@@ -64,8 +64,8 @@
     "priceAsOf": "2026-10-15T15:35:14.850657+09:00",
     "priceNote": "2026-10-15 기준",
     "asOf": "2026-10-15",
-    "fundamentals": "knowledge/fundamentals/066570-2026-10-15.json",
-    "calculation": "",
+    "fundamentals": "knowledge/fundamentals/066570-2026-06-30.json",
+    "calculation": "knowledge/calculations/CALC-7f2f7335d13b8b15b146.json",
     "prices": "knowledge/prices/066570_KS.csv",
     "chartCurrent": 168500.0,
     "chartEntry": 151650.0,
@@ -159,24 +159,6 @@
     "prices": "knowledge/prices/039130_KS.csv",
     "chartCurrent": 28750.0,
     "chartEntry": 25875.0,
-    "chartEntryLabel": "강세 시나리오 기준"
-  },
-  "454910": {
-    "tickerLabel": "454910 · KOSPI",
-    "name": "두산로보틱스",
-    "qty": 0,
-    "market": "KR",
-    "riskClass": "STOCK",
-    "currency": "KRW",
-    "priceKrw": 58000,
-    "priceAsOf": "2026-10-15T16:10:30.989684+09:00",
-    "priceNote": "2026-10-15 기준",
-    "asOf": "2026-10-15",
-    "fundamentals": "knowledge/fundamentals/454910-2026-10-15.json",
-    "calculation": "",
-    "prices": "knowledge/prices/454910_KS.csv",
-    "chartCurrent": 58000.0,
-    "chartEntry": 52200.0,
     "chartEntryLabel": "강세 시나리오 기준"
   }
 }

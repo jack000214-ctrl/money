@@ -159,22 +159,25 @@ class APIServerHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
-        # 6. 전체 파이프라인 일괄 실행 (시세 -> 실적 -> 리포트 빌드)
+        # 6. 전체 파이프라인 일괄 실행 (시세 -> 실적 -> 리포트 빌드 -> AI 분석)
         if path == "/api/collect/all":
             ticker = body.get("ticker", "")
             logs = []
-            
+
             p_res = collect_price(ticker)
             logs.append(f"1. 시세 수집: {'성공' if p_res.get('success') else '실패'}\n{p_res.get('output', '')}")
-            
+
             f_res = collect_fundamentals(ticker)
             logs.append(f"2. 재무/공시 수집:\n{f_res.get('output', '')}")
-            
+
             b_res = build_report(ticker, select_for_dashboard=True)
             logs.append(f"3. 리포트 빌드: {'성공' if b_res.get('success') else '실패'}\n{b_res.get('output', '') or b_res.get('error', '')}")
 
+            a_res = generate_ai_analysis(ticker)
+            logs.append(f"4. Bob AI 투자 판단: {'성공' if a_res.get('success') else '실패'}\n{a_res.get('output', '') or a_res.get('error', '')}")
+
             self._send_json({
-                "success": b_res.get("success", False),
+                "success": a_res.get("success", False),
                 "output": "\n\n".join(logs),
             })
             return
