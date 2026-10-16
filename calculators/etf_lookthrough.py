@@ -17,9 +17,9 @@
 가격으로 옮길 뿐이다.
 
 사용:
-    python3.13 -m calculators.etf_lookthrough 0053L0
-    python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
-    python3.13 -m calculators.etf_lookthrough 0053L0 --compare knowledge/etfs/0053L0/constituents-2026-10-09.json
+    python -m calculators.etf_lookthrough 0053L0
+    python -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
+    python -m calculators.etf_lookthrough 0053L0 --compare knowledge/etfs/0053L0/constituents-2026-10-09.json
 """
 from __future__ import annotations
 
@@ -366,7 +366,7 @@ def render(result: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m calculators.etf_lookthrough",
+        prog="python -m calculators.etf_lookthrough",
         description="ETF 구성종목 look-through 산술 (판정은 하지 않는다)",
     )
     parser.add_argument("asset_id")
@@ -382,7 +382,7 @@ def main() -> int:
     if path is None or not path.exists():
         print(
             f"오류: knowledge/etfs/{args.asset_id}/constituents-*.json 이 없다. "
-            f"먼저 `python3.13 -m collectors.etf_constituents {args.asset_id}` 로 받는다",
+            f"먼저 `python -m collectors.etf_constituents {args.asset_id}` 로 받는다",
             file=sys.stderr,
         )
         return 1

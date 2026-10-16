@@ -42,8 +42,8 @@
    다음 packet은 최신 판단의 가정 분석 ID와 경계값 요약을 이어받는다.
 
 ```bash
-python3.13 -m cio assumptions data/decision-assumptions.json --context CTX-...
-python3.13 -m cio assumptions ASM-... --asset 028050 --json
+python -m cio assumptions data/decision-assumptions.json --context CTX-...
+python -m cio assumptions ASM-... --asset 028050 --json
 ```
 
 수집 뒤 **같은 context에서 계산하고 결정**한다. 계산 뒤 다시 prepare하면 다른

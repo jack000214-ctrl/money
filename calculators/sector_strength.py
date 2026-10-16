@@ -6,9 +6,9 @@
 밸류에이션 지표가 아니다.
 
 사용:
-    python3.13 -m collectors.price history XLV --range 2y
-    python3.13 -m calculators.sector_strength
-    python3.13 -m calculators.sector_strength --highlight 헬스케어
+    python -m collectors.price history XLV --range 2y
+    python -m calculators.sector_strength
+    python -m calculators.sector_strength --highlight 헬스케어
 """
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def closes(symbol: str) -> list[tuple[str, float]]:
     path = PRICE_DIR / f"{symbol}.csv"
     if not path.exists():
         fail(f"{path.relative_to(ROOT)} 가 없다. "
-             f"먼저 python3.13 -m collectors.price history {symbol} --range 2y")
+             f"먼저 python -m collectors.price history {symbol} --range 2y")
     with path.open(encoding="utf-8") as f:
         lines = [ln for ln in f if not ln.lstrip().startswith("#")]
     return [(r["date"], float(r["close"]))

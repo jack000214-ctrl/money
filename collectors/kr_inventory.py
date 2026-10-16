@@ -5,9 +5,9 @@
 수치는 제공하지만 사이클 전환 여부는 판정하지 않는다.
 
 사용:
-    python3.13 -m collectors.kr_inventory 005930 --years 2023 2024 2025 2026
-    python3.13 -m collectors.kr_inventory 214450 --years 2024 2025 2026
-    python3.13 -m collectors.kr_inventory show 005930
+    python -m collectors.kr_inventory 005930 --years 2023 2024 2025 2026
+    python -m collectors.kr_inventory 214450 --years 2024 2025 2026
+    python -m collectors.kr_inventory show 005930
 """
 from __future__ import annotations
 

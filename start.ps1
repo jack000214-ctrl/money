@@ -17,7 +17,7 @@ Write-Host "==========================================================" -Foregro
 
 # 1. Detect Python
 $PyBin = $null
-foreach ($candidate in @("C:\Python313\python.exe", "python3.13", "python3", "python")) {
+foreach ($candidate in @("python", "python3", "C:\Python313\python.exe")) {
     try {
         $ver = & $candidate --version 2>&1
         if ($ver -match "Python 3") {

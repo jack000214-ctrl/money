@@ -24,9 +24,9 @@
 원장이나 스냅샷 중 하나가 낡았다는 신호다.
 
 사용:
-    python3.13 -m calculators.position 214450 --price 331000
-    python3.13 -m calculators.position 214450 --price 331000 --add 5 10 20
-    python3.13 -m calculators.position TSLA --price 460 --json
+    python -m calculators.position 214450 --price 331000
+    python -m calculators.position 214450 --price 331000 --add 5 10 20
+    python -m calculators.position TSLA --price 460 --json
 """
 from __future__ import annotations
 

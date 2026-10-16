@@ -6,11 +6,11 @@ API는 날짜별 전 종목 응답이므로 긴 시계열은 호출 비용이 �
 수집한다. 투자자별 순매매는 제공하지 않아 `collectors.kr_flow`가 별도로 다룬다.
 
 사용:
-    python3.13 -m collectors.krx verify 005930 --date 2026-07-27
-    python3.13 -m collectors.krx snapshot --date 2026-07-27 --market KOSPI
-    python3.13 -m collectors.krx history 005930 --from 2026-07-01 --to 2026-07-27
-    python3.13 -m collectors.krx backfill KOSDAQ
-    python3.13 -m collectors.krx backfill-stock 214450
+    python -m collectors.krx verify 005930 --date 2026-07-27
+    python -m collectors.krx snapshot --date 2026-07-27 --market KOSPI
+    python -m collectors.krx history 005930 --from 2026-07-01 --to 2026-07-27
+    python -m collectors.krx backfill KOSDAQ
+    python -m collectors.krx backfill-stock 214450
 """
 from __future__ import annotations
 

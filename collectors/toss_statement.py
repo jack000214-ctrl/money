@@ -19,9 +19,9 @@
 어긋난 종목만 보고한다. 계좌번호와 성명은 읽지도 남기지도 않는다.
 
 사용:
-    python3.13 -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf
-    python3.13 -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf
-    python3.13 -m collectors.toss_statement check 내역서.pdf --map US0378331005=AAPL
+    python -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf
+    python -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf
+    python -m collectors.toss_statement check 내역서.pdf --map US0378331005=AAPL
 """
 from __future__ import annotations
 

@@ -10,8 +10,8 @@
 들고 있어서, 실적 발표(2.02)와 정기보고서와 내부자 신고를 구분할 수 있다.
 
 사용:
-    python3.13 -m collectors.us_events TSLA --symbol TSLA
-    python3.13 -m collectors.us_events IBM --symbol IBM --benchmark ^GSPC
+    python -m collectors.us_events TSLA --symbol TSLA
+    python -m collectors.us_events IBM --symbol IBM --benchmark ^GSPC
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def load_filings(asset_id: str) -> list[dict]:
     path = FILING_DIR / f"{asset_id}.json"
     if not path.exists():
         print(f"오류: 공시 색인이 없다 — {path}\n"
-              f"  먼저: python3.13 -m collectors.edgar filings {asset_id} "
+              f"  먼저: python -m collectors.edgar filings {asset_id} "
               "--since YYYYMMDD", file=sys.stderr)
         raise SystemExit(1)
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -109,7 +109,7 @@ def main() -> int:
         lag_days=a.lag_days,
         timezone=ET,
         backfill_hint=(
-            f"python3.13 -m collectors.price history "
+            f"python -m collectors.price history "
             f"'{a.benchmark or benchmark_for(symbol)}' --range 10y"
         ),
     )

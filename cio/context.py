@@ -4058,7 +4058,7 @@ def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> 
             "reason": (
                 "packet 예산을 넘어 아래 항목을 잘라냈다. 원문은 "
                 "knowledge/assessments/ 에 그대로 있고 미해결 요청 전체는 "
-                "`python3.13 -m cio requests <asset_id>`로 볼 수 있다"
+                "`python -m cio requests <asset_id>`로 볼 수 있다"
             ),
         }
     )
@@ -4635,7 +4635,7 @@ def _research_requirements(
                     "현물가는 고정거래가격의 대체재가 아니라 선행지표다 — 계약가는 "
                     "늦게 반영되므로 사이클 전환은 현물에서 먼저 보인다. 둘을 "
                     "같은 것으로 섞어 쓰지 않는다. 결론을 좌우하는 근거는 인용 "
-                    "전에 `python3.13 -m cio snapshot`으로 보존하고, 끝내 2차 "
+                    "전에 `python -m cio snapshot`으로 보존하고, 끝내 2차 "
                     "출처뿐이라면 그 사실을 unknowns에 남긴다"
                 ),
             },
@@ -5080,7 +5080,7 @@ def build_context(
                     problems.append(
                         "로컬 재무보다 새 실적 공시가 있는데 그 원문을 받아 두었는지 "
                         "확인하지 못했다 — 보존 원문 목록을 읽을 수 없다. "
-                        f"`python3.13 -m cio docs {asset['asset_id']}` 로 확인한 뒤 "
+                        f"`python -m cio docs {asset['asset_id']}` 로 확인한 뒤 "
                         "다시 만든다"
                     )
                 unfetched = [

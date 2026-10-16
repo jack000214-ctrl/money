@@ -6,8 +6,8 @@
 fundamentals와 분리해 저장한다.
 
 사용:
-    python3.13 -m calculators.normalized_earnings 005930 --years 2018 2019 2020 2021 2022 2023 2024 2025 2026
-    python3.13 -m calculators.normalized_earnings 214450 --years 2021 2022 2023 2024 2025 2026
+    python -m calculators.normalized_earnings 005930 --years 2018 2019 2020 2021 2022 2023 2024 2025 2026
+    python -m calculators.normalized_earnings 214450 --years 2021 2022 2023 2024 2025 2026
 """
 from __future__ import annotations
 

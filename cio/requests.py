@@ -340,7 +340,7 @@ def resolve_request(
     if not matches:
         raise RequestError(
             f"{asset_id}에 {request_id_value} 요청이 없다. "
-            "`python3.13 -m cio requests <asset_id>`로 확인한다"
+            "`python -m cio requests <asset_id>`로 확인한다"
         )
     if len(matches) > 1:
         raise RequestError(
@@ -421,7 +421,7 @@ def open_requests_for_context(asset_id: str) -> list[dict[str, Any]]:
                 "total_open": len(state["open"]),
                 "_note": (
                     "미해결 요청이 total_open 건이고 그중 일부만 실려 있다. "
-                    "전체는 `python3.13 -m cio requests <asset_id>`로 본다"
+                    "전체는 `python -m cio requests <asset_id>`로 본다"
                 ),
             }
         )

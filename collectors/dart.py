@@ -1635,7 +1635,7 @@ def derive_fundamentals(raw, *, fs, period_end=None, income_quarters=8):
              f"{gross/1e8:,.0f}억 − ({detail}) = {(gross-spend)/1e8:,.0f}억 인데 "
              f"영업이익은 {op/1e8:,.0f}억 이다 (차이 {residual/1e8:,.0f}억).\n"
              "  IS_EXPENSE_IDS 에 이 회사의 비용 계정 표준코드를 추가한다. "
-             "원문 계정 목록: python3.13 -m collectors.dart financials 로 확인")
+             "원문 계정 목록: python -m collectors.dart financials 로 확인")
 
     # --- 재무상태 시점값 ---
     bs_report = None

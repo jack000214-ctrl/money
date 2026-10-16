@@ -17,9 +17,9 @@
 `MARKET_DATA` 로 싣는다.
 
 사용:
-    python3.13 -m collectors.kr_lending probe --code 005930
-    python3.13 -m collectors.kr_lending stock 005930 --days 90
-    python3.13 -m collectors.kr_lending show 005930 --days 20
+    python -m collectors.kr_lending probe --code 005930
+    python -m collectors.kr_lending stock 005930 --days 90
+    python -m collectors.kr_lending show 005930 --days 20
 """
 from __future__ import annotations
 
@@ -215,7 +215,7 @@ def verify_rows(rows: list[dict], code: str, param: str) -> list[dict]:
              f"({len(others)}종목, 예: {sample}).\n"
              f"  이 응답을 {code} 의 대차잔고로 저장하면 틀린 숫자를 읽게 되므로 멈춘다.\n"
              f"  probe 로 실제 파라미터 이름을 먼저 확인한다:\n"
-             f"    python3.13 -m collectors.kr_lending probe --code {code}")
+             f"    python -m collectors.kr_lending probe --code {code}")
     return rows
 
 
@@ -246,7 +246,7 @@ def fetch_stock(code: str, days: int, key: str) -> tuple[list[dict], str]:
 
     fail(f"{code}: 어떤 파라미터로도 행을 받지 못했다 ({last_error}).\n"
          f"  probe 로 응답 원문을 확인한다:\n"
-         f"    python3.13 -m collectors.kr_lending probe --code {code}")
+         f"    python -m collectors.kr_lending probe --code {code}")
     return [], ""
 
 

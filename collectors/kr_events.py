@@ -6,8 +6,8 @@
 상대수익률은 조사 우선순위용 기술통계이며 시장·종목 요인의 인과 기여도가 아니다.
 
 사용:
-    python3.13 -m collectors.kr_events 005930 --symbol 005930.KS
-    python3.13 -m collectors.kr_events 005930 --symbol 005930.KS --threshold 3
+    python -m collectors.kr_events 005930 --symbol 005930.KS
+    python -m collectors.kr_events 005930 --symbol 005930.KS --threshold 3
 """
 from __future__ import annotations
 
@@ -273,7 +273,7 @@ def build_event_packet(
         bench_returns = daily_returns(closes(bench_symbol))
     else:
         print(f"※ 벤치마크 {bench_symbol} 시세가 없어 상대변동을 못 낸다 — "
-              f"python3.13 -m collectors.price history '{bench_symbol}' --range 10y",
+              f"python -m collectors.price history '{bench_symbol}' --range 10y",
               file=sys.stderr)
 
     returns = daily_returns(series)
@@ -506,7 +506,7 @@ def main() -> int:
         vol_window=a.vol_window, benchmark=a.benchmark, lag_days=a.lag_days,
         timezone=KST,
         backfill_hint=(
-            "python3.13 -m collectors.krx backfill "
+            "python -m collectors.krx backfill "
             + ("KOSDAQ" if (a.benchmark or benchmark_for(a.symbol)) == "^KQ11"
                else "KOSPI")
         ),

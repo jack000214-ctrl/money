@@ -149,7 +149,7 @@ class TestSchemasStayInTheirLayout(unittest.TestCase):
             self.assertEqual(
                 text, dumps_wrapped(json.loads(text), **SCHEMA_LAYOUT),
                 f"{name} 의 배치가 달라졌다. 내용은 그대로 두고 배치만 맞춘다: "
-                'python3.13 -c "from calculators.contracts import reformat_schemas; '
+                'python -c "from calculators.contracts import reformat_schemas; '
                 'reformat_schemas()"',
             )
 

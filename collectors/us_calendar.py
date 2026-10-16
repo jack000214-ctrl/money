@@ -13,8 +13,8 @@ SEC 제출 색인만으로는 그 일정을 알 수 없다. 과거 (결산기말
 10-Q 와 10-K 는 기한이 다르므로 부류를 나눈다 — kr_calendar 와 같은 이유다.
 
 사용:
-    python3.13 -m collectors.us_calendar RXRX
-    python3.13 -m collectors.us_calendar RXRX --show
+    python -m collectors.us_calendar RXRX
+    python -m collectors.us_calendar RXRX --show
 """
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
     if not index_path.exists():
         fail(
             f"{index_path.relative_to(ROOT)} 가 없다. 먼저 공시 색인을 모은다: "
-            f"python3.13 -m collectors.edgar filings {ticker}"
+            f"python -m collectors.edgar filings {ticker}"
         )
     index = json.loads(index_path.read_text(encoding="utf-8"))
     filings = [row for row in (index.get("filings") or [])

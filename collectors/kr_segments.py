@@ -192,7 +192,7 @@ def _periodic_filing(asset_id: str) -> dict[str, Any]:
     if not path.exists():
         fail(
             f"{asset_id}: 공시 색인이 없다. "
-            f"`python3.13 -m collectors.dart filings {asset_id} --since ...` 먼저"
+            f"`python -m collectors.dart filings {asset_id} --since ...` 먼저"
         )
     latest = latest_periodic_filing(load_json(path))
     if latest is None:
@@ -438,7 +438,7 @@ def save(packet: dict[str, Any]) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m collectors.kr_segments",
+        prog="python -m collectors.kr_segments",
         description="정기보고서의 사업부문별 요약 재무 현황을 수집한다",
     )
     parser.add_argument("asset_id")

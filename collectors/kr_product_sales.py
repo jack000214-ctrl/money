@@ -386,7 +386,7 @@ def save(packet: dict[str, Any]) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m collectors.kr_product_sales",
+        prog="python -m collectors.kr_product_sales",
         description="잠정실적 공시 원문(로컬)에서 품목군별 분기 매출 시계열을 만든다",
     )
     parser.add_argument("asset_id")

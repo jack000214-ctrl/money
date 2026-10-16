@@ -17,8 +17,8 @@
 표시한다.
 
 사용:
-    python3.13 -m collectors.kr_calendar 214450
-    python3.13 -m collectors.kr_calendar 214450 --show
+    python -m collectors.kr_calendar 214450
+    python -m collectors.kr_calendar 214450 --show
 """
 from __future__ import annotations
 
@@ -240,7 +240,7 @@ def build(stock_code: str, key: str, today: dt.date | None = None) -> dict:
     if not index_path.exists():
         fail(
             f"{index_path.relative_to(ROOT)} 가 없다. 먼저 공시 색인을 모은다: "
-            f"python3.13 -m collectors.dart filings {stock_code} --since 20250101"
+            f"python -m collectors.dart filings {stock_code} --since 20250101"
         )
     index = json.loads(index_path.read_text(encoding="utf-8"))
     filings = index.get("filings") or []

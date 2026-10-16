@@ -19,7 +19,7 @@ Nothing is repeated across the three.
 This skill runs the existing Personal CIO repository, not a standalone copy. Resolve
 this SKILL.md's symlink, then go up two directories to the repository root. Read its
 README.md quick start and run all commands there. From another working directory,
-`python3.13 <installed-skill>/scripts/run.py assets` runs the CIO CLI in that root;
+`python <installed-skill>/scripts/run.py assets` runs the CIO CLI in that root;
 all arguments after the script name are CIO arguments. Never copy personal policy,
 holdings or credentials into the skill installation.
 
@@ -35,15 +35,15 @@ evidence. Do not stage or commit changes.
    `EXIT_REVIEW`) needs no buy budget. Ask only for a value that cannot be inferred
    safely. "Should I sell?" without a chosen sell size is `HOLD_REVIEW`; do not turn
    the entire holding into `--quantity` (that flag means the proposed sell size).
-2. `python3.13 -m cio assets`. If absent, register it with the correct `KR|US`,
+2. `python -m cio assets`. If absent, register it with the correct `KR|US`,
    `STOCK|ETF`, exchange, price symbol, filing source or ETF structure, benchmarks,
    analysis lens, and valuation families. For an ETF also pass `--issuer`/`--isin`
    when that issuer's route exists, `--currency-hedged`, `--total-fee-pct` and
    `--optional-collector ETF_CONSTITUENTS`; pick benchmarks that have price history.
-3. `python3.13 -m cio refresh ASSET`. Add `--run` when required artifacts are stale or
+3. `python -m cio refresh ASSET`. Add `--run` when required artifacts are stale or
    missing; add `--optional` when the asset's lens makes those inputs useful.
 
-   Then `python3.13 -m cio score ASSET`, **before** building the packet. The packet
+   Then `python -m cio score ASSET`, **before** building the packet. The packet
    reads stored evaluations off disk, so scoring afterwards leaves
    `prior_assessments[].latest_evaluation` one step behind — you would judge without
    seeing how your own previous judgment actually did.
@@ -51,7 +51,7 @@ evidence. Do not stage or commit changes.
    assumed.
 
    ```bash
-   python3.13 -m cio prepare ASSET --price PRICE --amount AMOUNT \
+   python -m cio prepare ASSET --price PRICE --amount AMOUNT \
      --amount-currency KRW_OR_USD \
      --intent NEW_BUY|ADD|HOLD_REVIEW|TRIM_REVIEW|EXIT_REVIEW|REBALANCE \
      --verbatim "what the user actually said" \
@@ -65,7 +65,7 @@ evidence. Do not stage or commit changes.
    editing the ledger:
 
    ```bash
-   python3.13 -m cio prepare ASSET --price PRICE --intent HOLD_REVIEW \
+   python -m cio prepare ASSET --price PRICE --intent HOLD_REVIEW \
      --held-quantity HELD --average-cost COST --verbatim "user's exact question" \
      --claim "each factual assertion"
    ```
@@ -100,16 +100,16 @@ evidence. Do not stage or commit changes.
    requested output merely because its supporting evidence needs more work.
 
    ```bash
-   python3.13 -m cio docs ASSET                # what is stored, what is not fetched
-   python3.13 -m cio search ASSET "부 문 \|"   # segment revenue table, for example
+   python -m cio docs ASSET                # what is stored, what is not fetched
+   python -m cio search ASSET "부 문 \|"   # segment revenue table, for example
    ```
 
    Then research what is genuinely absent — market reaction, competitor moves, pricing,
    anything after the last filing. Preserve decision-critical originals before citing:
 
    ```bash
-   python3.13 -m cio snapshot URL --asset ASSET --label short-name --note "why"
-   python3.13 -m collectors.dart document RCEPT_NO   # Korean filing original
+   python -m cio snapshot URL --asset ASSET --label short-name --note "why"
+   python -m collectors.dart document RCEPT_NO   # Korean filing original
    ```
 
    Korean accession numbers are in `filings.latest_material_events`. The DART viewer
@@ -130,8 +130,8 @@ evidence. Do not stage or commit changes.
    bases, plausible alternatives and boundary search intervals, then run:
 
    ```bash
-   python3.13 -m cio assumptions data/decision-assumptions.json --context CTX_ID
-   python3.13 -m cio assumptions ASM_ID --asset ASSET --json
+   python -m cio assumptions data/decision-assumptions.json --context CTX_ID
+   python -m cio assumptions ASM_ID --asset ASSET --json
    ```
 
    The report belongs to that saved context; no second `prepare` is needed. Use its
@@ -144,8 +144,8 @@ evidence. Do not stage or commit changes.
    target, explicitly reassess it. Prior plans are hypotheses to evaluate and learn
    from; replace them whenever current reasoning warrants it, including when the
    earlier analysis was mistaken. Explain current evidence for keeping a plan too.
-8. `python3.13 -m cio validate DECISION.json` for a dry run (writes nothing), or
-   `python3.13 -m cio record DECISION.json` for an official attempt — it validates,
+8. `python -m cio validate DECISION.json` for a dry run (writes nothing), or
+   `python -m cio record DECISION.json` for an official attempt — it validates,
    stores valid output, and quarantines invalid output with its errors. A packet
    serves a decision for 12 hours after `prepare`, and a decision is recorded within
    12 hours of its `created_at`; past either limit, prepare again rather than reuse
@@ -173,7 +173,7 @@ These are about running the tools. The judgment rules are in the prompt.
   conversion; never divide them directly.
 - Keep local source IDs and every newly researched source in the decision record.
 - Never mark your own `research_requests` resolved. Only the user closes one, with
-  `python3.13 -m cio requests ASSET --resolve REQ-xxxx --state DONE --note "..."`.
+  `python -m cio requests ASSET --resolve REQ-xxxx --state DONE --note "..."`.
 - Do not place or simulate an order unless the user separately requests it.
 
 ## Investor policy
@@ -186,7 +186,7 @@ are split by shape: a gap in a checkable limit shows up in `checks` as
 `NO_LIMIT_BY_CHOICE`, a gap in a non-limit field shows up in `intentionally_unset`.
 Look in both before concluding a limit is missing.
 
-`python3.13 -m cio policy` is a **user-facing view, not a workflow step.** It shows the
+`python -m cio policy` is a **user-facing view, not a workflow step.** It shows the
 same policy without requiring an asset and exits non-zero when the file is absent or
 invalid, which makes it useful to a human and to a shell script. It has no logic the
 packet does not already run, and running it changes nothing about your decision — a
@@ -194,7 +194,7 @@ step whose omission changes no outcome is not a step.
 
 ## Evaluation
 
-`python3.13 -m cio score ASSET` scores stored judgments against later prices. It keeps
+`python -m cio score ASSET` scores stored judgments against later prices. It keeps
 one evaluation per judgment, scores live and retired ones separately
 (`source: LIVE|RETIRED`), and adds fixed 1/3/6/12/24-month returns and
 benchmark-relative excess alongside the model's self-declared thresholds. Compare
@@ -205,8 +205,8 @@ That is deliberate: a full scoring history would eat the budget and go unread in
 judgments. When you need the deeper view, ask for it:
 
 ```bash
-python3.13 -m cio evals ASSET           # latest evaluation per judgment
-python3.13 -m cio evals ASSET --plan    # with each judgment's entry, stop, scale-out
+python -m cio evals ASSET           # latest evaluation per judgment
+python -m cio evals ASSET --plan    # with each judgment's entry, stop, scale-out
 ```
 
 `--plan` puts the thresholds in a column, which is how a real defect surfaced: across

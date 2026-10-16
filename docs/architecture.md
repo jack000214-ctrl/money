@@ -73,16 +73,16 @@ PER·DCF 등의 계산을 재사용하며, 관행에서 가져온 값은 모델�
 
 ## 한 번의 판단 흐름
 
-1. `python3.13 -m cio refresh <asset_id>`로 필요한 작업과 신선도를 확인한다.
+1. `python -m cio refresh <asset_id>`로 필요한 작업과 신선도를 확인한다.
 2. `--run`으로 오래됐거나 없는 필수 데이터를 갱신한다.
-3. `python3.13 -m cio prepare`가 가격·금액을 검증하고 컨텍스트를 저장한다.
+3. `python -m cio prepare`가 가격·금액을 검증하고 컨텍스트를 저장한다.
 4. 모델은 컨텍스트와 공통 프롬프트를 읽고, 필요하면 외부 조사를 추가한다.
 5. 모델이 가정 spec을 만들고 `cio assumptions`가 대체 가정·수익률 경계값을
    계산한다. 모델은 결과를 해석해 공급자와 무관한 decision JSON을 출력한다.
-6. 필요하면 `python3.13 -m cio validate`로 쓰기 없는 사전검사를 한다.
-7. 공식 시도는 `python3.13 -m cio record`가 직접 재검증하고, 유효 판단 또는 실패
+6. 필요하면 `python -m cio validate`로 쓰기 없는 사전검사를 한다.
+7. 공식 시도는 `python -m cio record`가 직접 재검증하고, 유효 판단 또는 실패
    원문을 각각 저장한다.
-8. `python3.13 -m cio score`가 이후 가격으로 예측과 가격 트리거를 평가한다.
+8. `python -m cio score`가 이후 가격으로 예측과 가격 트리거를 평가한다.
 
 ## Validation과 verdict
 

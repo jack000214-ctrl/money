@@ -218,14 +218,15 @@ def search_stocks(query: str) -> list[dict[str, Any]]:
 
 
 def get_price_info(price_symbol: str) -> dict[str, Any]:
-    """가격 CSV 파일에서 최근 일자, 종가, 상태 확인."""
+    """가격 CSV 파일에서 최근 일자, 종가, 전일 종가, 상태 확인."""
     safe = safe_name(price_symbol)
     path = PRICES_DIR / f"{safe}.csv"
     if not path.exists():
-        return {"exists": False, "last_date": None, "last_close": None, "session": None, "retrieved_at": None}
+        return {"exists": False, "last_date": None, "last_close": None, "prev_close": None, "session": None, "retrieved_at": None}
 
     last_date = None
     last_close = None
+    prev_close = None
     session = None
     retrieved_at = None
     try:
@@ -242,16 +243,25 @@ def get_price_info(price_symbol: str) -> dict[str, Any]:
                         last_date = parts[2]
                     if "session" in line:
                         session = line.split("session")[-1].strip()
-            
-            # 마지막 데이터 행 종가 확인
+
+            # 마지막 2개 데이터 행으로 종가 및 전일 종가 확인
             data_lines = [l for l in lines if not l.startswith("#") and l.strip()]
-            if len(data_lines) > 1:
+            # 헤더 행(date,close,...) 제외
+            data_lines = [l for l in data_lines if not l.startswith("date")]
+            if data_lines:
                 last_row = data_lines[-1].strip().split(",")
                 if len(last_row) >= 2:
                     try:
                         last_close = float(last_row[1])
                         if not last_date:
                             last_date = last_row[0]
+                    except ValueError:
+                        pass
+            if len(data_lines) >= 2:
+                prev_row = data_lines[-2].strip().split(",")
+                if len(prev_row) >= 2:
+                    try:
+                        prev_close = float(prev_row[1])
                     except ValueError:
                         pass
     except Exception:
@@ -261,6 +271,7 @@ def get_price_info(price_symbol: str) -> dict[str, Any]:
         "exists": True,
         "last_date": last_date,
         "last_close": last_close,
+        "prev_close": prev_close,
         "session": session or "UNKNOWN",
         "retrieved_at": retrieved_at,
     }
@@ -1319,7 +1330,7 @@ def check_and_update_prices() -> dict[str, Any]:
     for ticker, asset in assets_raw.items():
         price_symbol = asset.get("price_symbol", ticker)
         info = get_price_info(price_symbol)
-        if not info["exists"] or info["last_date"] != target_str:
+        if not info["exists"] or info["last_date"] != target_str or info["session"] == "UNSETTLED":
             stale_assets.append(ticker)
 
     updated: list[str] = []

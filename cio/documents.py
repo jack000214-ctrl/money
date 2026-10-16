@@ -379,11 +379,11 @@ def fetch_hint(asset: dict[str, Any], row: dict[str, Any] | None = None) -> str:
     """
     if asset.get("filing_source") == "DART":
         return (
-            "`python3.13 -m collectors.dart document <접수번호>` 로 받는다"
+            "`python -m collectors.dart document <접수번호>` 로 받는다"
         )
     url = (row or {}).get("document_url") or "<document_url>"
     return (
-        f"`python3.13 -m cio snapshot {url} "
+        f"`python -m cio snapshot {url} "
         f"--asset {asset['asset_id']} --label <이름>` 로 받는다"
     )
 
@@ -588,7 +588,7 @@ def search_asset(
         if not documents:
             raise DocumentError(
                 f"{asset_id}에 {doc_id} 원문이 없다. "
-                "`python3.13 -m cio docs <asset_id>`로 확인한다"
+                "`python -m cio docs <asset_id>`로 확인한다"
             )
     hits, total_found, truncated, distribution, unreadable = _run(
         compiled,
@@ -868,11 +868,11 @@ def documents_for_context(asset_id: str) -> dict[str, Any] | None:
             "url 이 있으면 네가 이전에 보존한 웹 원문이다 — 같은 것을 다시 "
             "검색하지 말고 유효한지만 확인하며, 인용할 때 그 url 을 locator 로 "
             "쓴다. 본문은 packet 에 없다(사업보고서 하나가 100만 자다). 필요한 "
-            "자리만 `python3.13 -m cio search <asset_id> <검색어>` 로 찾는다. "
+            "자리만 `python -m cio search <asset_id> <검색어>` 로 찾는다. "
             "부문별 매출, 주요 매출처, 수주잔고, 생산능력, 원재료 공급처처럼 "
             "회사 구조에 관한 사실은 웹을 검색하기 전에 여기서 먼저 찾는다. "
             "not_fetched_total 은 공시 색인에는 있으나 아직 원문을 받지 않은 "
-            "문서 수이며 `python3.13 -m cio docs <asset_id>` 로 목록을 본다"
+            "문서 수이며 `python -m cio docs <asset_id>` 로 목록을 본다"
             ". filing_date는 공시 색인에서 확인한 제출일이고 fetched_at은 원문을 "
             "받은 시각이다. filing_date가 null인 웹 원문의 공개일은 미확인이며 "
             "수집일로 대체하지 않는다"

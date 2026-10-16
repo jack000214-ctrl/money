@@ -8,11 +8,11 @@
 
 ## 입력: `cio-context/1.0.0`
 
-`python3.13 -m cio prepare`가 다음 입력을 받는다.
+`python -m cio prepare`가 다음 입력을 받는다.
 
 ```bash
 # 새 자금 — NEW_BUY · ADD
-python3.13 -m cio prepare <asset_id> \
+python -m cio prepare <asset_id> \
   --price <검토가격> \
   --amount <최대사용금액> \
   --amount-currency <KRW|USD> \
@@ -21,7 +21,7 @@ python3.13 -m cio prepare <asset_id> \
   --claim "사용자가 사실이라고 말한 것"   # 반복 가능
 
 # 보유분 — HOLD_REVIEW · TRIM_REVIEW · EXIT_REVIEW
-python3.13 -m cio prepare <asset_id> \
+python -m cio prepare <asset_id> \
   --price <검토가격> \
   --intent TRIM_REVIEW \
   --quantity <검토 매도수량>            # 또는 --target-quantity <목표 잔여수량>
@@ -199,7 +199,7 @@ PC는 비어 있는 한도를 그럴듯한 기본값으로 채우지 않는다 �
 사용자의 정책이 아니라 프로그램의 가정이고, 그 사실이 출력에서 사라진다.
 
 ```bash
-python3.13 -m cio policy          # 정한 한도와 아직 정하지 않은 한도
+python -m cio policy          # 정한 한도와 아직 정하지 않은 한도
 ```
 
 정책 파일에는 최대 손실액·목표수익·계좌 유형이 들어가므로 `holdings.csv`와 같이
@@ -344,8 +344,8 @@ packet의 `request.user_assertions`에 있는 각 주장은 판단에서 **확�
 끝나지 않는다.
 
 ```bash
-python3.13 -m cio requests <asset_id>                    # 미해결·해결 목록
-python3.13 -m cio requests <asset_id> \
+python -m cio requests <asset_id>                    # 미해결·해결 목록
+python -m cio requests <asset_id> \
   --resolve REQ-3e547a42822d --state DONE --note "무엇을 했는지"
 ```
 
@@ -377,15 +377,15 @@ python3.13 -m cio requests <asset_id> \
 모델이 조사한 원문은 인용 전에 로컬에 남긴다.
 
 ```bash
-python3.13 -m cio snapshot <URL> --asset <asset_id> --label <이름> --note "왜"
-python3.13 -m collectors.dart document <14자리 접수번호>
+python -m cio snapshot <URL> --asset <asset_id> --label <이름> --note "왜"
+python -m collectors.dart document <14자리 접수번호>
 ```
 
 보존한 원문은 검색해서 필요한 자리만 쓴다.
 
 ```bash
-python3.13 -m cio docs <asset_id>
-python3.13 -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fixed]
+python -m cio docs <asset_id>
+python -m cio search <asset_id> <검색어> [--context N] [--limit N] [--fixed]
 ```
 
 부문별 매출·주요 매출처·수주잔고·생산능력처럼 **회사 구조에 관한 사실은 웹보다
@@ -756,8 +756,8 @@ ID가 색인에 있는지만 보던 때에는 넷이 따로 놀았다. 실제 �
 모델이 선택한 가정·반대 근거·관측 한계를 드러내고 재현하는 입력과 출력 계약이다.
 
 ```bash
-python3.13 -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
-python3.13 -m cio record decision.json
+python -m cio validate decision.json  # 선택: 쓰기 없는 사전검사
+python -m cio record decision.json
 ```
 
 **packet에는 사용 기한이 있다.** 판단은 context 생성 뒤 12시간 안에 만들어져야

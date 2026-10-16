@@ -15,8 +15,8 @@ TIGER 하나다. 다른 운용사는 `ISSUERS` 에 어댑터를 더하기 전까
 다르면) 일부만 적지 않고 멈춘다 — 상위 10종목만 담긴 파일은 전체처럼 읽힌다.
 
 사용:
-    python3.13 -m collectors.kr_etf_holdings 0053L0
-    python3.13 -m collectors.kr_etf_holdings 0053L0 --show
+    python -m collectors.kr_etf_holdings 0053L0
+    python -m collectors.kr_etf_holdings 0053L0 --show
 """
 from __future__ import annotations
 
@@ -413,7 +413,7 @@ def render(facts: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m collectors.kr_etf_holdings",
+        prog="python -m collectors.kr_etf_holdings",
         description="운용사 원문 기반 한국 ETF 구성종목 수집 (지원: MIRAE_TIGER)",
     )
     parser.add_argument("asset_id", help="0053L0")

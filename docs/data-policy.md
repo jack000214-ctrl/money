@@ -24,7 +24,7 @@
 미국 주식 예시:
 
 ```bash
-python3.13 -m cio register NVDA \
+python -m cio register NVDA \
   --name NVIDIA \
   --market US \
   --exchange NASDAQ \
@@ -44,7 +44,7 @@ ETF는 `--asset-type ETF`와 함께 전략·기초자산·파생 여부·분배 
 한국 상장 ETF 예시 (해외 종목을 담는 테마형):
 
 ```bash
-python3.13 -m cio register 0053L0 \
+python -m cio register 0053L0 \
   --name "TIGER 차이나휴머노이드로봇" \
   --market KR --exchange KOSPI --asset-type ETF \
   --price-symbol 0053L0.KS \
@@ -69,7 +69,7 @@ python3.13 -m cio register 0053L0 \
 
 ## 기본 수집 계획
 
-`python3.13 -m cio refresh <asset_id>`는 쓰기 없이 현재 상태와 필요한 작업을 보여준다.
+`python -m cio refresh <asset_id>`는 쓰기 없이 현재 상태와 필요한 작업을 보여준다.
 `--run`이 있어야 갱신하며, 신선한 산출물은 건너뛴다. `--force`는 신선도와 무관하게
 다시 실행한다.
 
@@ -107,9 +107,9 @@ ETF holdings는 필수 작업이다. 운용사 수집 경로가 확인된 ETF는
 ### ETF 구성종목을 받는 방법
 
 ```bash
-python3.13 -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → holdings CSV
-python3.13 -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
-python3.13 -m calculators.etf_lookthrough 0053L0    # 가중 배수와 수익률 분해
+python -m collectors.kr_etf_holdings 0053L0     # 운용사 원문 → holdings CSV
+python -m collectors.etf_constituents 0053L0    # 종목별 가격·배수·환율
+python -m calculators.etf_lookthrough 0053L0    # 가중 배수와 수익률 분해
 ```
 
 `refresh --run`이 첫째를, `refresh --run --optional`이 둘째까지 돌린다(둘째는
@@ -165,8 +165,8 @@ python3.13 -m calculators.etf_lookthrough 0053L0    # 가중 배수와 수익률
 모델이 정한 문턱을 가격으로 옮기거나 이전 재료와 견줄 때는 직접 부른다.
 
 ```bash
-python3.13 -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
-python3.13 -m calculators.etf_lookthrough 0053L0 \
+python -m calculators.etf_lookthrough 0053L0 --at-forward-pe 22 20 --price 8245
+python -m calculators.etf_lookthrough 0053L0 \
   --compare knowledge/etfs/0053L0/constituents-2026-10-09.json
 ```
 
@@ -411,9 +411,9 @@ HTTP 200이다. 그대로 저장하면 2,447행짜리 일봉 파일이 320행짜
 **한국 시계열의 구멍은 거래소 원문으로 메운다.** 지수와 종목 모두다.
 
 ```bash
-python3.13 -m collectors.krx backfill KOSPI
-python3.13 -m collectors.krx backfill-stock 214450           # 접미사로 시장을 정한다
-python3.13 -m collectors.krx backfill-stock 0053L0 --market ETF
+python -m collectors.krx backfill KOSPI
+python -m collectors.krx backfill-stock 214450           # 접미사로 시장을 정한다
+python -m collectors.krx backfill-stock 0053L0 --market ETF
 ```
 
 거래일 달력은 로컬의 **한국 시계열 전체의 합집합**이다 — 종목 파일, 코스피·코스닥
@@ -882,8 +882,8 @@ PC가 맡는 것은 동일 입력에 동일 결과를 내는 계산이다.
 검증이 아니다.**
 
 ```bash
-python3.13 -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf
-python3.13 -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf
+python -m collectors.toss_statement check 거래내역서_20251013_20261012_1.pdf
+python -m collectors.toss_statement apply 거래내역서_20251013_20261012_1.pdf
 ```
 
 `check`는 읽기만 하고, 어긋난 것이 있으면 0이 아닌 종료코드를 낸다. `apply`는
@@ -951,11 +951,11 @@ packet 은 1,000자 폭에 들여쓰기 없이, 최상위 키와 `context` 의 �
 `tests/test_json_layout.py` 가 그것을 잡고, 배치만 다시 맞출 때는 이렇게 한다.
 
 ```bash
-python3.13 -c "from calculators.contracts import reformat_schemas; reformat_schemas()"
+python -c "from calculators.contracts import reformat_schemas; reformat_schemas()"
 ```
 
 판단·평가·재무 스냅샷처럼 사람이 열어 보는 산출물은 그대로 들여쓴다. packet 을
-사람이 읽을 때는 `cio show`, 원본 그대로 보려면 `python3.13 -m json.tool <파일>`.
+사람이 읽을 때는 `cio show`, 원본 그대로 보려면 `python -m json.tool <파일>`.
 토큰 수는 재지 않았다 — 로컬에 토크나이저가 없고 packet 에 보유·정책이 들어 있어
 외부 API 로 세지 않는다. 공백은 여러 칸이 한 토큰으로 묶이므로 토큰 절감은 바이트
 절감(25%)보다 작다.

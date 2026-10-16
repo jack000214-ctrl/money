@@ -5,10 +5,10 @@
 `EXPLORATORY`다. 수급 수치만 저장하며 가격 변동의 원인을 판정하지 않는다.
 
 사용:
-    python3.13 -m collectors.kr_flow market KOSPI --days 90
-    python3.13 -m collectors.kr_flow market KOSDAQ --days 90
-    python3.13 -m collectors.kr_flow stock 005930 --days 90
-    python3.13 -m collectors.kr_flow show KOSPI --days 20
+    python -m collectors.kr_flow market KOSPI --days 90
+    python -m collectors.kr_flow market KOSDAQ --days 90
+    python -m collectors.kr_flow stock 005930 --days 90
+    python -m collectors.kr_flow show KOSPI --days 20
 """
 from __future__ import annotations
 

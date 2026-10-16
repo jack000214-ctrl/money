@@ -436,8 +436,8 @@ packet의 `prior_assessments[].pace_since_decision`은 직전 판단 이후 실�
 사업보고서 하나가 100만 자다.
 
 ```bash
-python3.13 -m cio docs <asset_id>              # 무엇이 있고 무엇이 없는지
-python3.13 -m cio search <asset_id> <검색어>   # 필요한 자리만 발췌
+python -m cio docs <asset_id>              # 무엇이 있고 무엇이 없는지
+python -m cio search <asset_id> <검색어>   # 필요한 자리만 발췌
 ```
 
 **회사 구조에 관한 사실은 웹보다 여기가 먼저다** — 부문별 매출과 비중, 주요 매출처,
@@ -454,8 +454,8 @@ python3.13 -m cio search <asset_id> <검색어>   # 필요한 자리만 발췌
 결정을 좌우하는 원문은 인용 전에 보존한다.
 
 ```bash
-python3.13 -m cio snapshot <URL> --asset <asset_id> --label <짧은-이름> --note "왜"
-python3.13 -m collectors.dart document <14자리 접수번호>   # filings의 accession_number
+python -m cio snapshot <URL> --asset <asset_id> --label <짧은-이름> --note "왜"
+python -m collectors.dart document <14자리 접수번호>   # filings의 accession_number
 ```
 
 `WEBSNAP:<지문>`을 `sources`에 쓸 수 있다. `locator`는 보존한 원문의 주소 그대로

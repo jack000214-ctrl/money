@@ -20,10 +20,10 @@ This file provides guidance to agents when working with code in this repository.
 
 ```bash
 # Python (외부 패키지 없음, stdlib만 사용)
-python3.13 -m cio assets                        # 등록 자산 목록
-python3.13 -m cio prepare <ticker> --price ...  # 컨텍스트 패킷 생성
-python3.13 tests/run.py                         # 전체 Python 테스트
-python3.13 -m unittest tests.test_<name>        # 단일 Python 테스트
+python -m cio assets                        # 등록 자산 목록
+python -m cio prepare <ticker> --price ...  # 컨텍스트 패킷 생성
+python tests/run.py                         # 전체 Python 테스트
+python -m unittest tests.test_<name>        # 단일 Python 테스트
 
 # Dashboard (dashboard/ 디렉터리에서 실행)
 npm run test    # vinext build 후 node --test tests/rendered-html.test.mjs 실행 (build 필요)
@@ -37,7 +37,7 @@ npm run dev     # 개발 서버 (vinext dev, port 3000)
 ## 비표준 패턴
 
 - **대시보드 빌드**: Next.js가 아니라 `vinext`(Vite 기반 RSC) 사용. `next build` 아님.
-- **Python 런타임**: `python3.13` 고정. `python` / `python3` 은 버전이 다를 수 있음.
+- **Python 런타임**: `python` 고정. `python` / `python3` 은 버전이 다를 수 있음.
 - **API 서버**: `scripts/api_server.py` (Python stdlib `http.server`, port 3001). 프레임워크 없음.
 - **`.env` 로딩**: `scripts/stock_service.py`의 `load_env_file()`이 직접 파싱. `python-dotenv` 없음. 값에 따옴표 넣으면 따옴표까지 전송됨.
 - **대시보드 테스트**: `dist/server/index.js`를 직접 import해 Worker로 실행. 테스트 전 반드시 `npm run build` 선행.

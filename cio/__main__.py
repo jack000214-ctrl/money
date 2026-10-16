@@ -403,7 +403,7 @@ def cmd_score(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m cio",
+        prog="python -m cio",
         description="한·미 주식/ETF용 provider-neutral CIO context and memory",
     )
     sub = parser.add_subparsers(dest="command", required=True)

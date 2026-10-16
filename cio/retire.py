@@ -189,7 +189,7 @@ def retire(
             # 못 찾았을 때 조용히 0건으로 넘어가면 사용자는 폐기됐다고 믿는다.
             raise RetireError(
                 f"{asset_id}에 {assessment_id} 판단이 없다. "
-                "`python3.13 -m cio retire <asset_id>` 로 ID를 확인한다"
+                "`python -m cio retire <asset_id>` 로 ID를 확인한다"
             )
     else:
         targets = list(state["contract_failing"])

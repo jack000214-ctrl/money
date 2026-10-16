@@ -185,7 +185,7 @@ class TestDocumentCatalogRendering(unittest.TestCase):
             "missing": [{"accession_number": "20260807800613",
                          "filing_date": "2026-08-07",
                          "description": "신규시설투자등"}],
-            "fetch_hint": "python3.13 -m collectors.dart document <접수번호>",
+            "fetch_hint": "python -m collectors.dart document <접수번호>",
         }
         base.update(overrides)
         return base

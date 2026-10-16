@@ -18,8 +18,8 @@
 다. 컨센서스는 출처 정의상 '최근 3개월간 증권사 발표 추정치의 평균'이다.
 
 사용:
-    python3.13 -m collectors.consensus 214450
-    python3.13 -m collectors.consensus 005930 --show
+    python -m collectors.consensus 214450
+    python -m collectors.consensus 005930 --show
 """
 from __future__ import annotations
 

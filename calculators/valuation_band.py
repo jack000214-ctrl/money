@@ -110,7 +110,7 @@ def load_prices(symbol):
     if not path.exists():
         fail(
             f"{path.relative_to(ROOT)} 가 없다. "
-            f"python3.13 -m collectors.price history {symbol} --range 10y 를 먼저 실행한다"
+            f"python -m collectors.price history {symbol} --range 10y 를 먼저 실행한다"
         )
     with open(path, newline="", encoding="utf-8") as f:
         lines = [ln for ln in f if not ln.lstrip().startswith("#")]

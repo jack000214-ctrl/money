@@ -38,6 +38,7 @@ interface AssetSummary {
     exists: boolean;
     last_date: string | null;
     last_close: number | null;
+    prev_close: number | null;
     session: string | null;
     retrieved_at?: string | null;
   };
@@ -60,6 +61,414 @@ interface SearchResult {
   registered: boolean;
 }
 
+interface ForecastChartPoint {
+  date: string;
+  close: number;
+  ma5?: number | null;
+  ma20?: number | null;
+  rsi?: number | null;
+  bb_upper?: number | null;
+  bb_mid?: number | null;
+  bb_lower?: number | null;
+}
+
+interface AiInterpretation {
+  success: boolean;
+  headline?: string;
+  morning?: string;
+  afternoon?: string;
+  rationale?: string;
+  caution?: string;
+  error?: string;
+}
+
+interface ForecastResult {
+  ticker: string;
+  name: string;
+  market: string;
+  currency: string;
+  direction: "UP" | "DOWN" | "NEUTRAL";
+  score: number;
+  signals: string[];
+  chart_data: ForecastChartPoint[];
+  indicators: Record<string, number | null>;
+  last_close: number | null;
+  last_date: string | null;
+  ai_interpretation?: AiInterpretation;
+}
+
+interface ForecastReport {
+  id: string;
+  algorithm: string;
+  algorithm_label: string;
+  created_at: string;
+  asset_count: number;
+  results: ForecastResult[];
+}
+
+interface ForecastSummary {
+  id: string;
+  algorithm: string;
+  algorithm_label: string;
+  created_at: string;
+  asset_count: number;
+}
+
+// ─── ForecastCard: 종목 1개 예측 결과 카드 (SVG 스파크라인 포함) ───────────────
+
+function SparklineSvg({ data, algorithm }: { data: ForecastChartPoint[]; algorithm: string }) {
+  const W = 320, H = 72, PAD = 4;
+  if (!data || data.length === 0) return null;
+
+  const closes = data.map((d) => d.close);
+  const minC = Math.min(...closes);
+  const maxC = Math.max(...closes);
+  const rangeC = maxC - minC || 1;
+
+  const xScale = (i: number) => PAD + (i / (data.length - 1)) * (W - PAD * 2);
+  const yScale = (v: number) => H - PAD - ((v - minC) / rangeC) * (H - PAD * 2);
+
+  const closePath = data.map((d, i) => `${i === 0 ? "M" : "L"}${xScale(i).toFixed(1)},${yScale(d.close).toFixed(1)}`).join(" ");
+
+  const ma5Path = (() => {
+    const pts = data.map((d, i) => d.ma5 != null ? `${i === 0 ? "M" : "L"}${xScale(i).toFixed(1)},${yScale(d.ma5).toFixed(1)}` : null);
+    const segments: string[] = [];
+    let seg = "";
+    pts.forEach((p, i) => {
+      if (p) { seg += (seg ? " L" : "M") + `${xScale(i).toFixed(1)},${yScale(data[i].ma5!).toFixed(1)}`; }
+      else if (seg) { segments.push(seg); seg = ""; }
+    });
+    if (seg) segments.push(seg);
+    return segments.join(" ");
+  })();
+
+  const ma20Path = (() => {
+    const pts = data.map((d, i) => d.ma20 != null ? true : null);
+    const segments: string[] = [];
+    let seg = "";
+    data.forEach((d, i) => {
+      if (d.ma20 != null) { seg += (seg ? " L" : "M") + `${xScale(i).toFixed(1)},${yScale(d.ma20).toFixed(1)}`; }
+      else if (seg) { segments.push(seg); seg = ""; }
+    });
+    void pts;
+    if (seg) segments.push(seg);
+    return segments.join(" ");
+  })();
+
+  // 볼린저 밴드 영역
+  const bbArea = (() => {
+    const valid = data.filter((d) => d.bb_upper != null && d.bb_lower != null);
+    if (valid.length < 2) return null;
+    const upperPts = data.map((d, i) => d.bb_upper != null ? `${xScale(i).toFixed(1)},${yScale(d.bb_upper).toFixed(1)}` : null).filter(Boolean);
+    const lowerPts = [...data].reverse().map((d, i) => {
+      const idx = data.length - 1 - i;
+      return d.bb_lower != null ? `${xScale(idx).toFixed(1)},${yScale(d.bb_lower).toFixed(1)}` : null;
+    }).filter(Boolean);
+    if (!upperPts.length || !lowerPts.length) return null;
+    return `M${upperPts[0]} L${upperPts.slice(1).join(" L")} L${lowerPts[0]} L${lowerPts.slice(1).join(" L")} Z`;
+  })();
+
+  const lastX = xScale(data.length - 1);
+  const lastY = yScale(closes[closes.length - 1]);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "72px", display: "block" }}>
+      {/* 볼린저 밴드 영역 */}
+      {bbArea && <path d={bbArea} fill="rgba(99,102,241,0.12)" />}
+      {/* 볼린저 밴드 선 */}
+      {algorithm === "BOLLINGER" && data.map((d, i) => d.bb_upper != null && i > 0 ? null : null)}
+      {/* MA20 */}
+      {ma20Path && <path d={ma20Path} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="3,2" opacity="0.8" />}
+      {/* MA5 */}
+      {ma5Path && <path d={ma5Path} fill="none" stroke="#38bdf8" strokeWidth="1.5" opacity="0.9" />}
+      {/* 종가 선 */}
+      <path d={closePath} fill="none" stroke="#e2e8f0" strokeWidth="1.8" />
+      {/* 현재 종가 점 */}
+      <circle cx={lastX} cy={lastY} r="3" fill="#f8fafc" />
+    </svg>
+  );
+}
+
+function ForecastCard({
+  result,
+  algorithm,
+  createdAt,
+  reportId,
+}: {
+  result: ForecastResult;
+  algorithm: string;
+  createdAt: string;
+  reportId: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AiInterpretation | null>(
+    result.ai_interpretation ?? null
+  );
+
+  const dirColor = result.direction === "UP" ? "#4ade80" : result.direction === "DOWN" ? "#f87171" : "#94a3b8";
+  const dirLabel = result.direction === "UP" ? "▲ 상승 우세" : result.direction === "DOWN" ? "▼ 하락 우세" : "↔ 중립";
+  const dirBg = result.direction === "UP" ? "rgba(74,222,128,0.12)" : result.direction === "DOWN" ? "rgba(248,113,113,0.12)" : "rgba(148,163,184,0.08)";
+  const scoreBar = Math.abs(result.score);
+  const scoreColor = result.score > 0 ? "#4ade80" : result.score < 0 ? "#f87171" : "#64748b";
+
+  const fmtClose = result.last_close != null
+    ? result.currency === "KRW"
+      ? `${result.last_close.toLocaleString()} 원`
+      : `$${result.last_close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "—";
+
+  const handleAiInterpret = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAiLoading(true);
+    setAiResult(null);
+    if (!expanded) setExpanded(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/forecast/interpret`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report_id: reportId, ticker: result.ticker }),
+      });
+      const data: AiInterpretation = await res.json();
+      setAiResult(data);
+    } catch {
+      setAiResult({ success: false, error: "네트워크 오류" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: "#1e293b",
+      border: `1px solid ${result.direction === "UP" ? "rgba(74,222,128,0.3)" : result.direction === "DOWN" ? "rgba(248,113,113,0.3)" : "#334155"}`,
+      borderRadius: "10px",
+      overflow: "hidden",
+    }}>
+      {/* 카드 헤더 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+          padding: "14px 18px",
+          cursor: "pointer",
+          background: dirBg,
+          userSelect: "none",
+        }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {/* 종목명 */}
+        <div style={{ minWidth: "140px" }}>
+          <div style={{ fontWeight: 700, fontSize: "15px", color: "#f8fafc" }}>{result.name}</div>
+          <div style={{ fontSize: "12px", color: "#94a3b8" }}>{result.ticker} · {result.market}</div>
+        </div>
+
+        {/* 방향 배지 */}
+        <div style={{
+          background: dirColor + "22",
+          color: dirColor,
+          border: `1px solid ${dirColor}55`,
+          borderRadius: "6px",
+          padding: "4px 12px",
+          fontWeight: 700,
+          fontSize: "13px",
+          whiteSpace: "nowrap",
+        }}>
+          {dirLabel}
+        </div>
+
+        {/* 점수 바 */}
+        <div style={{ flex: 1, minWidth: "80px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ flex: 1, background: "#0f172a", borderRadius: "3px", height: "6px", overflow: "hidden" }}>
+              <div style={{
+                width: `${scoreBar}%`,
+                height: "100%",
+                background: scoreColor,
+                borderRadius: "3px",
+                transition: "width 0.4s ease",
+              }} />
+            </div>
+            <span style={{ fontSize: "12px", color: scoreColor, fontWeight: 700, minWidth: "40px", textAlign: "right" }}>
+              {result.score > 0 ? "+" : ""}{result.score}
+            </span>
+          </div>
+        </div>
+
+        {/* 최근 종가 */}
+        <div style={{ textAlign: "right", minWidth: "100px" }}>
+          <div style={{ fontWeight: 700, fontSize: "14px", color: "#f8fafc" }}>{fmtClose}</div>
+          <div style={{ fontSize: "11px", color: "#64748b" }}>{result.last_date}</div>
+        </div>
+
+        {/* 스파크라인 */}
+        <div style={{ width: "160px", flexShrink: 0 }}>
+          <SparklineSvg data={result.chart_data.slice(-15)} algorithm={algorithm} />
+        </div>
+
+        {/* 조회 시각 */}
+        <div style={{ fontSize: "11px", color: "#475569", whiteSpace: "nowrap" }}>
+          {formatDateTime(createdAt)}
+        </div>
+
+        {/* Bob AI 해석 버튼 */}
+        <button
+          type="button"
+          onClick={handleAiInterpret}
+          disabled={aiLoading}
+          style={{
+            background: aiLoading ? "#78350f" : aiResult?.success ? "#065f46" : "#1e3a5f",
+            color: aiLoading ? "#fcd34d" : "#fff",
+            border: "none",
+            borderRadius: "6px",
+            padding: "5px 10px",
+            fontSize: "11px",
+            fontWeight: 700,
+            cursor: aiLoading ? "not-allowed" : "pointer",
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            flexShrink: 0,
+          }}
+        >
+          {aiLoading ? (
+            <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span> 분석 중…</>
+          ) : aiResult?.success ? (
+            <>✓ AI 해석 완료</>
+          ) : (
+            <>🤖 Bob AI 해석</>
+          )}
+        </button>
+
+        <span style={{ color: "#475569", fontSize: "12px", marginLeft: "4px" }}>
+          {expanded ? "▲" : "▼"}
+        </span>
+      </div>
+
+      {/* 확장 영역: 신호 상세 + 큰 스파크라인 + AI 해석 */}
+      {expanded && (
+        <div style={{ padding: "16px 18px", borderTop: "1px solid #334155" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            {/* 신호 목록 */}
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#94a3b8", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                분석 신호
+              </div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", listStyle: "disc" }}>
+                {result.signals.map((s, i) => (
+                  <li key={i} style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: 1.8, paddingLeft: "4px" }}>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* 큰 스파크라인 */}
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#94a3b8", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                최근 30일 차트
+              </div>
+              <div style={{ background: "#0f172a", borderRadius: "6px", padding: "8px" }}>
+                <SparklineSvg data={result.chart_data} algorithm={algorithm} />
+                <div style={{ display: "flex", gap: "16px", marginTop: "6px", fontSize: "10px", color: "#64748b" }}>
+                  <span><span style={{ color: "#e2e8f0" }}>─</span> 종가</span>
+                  {result.chart_data.some((d) => d.ma5 != null) && <span><span style={{ color: "#38bdf8" }}>─</span> 5MA</span>}
+                  {result.chart_data.some((d) => d.ma20 != null) && <span><span style={{ color: "#f59e0b", fontStyle: "italic" }}>- -</span> 20MA</span>}
+                  {result.chart_data.some((d) => d.bb_upper != null) && <span><span style={{ color: "#818cf8" }}>▒</span> 볼린저</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bob AI 해석 패널 */}
+          {(aiLoading || aiResult) && (
+            <div style={{
+              marginTop: "16px",
+              background: "#0f172a",
+              border: "1px solid #1e3a5f",
+              borderRadius: "8px",
+              padding: "16px 18px",
+            }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#38bdf8", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                🤖 Bob AI 흐름 해석
+                {aiLoading && (
+                  <span style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 400 }}>
+                    <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
+                    {" "}분석 중... (30초~1분 소요)
+                  </span>
+                )}
+              </div>
+
+              {aiLoading && (
+                <div style={{ fontSize: "12px", color: "#475569", lineHeight: 2 }}>
+                  <div>• 기술지표 신호를 Bob에 전달 중...</div>
+                  <div>• 오전/오후 흐름 분석 요청 중...</div>
+                  <div>• 자연어 해석 생성 중...</div>
+                </div>
+              )}
+
+              {aiResult && !aiResult.success && (
+                <div style={{ fontSize: "12px", color: "#f87171" }}>
+                  ✗ {aiResult.error || "해석 실패"}
+                </div>
+              )}
+
+              {aiResult?.success && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {/* 헤드라인 */}
+                  {aiResult.headline && (
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: "#f8fafc" }}>
+                      {aiResult.headline}
+                    </div>
+                  )}
+                  {/* 오전/오후 */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    {aiResult.morning && (
+                      <div style={{ background: "#0f2b3d", borderRadius: "6px", padding: "10px 14px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "#38bdf8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          ☀ 오전 흐름
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: 1.7 }}>{aiResult.morning}</div>
+                      </div>
+                    )}
+                    {aiResult.afternoon && (
+                      <div style={{ background: "#1a1033", borderRadius: "6px", padding: "10px 14px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "#a78bfa", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          🌙 오후 흐름
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: 1.7 }}>{aiResult.afternoon}</div>
+                      </div>
+                    )}
+                  </div>
+                  {/* 근거 */}
+                  {aiResult.rationale && (
+                    <div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        근거
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#94a3b8", lineHeight: 1.8 }}>{aiResult.rationale}</div>
+                    </div>
+                  )}
+                  {/* 주의 */}
+                  {aiResult.caution && (
+                    <div style={{ background: "#2d1b00", border: "1px solid #92400e", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", color: "#fcd34d", lineHeight: 1.7 }}>
+                      ⚠ {aiResult.caution}
+                    </div>
+                  )}
+                  <div style={{ fontSize: "10px", color: "#475569", marginTop: "4px" }}>
+                    ※ 기술적 분석 참고 정보이며 투자 권유가 아닙니다.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StockControlPanel({
   currentTicker,
   currentName,
@@ -71,7 +480,7 @@ export function StockControlPanel({
 }) {
   // 메인 뷰 모드: "stocks" (종목 관리/수집 메인 화면) vs "report" (리포트 상세 화면)
   const [viewMode, setViewMode] = useState<"stocks" | "report">("stocks");
-  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto" | "forecast">("list");
 
   // 데이터 상태
   const [assets, setAssets] = useState<AssetSummary[]>([]);
@@ -105,6 +514,76 @@ export function StockControlPanel({
   });
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // ── 예측(Forecast) 상태 ──
+  const [forecastAlgorithm, setForecastAlgorithm] = useState<string>("MA_CROSS");
+  const [forecastRunning, setForecastRunning] = useState(false);
+  const [forecastReport, setForecastReport] = useState<ForecastReport | null>(null);
+  const [forecastList, setForecastList] = useState<ForecastSummary[]>([]);
+  const [forecastListLoading, setForecastListLoading] = useState(false);
+  const [forecastSelectedId, setForecastSelectedId] = useState<string | null>(null);
+
+  const ALGO_OPTIONS: { value: string; label: string }[] = [
+    { value: "MA_CROSS", label: "이동평균 크로스 (5MA × 20MA)" },
+    { value: "RSI", label: "RSI-14 과매수/과매도" },
+    { value: "BOLLINGER", label: "볼린저 밴드 (20일, 2σ)" },
+    { value: "COMBINED", label: "복합 신호 (MA + RSI + 볼린저)" },
+  ];
+
+  const fetchForecastList = useCallback(async () => {
+    setForecastListLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/forecast/list?limit=30`);
+      if (res.ok) {
+        const data = await res.json();
+        setForecastList(data.forecasts || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setForecastListLoading(false);
+    }
+  }, []);
+
+  const handleRunForecast = async () => {
+    setForecastRunning(true);
+    setForecastReport(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/forecast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ algorithm: forecastAlgorithm }),
+      });
+      const data = await res.json();
+      if (data.success && data.report) {
+        setForecastReport(data.report);
+        setForecastSelectedId(data.report.id);
+        await fetchForecastList();
+      } else {
+        alert(`예측 실패: ${data.error || "오류"}`);
+      }
+    } catch (err) {
+      alert(`예측 오류: ${err}`);
+    } finally {
+      setForecastRunning(false);
+    }
+  };
+
+  const handleLoadForecast = async (id: string) => {
+    setForecastSelectedId(id);
+    setForecastRunning(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/forecast/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setForecastReport(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setForecastRunning(false);
+    }
+  };
 
   // 수집 제어 상태
   const [selectedCollectTicker, setSelectedCollectTicker] = useState<string>(currentTicker);
@@ -173,6 +652,14 @@ export function StockControlPanel({
       // ignore
     }
   }, []);
+
+  // forecast 탭 진입 시 리포트 목록 자동 로드
+  useEffect(() => {
+    if (activeTab === "forecast") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchForecastList();
+    }
+  }, [activeTab, fetchForecastList]);
 
   useEffect(() => {
     let ignore = false;
@@ -631,7 +1118,7 @@ export function StockControlPanel({
                   cursor: "pointer",
                 }}
               >
-                1. 내 종목 목록 ({assets.length}개)
+                1. 내 종목 ({assets.length}개)
               </button>
               <button
                 type="button"
@@ -647,7 +1134,7 @@ export function StockControlPanel({
                   cursor: "pointer",
                 }}
               >
-                2. 단계별 수동 수집 & 분석실
+                2. 종목 분석
               </button>
               <button
                 type="button"
@@ -663,7 +1150,23 @@ export function StockControlPanel({
                   cursor: "pointer",
                 }}
               >
-                3. 오늘 시세 자동 수집 현황
+                3. 시세 조회
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("forecast")}
+                style={{
+                  background: activeTab === "forecast" ? "#1e293b" : "transparent",
+                  color: activeTab === "forecast" ? "#f59e0b" : "#94a3b8",
+                  border: activeTab === "forecast" ? "1px solid #f59e0b" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                4. 단기 분석 ✨
               </button>
             </div>
 
@@ -1399,41 +1902,69 @@ export function StockControlPanel({
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
-                  {assets.map((a) => (
-                    <div key={a.ticker} style={{
-                      background: "#0f172a",
-                      padding: "12px 16px",
-                      borderRadius: "6px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                      fontSize: "13px",
-                    }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <span>
-                          <strong>{a.name}</strong> ({a.ticker})
-                        </span>
-                        <span style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "14px" }}>
-                          {a.price_info.last_close != null
-                            ? a.currency === "KRW"
-                              ? `${a.price_info.last_close.toLocaleString()} 원`
-                              : `$${a.price_info.last_close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                            : "—"}
+                  {assets.map((a) => {
+                    const lc = a.price_info.last_close;
+                    const pc = a.price_info.prev_close;
+                    const diff = lc != null && pc != null && pc !== 0 ? lc - pc : null;
+                    const pct = diff != null && pc != null && pc !== 0 ? (diff / pc) * 100 : null;
+                    const isUp = diff != null && diff > 0;
+                    const isDown = diff != null && diff < 0;
+                    const changeColor = isUp ? "#f87171" : isDown ? "#60a5fa" : "#94a3b8";
+                    return (
+                      <div key={a.ticker} style={{
+                        background: "#0f172a",
+                        padding: "12px 16px",
+                        borderRadius: "6px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                        fontSize: "13px",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          <span>
+                            <strong>{a.name}</strong> ({a.ticker})
+                          </span>
+                          <span style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "14px" }}>
+                            {lc != null
+                              ? a.currency === "KRW"
+                                ? `${lc.toLocaleString()} 원`
+                                : `$${lc.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : "—"}
+                          </span>
+                        </div>
+                        {pct != null && (
+                          <div style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            alignItems: "center",
+                            gap: "4px",
+                            color: changeColor,
+                            fontSize: "12px",
+                            fontWeight: 600,
+                          }}>
+                            <span>{isUp ? "▲" : isDown ? "▼" : "—"}</span>
+                            <span>
+                              {a.currency === "KRW"
+                                ? `${Math.abs(diff!).toLocaleString()} 원`
+                                : `$${Math.abs(diff!).toFixed(2)}`}
+                              {" "}({isUp ? "+" : isDown ? "-" : ""}{Math.abs(pct).toFixed(2)}%)
+                            </span>
+                          </div>
+                        )}
+                        <span style={{
+                          color: a.price_info.exists ? "#34d399" : "#f87171",
+                          fontWeight: 500,
+                          fontSize: "11px",
+                          textAlign: "right",
+                          display: "block",
+                        }}>
+                          {a.price_info.exists
+                            ? `조회 ${a.price_info.retrieved_at ? formatDateTime(a.price_info.retrieved_at) : a.price_info.last_date}`
+                            : "시세 없음"}
                         </span>
                       </div>
-                      <span style={{
-                        color: a.price_info.exists ? "#34d399" : "#f87171",
-                        fontWeight: 500,
-                        fontSize: "11px",
-                        textAlign: "right",
-                        display: "block",
-                      }}>
-                        {a.price_info.exists
-                          ? `조회 ${a.price_info.retrieved_at ? formatDateTime(a.price_info.retrieved_at) : a.price_info.last_date}`
-                          : "시세 없음"}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1486,6 +2017,181 @@ export function StockControlPanel({
                 >
                   {autoLogs.length === 0 ? "실행 대기 중... 위의 업데이트 버튼을 클릭하면 로그가 표시됩니다." : autoLogs.join("\n")}
                 </pre>
+              </div>
+            </div>
+          )}
+
+          {/* 탭 4: 오늘의 추천 — 기술지표 기반 흐름 예측 */}
+          {activeTab === "forecast" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* 컨트롤 패널 */}
+              <div style={{
+                background: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "10px",
+                padding: "20px 24px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#f59e0b", whiteSpace: "nowrap" }}>
+                    📊 알고리즘 선택
+                  </div>
+                  <select
+                    value={forecastAlgorithm}
+                    onChange={(e) => setForecastAlgorithm(e.target.value)}
+                    disabled={forecastRunning}
+                    style={{
+                      background: "#0f172a",
+                      color: "#f8fafc",
+                      border: "1px solid #475569",
+                      borderRadius: "6px",
+                      padding: "9px 16px",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      minWidth: "280px",
+                      cursor: forecastRunning ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {ALGO_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleRunForecast}
+                    disabled={forecastRunning}
+                    style={{
+                      background: forecastRunning ? "#78350f" : "#f59e0b",
+                      color: forecastRunning ? "#fcd34d" : "#000",
+                      border: "none",
+                      borderRadius: "7px",
+                      padding: "10px 24px",
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      cursor: forecastRunning ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {forecastRunning ? (
+                      <>
+                        <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
+                        분석 중...
+                      </>
+                    ) : "🔍 분석 실행"}
+                  </button>
+                  <div style={{ marginLeft: "auto", fontSize: "12px", color: "#64748b" }}>
+                    등록된 {assets.filter(a => !a.trading_halted).length}개 종목 대상 · 일봉 기반
+                  </div>
+                </div>
+              </div>
+
+              {/* 메인 영역: 리포트 목록(왼쪽) + 결과 카드(오른쪽) */}
+              <div style={{ display: "flex", gap: "20px", flex: 1, minHeight: 0 }}>
+
+                {/* 왼쪽: 저장된 리포트 목록 */}
+                <div style={{
+                  width: "260px",
+                  flexShrink: 0,
+                  background: "#1e293b",
+                  border: "1px solid #334155",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}>
+                  <div style={{
+                    padding: "14px 16px",
+                    background: "#0f172a",
+                    borderBottom: "1px solid #334155",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8" }}>
+                      저장된 리포트
+                    </span>
+                    <span style={{ fontSize: "11px", color: "#475569" }}>최근 7일 (일별 1건)</span>
+                  </div>
+                  <div style={{ overflowY: "auto", flex: 1 }}>
+                    {forecastListLoading ? (
+                      <div style={{ padding: "20px", fontSize: "13px", color: "#475569", textAlign: "center" }}>
+                        불러오는 중...
+                      </div>
+                    ) : forecastList.length === 0 ? (
+                      <div style={{ padding: "20px", fontSize: "12px", color: "#475569", textAlign: "center", lineHeight: 1.6 }}>
+                        최근 7일간 저장된 리포트가<br />없습니다.<br />위에서 분석을 실행하세요.
+                      </div>
+                    ) : forecastList.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleLoadForecast(f.id)}
+                        style={{
+                          width: "100%",
+                          background: forecastSelectedId === f.id ? "rgba(245,158,11,0.15)" : "transparent",
+                          border: "none",
+                          borderBottom: "1px solid #334155",
+                          borderLeft: forecastSelectedId === f.id ? "3px solid #f59e0b" : "3px solid transparent",
+                          padding: "12px 14px",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          transition: "background 0.15s",
+                        }}
+                      >
+                        <div style={{ fontSize: "12px", fontWeight: 700, color: forecastSelectedId === f.id ? "#f59e0b" : "#e2e8f0", marginBottom: "3px" }}>
+                          {f.algorithm_label.split(" (")[0]}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>
+                          {formatDateTime(f.created_at)}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>
+                          {f.asset_count}개 종목
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 오른쪽: 분석 결과 카드들 */}
+                <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {forecastRunning && !forecastReport && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flex: 1,
+                      color: "#f59e0b",
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      gap: "12px",
+                    }}>
+                      <span style={{ fontSize: "24px", display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
+                      기술지표 계산 중...
+                    </div>
+                  )}
+                  {!forecastRunning && !forecastReport && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flex: 1,
+                      color: "#475569",
+                      fontSize: "14px",
+                      textAlign: "center",
+                      lineHeight: 2,
+                    }}>
+                      알고리즘을 선택하고<br />
+                      <strong style={{ color: "#f59e0b" }}>분석 실행</strong> 버튼을 누르거나<br />
+                      왼쪽에서 저장된 리포트를 선택하세요.
+                    </div>
+                  )}
+                  {forecastReport && forecastReport.results.map((r) => (
+                    <ForecastCard key={r.ticker} result={r} algorithm={forecastReport.algorithm} createdAt={forecastReport.created_at} reportId={forecastReport.id} />
+                  ))}
+                </div>
               </div>
             </div>
           )}

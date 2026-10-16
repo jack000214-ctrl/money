@@ -270,7 +270,7 @@ def resolve_inputs(a):
         a.net_debt = 0.0
     if not a.inputs_unverified_reason:
         fail("손으로 적은 밸류에이션 입력은 그대로 쓸 수 없다.\n"
-             "  권장:  python3.13 -m collectors.edgar fundamentals "
+             "  권장:  python -m collectors.edgar fundamentals "
              f"{a.instrument}\n"
              "         → --fundamentals knowledge/fundamentals/"
              f"{a.instrument}-<기준일>.json\n"

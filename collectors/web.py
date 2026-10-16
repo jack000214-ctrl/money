@@ -73,7 +73,7 @@ def shell_page_warning(payload: dict[str, Any]) -> str | None:
     if "dart.fss.or.kr" in host:
         hint = (
             " DART 뷰어는 본문을 iframe 으로 불러온다. 공시 원문 자체가 "
-            "필요하면 `python3.13 -m collectors.dart document <접수번호>` 로 "
+            "필요하면 `python -m collectors.dart document <접수번호>` 로 "
             "OpenDART 원문을 받는다"
         )
     return (
@@ -293,7 +293,7 @@ def snapshot(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m collectors.web",
+        prog="python -m collectors.web",
         description="조사한 웹 원문을 내용 주소로 보존한다",
     )
     parser.add_argument("url")

@@ -301,7 +301,7 @@ def get_asset(asset_id: str, path: Path = REGISTRY_PATH) -> dict[str, Any]:
     if key not in assets:
         raise AssetRegistryError(
             f"{asset_id}: 등록되지 않은 자산이다. 먼저 "
-            "`python3.13 -m cio register`를 사용한다"
+            "`python -m cio register`를 사용한다"
         )
     return {"asset_id": key, **assets[key]}
 
@@ -330,7 +330,7 @@ def get_asset_or_declared_peer(
                 }
     raise AssetRegistryError(
         f"{asset_id}: 등록된 자산도, 등록 자산의 peers에 선언된 동종도 아니다. "
-        "먼저 `python3.13 -m cio register`를 사용하거나 비교 대상 자산의 peers에 넣는다"
+        "먼저 `python -m cio register`를 사용하거나 비교 대상 자산의 peers에 넣는다"
     )
 
 

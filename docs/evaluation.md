@@ -39,7 +39,7 @@ assessment로 남긴다. 당시 근거와 prompt/schema도 내용 주소형 snap
 ## 판단 저장
 
 ```bash
-python3.13 -m cio record decision.json
+python -m cio record decision.json
 ```
 
 `record`는 저장 전에 decision 계약을 다시 검증한다.
@@ -53,7 +53,7 @@ python3.13 -m cio record decision.json
 ## 가격 기반 사후 평가
 
 ```bash
-python3.13 -m cio score <asset_id>
+python -m cio score <asset_id>
 ```
 
 `score`는 저장된 각 assessment에 대해 입력 기준일부터 평가 기간까지의 가격을

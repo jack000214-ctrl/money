@@ -24,8 +24,8 @@ ETF 가격만 보면 "3개월에 34% 내렸다"까지만 보인다. 그 34%가 �
 나머지는 계속 받는다.
 
 사용:
-    python3.13 -m collectors.etf_constituents 0053L0
-    python3.13 -m collectors.etf_constituents 0053L0 --no-valuation
+    python -m collectors.etf_constituents 0053L0
+    python -m collectors.etf_constituents 0053L0 --no-valuation
 """
 from __future__ import annotations
 
@@ -471,7 +471,7 @@ def latest_path(asset_id: str) -> Path | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3.13 -m collectors.etf_constituents",
+        prog="python -m collectors.etf_constituents",
         description="ETF 구성종목별 가격·배수·환율 수집 (look-through 재료)",
     )
     parser.add_argument("asset_id")

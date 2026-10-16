@@ -637,7 +637,7 @@ def reformat_schemas(root: str | Path | None = None) -> list[Path]:
     편집기가 스키마를 다시 들여쓰면 판단마다 읽는 분량이 조용히 두 배가 된다.
     `tests/test_json_layout.py` 가 그것을 잡고, 고칠 때는 이것을 부른다:
 
-        python3.13 -c "from calculators.contracts import reformat_schemas; reformat_schemas()"
+        python -c "from calculators.contracts import reformat_schemas; reformat_schemas()"
     """
     base = Path(root) if root is not None else Path(__file__).resolve().parent.parent
     changed = []
