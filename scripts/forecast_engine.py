@@ -524,43 +524,71 @@ def interpret_with_bob(result: dict[str, Any], algorithm_label: str) -> dict[str
 
     signals_text = "\n".join(f"  - {s}" for s in signals) if signals else "  - 신호 없음"
 
-    indicators_text = ""
+    # 알고리즘별 지표 텍스트 구성 (각 알고리즘이 반환하는 indicators 키 구조에 맞게 처리)
+    indicators_lines: list[str] = []
     if indicators:
-        parts = []
-        if indicators.get("ma5") and indicators.get("ma20"):
-            parts.append(f"5MA={indicators['ma5']:,.0f} / 20MA={indicators['ma20']:,.0f}")
-        if indicators.get("rsi") is not None:
-            parts.append(f"RSI={indicators['rsi']:.1f}")
-        if indicators.get("upper") is not None:
-            parts.append(f"볼린저상단={indicators['upper']:,.0f} / 중앙={indicators['mid']:,.0f} / 하단={indicators['lower']:,.0f}")
-        indicators_text = " / ".join(parts)
+        ma5 = indicators.get("ma5")
+        ma20 = indicators.get("ma20")
+        rsi_val = indicators.get("rsi")
+        upper = indicators.get("upper")
+        mid = indicators.get("mid")
+        lower = indicators.get("lower")
+
+        if ma5 is not None and ma20 is not None:
+            diff_pct = (ma5 - ma20) / ma20 * 100 if ma20 else 0
+            indicators_lines.append(f"  • 5MA: {ma5:,.0f}원 / 20MA: {ma20:,.0f}원 (괴리율 {diff_pct:+.2f}%)")
+        if rsi_val is not None:
+            zone = "과매수(70+)" if rsi_val >= 70 else "강세(60~70)" if rsi_val >= 60 else "과매도(~30)" if rsi_val <= 30 else "약세(30~40)" if rsi_val <= 40 else "중립(40~60)"
+            indicators_lines.append(f"  • RSI-14: {rsi_val:.1f} [{zone}]")
+        if upper is not None and mid is not None and lower is not None:
+            _lc = last_close or 0.0
+            pos = (_lc - lower) / (upper - lower) * 100 if (upper - lower) > 0 else 50.0
+            width = (upper - lower) / mid * 100 if mid else 0
+            indicators_lines.append(f"  • 볼린저밴드: 상단 {upper:,.0f} / 중앙 {mid:,.0f} / 하단 {lower:,.0f}원")
+            indicators_lines.append(f"  • 밴드 내 위치: {pos:.0f}% / 밴드 폭: {width:.1f}%")
+
+    indicators_text = "\n".join(indicators_lines) if indicators_lines else "  • (지표 데이터 없음)"
+
+    # 알고리즘별 분석 관점 힌트
+    algo_focus = {
+        "이동평균 크로스 (5MA × 20MA)": "단기(5일)와 중기(20일) 이동평균의 교차 및 위치 관계에서 추세 방향을 판단합니다. 골든크로스/데드크로스 발생 여부와 MA 기울기가 핵심입니다.",
+        "RSI-14 과매수/과매도": "14일 RSI 지표로 과매수(70 이상)·과매도(30 이하) 구간과 모멘텀 방향을 판단합니다. RSI 수치와 최근 변화 방향이 핵심입니다.",
+        "볼린저 밴드 (20일, 2σ)": "20일 볼린저밴드 내 현재 가격 위치와 밴드 폭으로 변동성 및 추세를 판단합니다. 밴드 이탈·근접 여부와 밴드 폭 추이가 핵심입니다.",
+        "복합 신호 (MA + RSI + 볼린저)": "MA크로스(45%) + RSI(30%) + 볼린저(25%) 가중 합산 점수로 종합 방향을 판단합니다. 세 지표의 일치/불일치 여부가 핵심입니다.",
+    }.get(algorithm_label, f"{algorithm_label} 알고리즘 기반 분석입니다.")
 
     prompt = f"""당신은 한국 주식 시장 전문 기술적 분석가입니다.
-아래 기술지표 분석 결과를 바탕으로 오늘의 주가 흐름을 예측하고 투자자에게 안내해 주세요.
+아래는 [{algorithm_label}] 알고리즘으로 계산된 {name}({ticker})의 기술지표 분석 결과입니다.
+반드시 이 알고리즘이 포착한 신호와 수치에만 근거하여 오늘의 주가 흐름을 예측해 주세요.
+
+## 분석 알고리즘
+- {algorithm_label}
+- 관점: {algo_focus}
 
 ## 종목 정보
 - 종목: {name} ({ticker})
 - 기준일: {last_date} / 최근 종가: {close_str}
-- 사용 알고리즘: {algorithm_label}
+- 종합 방향: {dir_kor} (점수: {score:+d} / 범위 -100~+100)
 
-## 기술지표 분석 결과
-- 종합 방향: {dir_kor} (점수: {score:+d} / -100~+100)
-- 주요 지표: {indicators_text or '없음'}
-- 감지된 신호:
+## 이 알고리즘이 계산한 기술지표 수치
+{indicators_text}
+
+## 이 알고리즘이 감지한 신호 목록
 {signals_text}
 
 ## 요청 사항
-위 분석을 바탕으로 **반드시 아래 JSON 형식만** 출력하세요 (마크다운 없이 순수 JSON):
+위 [{algorithm_label}] 분석 결과만을 근거로 **반드시 아래 JSON 형식만** 출력하세요 (마크다운 없이 순수 JSON):
 
 {{
-  "headline": "한 줄 핵심 요약 (20자 이내)",
-  "morning": "오전 흐름 예측 (1~2문장, 구체적 수치 포함)",
-  "afternoon": "오후 흐름 예측 (1~2문장)",
-  "rationale": "기술지표 근거 설명 (2~3문장, 신호 이름 인용)",
-  "caution": "주의할 점 또는 반대 시나리오 (1문장)"
+  "headline": "한 줄 핵심 요약 — [{algorithm_label}] 관점 (20자 이내)",
+  "morning": "오전 흐름 예측 (1~2문장, 위 지표 수치 직접 인용)",
+  "afternoon": "오후 흐름 예측 (1~2문장, 위 신호 인용)",
+  "rationale": "[{algorithm_label}] 지표 근거 (2~3문장, 위 신호 이름·수치 직접 인용)",
+  "caution": "이 알고리즘 관점의 반대 시나리오 또는 주의점 (1문장)"
 }}
 
 주의: 투자 권유가 아닌 기술적 분석 관점의 참고 정보임을 전제로 작성하세요.
+다른 알고리즘의 지표(예: RSI 알고리즘인데 MA 수치를 언급하는 등)를 혼용하지 마세요.
 """
 
     raw = run_bob_shell(prompt, mode="ask")

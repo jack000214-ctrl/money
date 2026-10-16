@@ -194,17 +194,22 @@ function ForecastCard({
   algorithm,
   createdAt,
   reportId,
+  autoTrigger,
+  onAutoComplete,
 }: {
   result: ForecastResult;
   algorithm: string;
   createdAt: string;
   reportId: string;
+  autoTrigger?: number;   // 값이 변경될 때마다 자동으로 Bob 분석 실행
+  onAutoComplete?: () => void; // 자동 분석 완료 시 부모에 알림
 }) {
   const [expanded, setExpanded] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AiInterpretation | null>(
     result.ai_interpretation ?? null
   );
+  const prevTriggerRef = useRef<number | undefined>(undefined);
 
   const dirColor = result.direction === "UP" ? "#4ade80" : result.direction === "DOWN" ? "#f87171" : "#94a3b8";
   const dirLabel = result.direction === "UP" ? "▲ 상승 우세" : result.direction === "DOWN" ? "▼ 하락 우세" : "↔ 중립";
@@ -217,6 +222,34 @@ function ForecastCard({
       ? `${result.last_close.toLocaleString()} 원`
       : `$${result.last_close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "—";
+
+  const runInterpret = useCallback(async () => {
+    setAiLoading(true);
+    setAiResult(null);
+    setExpanded(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/forecast/interpret`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report_id: reportId, ticker: result.ticker }),
+      });
+      const data: AiInterpretation = await res.json();
+      setAiResult(data);
+    } catch {
+      setAiResult({ success: false, error: "네트워크 오류" });
+    } finally {
+      setAiLoading(false);
+      onAutoComplete?.();
+    }
+  }, [reportId, result.ticker, onAutoComplete]);
+
+  // autoTrigger 값이 새로 설정되면 자동 실행
+  useEffect(() => {
+    if (autoTrigger !== undefined && autoTrigger !== prevTriggerRef.current) {
+      prevTriggerRef.current = autoTrigger;
+      runInterpret();
+    }
+  }, [autoTrigger, runInterpret]);
 
   const handleAiInterpret = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -342,7 +375,7 @@ function ForecastCard({
           )}
         </button>
 
-        <span style={{ color: "#475569", fontSize: "12px", marginLeft: "4px" }}>
+        <span style={{ color: "#f8fafc", fontSize: "15px", marginLeft: "4px" }}>
           {expanded ? "▲" : "▼"}
         </span>
       </div>
@@ -523,6 +556,13 @@ export function StockControlPanel({
   const [forecastListLoading, setForecastListLoading] = useState(false);
   const [forecastSelectedId, setForecastSelectedId] = useState<string | null>(null);
 
+  // ── 자동 Bob 분석 순차 실행 상태 ──
+  // autoInterpretIdx: 현재 자동 실행 중인 종목 인덱스 (null = 비활성)
+  const [autoInterpretIdx, setAutoInterpretIdx] = useState<number | null>(null);
+  const [autoInterpretRunning, setAutoInterpretRunning] = useState(false);
+  // 각 종목별 trigger 카운터 (autoInterpretIdx가 해당 인덱스를 가리킬 때 +1되어 ForecastCard에서 감지)
+  const [autoTriggers, setAutoTriggers] = useState<number[]>([]);
+
   const ALGO_OPTIONS: { value: string; label: string }[] = [
     { value: "MA_CROSS", label: "이동평균 크로스 (5MA × 20MA)" },
     { value: "RSI", label: "RSI-14 과매수/과매도" },
@@ -545,9 +585,40 @@ export function StockControlPanel({
     }
   }, []);
 
+  // 자동 Bob 분석 전체 순차 실행 시작
+  const handleAutoInterpretAll = useCallback((report: ForecastReport) => {
+    const count = report.results.length;
+    if (count === 0) return;
+    // 초기 배열: 인덱스 0만 1로 설정해 첫 번째 카드에 즉시 trigger 발사
+    const initial = new Array(count).fill(0);
+    initial[0] = 1;
+    setAutoTriggers(initial);
+    setAutoInterpretRunning(true);
+    setAutoInterpretIdx(0);
+  }, []);
+
+  // 각 카드의 자동 분석 완료 콜백 — 다음 종목으로 넘어감
+  const handleCardAutoComplete = useCallback((idx: number, totalCount: number) => {
+    const next = idx + 1;
+    if (next < totalCount) {
+      setAutoInterpretIdx(next);
+      setAutoTriggers((prev) => {
+        const arr = [...prev];
+        arr[next] = (arr[next] ?? 0) + 1;
+        return arr;
+      });
+    } else {
+      setAutoInterpretIdx(null);
+      setAutoInterpretRunning(false);
+    }
+  }, []);
+
   const handleRunForecast = async () => {
     setForecastRunning(true);
     setForecastReport(null);
+    setAutoInterpretIdx(null);
+    setAutoInterpretRunning(false);
+    setAutoTriggers([]);
     try {
       const res = await fetch(`${API_BASE}/api/forecast`, {
         method: "POST",
@@ -559,6 +630,8 @@ export function StockControlPanel({
         setForecastReport(data.report);
         setForecastSelectedId(data.report.id);
         await fetchForecastList();
+        // 분석 완료 직후 Bob 자동 분석 시작
+        handleAutoInterpretAll(data.report);
       } else {
         alert(`예측 실패: ${data.error || "오류"}`);
       }
@@ -572,6 +645,10 @@ export function StockControlPanel({
   const handleLoadForecast = async (id: string) => {
     setForecastSelectedId(id);
     setForecastRunning(true);
+    // 저장된 리포트 열람 시 일괄 자동 Bob AI 분석 비활성화
+    setAutoInterpretIdx(null);
+    setAutoInterpretRunning(false);
+    setAutoTriggers([]);
     try {
       const res = await fetch(`${API_BASE}/api/forecast/${id}`);
       if (res.ok) {
@@ -2188,8 +2265,39 @@ export function StockControlPanel({
                       왼쪽에서 저장된 리포트를 선택하세요.
                     </div>
                   )}
-                  {forecastReport && forecastReport.results.map((r) => (
-                    <ForecastCard key={r.ticker} result={r} algorithm={forecastReport.algorithm} createdAt={forecastReport.created_at} reportId={forecastReport.id} />
+                  {/* 자동 Bob 분석 진행 상태 배너 */}
+                  {forecastReport && autoInterpretRunning && (
+                    <div style={{
+                      background: "#1e2d40",
+                      border: "1px solid #1e3a5f",
+                      borderRadius: "8px",
+                      padding: "10px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      fontSize: "13px",
+                      color: "#7dd3fc",
+                    }}>
+                      <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: "18px" }}>⟳</span>
+                      <span>
+                        🤖 Bob AI 자동 분석 진행 중 —{" "}
+                        <strong style={{ color: "#f8fafc" }}>
+                          {forecastReport.results[autoInterpretIdx ?? 0]?.name ?? ""}
+                        </strong>{" "}
+                        ({(autoInterpretIdx ?? 0) + 1} / {forecastReport.results.length})
+                      </span>
+                    </div>
+                  )}
+                  {forecastReport && forecastReport.results.map((r, idx) => (
+                    <ForecastCard
+                      key={`${forecastReport.id}-${r.ticker}`}
+                      result={r}
+                      algorithm={forecastReport.algorithm}
+                      createdAt={forecastReport.created_at}
+                      reportId={forecastReport.id}
+                      autoTrigger={autoTriggers[idx]}
+                      onAutoComplete={() => handleCardAutoComplete(idx, forecastReport.results.length)}
+                    />
                   ))}
                 </div>
               </div>
