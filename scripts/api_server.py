@@ -37,14 +37,19 @@ from scripts.stock_service import (
     save_asset,
     search_stocks,
     select_report,
+    get_longterm_analysis,
 )
+from calculators.portfolio_math import get_policy, save_policy
 from scripts.forecast_engine import (
     ALGORITHMS,
     get_forecast,
     interpret_with_bob,
     list_forecasts,
     run_forecast,
+    save_interpretation,
 )
+from calculators.portfolio_math import get_portfolio_status
+from cio.llm_interface import LLMInterface
 
 
 class APIServerHandler(BaseHTTPRequestHandler):
@@ -76,6 +81,32 @@ class APIServerHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
         query = parse_qs(parsed.query)
+
+        # 포트폴리오 상태 조회
+        if path == "/api/portfolio/status":
+            try:
+                status = get_portfolio_status()
+                self._send_json(status)
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        # 투자자 정책 조회
+        if path == "/api/portfolio/policy":
+            try:
+                self._send_json(get_policy())
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        # 장기분석 요약 조회
+        if path == "/api/longterm/status":
+            try:
+                analysis = get_longterm_analysis()
+                self._send_json({"results": analysis})
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
 
         # 1. 종목 검색
         if path == "/api/search":
@@ -164,6 +195,80 @@ class APIServerHandler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
+        # 투자자 정책 저장
+        if path == "/api/portfolio/policy":
+            try:
+                saved = save_policy(body)
+                self._send_json({"success": True, "policy": saved})
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        # 포트폴리오 리밸런싱 및 AI 추천서 생성
+        if path == "/api/portfolio/recommend":
+            try:
+                # 1. 정량 데이터 가져오기
+                portfolio_data = get_portfolio_status()
+                longterm_data = get_longterm_analysis()
+
+                # 보유 중인 종목만 요약 정보 생성
+                held_assets_summary = []
+                for item in longterm_data:
+                    ticker = item["ticker"]
+                    matching_exposure = next((exp for exp in portfolio_data.get("exposures", []) if exp["asset_id"] == ticker), None)
+                    if matching_exposure and matching_exposure.get("value_krw", 0) > 0:
+                        held_assets_summary.append({
+                            "ticker": ticker,
+                            "name": item["name"],
+                            "current_price": item["current_price"],
+                            "value_krw": matching_exposure["value_krw"],
+                            "effective_pct": matching_exposure["effective_pct"],
+                            "has_calc": item["has_calc"],
+                            "bear_value": item["bear_value"],
+                            "base_value": item["base_value"],
+                            "bull_value": item["bull_value"],
+                            "safety_margin_pct": item["safety_margin_pct"],
+                            "expected_return_pct": item["expected_return_pct"],
+                        })
+
+                # 2. AI 추천서 작성을 위한 가독성 높은 프롬프트 작성
+                user_prompt = f"""
+안녕하세요, CIO로서 저의 보유 포트폴리오를 진단하고 리밸런싱 및 투자 추천 자문서(Korean)를 작성해 주세요.
+
+[포트폴리오 총평 정보]
+- 총 평가금액: {portfolio_data.get('total_value_krw', 0):,} KRW
+- 보유 자산 수: {portfolio_data.get('asset_count', 0)}개
+- 통화 비중 노출: {json.dumps(portfolio_data.get('currency_exposure', {}), ensure_ascii=False)}
+- 섹터 비중 노출: {json.dumps(portfolio_data.get('sector_exposure', {}), ensure_ascii=False)}
+- 경고 및 규율 검토 결과: {json.dumps(portfolio_data.get('warnings', []), ensure_ascii=False)}
+- 적용 한도 기준: {json.dumps(portfolio_data.get('limits_applied', {}), ensure_ascii=False)}
+
+[개별 보유 종목의 밸류에이션 및 기대수익 시나리오]
+{json.dumps(held_assets_summary, ensure_ascii=False, indent=2)}
+
+위 데이터를 기반으로 다음 세 가지 섹션을 포함한 가독성이 높은 진단 마크다운 리포트를 한국어로 작성해 주세요:
+1. **포트폴리오 자산 배분 총평**: 현재 비중 및 편중 리스크, 한도 위반 여부에 대한 명확한 진단
+2. **보유 자산 내재가치 및 기대수익 대조**: 각 종목의 안전마진(내재가치 대비 저평가율)과 기대수익률 관점에서의 포지션 평가
+3. **구체적인 포트폴리오 리밸런싱 & 액션 제안**: 리스크 완화 및 수익률 극대화를 위해 비중을 확대할 종목, 축소/유지할 종목과 그 이유 및 향후 모니터야 할 핵심 무효화 시그널
+"""
+
+                # 3. LLM 인터페이스를 통해 Bob AI 구동
+                llm = LLMInterface()
+                if not llm.available:
+                    self._send_json({"recommendation": "### AI 자문서 로딩 불가\n\n현재 `BOB_API_KEY` 혹은 `BOB_TOKEN` 설정이 없거나 LLM 인터페이스를 사용할 수 없는 환경입니다. `.env` 파일을 점검해 주세요."})
+                    return
+
+                system_message = (
+                    "당신은 금융 시장과 자산배분론에 정통한 최고투자책임자(CIO)이자 냉철하고 이성적인 포트폴리오 매니저입니다.\n"
+                    "어떤 상황에서도 사용자의 눈치를 보지 않고 오직 정량적 밸류에이션 사실과 포트폴리오 규칙에 입각해 가장 안전하고 효율적인 자문 리포트를 작성합니다.\n"
+                    "격식 있고 신뢰감을 주는 서체와 마크다운 형식으로 한글로만 대답하십시오."
+                )
+                recommendation_text = llm.generate(user_prompt, system_message=system_message)
+                self._send_json({"recommendation": recommendation_text})
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
         # 1. 종목 등록
         if path == "/api/assets":
             try:
@@ -244,18 +349,12 @@ class APIServerHandler(BaseHTTPRequestHandler):
             interp = interpret_with_bob(target, report.get("algorithm_label", ""))
             # 해석 결과를 리포트에 캐시 저장 (재요청 비용 절감)
             if interp.get("success"):
-                for r in report["results"]:
-                    if r["ticker"] == ticker:
-                        r["ai_interpretation"] = interp
-                        break
-                from cio.paths import ROOT as _ROOT
-                import pathlib as _pl
-                _path = _ROOT / "data" / "forecasts" / f"{report_id}.json"
-                if _path.exists():
-                    _path.write_text(
-                        __import__("json").dumps(report, ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
+                interp["saved"] = save_interpretation(report_id, ticker, interp)
+                if not interp["saved"]:
+                    sys.stdout.write(f"[interpret] 저장 실패: {report_id} {ticker} (리포트 삭제됨?)\n")
+            else:
+                sys.stdout.write(f"[interpret] 해석 실패: {report_id} {ticker}: {interp.get('error', '')[:200]}\n")
+            sys.stdout.flush()
             self._send_json(interp)
             return
 

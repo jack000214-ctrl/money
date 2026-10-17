@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections import defaultdict
 import json
 import math
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -465,6 +466,37 @@ def list_forecasts(limit: int = 30) -> list[dict[str, Any]]:
         except Exception:
             continue
     return summaries
+
+
+_SAVE_LOCK = threading.Lock()
+
+
+def save_interpretation(report_id: str, ticker: str, interp: dict[str, Any]) -> bool:
+    """종목별 Bob 해석을 리포트 파일에 저장한다.
+
+    Bob 호출은 수십 초 걸리므로 호출 전에 읽어 둔 리포트 스냅샷을 다시 쓰면
+    그 사이 저장된 다른 종목의 해석을 덮어쓴다. 락 안에서 파일을 새로 읽어
+    해당 종목만 갱신하고 임시 파일 교체로 쓴다.
+
+    Returns:
+        저장 성공 여부 (리포트가 삭제됐거나 종목이 없으면 False)
+    """
+    with _SAVE_LOCK:
+        path = FORECASTS_DIR / f"{report_id}.json"
+        if not path.exists():
+            return False
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        target = next((r for r in report.get("results", []) if r.get("ticker") == ticker), None)
+        if target is None:
+            return False
+        target["ai_interpretation"] = interp
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(path)
+        return True
 
 
 def get_forecast(report_id: str) -> dict[str, Any] | None:

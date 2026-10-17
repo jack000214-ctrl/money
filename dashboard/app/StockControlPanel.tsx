@@ -209,7 +209,9 @@ function ForecastCard({
   const [aiResult, setAiResult] = useState<AiInterpretation | null>(
     result.ai_interpretation ?? null
   );
-  const prevTriggerRef = useRef<number | undefined>(undefined);
+  const prevTriggerRef = useRef<number>(0);
+  // 해석 완료 여부 (자동 순차 실행 시 이미 완료된 카드는 재실행하지 않기 위한 ref)
+  const aiDoneRef = useRef<boolean>(!!result.ai_interpretation?.success);
 
   const dirColor = result.direction === "UP" ? "#4ade80" : result.direction === "DOWN" ? "#f87171" : "#94a3b8";
   const dirLabel = result.direction === "UP" ? "▲ 상승 우세" : result.direction === "DOWN" ? "▼ 하락 우세" : "↔ 중립";
@@ -234,6 +236,7 @@ function ForecastCard({
         body: JSON.stringify({ report_id: reportId, ticker: result.ticker }),
       });
       const data: AiInterpretation = await res.json();
+      aiDoneRef.current = !!data.success;
       setAiResult(data);
     } catch {
       setAiResult({ success: false, error: "네트워크 오류" });
@@ -243,13 +246,17 @@ function ForecastCard({
     }
   }, [reportId, result.ticker, onAutoComplete]);
 
-  // autoTrigger 값이 새로 설정되면 자동 실행
+  // autoTrigger 값이 새로 설정되면 자동 실행 (0 = 비활성: 초기 배열이 0으로 채워지므로 제외)
+  // 이미 해석이 완료된 카드는 재실행하지 않고 다음 종목으로 바로 넘긴다.
   useEffect(() => {
-    if (autoTrigger !== undefined && autoTrigger !== prevTriggerRef.current) {
-      prevTriggerRef.current = autoTrigger;
-      runInterpret();
+    if (autoTrigger === undefined || autoTrigger <= 0 || autoTrigger === prevTriggerRef.current) return;
+    prevTriggerRef.current = autoTrigger;
+    if (aiDoneRef.current) {
+      onAutoComplete?.();
+      return;
     }
-  }, [autoTrigger, runInterpret]);
+    runInterpret();
+  }, [autoTrigger, runInterpret, onAutoComplete]);
 
   const handleAiInterpret = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -263,6 +270,7 @@ function ForecastCard({
         body: JSON.stringify({ report_id: reportId, ticker: result.ticker }),
       });
       const data: AiInterpretation = await res.json();
+      aiDoneRef.current = !!data.success;
       setAiResult(data);
     } catch {
       setAiResult({ success: false, error: "네트워크 오류" });
@@ -502,6 +510,42 @@ function ForecastCard({
   );
 }
 
+// AI 추천서 마크다운을 세련되게 렌더링해주는 초경량 정적 헬퍼 함수
+function parseInlineMarkdown(text: string) {
+  const parts = text.split("**");
+  return parts.map((part, idx) => {
+    if (idx % 2 === 1) {
+      return <strong key={idx} style={{ color: "#f8fafc", fontWeight: 700 }}>{part}</strong>;
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text: string) {
+  if (!text) return null;
+  return text.split("\n").map((line, i) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("### ")) {
+      return <h4 key={i} style={{ color: "#818cf8", marginTop: "18px", marginBottom: "8px", fontSize: "15px", borderBottom: "1px solid #334155", paddingBottom: "4px", fontWeight: 700 }}>{trimmed.slice(4)}</h4>;
+    }
+    if (trimmed.startsWith("## ")) {
+      return <h3 key={i} style={{ color: "#38bdf8", marginTop: "22px", marginBottom: "10px", fontSize: "17px", borderBottom: "1px solid #1e293b", paddingBottom: "6px", fontWeight: 700 }}>{trimmed.slice(3)}</h3>;
+    }
+    if (trimmed.startsWith("# ")) {
+      return <h2 key={i} style={{ color: "#f8fafc", marginTop: "26px", marginBottom: "12px", fontSize: "19px", fontWeight: 800 }}>{trimmed.slice(2)}</h2>;
+    }
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      return <li key={i} style={{ marginLeft: "20px", marginBottom: "6px", color: "#e2e8f0", listStyleType: "disc" }}>{parseInlineMarkdown(trimmed.slice(2))}</li>;
+    }
+    const numMatch = trimmed.match(/^(\d+)\.\s(.*)/);
+    if (numMatch) {
+      return <div key={i} style={{ marginLeft: "12px", marginBottom: "8px", color: "#e2e8f0", lineHeight: "1.6" }}><strong>{numMatch[1]}.</strong> {parseInlineMarkdown(numMatch[2])}</div>;
+    }
+    if (!trimmed) return <div key={i} style={{ height: "10px" }} />;
+    return <p key={i} style={{ margin: "6px 0 10px 0", lineHeight: "1.65", color: "#cbd5e1" }}>{parseInlineMarkdown(line)}</p>;
+  });
+}
+
 export function StockControlPanel({
   currentTicker,
   currentName,
@@ -513,9 +557,98 @@ export function StockControlPanel({
 }) {
   // 메인 뷰 모드: "stocks" (종목 관리/수집 메인 화면) vs "report" (리포트 상세 화면)
   const [viewMode, setViewMode] = useState<"stocks" | "report">("stocks");
-  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto" | "forecast">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto" | "forecast" | "longterm" | "portfolio">("auto");
+
+  // 타입 정의
+  interface LongtermResult {
+    ticker: string;
+    name: string;
+    asset_type: string;
+    market: string;
+    sector_code: string;
+    industry: string;
+    current_price: number;
+    calc_id: string | null;
+    calc_model: string | null;
+    has_calc: boolean;
+    bear_value: number | null;
+    base_value: number | null;
+    bull_value: number | null;
+    safety_margin_pct: number | null;
+    expected_return_pct: number | null;
+  }
+
+  interface PortfolioExposure {
+    asset_id: string;
+    name: string;
+    asset_type: string;
+    effective_pct: number;
+    value_krw: number;
+  }
+
+  interface PortfolioWarning {
+    code: string;
+    name?: string;
+    value_pct: number;
+    limit_pct: number;
+    sector?: string;
+    currency?: string;
+  }
+
+  interface AllocationRebalance {
+    status: "OK" | "OVERWEIGHT" | "UNDERWEIGHT";
+    action: string;
+    amount_krw: number;
+  }
+
+  interface AllocationStatus {
+    total_assets_krw: number;
+    stock_value_krw: number;
+    cash_krw: number;
+    safe_value_krw: number;
+    risk_value_krw: number;
+    safe_pct: number;
+    risk_pct: number;
+    safe_target_pct: number;
+    risk_target_pct: number;
+    safe_gap_pct: number;
+    risk_gap_pct: number;
+    tolerance_pct: number;
+    rebalance: { safe: AllocationRebalance; risk: AllocationRebalance };
+  }
+
+  interface InvestorPolicy {
+    total_assets_krw: number;
+    cash_krw: number;
+    allocation: { safe_asset_target_pct: number; risk_asset_target_pct: number };
+    concentration: { max_single_position_pct_of_total: number; max_sector_pct_of_total: number };
+    rebalance: { tolerance_pct: number };
+  }
+
+  interface PortfolioData {
+    total_value_krw: number;
+    asset_count: number;
+    effective_position_count: number;
+    warnings: PortfolioWarning[];
+    is_policy_custom: boolean;
+    exposures: PortfolioExposure[];
+    sector_exposure: Record<string, number>;
+    currency_exposure: Record<string, number>;
+    allocation_status?: AllocationStatus;
+    policy?: InvestorPolicy;
+  }
 
   // 데이터 상태
+  const [longtermResults, setLongtermResults] = useState<LongtermResult[]>([]);
+  const [longtermLoading, setLongtermLoading] = useState(false);
+
+  const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioRecommend, setPortfolioRecommend] = useState<string>("");
+  const [portfolioRecommendLoading, setPortfolioRecommendLoading] = useState(false);
+  const [policyEdit, setPolicyEdit] = useState<InvestorPolicy | null>(null);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyPanelOpen, setPolicyPanelOpen] = useState(false);
   const [assets, setAssets] = useState<AssetSummary[]>([]);
   const [apiConnected, setApiConnected] = useState(false);
 
@@ -730,6 +863,81 @@ export function StockControlPanel({
     }
   }, []);
 
+  const fetchLongtermData = useCallback(async () => {
+    setLongtermLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/longterm/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setLongtermResults(data.results || []);
+      }
+    } catch (e) {
+      console.error("장기분석 데이터를 불러오지 못했습니다.", e);
+    } finally {
+      setLongtermLoading(false);
+    }
+  }, []);
+
+  const fetchPortfolioData = useCallback(async () => {
+    setPortfolioLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/portfolio/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setPortfolioData(data);
+        // 정책을 서버에서 받아 편집 폼 초기화
+        if (data.policy) {
+          setPolicyEdit(data.policy);
+        }
+      }
+    } catch (e) {
+      console.error("포트폴리오 데이터를 불러오지 못했습니다.", e);
+    } finally {
+      setPortfolioLoading(false);
+    }
+  }, []);
+
+  const savePolicy = useCallback(async () => {
+    if (!policyEdit) return;
+    setPolicySaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/portfolio/policy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policyEdit),
+      });
+      if (res.ok) {
+        await fetchPortfolioData();
+      }
+    } catch (e) {
+      console.error("정책 저장 실패:", e);
+    } finally {
+      setPolicySaving(false);
+    }
+  }, [policyEdit, fetchPortfolioData]);
+
+  const generatePortfolioRecommend = useCallback(async () => {
+    setPortfolioRecommendLoading(true);
+    setPortfolioRecommend("");
+    try {
+      const res = await fetch(`${API_BASE}/api/portfolio/recommend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPortfolioRecommend(data.recommendation || "");
+      } else {
+        setPortfolioRecommend("### AI 자문서 생성 실패\n\n서버에서 에러를 반환했습니다.");
+      }
+    } catch (e) {
+      console.error("포트폴리오 AI 추천서를 생성하지 못했습니다.", e);
+      setPortfolioRecommend("### AI 자문서 생성 실패\n\n네트워크 또는 서버 연결이 원활하지 않습니다.");
+    } finally {
+      setPortfolioRecommendLoading(false);
+    }
+  }, []);
+
   // forecast 탭 진입 시 리포트 목록 자동 로드
   useEffect(() => {
     if (activeTab === "forecast") {
@@ -737,6 +945,23 @@ export function StockControlPanel({
       fetchForecastList();
     }
   }, [activeTab, fetchForecastList]);
+
+  // longterm 탭 진입 시 데이터 자동 로드
+  useEffect(() => {
+    if (activeTab === "longterm") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchLongtermData();
+    }
+  }, [activeTab, fetchLongtermData]);
+
+  // portfolio 탭 진입 시 데이터 자동 로드
+  useEffect(() => {
+    if (activeTab === "portfolio") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchPortfolioData();
+      setPortfolioRecommend(""); // 탭 진입 시 AI 추천 내용은 초기화
+    }
+  }, [activeTab, fetchPortfolioData]);
 
   useEffect(() => {
     let ignore = false;
@@ -1073,7 +1298,7 @@ export function StockControlPanel({
       }}>
         <button
           type="button"
-          onClick={() => setViewMode("stocks")}
+          onClick={() => { setViewMode("stocks"); setActiveTab("auto"); }}
           style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
           <span style={{ fontSize: "20px" }}>📈</span>
@@ -1183,6 +1408,22 @@ export function StockControlPanel({
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
+                onClick={() => setActiveTab("auto")}
+                style={{
+                  background: activeTab === "auto" ? "#1e293b" : "transparent",
+                  color: activeTab === "auto" ? "#38bdf8" : "#94a3b8",
+                  border: activeTab === "auto" ? "1px solid #334155" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                1. 시세 조회
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("list")}
                 style={{
                   background: activeTab === "list" ? "#1e293b" : "transparent",
@@ -1195,7 +1436,7 @@ export function StockControlPanel({
                   cursor: "pointer",
                 }}
               >
-                1. 내 종목 ({assets.length}개)
+                2. 내 종목 ({assets.length}개)
               </button>
               <button
                 type="button"
@@ -1211,23 +1452,7 @@ export function StockControlPanel({
                   cursor: "pointer",
                 }}
               >
-                2. 종목 분석
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("auto")}
-                style={{
-                  background: activeTab === "auto" ? "#1e293b" : "transparent",
-                  color: activeTab === "auto" ? "#38bdf8" : "#94a3b8",
-                  border: activeTab === "auto" ? "1px solid #334155" : "none",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  cursor: "pointer",
-                }}
-              >
-                3. 시세 조회
+                3. 종목 분석
               </button>
               <button
                 type="button"
@@ -1244,6 +1469,38 @@ export function StockControlPanel({
                 }}
               >
                 4. 단기 분석 ✨
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("longterm")}
+                style={{
+                  background: activeTab === "longterm" ? "#1e293b" : "transparent",
+                  color: activeTab === "longterm" ? "#10b981" : "#94a3b8",
+                  border: activeTab === "longterm" ? "1px solid #10b981" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                5. 장기 분석 📈
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("portfolio")}
+                style={{
+                  background: activeTab === "portfolio" ? "#1e293b" : "transparent",
+                  color: activeTab === "portfolio" ? "#818cf8" : "#94a3b8",
+                  border: activeTab === "portfolio" ? "1px solid #818cf8" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                6. 포트폴리오 추천 💼
               </button>
             </div>
 
@@ -1553,7 +1810,7 @@ export function StockControlPanel({
                       <th style={{ padding: "14px 16px" }}>최근 시세일</th>
                       <th style={{ padding: "14px 16px" }}>최근 실적분기</th>
                       <th style={{ padding: "14px 16px" }}>리포트 상태</th>
-                      <th style={{ padding: "14px 16px", textAlign: "right" }}>작업</th>
+                      <th style={{ padding: "14px 16px", textAlign: "right" }}>-</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2301,6 +2558,625 @@ export function StockControlPanel({
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 탭 5: 장기 분석 📈 */}
+          {activeTab === "longterm" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{
+                background: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "10px",
+                padding: "20px 24px",
+              }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#10b981", margin: "0 0 6px 0" }}>
+                  장기 내재가치 및 시나리오 밴드 통합 대조
+                </h3>
+                <p style={{ fontSize: "13px", color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>
+                  각 종목의 역DCF(할인현금흐름) 계산 결과를 전사적으로 대조하여 가치 대비 가장 안전마진이 높은 종목을 한눈에 찾아냅니다.
+                </p>
+              </div>
+
+              {longtermLoading ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8", background: "#1e293b", borderRadius: "10px" }}>
+                  <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: "24px", marginRight: "10px" }}>⟳</span>
+                  내재가치 데이터 가공 중...
+                </div>
+              ) : longtermResults.length === 0 ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#64748b", background: "#1e293b", borderRadius: "10px" }}>
+                  등록된 종목이 없습니다.
+                </div>
+              ) : (
+                <div style={{
+                  background: "#1e293b",
+                  border: "1px solid #334155",
+                  borderRadius: "10px",
+                  overflow: "hidden"
+                }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ background: "#0f172a", borderBottom: "1px solid #334155", color: "#94a3b8" }}>
+                        <th style={{ padding: "14px 16px" }}>종목명</th>
+                        <th style={{ padding: "14px 16px" }}>자산유형</th>
+                        <th style={{ padding: "14px 16px" }}>현재가</th>
+                        <th style={{ padding: "14px 16px", color: "#ef4444" }}>Bear 가치</th>
+                        <th style={{ padding: "14px 16px", color: "#38bdf8" }}>Base 가치</th>
+                        <th style={{ padding: "14px 16px", color: "#10b981" }}>Bull 가치</th>
+                        <th style={{ padding: "14px 16px", textAlign: "right" }}>안전마진 (Margin of Safety)</th>
+                        <th style={{ padding: "14px 16px", textAlign: "right" }}>기대수익률 (Base)</th>
+                        <th style={{ padding: "14px 16px", textAlign: "center" }}>계산서 상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {longtermResults.map((item) => {
+                        const isEtf = item.asset_type === "ETF";
+                        const hasCalc = item.has_calc;
+                        const isNegativeFcf = item.calc_model === "negative_fcf";
+                        const mos = item.safety_margin_pct;
+                        const returnPct = item.expected_return_pct;
+
+                        return (
+                          <tr key={item.ticker} style={{ borderBottom: "1px solid #1e293b", color: "#f8fafc" }}>
+                            <td style={{ padding: "14px 16px" }}>
+                              <strong style={{ fontSize: "14px" }}>{item.name}</strong>{" "}
+                              <span style={{ fontSize: "11px", color: "#64748b" }}>{item.ticker} · {item.market}</span>
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span style={{
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                background: isEtf ? "rgba(129,140,248,0.15)" : "rgba(16,185,129,0.15)",
+                                color: isEtf ? "#818cf8" : "#10b981"
+                              }}>
+                                {item.asset_type}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", fontWeight: 600 }}>
+                              {item.current_price > 0 ? (
+                                item.market === "KR" ? `${item.current_price.toLocaleString()} 원` : `$${item.current_price.toLocaleString()}`
+                              ) : "시세 없음"}
+                            </td>
+                            <td style={{ padding: "14px 16px", color: "#f87171" }}>
+                              {hasCalc && !isNegativeFcf && item.bear_value != null ? (
+                                item.market === "KR" ? `${Math.round(item.bear_value).toLocaleString()} 원` : `$${item.bear_value.toLocaleString()}`
+                              ) : "—"}
+                            </td>
+                            <td style={{ padding: "14px 16px", color: "#7dd3fc", fontWeight: 600 }}>
+                              {hasCalc && !isNegativeFcf && item.base_value != null ? (
+                                item.market === "KR" ? `${Math.round(item.base_value).toLocaleString()} 원` : `$${item.base_value.toLocaleString()}`
+                              ) : "—"}
+                            </td>
+                            <td style={{ padding: "14px 16px", color: "#34d399" }}>
+                              {hasCalc && !isNegativeFcf && item.bull_value != null ? (
+                                item.market === "KR" ? `${Math.round(item.bull_value).toLocaleString()} 원` : `$${item.bull_value.toLocaleString()}`
+                              ) : "—"}
+                            </td>
+                            <td style={{
+                              padding: "14px 16px",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              color: mos != null && !isNegativeFcf ? (mos >= 0 ? "#34d399" : "#f87171") : "#64748b"
+                            }}>
+                              {mos != null && !isNegativeFcf ? `${mos > 0 ? "+" : ""}${mos.toFixed(1)}%` : "계산 필요"}
+                            </td>
+                            <td style={{
+                              padding: "14px 16px",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              color: returnPct != null && !isNegativeFcf ? (returnPct >= 0 ? "#38bdf8" : "#f87171") : "#64748b"
+                            }}>
+                              {returnPct != null && !isNegativeFcf ? `${returnPct > 0 ? "+" : ""}${returnPct.toFixed(1)}%` : "—"}
+                            </td>
+                            <td style={{ padding: "14px 16px", textAlign: "center" }}>
+                              {isEtf ? (
+                                <span style={{ color: "#64748b", fontSize: "11px" }}>가치평가 대상제외</span>
+                              ) : isNegativeFcf ? (
+                                <span style={{ color: "#f59e0b", fontSize: "12px", background: "rgba(245,158,11,0.1)", padding: "2px 8px", borderRadius: "10px" }}>
+                                  ⚠ 음수 FCF
+                                </span>
+                              ) : hasCalc ? (
+                                <span style={{ color: "#34d399", fontSize: "12px", background: "rgba(52,211,153,0.1)", padding: "2px 8px", borderRadius: "10px" }}>
+                                  ✓ 계산 완료
+                                </span>
+                              ) : (
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                                  <span style={{ color: "#f87171", fontSize: "12px", background: "rgba(248,113,113,0.1)", padding: "2px 8px", borderRadius: "10px" }}>
+                                    ⚠ 계산 미진행
+                                  </span>
+                                  <button
+                                    onClick={async () => {
+                                      await runCollect("/api/collect/all", { ticker: item.ticker }, `${item.name} 전체 수집`);
+                                      fetchLongtermData();
+                                    }}
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 8px",
+                                      background: "rgba(56,189,248,0.15)",
+                                      color: "#38bdf8",
+                                      border: "1px solid rgba(56,189,248,0.3)",
+                                      borderRadius: "6px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    ↺ 수집 실행
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 탭 6: 포트폴리오 추천 💼 */}
+          {activeTab === "portfolio" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* ── 투자자 정책(IPS) 설정 패널 ── */}
+              <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", overflow: "hidden" }}>
+                <button
+                  onClick={() => setPolicyPanelOpen(v => !v)}
+                  style={{
+                    width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "16px 20px", background: "transparent", border: "none", cursor: "pointer",
+                    color: "#f8fafc", fontSize: "14px", fontWeight: 700,
+                  }}
+                >
+                  <span>⚙️ 투자자 정책(IPS) 설정</span>
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>{policyPanelOpen ? "▲ 접기" : "▼ 펼치기"}</span>
+                </button>
+                {policyPanelOpen && policyEdit && (
+                  <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <div style={{ height: "1px", background: "#334155", marginBottom: "4px" }} />
+
+                    {/* 총자산 / 예수금 */}
+                    {(() => {
+                      const stockValue = portfolioData?.allocation_status?.stock_value_krw ?? 0;
+                      const cashAuto = policyEdit.total_assets_krw > 0;
+                      const cashShown = cashAuto
+                        ? Math.max(0, policyEdit.total_assets_krw - stockValue)
+                        : policyEdit.cash_krw;
+                      return (
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#818cf8", fontWeight: 700, marginBottom: "12px", letterSpacing: "0.05em" }}>
+                        총 자산 규모
+                        <span style={{ marginLeft: "10px", fontSize: "11px", color: "#94a3b8", fontWeight: 400 }}>
+                          매수 종목 평가액 {Math.round(stockValue).toLocaleString()}원 (내 종목 수량×현재가 자동 합산)
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
+                            총 자산 (원) <span style={{ color: "#475569" }}>— 주식 평가액 + 현금·예수금 전체. 입력하면 현금·예수금 자동계산, 0이면 예수금 직접 입력</span>
+                          </label>
+                          <input
+                            type="number" min="0" step="1000000"
+                            value={policyEdit.total_assets_krw}
+                            onChange={e => setPolicyEdit(p => p ? { ...p, total_assets_krw: Number(e.target.value) } : p)}
+                            style={{ width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
+                            현금·예수금 (원) {cashAuto && <span style={{ color: "#475569" }}>— 총 자산 − 매수 종목 평가액 (자동)</span>}
+                          </label>
+                          <input
+                            type="number" min="0" step="100000"
+                            readOnly={cashAuto}
+                            value={Math.round(cashShown)}
+                            onChange={e => setPolicyEdit(p => p ? { ...p, cash_krw: Number(e.target.value) } : p)}
+                            style={cashAuto
+                              ? { width: "100%", padding: "8px 10px", background: "#1e293b", border: "1px solid #1e293b", borderRadius: "6px", color: "#64748b", fontSize: "13px", cursor: "not-allowed" }
+                              : { width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                      );
+                    })()}
+
+                    {/* 자산배분 목표 */}
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#818cf8", fontWeight: 700, marginBottom: "12px", letterSpacing: "0.05em" }}>
+                        자산배분 목표 비율
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
+                            안전자산 목표 (%) — 현금·채권
+                          </label>
+                          <input
+                            type="number" min="0" max="100" step="5"
+                            value={policyEdit.allocation.safe_asset_target_pct}
+                            onChange={e => {
+                              const safe = Math.min(100, Math.max(0, Number(e.target.value)));
+                              setPolicyEdit(p => p ? { ...p, allocation: { safe_asset_target_pct: safe, risk_asset_target_pct: 100 - safe } } : p);
+                            }}
+                            style={{ width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
+                            위험자산 목표 (%) — 주식·ETF (자동계산)
+                          </label>
+                          <input
+                            type="number" readOnly
+                            value={policyEdit.allocation.risk_asset_target_pct}
+                            style={{ width: "100%", padding: "8px 10px", background: "#1e293b", border: "1px solid #1e293b", borderRadius: "6px", color: "#64748b", fontSize: "13px", cursor: "not-allowed" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 집중도 한도 */}
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#818cf8", fontWeight: 700, marginBottom: "12px", letterSpacing: "0.05em" }}>
+                        집중도 한도
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>단일 종목 최대 (%)</label>
+                          <input
+                            type="number" min="1" max="100" step="1"
+                            value={policyEdit.concentration.max_single_position_pct_of_total}
+                            onChange={e => setPolicyEdit(p => p ? { ...p, concentration: { ...p.concentration, max_single_position_pct_of_total: Number(e.target.value) } } : p)}
+                            style={{ width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>섹터 최대 (%)</label>
+                          <input
+                            type="number" min="1" max="100" step="1"
+                            value={policyEdit.concentration.max_sector_pct_of_total}
+                            onChange={e => setPolicyEdit(p => p ? { ...p, concentration: { ...p.concentration, max_sector_pct_of_total: Number(e.target.value) } } : p)}
+                            style={{ width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>리밸런싱 허용 오차 (%p)</label>
+                          <input
+                            type="number" min="0" max="20" step="1"
+                            value={policyEdit.rebalance.tolerance_pct}
+                            onChange={e => setPolicyEdit(p => p ? { ...p, rebalance: { tolerance_pct: Number(e.target.value) } } : p)}
+                            style={{ width: "100%", padding: "8px 10px", background: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "13px" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={savePolicy}
+                      disabled={policySaving}
+                      style={{
+                        alignSelf: "flex-end", padding: "10px 28px", background: policySaving ? "#4338ca" : "#818cf8",
+                        color: "#fff", border: "none", borderRadius: "6px", fontWeight: 700, fontSize: "13px",
+                        cursor: policySaving ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {policySaving ? "저장 중..." : "✓ 정책 저장 및 재계산"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {portfolioLoading ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8", background: "#1e293b", borderRadius: "10px" }}>
+                  <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: "24px", marginRight: "10px" }}>⟳</span>
+                  실보유 자산 원장 및 관통(Look-through) 분석 연산 중...
+                </div>
+              ) : !portfolioData || portfolioData.asset_count === 0 ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#64748b", background: "#1e293b", borderRadius: "10px", lineHeight: 1.8 }}>
+                  현재 보유 주식이 등록되어 있지 않습니다.<br />
+                  <strong style={{ color: "#38bdf8" }}>[2. 내 종목]</strong> 탭에서 보유 수량(qty)과 시세 데이터를 입력해 주세요.<br />
+                  <span style={{ fontSize: "12px", color: "#475569" }}>(수량이 존재하는 자산들만 자동으로 취합되어 실시간 포트폴리오가 구성됩니다)</span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+                  {/* ── 자산배분 현황 & 리밸런싱 가이드 ── */}
+                  {portfolioData.allocation_status && (() => {
+                    const as = portfolioData.allocation_status!;
+                    const fmtKrw = (v: number) => v >= 100000000
+                      ? `${(v / 100000000).toFixed(1)}억`
+                      : v >= 10000 ? `${(v / 10000).toFixed(0)}만` : `${v.toLocaleString()}`;
+                    const gapColor = (gap: number) => Math.abs(gap) <= as.tolerance_pct ? "#34d399" : gap > 0 ? "#f59e0b" : "#f87171";
+                    const barSafe = Math.min(100, as.safe_pct);
+                    const barRisk = Math.min(100, as.risk_pct);
+                    return (
+                      <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "20px 24px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px" }}>
+                          <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#f8fafc", margin: 0 }}>📊 자산배분 현황</h4>
+                          <span style={{ fontSize: "11px", color: "#64748b" }}>
+                            총 자산 {fmtKrw(as.total_assets_krw)}원 (주식 {fmtKrw(as.stock_value_krw)}원 + 예수금 {fmtKrw(as.cash_krw)}원)
+                          </span>
+                        </div>
+
+                        {/* 배분 바 */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                          {/* 안전자산 */}
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
+                              <span style={{ color: "#94a3b8", fontWeight: 600 }}>안전자산 (현금·채권)</span>
+                              <span style={{ color: gapColor(as.safe_gap_pct), fontWeight: 700 }}>
+                                {as.safe_pct.toFixed(1)}%
+                                <span style={{ fontSize: "10px", marginLeft: "4px", color: "#64748b" }}>
+                                  목표 {as.safe_target_pct}% ({as.safe_gap_pct > 0 ? "+" : ""}{as.safe_gap_pct.toFixed(1)}%p)
+                                </span>
+                              </span>
+                            </div>
+                            <div style={{ height: "10px", background: "#0f172a", borderRadius: "5px", overflow: "hidden", position: "relative" }}>
+                              <div style={{ width: `${barSafe}%`, height: "100%", background: "#38bdf8", borderRadius: "5px", transition: "width 0.4s" }} />
+                              {/* 목표선 */}
+                              <div style={{
+                                position: "absolute", top: 0, left: `${as.safe_target_pct}%`, width: "2px",
+                                height: "100%", background: "#f59e0b", opacity: 0.8
+                              }} />
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>{fmtKrw(as.safe_value_krw)}원</div>
+                          </div>
+                          {/* 위험자산 */}
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
+                              <span style={{ color: "#94a3b8", fontWeight: 600 }}>위험자산 (주식·ETF)</span>
+                              <span style={{ color: gapColor(as.risk_gap_pct), fontWeight: 700 }}>
+                                {as.risk_pct.toFixed(1)}%
+                                <span style={{ fontSize: "10px", marginLeft: "4px", color: "#64748b" }}>
+                                  목표 {as.risk_target_pct}% ({as.risk_gap_pct > 0 ? "+" : ""}{as.risk_gap_pct.toFixed(1)}%p)
+                                </span>
+                              </span>
+                            </div>
+                            <div style={{ height: "10px", background: "#0f172a", borderRadius: "5px", overflow: "hidden", position: "relative" }}>
+                              <div style={{ width: `${barRisk}%`, height: "100%", background: "#818cf8", borderRadius: "5px", transition: "width 0.4s" }} />
+                              <div style={{
+                                position: "absolute", top: 0, left: `${as.risk_target_pct}%`, width: "2px",
+                                height: "100%", background: "#f59e0b", opacity: 0.8
+                              }} />
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>{fmtKrw(as.risk_value_krw)}원</div>
+                          </div>
+                        </div>
+
+                        {/* 리밸런싱 액션 */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          {(["safe", "risk"] as const).map(key => {
+                            const rb = as.rebalance[key];
+                            const isOk = rb.status === "OK";
+                            const bg = isOk ? "rgba(52,211,153,0.08)" : "rgba(248,113,113,0.08)";
+                            const border = isOk ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)";
+                            const color = isOk ? "#34d399" : rb.status === "OVERWEIGHT" ? "#f59e0b" : "#f87171";
+                            return (
+                              <div key={key} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "8px", padding: "12px 14px" }}>
+                                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>{key === "safe" ? "안전자산 리밸런싱" : "위험자산 리밸런싱"}</div>
+                                <div style={{ fontSize: "12px", color, fontWeight: 600 }}>{rb.action}</div>
+                                {rb.amount_krw > 0 && (
+                                  <div style={{ fontSize: "13px", fontWeight: 800, color: "#f8fafc", marginTop: "6px" }}>
+                                    {fmtKrw(rb.amount_krw)}원 {rb.status === "OVERWEIGHT" ? "매도/축소" : "매수/투입"}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{ fontSize: "10px", color: "#475569", marginTop: "12px" }}>
+                          ※ 노란 선(|) = 목표 비율. 허용 오차 ±{as.tolerance_pct}%p 이내는 정상 범위.
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 정량 자산 현황 요약 보드 */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+
+                    {/* 평가금액 카드 */}
+                    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "16px 20px" }}>
+                      <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600, marginBottom: "8px" }}>포트폴리오 총 평가금액</div>
+                      <div style={{ fontSize: "24px", fontWeight: 800, color: "#38bdf8" }}>
+                        {portfolioData.total_value_krw.toLocaleString()} <span style={{ fontSize: "14px", fontWeight: 500 }}>KRW</span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#475569", marginTop: "6px" }}>현금성 및 주식/ETF 실효 자산 합산</div>
+                    </div>
+
+                    {/* 보유 종목 카드 */}
+                    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "16px 20px" }}>
+                      <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600, marginBottom: "8px" }}>활성 보유 종목 수</div>
+                      <div style={{ fontSize: "24px", fontWeight: 800, color: "#f8fafc" }}>
+                        {portfolioData.asset_count} <span style={{ fontSize: "14px", fontWeight: 500, color: "#94a3b8" }}>개 자산</span>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#475569", marginTop: "6px" }}>실효 분산 노출 기준: {portfolioData.effective_position_count}개 종목</div>
+                    </div>
+
+                    {/* 위험 위반 여부 카드 */}
+                    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "16px 20px" }}>
+                      <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600, marginBottom: "8px" }}>투자자 정책(IPS) 규율 위반 여부</div>
+                      <div style={{
+                        fontSize: "24px",
+                        fontWeight: 800,
+                        color: portfolioData.warnings.length > 0 ? "#f87171" : "#34d399"
+                      }}>
+                        {portfolioData.warnings.length > 0 ? `⚠️ 위반 ${portfolioData.warnings.length}건` : "✓ 정상 (PASS)"}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#475569", marginTop: "6px" }}>
+                        {portfolioData.is_policy_custom ? "사용자 맞춤 정책 기준" : "기본 포트폴리오 안전선 기준"}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* 세부 비중 테이블 및 경고 사항 */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "20px" }}>
+                    
+                    {/* 실효 비중 목록 */}
+                    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "20px" }}>
+                      <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#f8fafc", margin: "0 0 14px 0" }}>📊 실효 노출 비중 (Look-through)</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {portfolioData.exposures.map((item: PortfolioExposure) => {
+                          const isUnclassified = item.asset_id.startsWith("UNCLASSIFIED::");
+                          return (
+                            <div key={item.asset_id} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#cbd5e1" }}>
+                                <span>
+                                  <strong>{isUnclassified ? "※ " : ""}{item.name}</strong>{" "}
+                                  <span style={{ fontSize: "10px", color: "#64748b" }}>{item.asset_id}</span>
+                                </span>
+                                <span style={{ fontWeight: 600 }}>{item.effective_pct.toFixed(2)}% ({item.value_krw.toLocaleString()}원)</span>
+                              </div>
+                              <div style={{ height: "6px", background: "#0f172a", borderRadius: "3px", overflow: "hidden" }}>
+                                <div style={{
+                                  width: `${item.effective_pct}%`,
+                                  height: "100%",
+                                  background: isUnclassified ? "#475569" : "#38bdf8",
+                                  borderRadius: "3px"
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 섹터/통화 편중도 및 경고 리스트 */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                      
+                      {/* 섹터 비중 노출 */}
+                      <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "16px 20px" }}>
+                        <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#f8fafc", margin: "0 0 10px 0" }}>🏢 섹터 포지셔닝 노출</h4>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {Object.entries(portfolioData.sector_exposure).map(([sec, pct]: [string, number]) => (
+                            <div key={sec} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#cbd5e1" }}>
+                              <span style={{ color: "#94a3b8" }}>{sec}</span>
+                              <span style={{ fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 통화 비중 노출 */}
+                      <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "10px", padding: "16px 20px" }}>
+                        <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#f8fafc", margin: "0 0 10px 0" }}>💱 외환(통화) 노출 위험</h4>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {Object.entries(portfolioData.currency_exposure).map(([cur, pct]: [string, number]) => (
+                            <div key={cur} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#cbd5e1" }}>
+                              <span style={{ color: "#94a3b8" }}>{cur} 노출</span>
+                              <span style={{ fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 규율 경보 목록 */}
+                      {portfolioData.warnings.length > 0 && (
+                        <div style={{ background: "#2d1b1b", border: "1px solid #7f1d1d", borderRadius: "10px", padding: "16px 20px" }}>
+                          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#fca5a5", margin: "0 0 8px 0" }}>⚠️ 투자 규율 한도 준칙 경보</h4>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", color: "#fca5a5" }}>
+                            {portfolioData.warnings.map((warn: PortfolioWarning, idx: number) => {
+                              if (warn.code === "SINGLE_NAME_CONCENTRATION") {
+                                return <div key={idx}>• <strong>{warn.name}</strong> 실효비중 {warn.value_pct.toFixed(1)}% 가 최대 한도 {warn.limit_pct}% 를 초과했습니다.</div>;
+                              }
+                              if (warn.code === "SECTOR_CONCENTRATION") {
+                                return <div key={idx}>• <strong>{warn.sector}</strong> 섹터 비중 {warn.value_pct.toFixed(1)}% 가 최대 한도 {warn.limit_pct}% 를 초과했습니다.</div>;
+                              }
+                              if (warn.code === "CURRENCY_CONCENTRATION") {
+                                return <div key={idx}>• <strong>{warn.currency}</strong> 통화 자산 {warn.value_pct.toFixed(1)}% 가 한도 {warn.limit_pct}% 를 초과했습니다.</div>;
+                              }
+                              return <div key={idx}>• {warn.code} 경보가 활성화되었습니다. (실효수치: {warn.value_pct}%)</div>;
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                  </div>
+
+                  {/* AI 자문 리포트 생성기 세션 */}
+                  <div style={{
+                    background: "#0f172a",
+                    border: "1px solid #1e293b",
+                    borderRadius: "10px",
+                    padding: "24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#818cf8", margin: "0 0 4px 0" }}>🤖 Bob AI 포트폴리오 리밸런싱 자문서 생성</h4>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>현재 비중과 보유 종목들의 최신 가치 시나리오를 종합하여 최상의 액션 지침을 받아봅니다.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={generatePortfolioRecommend}
+                        disabled={portfolioRecommendLoading}
+                        style={{
+                          background: portfolioRecommendLoading ? "#4338ca" : "#818cf8",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "10px 20px",
+                          fontWeight: 700,
+                          fontSize: "13px",
+                          cursor: portfolioRecommendLoading ? "not-allowed" : "pointer",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        {portfolioRecommendLoading ? "🤖 리포트 작성 중..." : "✍️ 자문 리포트 생성"}
+                      </button>
+                    </div>
+
+                    {portfolioRecommendLoading && (
+                      <div style={{
+                        padding: "40px",
+                        textAlign: "center",
+                        background: "#1e293b",
+                        border: "1px solid #334155",
+                        borderRadius: "8px",
+                        color: "#94a3b8"
+                      }}>
+                        <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: "24px", marginBottom: "12px" }}>⟳</span>
+                        <div style={{ fontSize: "13px", fontWeight: 600 }}>포트폴리오의 외환 노출, 섹터 밸런스 및 보유 종목의 FCF 안전마진을 심층 심사하는 중...</div>
+                      </div>
+                    )}
+
+                    {portfolioRecommend && (
+                      <div style={{
+                        background: "#1e293b",
+                        border: "1px solid #334155",
+                        borderRadius: "8px",
+                        padding: "20px 24px",
+                        overflowX: "auto",
+                        color: "#e2e8f0"
+                      }}>
+                        <div style={{
+                          borderBottom: "1px solid #334155",
+                          paddingBottom: "12px",
+                          marginBottom: "16px",
+                          fontSize: "12px",
+                          color: "#94a3b8",
+                          display: "flex",
+                          justifyContent: "space-between"
+                        }}>
+                          <span>ISSUED BY: Bob CIO Model</span>
+                          <span>{new Date().toLocaleDateString()} 발행</span>
+                        </div>
+                        <div style={{ fontSize: "14px", lineHeight: "1.7" }}>
+                          {/* 마크다운 렌더링 헬퍼 적용 */}
+                          {renderMarkdown(portfolioRecommend)}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
         </div>

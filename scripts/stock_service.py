@@ -1355,3 +1355,88 @@ def check_and_update_prices() -> dict[str, Any]:
         "failed": failed,
         "logs": logs,
     }
+
+
+def get_longterm_analysis() -> list[dict[str, Any]]:
+    """모든 등록 종목의 내재가치 시나리오(DCF 등) 및 현재가 괴리 분석 요약을 가져온다."""
+    assets_raw = _load_json_file(ASSETS_FILE).get("assets", {})
+    tickers_cfg = _load_json_file(TICKERS_FILE)
+
+    analysis_list = []
+    for ticker, asset_meta in assets_raw.items():
+        ticker_info = tickers_cfg.get(ticker, {})
+        current_price = float(ticker_info.get("priceKrw", 0))
+        if current_price <= 0:
+            current_price = float(ticker_info.get("chartCurrent", 0))
+
+        # ETF의 경우 가치평가(DCF 등)가 없으므로 가벼운 형태로 우회
+        if asset_meta.get("asset_type") == "ETF":
+            analysis_list.append({
+                "ticker": ticker,
+                "name": asset_meta.get("name", ticker_info.get("name", ticker)),
+                "asset_type": "ETF",
+                "market": asset_meta.get("market", "KR"),
+                "sector_code": asset_meta.get("sector_code", "ETF"),
+                "industry": asset_meta.get("industry", "ETF"),
+                "current_price": current_price,
+                "calc_id": None,
+                "has_calc": False,
+                "bear_value": None,
+                "base_value": None,
+                "bull_value": None,
+                "safety_margin_pct": None,
+                "expected_return_pct": None,
+            })
+            continue
+
+        calc_path_str = ticker_info.get("calculation", "")
+        calc_data = None
+        if calc_path_str:
+            calc_path = ROOT / calc_path_str
+            if calc_path.exists():
+                calc_data = _load_json_file(calc_path)
+
+        has_calc = calc_data is not None
+        bear_value = None
+        base_value = None
+        bull_value = None
+        expected_return_pct = None
+        safety_margin_pct = None
+
+        if has_calc and calc_data:
+            scenarios = calc_data.get("outputs", {}).get("scenarios", {})
+            bear_scenario = scenarios.get("bear", {})
+            base_scenario = scenarios.get("base", {})
+            bull_scenario = scenarios.get("bull", {})
+
+            bear_value = bear_scenario.get("value_per_share")
+            base_value = base_scenario.get("value_per_share")
+            bull_value = bull_scenario.get("value_per_share")
+            
+            expected_return_pct = base_scenario.get("annualized_return_pct")
+            if expected_return_pct is None:
+                expected_return_pct = base_scenario.get("total_return_pct")
+
+            if base_value and base_value > 0 and current_price > 0:
+                safety_margin_pct = ((base_value - current_price) / base_value) * 100
+
+        calc_model = calc_data.get("model") if has_calc and calc_data else None
+        analysis_list.append({
+            "ticker": ticker,
+            "name": asset_meta.get("name", ticker_info.get("name", ticker)),
+            "asset_type": asset_meta.get("asset_type", "STOCK"),
+            "market": asset_meta.get("market", "KR"),
+            "sector_code": asset_meta.get("sector_code", "일반"),
+            "industry": asset_meta.get("industry", "일반"),
+            "current_price": current_price,
+            "calc_id": calc_data.get("calculation_id") if has_calc and calc_data else None,
+            "calc_model": calc_model,
+            "has_calc": has_calc,
+            "bear_value": round(bear_value, 1) if bear_value is not None else None,
+            "base_value": round(base_value, 1) if base_value is not None else None,
+            "bull_value": round(bull_value, 1) if bull_value is not None else None,
+            "safety_margin_pct": round(safety_margin_pct, 2) if safety_margin_pct is not None else None,
+            "expected_return_pct": round(expected_return_pct, 2) if expected_return_pct is not None else None,
+        })
+
+    return analysis_list

@@ -20,19 +20,13 @@
       "industry": "메모리·전자기기",
       "analysis_lens": "SEMICONDUCTOR_CYCLE",
       "valuation_family": [
-        "NORMALIZED_CYCLE",
-        "DCF"
+        "DCF",
+        "PEER_MULTIPLE"
       ],
       "benchmarks": [
         "^KS11"
       ],
-      "optional_collectors": [
-        "KR_FLOW",
-        "KR_LENDING",
-        "KR_INVENTORY",
-        "NORMALIZED_EARNINGS",
-        "KR_SEGMENTS"
-      ],
+      "optional_collectors": [],
       "filing_source": "DART",
       "filing_profile": "DART_KIFRS"
     },
@@ -131,19 +125,13 @@
       "industry": "AI 반도체 테마 ETF",
       "analysis_lens": "ETF_NAV",
       "valuation_family": [
+        "DCF",
         "PEER_MULTIPLE"
       ],
       "benchmarks": [
         "^KS11"
       ],
-      "optional_collectors": [],
-      "etf": {
-        "strategy": "UNKNOWN",
-        "derivative_use": false,
-        "leverage": 1.0,
-        "holdings_source": "ISSUER",
-        "distribution_policy": "UNKNOWN"
-      }
+      "optional_collectors": []
     },
     "000080": {
       "name": "하이트진로",
@@ -194,7 +182,6 @@
       "asset_type": "STOCK",
       "currency": "KRW",
       "price_symbol": "011810.KS",
-      "trading_halted": true,
       "sector_code": "TECH_SERVICES",
       "industry": "국내 주식",
       "analysis_lens": "QUALITY_GROWTH",
