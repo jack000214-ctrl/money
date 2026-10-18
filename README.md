@@ -537,6 +537,63 @@ python -m cio search 005930 "주요 매출처"
 새 자산은 `python -m cio register`로 등록한다. 상세 필드와 수집 정책은
 [데이터 정책](docs/data-policy.md)을 참고한다.
 
+## 구현 현황과 로드맵
+
+### 구현된 것
+
+| 영역 | 내용 | 위치 |
+|---|---|---|
+| 자산 등록·라우팅 | KR/US, 주식/ETF, 벤치마크, 분석 렌즈 | `config/assets.json`, `python -m cio register`, `assets` |
+| 수집 | 시세(일봉), DART·SEC 재무·공시, KRX 보완, ETF 구성종목, 한국 실적 캘린더, 품목군 매출, EPC 주석, 토스 거래내역서 | `collectors/` |
+| 갱신 계획 | 자산별 필요한 수집만 계획·실행, 신선도 검사 | `python -m cio refresh` |
+| 계산 | 보유 평단·실현손익, 동종 비교, 섹터 상대강도, ETF look-through, 가정 민감도, 포트폴리오 한도 | `calculators/`, `cio/assumptions.py` |
+| 컨텍스트 | 가격·금액·의도(`NEW_BUY`/`TRIM_REVIEW`/`HOLD_REVIEW`)별 패킷 생성 | `python -m cio prepare` |
+| 판단 계약 | 출력 스키마 검증, 격리 저장, 무효화 신호 약속 이월 | `schemas/`, `cio/decision.py`, `record`, `validate` |
+| 기억·평가 | 판단 저장·조회·폐기, 사후 채점, 수집 요청 대기열 | `show`, `score`, `evals`, `retire`, `requests`, `cio/memory.py` |
+| 원문 보존·검색 | 웹·공시 원문 보존과 부분 검색 | `snapshot`, `docs`, `search` |
+| 투자 정책 | 사용자 한도 대조 (판단하지 않음) | `python -m cio policy`, `config/investor-policy.json` |
+| 시세 자동 점검 | 오늘 기준 시세가 낡은 종목만 재수집 | `scripts/auto_update.py` |
+| 로컬 API | 종목 검색·등록, 단계별 수집, 포트폴리오 상태·정책, 장기분석, 예측 리포트 | `scripts/api_server.py` (포트 3001) |
+| 대시보드 | 종목 관리 뷰와 판단 리포트 뷰 | `dashboard/` (포트 3000) |
+| 통합 실행 | API 서버와 대시보드를 함께 기동 | `start.ps1`, `start.bat` |
+| 모델 연동 | Bob Shell CLI로 판단·내러티브 생성 | `cio/llm_interface.py` |
+
+### 계획 중: 보유 종목 감시 배치 (미구현)
+
+보유 종목의 현재가를 주기적으로 확인해, **모델이 저장한 판단의 가격 문턱과 사용자의
+정책 한도에 닿았을 때** 알린다. 기존 계약을 그대로 지킨다 — PC는 부등호만 대조하고
+"사라·팔아라"를 말하지 않으며, 문턱이 켜지면 재질문 패킷만 준비해 두고 새 verdict는
+모델이 낸다. 알림은 판정이 아니라 사실 진술이다.
+
+| 항목 | 정한 값 |
+|---|---|
+| 시장 | 한국(KR)만. 미국 주식 제외 |
+| 감시 시간 | 한국 시각 08:00~20:00, 주말 제외 |
+| 주기 | 설정값 하나. 테스트 60분, 이후 10분 |
+| 알림 채널 | 1차 콘솔·파일·대시보드 배지, 2차 이메일(SMTP). 텔레그램 제외 |
+
+기능 구성(계획 파일의 서브태스크 번호):
+
+| # | 기능 | 요약 |
+|---|---|---|
+| 1 | 감시 설정·장 시간 게이트 | `config/watch.json`, 08:00~20:00 KST 판정 |
+| 2 | 장중 현재가 조회 | 일봉 CSV와 분리해 `knowledge/watch/quotes.json`에 저장 |
+| 3 | 트리거 워처 | `price_plan`·`exit_plan`의 숫자 문턱과 현재가 대조, 중복 알림 제거 |
+| 4 | 한도 위반·판단 노후화 감시 | 정책 한도, 판단 경과, 가격 괴리, 실적발표 임박. 비어 있는 임계값은 감시하지 않음 |
+| 5 | 알림 어댑터 | 단일 포매터, 판정 표현 금지 테스트, 채널 실패 격리 |
+| 6 | 재질문 큐 | 이벤트에서 `HOLD_REVIEW`/`TRIM_REVIEW` 패킷 자동 준비, 12시간 만료 |
+| 7 | 일일 브리핑 | 하루 1회 보유 현황·이벤트·미해결 요청·채점 요약의 사실 나열 |
+| 8 | 스케줄러·API·대시보드 | `python -m cio watch run`, `/api/watch/*`, 알림 배지, `start.ps1` 연동 |
+
+**구현 전에 정해야 할 것:** 08:00~09:00·15:30~20:00 현재가 출처(한국 정규장은
+09:00~15:30이며 시간외 가격을 줄 출처를 아직 확인하지 못했다), 평일 휴장일 처리,
+정책 한도 대조에 쓸 장중 가격의 입력 경로, 감시 루프를 스레드로 둘지 단독
+프로세스로 둘지.
+
+설계 근거와 미결 사항은 [감시 배치 설계](docs/watch-design.md), 작업 단위 계획은
+[`watch-batch-plan.md`](watch-batch-plan.md)에 있다. 이 계획은 검토 중이며 어떤
+항목도 아직 코드에 없다.
+
 ## 문서
 
 - [아키텍처](docs/architecture.md)
@@ -545,6 +602,7 @@ python -m cio search 005930 "주요 매출처"
 - [평가와 기억](docs/evaluation.md)
 - [미국 주식 사용 범위와 검증 상태](docs/us-readiness.md)
 - [조건부 배분 계획과 기업행동](docs/advisory-plans.md)
+- [보유 종목 감시 배치 설계](docs/watch-design.md) (계획 중, 미구현)
 
 기계 판독 계약의 최종 권위는 문서 설명이 아니라 코드와
 `schemas/cio-decision.schema.json`이다.
