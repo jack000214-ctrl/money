@@ -1,0 +1,82 @@
+{
+  "fetched_at": "2026-10-16T00:06:46+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_000660_C",
+  "payload_sha256": "baee11cae47c9d55ffd960b03cd47899aa3265bff1c0591074c0153e41cf878d",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 6,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "증권발행실적보고서",
+        "rcept_no": "20260715000004",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260715",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "투자설명서",
+        "rcept_no": "20260710000012",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260710",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "[발행조건확정]증권신고서(지분증권)",
+        "rcept_no": "20260710000010",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260710",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]증권신고서(지분증권)",
+        "rcept_no": "20260706000444",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260706",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]증권신고서(지분증권)",
+        "rcept_no": "20260630001095",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260630",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00164779",
+        "corp_name": "SK하이닉스",
+        "stock_code": "000660",
+        "corp_cls": "Y",
+        "report_nm": "증권신고서(지분증권)",
+        "rcept_no": "20260624000511",
+        "flr_nm": "SK하이닉스",
+        "rcept_dt": "20260624",
+        "rm": "정"
+      }
+    ]
+  }
+}

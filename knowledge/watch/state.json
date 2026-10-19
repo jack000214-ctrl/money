@@ -1,0 +1,104 @@
+{
+  "active_triggers": {
+    "REV|STALE|none|005930": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|000660": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|066570": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|005380": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|316140": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|0167A0": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|000080": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|039130": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|011810": {
+      "since": "2026-10-19T14:05:56+09:00"
+    },
+    "REV|STALE|none|087010": {
+      "since": "2026-10-19T16:50:45+09:00"
+    },
+    "REV|STALE|none|454910": {
+      "since": "2026-10-19T16:50:45+09:00"
+    }
+  },
+  "last_cycle": {
+    "at": "2026-10-19T17:50:54+09:00",
+    "result": "OK",
+    "reason": null,
+    "counts": {
+      "holdings": 11,
+      "quotes_ok": 11,
+      "quotes_failed": 0,
+      "events": 0
+    },
+    "errors": [],
+    "not_monitored": [
+      {
+        "item": "policy:011810",
+        "reason": "대조 가능한 현재가가 없다"
+      },
+      {
+        "item": "earnings:005930",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:000660",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:066570",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:005380",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:316140",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:0167A0",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:000080",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:039130",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:011810",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:087010",
+        "reason": "실적 캘린더 산출물이 없다"
+      },
+      {
+        "item": "earnings:454910",
+        "reason": "실적 캘린더 산출물이 없다"
+      }
+    ],
+    "channels": {}
+  },
+  "briefing_sent_dates": [
+    "2026-10-19"
+  ],
+  "events_read_through": 20
+}

@@ -1,0 +1,648 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "011810",
+  "corp_code": "00138297",
+  "collected_at": "2026-10-19T00:34:44+00:00",
+  "source": "DART_LIST",
+  "since": "20251019",
+  "until": "20261019",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "02c96e56cd5eb7a5093820f53c505a361e33187b201626202236530827321152",
+      "raw_locator": "data\\raw\\dart\\objects\\02c96e56cd5eb7a5093820f53c505a361e33187b201626202236530827321152.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904",
+      "raw_locator": "data\\raw\\dart\\objects\\db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "empty": true
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "f199254d400ecb8e47da8b83506e2279b2216bd315badce4067bc50becba0017",
+      "raw_locator": "data\\raw\\dart\\objects\\f199254d400ecb8e47da8b83506e2279b2216bd315badce4067bc50becba0017.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261015800828",
+      "description": "상장적격성실질심사관련주요개선계획(자율공시)",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800828"
+    },
+    {
+      "filing_date": "2026-10-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261015800819",
+      "description": "기타시장안내              (개선기간 부여 결정)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800819"
+    },
+    {
+      "filing_date": "2026-10-14",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20261013000428",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000428"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261013800450",
+      "description": "최대주주등소유주식변동신고서(최대주주변경시)",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013800450"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261013800433",
+      "description": "최대주주변경",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013800433"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20261013000426",
+      "description": "[기재정정]주요사항보고서(감자결정)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000426"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20261013000422",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000422"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20261012000510",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012000510"
+    },
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20261012000507",
+      "description": "[기재정정]주요사항보고서(감자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012000507"
+    },
+    {
+      "filing_date": "2026-09-30",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260930000771",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260930000771"
+    },
+    {
+      "filing_date": "2026-09-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260921800460",
+      "description": "최대주주등소유주식변동신고서(최대주주변경시)",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921800460"
+    },
+    {
+      "filing_date": "2026-09-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260921800442",
+      "description": "최대주주변경",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921800442"
+    },
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260916800442",
+      "description": "회생계획인가",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800442"
+    },
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260916800429",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800429"
+    },
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260916000543",
+      "description": "주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000543"
+    },
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260916000539",
+      "description": "주요사항보고서(감자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000539"
+    },
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260916000537",
+      "description": "주요사항보고서(유상증자결정)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000537"
+    },
+    {
+      "filing_date": "2026-09-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260914800379",
+      "description": "기타시장안내              (상장공시위원회 개최기한 연장)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260914800379"
+    },
+    {
+      "filing_date": "2026-08-20",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260820800237",
+      "description": "기타시장안내              (상장폐지 이의신청서 제출)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260820800237"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260814803848",
+      "description": "기타시장안내              (상장적격성 실질심사 사유 추가 관련 안내)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814803848"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260814803209",
+      "description": "반기검토의견부적정,의견거절또는완전자본잠식사실발생",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814803209"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814004103",
+      "description": "[첨부추가]반기보고서 (2026.06)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004103"
+    },
+    {
+      "filing_date": "2026-08-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260813801081",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813801081"
+    },
+    {
+      "filing_date": "2026-08-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260805800852",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260805800852"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260729800716",
+      "description": "기타시장안내              (상장적격성 실질심사 결과 안내)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800716"
+    },
+    {
+      "filing_date": "2026-07-02",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260702800957",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702800957"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260630800871",
+      "description": "기타시장안내              (개선계획 이행 여부 심의 요청)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800871"
+    },
+    {
+      "filing_date": "2026-06-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260626800911",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626800911"
+    },
+    {
+      "filing_date": "2026-06-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260626800861",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626800861"
+    },
+    {
+      "filing_date": "2026-06-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260622800210",
+      "description": "기타시장안내              (개선기간 종료 및 향후 절차 안내)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260622800210"
+    },
+    {
+      "filing_date": "2026-06-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260605800791",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260605800791"
+    },
+    {
+      "filing_date": "2026-06-04",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260604800835",
+      "description": "투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260604800835"
+    },
+    {
+      "filing_date": "2026-06-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260601801725",
+      "description": "기업지배구조보고서공시",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260601801725"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515001922",
+      "description": "분기보고서 (2026.03)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001922"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260430801870",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430801870"
+    },
+    {
+      "filing_date": "2026-04-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260429801251",
+      "description": "단일판매ㆍ공급계약해지",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429801251"
+    },
+    {
+      "filing_date": "2026-04-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260428800916",
+      "description": "기타시장안내              (개선기간 부여)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260428800916"
+    },
+    {
+      "filing_date": "2026-04-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260413800789",
+      "description": "기타시장안내              (상장폐지 이의신청서 제출)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260413800789"
+    },
+    {
+      "filing_date": "2026-04-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260406800930",
+      "description": "회생절차개시결정",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260406800930"
+    },
+    {
+      "filing_date": "2026-04-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260403003189",
+      "description": "[기재정정]주요사항보고서(회생절차개시신청)",
+      "filer": "STX",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260403003189"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260331801604",
+      "description": "정기주주총회결과",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331801604"
+    },
+    {
+      "filing_date": "2026-03-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260327802512",
+      "description": "투자판단관련주요경영사항",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260327802512"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260323802444",
+      "description": "[기재정정]감사보고서제출",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802444"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260323802360",
+      "description": "투자유의안내              (상장폐지기준 해당)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802360"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260323802106",
+      "description": "감사보고서제출",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802106"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260323001638",
+      "description": "사업보고서 (2025.12)",
+      "filer": "STX",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323001638"
+    },
+    {
+      "filing_date": "2026-03-16",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260316801961",
+      "description": "주주총회소집결의",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316801961"
+    },
+    {
+      "filing_date": "2026-01-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260128800791",
+      "description": "투자유의안내",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800791"
+    },
+    {
+      "filing_date": "2026-01-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260128800758",
+      "description": "자본잠식50%이상또는매출액50억원미만사실발생",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800758"
+    },
+    {
+      "filing_date": "2025-12-30",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20251230800232",
+      "description": "[첨부추가]임시주주총회결과",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800232"
+    },
+    {
+      "filing_date": "2025-12-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251222800705",
+      "description": "대출원리금연체사실발생",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251222800705"
+    },
+    {
+      "filing_date": "2025-12-22",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20251222000449",
+      "description": "[기재정정]주요사항보고서(회생절차개시신청)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251222000449"
+    },
+    {
+      "filing_date": "2025-12-19",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20251219000324",
+      "description": "주요사항보고서(회생절차개시신청)",
+      "filer": "STX",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251219000324"
+    },
+    {
+      "filing_date": "2025-12-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251216800914",
+      "description": "대출원리금연체사실발생",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251216800914"
+    },
+    {
+      "filing_date": "2025-12-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251209800193",
+      "description": "[기재정정]금전대여결정",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251209800193"
+    },
+    {
+      "filing_date": "2025-12-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251208800543",
+      "description": "대출원리금연체사실발생",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251208800543"
+    },
+    {
+      "filing_date": "2025-12-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251205800714",
+      "description": "타인에대한담보제공결정",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251205800714"
+    },
+    {
+      "filing_date": "2025-12-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251205800712",
+      "description": "[기재정정]금전대여결정",
+      "filer": "STX",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251205800712"
+    },
+    {
+      "filing_date": "2025-11-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251128801262",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128801262"
+    },
+    {
+      "filing_date": "2025-11-28",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20251128801260",
+      "description": "주주총회소집결의",
+      "filer": "STX",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128801260"
+    }
+  ]
+}

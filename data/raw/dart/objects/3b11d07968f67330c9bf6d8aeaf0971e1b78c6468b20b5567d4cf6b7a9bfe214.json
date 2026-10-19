@@ -1,0 +1,60 @@
+{
+  "fetched_at": "2026-10-16T00:45:54+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_005380_B",
+  "payload_sha256": "3b11d07968f67330c9bf6d8aeaf0971e1b78c6468b20b5567d4cf6b7a9bfe214",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 4,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00164742",
+        "corp_name": "현대자동차",
+        "stock_code": "005380",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260723000599",
+        "flr_nm": "현대자동차",
+        "rcept_dt": "20260723",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164742",
+        "corp_name": "현대자동차",
+        "stock_code": "005380",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260326001343",
+        "flr_nm": "현대자동차",
+        "rcept_dt": "20260326",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164742",
+        "corp_name": "현대자동차",
+        "stock_code": "005380",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20260129000336",
+        "flr_nm": "현대자동차",
+        "rcept_dt": "20260129",
+        "rm": ""
+      },
+      {
+        "corp_code": "00164742",
+        "corp_name": "현대자동차",
+        "stock_code": "005380",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20251030000466",
+        "flr_nm": "현대자동차",
+        "rcept_dt": "20251030",
+        "rm": ""
+      }
+    ]
+  }
+}

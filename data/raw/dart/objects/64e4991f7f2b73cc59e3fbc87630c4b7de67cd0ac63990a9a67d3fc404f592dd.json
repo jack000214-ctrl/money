@@ -1,0 +1,313 @@
+{
+  "fetched_at": "2026-10-16T00:27:20+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_039130_I",
+  "payload_sha256": "64e4991f7f2b73cc59e3fbc87630c4b7de67cd0ac63990a9a67d3fc404f592dd",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 27,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주식소각결정              ",
+        "rcept_no": "20261006800368",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20261006",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "대표이사(대표집행임원)변경(안내공시)              ",
+        "rcept_no": "20260818800634",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260818",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "임시주주총회결과              ",
+        "rcept_no": "20260818800610",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260818",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+        "rcept_no": "20260805800659",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260805",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "결산실적공시예고(안내공시)              ",
+        "rcept_no": "20260729800707",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260729",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "[첨부정정]지속가능경영보고서등관련사항(자율공시)              ",
+        "rcept_no": "20260716800743",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260716",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주주명부폐쇄기간또는기준일설정              ",
+        "rcept_no": "20260707800608",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260707",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주주총회소집결의              ",
+        "rcept_no": "20260707800484",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260707",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "지속가능경영보고서등관련사항(자율공시)              ",
+        "rcept_no": "20260701800659",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260701",
+        "rm": "유정"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "기업지배구조보고서공시              ",
+        "rcept_no": "20260601801408",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260601",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "풍문또는보도에대한해명              ",
+        "rcept_no": "20260520800628",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260520",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+        "rcept_no": "20260513800858",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260513",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "결산실적공시예고(안내공시)              ",
+        "rcept_no": "20260506800715",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260506",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "기업가치제고계획(자율공시)              (고배당기업 표시를 위한 재공시)",
+        "rcept_no": "20260330801364",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260330",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "정기주주총회결과              ",
+        "rcept_no": "20260327801550",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260327",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "감사보고서제출              ",
+        "rcept_no": "20260319801173",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260319",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주주총회집중일개최사유신고              ",
+        "rcept_no": "20260312801332",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260312",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주주총회소집결의              ",
+        "rcept_no": "20260303801444",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260303",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]현금ㆍ현물배당결정              ",
+        "rcept_no": "20260303801348",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260303",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+        "rcept_no": "20260203800704",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260203",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "매출액또는손익구조30%(대규모법인은15%)이상변경              ",
+        "rcept_no": "20260203800687",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260203",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "결산실적공시예고(안내공시)              ",
+        "rcept_no": "20260127800529",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260127",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정              ",
+        "rcept_no": "20251202800306",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251202",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "현금ㆍ현물배당결정              ",
+        "rcept_no": "20251202800304",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251202",
+        "rm": "유정"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "풍문또는보도에대한해명(미확정)              ",
+        "rcept_no": "20251121800610",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251121",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)              ",
+        "rcept_no": "20251105800421",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251105",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "결산실적공시예고(안내공시)              ",
+        "rcept_no": "20251029800521",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251029",
+        "rm": "유"
+      }
+    ]
+  }
+}

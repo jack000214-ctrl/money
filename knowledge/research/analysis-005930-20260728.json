@@ -1,0 +1,260 @@
+{
+  "schema_version": "1.1.0",
+  "analysis_id": "ANALYSIS-20260728-005930",
+  "instrument_id": "005930",
+  "company_id": "KR-005930",
+  "as_of": "2026-07-28T15:00:00+09:00",
+  "snapshot": {
+    "snapshot_id": "SNAPSHOT-20260728-005930",
+    "created_at": "2026-07-28T16:30:00+09:00",
+    "source_ids": [
+      "SRC-005930-FUND-1Q26",
+      "SRC-005930-PRICE-20260728",
+      "SRC-PORTFOLIO-HOLDINGS",
+      "SRC-005930-BENCHMARK-KS11",
+      "SRC-005930-NEWS-CXMT-HERALD",
+      "SRC-005930-NEWS-CXMT-GENEWS",
+      "SRC-005930-NEWS-KOSPI-0716"
+    ],
+    "input_hashes": {
+      "fundamentals": "edc7f7b4b5e7bcefb751119eba9acb4ebc92e1eeef4a49c8ab0783bcc58c830d",
+      "price_series": "cf8ac52d6016635217b9f75b9c435c6c13beb47252c5d618385d512b5b0cc593",
+      "holdings": "28a545519a3c3c6547f9d37bbf73176043e1dee87c34810a7ce305818e9aa40e",
+      "benchmark_series": "516ea23273ef9f32db38a46508301ac8bea470fb9466557701fcb27449c237eb",
+      "news/cxmt-herald-20260728.html": "dbd4de5b3bede6314d79a76d8f2b5c3b382e4205daecb451c696275c2435db03",
+      "news/cxmt-genews-20260728.html": "021c78f6f0d6ab83c1bb69e1da3d8d40ed4f96af3e36b753da3550c2de730138",
+      "news/kospi-newspim-20260716.html": "74f35edd6a5a6bc3d1305ebe8f5db8c5523314a751388727955dcf55bf1a3909"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "SRC-005930-FUND-1Q26",
+      "source_type": "FILING",
+      "locator": "OpenDART fnlttSinglAcntAll 연결 — 2025 1q/half/3q/annual + 2026 1q 에서 만든 TTM 스냅샷 (2Q25~1Q26). 현금흐름표는 연초 누계라 차감 복원했다.",
+      "published_at": "2026-05-15T00:00:00+09:00",
+      "retrieved_at": "2026-07-28T09:20:00+09:00",
+      "content_hash": "edc7f7b4b5e7bcefb751119eba9acb4ebc92e1eeef4a49c8ab0783bcc58c830d"
+    },
+    {
+      "source_id": "SRC-005930-PRICE-20260728",
+      "source_type": "MARKET_DATA",
+      "locator": "Yahoo Finance chart API 005930.KS 일별 종가 2024-07-29~2026-07-28",
+      "published_at": "2026-07-28T00:00:00+09:00",
+      "retrieved_at": "2026-07-28T09:10:00+09:00",
+      "content_hash": "cf8ac52d6016635217b9f75b9c435c6c13beb47252c5d618385d512b5b0cc593"
+    },
+    {
+      "source_id": "SRC-PORTFOLIO-HOLDINGS",
+      "source_type": "MARKET_DATA",
+      "locator": "보유내역 knowledge/portfolio/holdings.csv 기준일 2026-07-27",
+      "published_at": "2026-07-27T00:00:00+09:00",
+      "retrieved_at": "2026-07-28T09:00:00+09:00",
+      "content_hash": "28a545519a3c3c6547f9d37bbf73176043e1dee87c34810a7ce305818e9aa40e"
+    },
+    {
+      "source_id": "SRC-005930-BENCHMARK-KS11",
+      "source_type": "MARKET_DATA",
+      "locator": "Yahoo Finance chart API ^KS11 (KOSPI) 일별 종가 2016-07-28~2026-07-28",
+      "published_at": "2026-07-28T00:00:00+09:00",
+      "retrieved_at": "2026-07-28T15:02:46+09:00",
+      "content_hash": "516ea23273ef9f32db38a46508301ac8bea470fb9466557701fcb27449c237eb"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-CXMT-HERALD",
+      "source_type": "NEWS",
+      "locator": "헤럴드경제 — 메모리 공룡 CXMT, 中증시 데뷔 (공모가 8.66위안, 조달 579.2억위안≈12.5조원, 아시아 최대 IPO) · https://biz.heraldcorp.com/article/10820897",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-27T00:00:00+09:00",
+      "content_hash": "dbd4de5b3bede6314d79a76d8f2b5c3b382e4205daecb451c696275c2435db03"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-CXMT-GENEWS",
+      "source_type": "NEWS",
+      "locator": "글로벌이코노믹 — CXMT 상장 첫날 공모가 대비 +466%, 시총 3.7조위안 (AFR·블룸버그 인용) · https://www.g-enews.com/article/Global-Biz/2026/07/2026072807081349fbbec65dfb_1",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-28T00:00:00+09:00",
+      "content_hash": "021c78f6f0d6ab83c1bb69e1da3d8d40ed4f96af3e36b753da3550c2de730138"
+    },
+    {
+      "source_id": "SRC-005930-NEWS-KOSPI-0716",
+      "source_type": "NEWS",
+      "locator": "뉴스핌 — 2026-07-16 반도체 악재 급락 귀인: 코어위브 메모리 가격 헤지 검토 + CXMT 증설 계획 + 미국 메모리주 급락. 외국인·기관 동반 순매도 · https://www.newspim.com/news/view/20260716001003",
+      "retrieved_at": "2026-07-28T16:20:00+09:00",
+      "published_at": "2026-07-16T00:00:00+09:00",
+      "content_hash": "74f35edd6a5a6bc3d1305ebe8f5db8c5523314a751388727955dcf55bf1a3909"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "CLAIM-MARKET-001",
+      "type": "DERIVED",
+      "text": "이번 하락의 88%는 시장 요인이다. 2026-06-18 고점 362,500 → 07-28 224,250 은 −38.1% 인데 같은 기간 KOSPI(^KS11)가 9,064 → 6,037 로 −33.4% 였고 종목 고유 초과는 −7.1% 다. 상승 구간도 같은 분해가 필요하다 — 01-02→06-18 삼성 +182.1% 중 KOSPI 가 +110.3%, 종목 고유는 +34.1% 였다. 적응형 필터(직전 60거래일 초과변동 표준편차 × 2)가 잡은 종목 고유 사건은 4건이고 전부 상승 쪽이며, 그중 2026-06-24(초과 +6.58%)가 문화일보 자사주 90조 보도일이다. 해명공시 반응일 07-24 는 −7.59% 지만 KOSPI −5.72% 를 빼면 초과 −1.87% 에 불과하다.",
+      "source_ids": [
+        "SRC-005930-PRICE-20260728",
+        "SRC-005930-BENCHMARK-KS11"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-SEG-001",
+      "type": "FACT",
+      "text": "1Q26 영업부문 주석(DART 20260515002181) — DS 부문 영업이익 53.66조가 전사 57.23조의 93.8%다. DX 는 매출 52.65조를 내면서 이익은 2.97조(5.2%)뿐이고 SDC 0.6%, Harman 0.4%다. 제품별로는 메모리 매출이 1Q25 19.07조 → 1Q26 74.78조로 3.92배가 됐고 스마트폰(1.04x)·TV(1.00x)·패널(1.14x)은 제자리다. 이 회사는 이익 구조로 보면 복합기업이 아니라 메모리 단일 노출이다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-PEAK-001",
+      "type": "FACT",
+      "text": "연결 영업이익률이 2Q25 6.27%(영업이익 4.68조) → 1Q26 42.75%(57.23조) → 2Q26 잠정 52.28%(89.40조)로 3개 분기 만에 8배가 됐다. 2Q26 은 전년 동기 대비 영업이익 +1,810.26%다(DART 20260707800004, 외부감사 미완료 잠정치). 메모리 역사상 전례 없는 마진 수준이다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-FCF-001",
+      "type": "DERIVED",
+      "text": "TTM(2Q25~1Q26) 영업활동현금흐름 109.01조 − 유형자산 취득 52.52조 = FCF 56.49조. 같은 창의 영업이익은 178.87조로, 영업이익의 29%가 capex 로 빠진다. 순부채는 −119.24조(순현금)다. 231,000원 기준 시가총액 1,542조(희석 6,675.3M주) 대비 EV/FCF 25.2x다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26",
+        "SRC-005930-PRICE-20260728"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-CAPEX-001",
+      "type": "FACT",
+      "text": "capex 는 증설이 아니다. 2025 사업보고서 생산능력 표에서 메모리 생산능력(1Gb 환산)이 제56기 2,238,240,405 → 제57기 2,245,908,090 으로 +0.34% 늘었을 뿐인데 같은 기간 유형자산 취득은 47.52조다. 영업부문 주석의 D&A 는 FY2025 46.93조(감가상각 43.61 + 무형자산상각 3.32)로 capex/D&A = 1.01x, FY2024 는 1.21x다. 비트 능력이 늘지 않고 capex 가 감가상각과 같다는 두 사실은 이 지출이 미세공정·HBM 전환 비용, 즉 메모리 회사로 남아 있기 위한 유지 비용임을 가리킨다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-DRAWDOWN-001",
+      "type": "FACT",
+      "text": "2026 고점은 06-18 종가 362,500원이고 2026-07-28 장중 231,000원은 고점 대비 −36.3%, 전일(254,000) 대비 −9.06%다. 그러나 2026 저점은 01-02 128,500원이라 231,000 은 연초 대비 +79.8%다. 이 하락은 폭락이 아니라 6개월 +182% 상승의 되돌림이다.",
+      "source_ids": [
+        "SRC-005930-PRICE-20260728"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BUYBACK-001",
+      "type": "FACT",
+      "text": "2026-06-24 문화일보가 '삼전, 내달부터 자사주 90조 매입, 이사회 거쳐 3년 분할매입 추진'을 보도했고 2026 고점 구간이 여기 맞물린다. 삼성은 2026-07-23 해명공시(DART 20260723800875)에서 '주식보상 목적의 자사주 매입을 검토하고 있으나 구체적인 일정이나 규모 등 확정된 사항은 없다'고 답했고 다음 거래일 −7.59%였다. 다만 자사주 정책이 없는 것은 아니다 — 2026년 중 보통주 73,359,314주를 실제로 소각해 발행주식총수가 5,846,278,608주로 줄었다(DART 20260707000403). 재공시 기한은 2026-10-22다.",
+      "source_ids": [
+        "SRC-005930-PRICE-20260728"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-CXMT-001",
+      "_type_note": "실제 등급은 EXPLORATORY(뉴스·미검증)여야 하지만 분석 계약의 CLAIM_TYPES 에 그 값이 없다. 뉴스를 FACT/DERIVED 로 올리지 않기 위해 가장 약한 등급인 HYPOTHESIS 를 쓴다. 본문에 미검증임을 명시했다.",
+      "type": "EXPLORATORY",
+      "text": "2026-07-27 중국 CXMT 가 본토 상장 첫날 공모가 8.66위안 대비 +466%, 장중 시가총액 약 802조원을 기록했다(조달 약 12.5조원, 올해 아시아 최대 IPO). 07-16 코스피 −6.37% 의 언론 귀인도 CXMT 공모 소식 + CoreWeave 메모리 가격 헤지 검토 + 미국 메모리주 급락이었다. DRAM 은 공급 몇 %가 가격을 정하는 산업이므로 증설 자금 조달은 2~3년 안에 물량으로 나온다. 미검증 — CXMT 의 실제 생산능력·노드·수율은 확인하지 못했다.",
+      "source_ids": [
+        "SRC-005930-NEWS-CXMT-HERALD",
+        "SRC-005930-NEWS-CXMT-GENEWS",
+        "SRC-005930-NEWS-KOSPI-0716"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BEAR-001",
+      "type": "INFERENCE",
+      "text": "약세 시나리오는 10년 연 −11% FCF 성장이다. 이 값은 임의가 아니라 검증된 분기 FCF 범위의 하단이다 — 2Q25 분기 FCF 4.32조를 연율화하면 17.3조이고, TTM 56.49조에서 17.3조까지 10년에 걸쳐 내려오는 CAGR 이 −11.2%다. 사이클이 2025년 수준으로 회귀하는 경우다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BASE-001",
+      "type": "INFERENCE",
+      "text": "기준 시나리오는 10년 연 −5% FCF 성장이다. FCF 가 35조 수준에 정착하는 경우로, 검증된 분기 FCF 를 연율화한 저점 17.3조와 고점 92.6조의 중간이다. HBM 이 사이클의 저점을 과거보다 높이지만 현재의 peak 마진은 유지되지 않는 경우다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-BULL-001",
+      "type": "HYPOTHESIS",
+      "text": "강세 시나리오는 10년 연 +5% FCF 성장이다. 1Q26 분기 FCF 23.15조를 연율화한 92.6조 수준이 유지되는 경우다. 성립 경로는 하나뿐이다 — HBM4 전환이 물량이 아니라 단가를 올리는 것. 1Q26 이 실제로 그 모습이다(생산능력 +0.34%인데 메모리 매출 3.92배). 다만 이 단가 효과의 지속성은 공급계약의 물량·기간·가격 고정 조건에 달렸고 MOU 단계 보도만 있어 미확인이다.",
+      "source_ids": [
+        "SRC-005930-FUND-1Q26"
+      ]
+    },
+    {
+      "claim_id": "CLAIM-ALT-CASH",
+      "type": "INFERENCE",
+      "text": "대안은 원화 예수금 유지다. 기회비용을 세전 연 3.0%로 가정한다. ⚠️ 이 3.0%는 수집된 출처가 아니라 가정값이다. holdings.csv 가 현금 4,000만원을 '대기자금 - 전액 투자 가능'으로 정의한 것이 대안 성립의 근거다.",
+      "source_ids": [
+        "SRC-PORTFOLIO-HOLDINGS"
+      ]
+    }
+  ],
+  "thesis": {
+    "status": "APPROVED",
+    "change": "NEUTRAL",
+    "invalidation_triggered": false,
+    "approved_by": "jaehoseo",
+    "approved_at": "2026-07-28T16:10:00+09:00",
+    "claim_ids": [
+      "CLAIM-SEG-001",
+      "CLAIM-PEAK-001",
+      "CLAIM-BULL-001",
+      "CLAIM-DRAWDOWN-001"
+    ]
+  },
+  "counter_thesis": {
+    "text": "'중국의 단일전자 저장 기술 때문에 폭락했으니 과잉 반응이고 지금이 기회다'라는 해석은 전제부터 틀렸지만, 그 자리를 'CXMT·자사주 때문이다'로 바꿔도 여전히 틀린다. **이번 하락의 88%는 종목이 아니라 시장이다** — 고점 대비 −38.1% 중 KOSPI 가 −33.4% 이고 종목 고유는 −7.1% 다. Fudan 팀의 단일전자 2D 플래시는 2026-07-16 Science 게재가 사실이지만 실험실 단일 소자이고 07-16 급락의 언론 귀인에도 등장하지 않으며, 그날 삼성 초과변동은 −2.40% 였다. CXMT 증설 자금 조달과 AI capex ROI 회의론은 실재하지만 KOSPI 전체를 때린 요인이다. 자사주 90조 기대는 오히려 상승 쪽에서 종목 고유 효과가 컸다(06-24 초과 +6.58%). 따라서 매수 판단의 근거는 '하락 원인'이 아니라 **가치 대비 가격**이어야 한다. 231,000원은 사상 최고인 TTM FCF 56.49조에서 추가로 10년간 연 14.74% 성장을 요구한다(할인율 12% 기준). 그런데 메모리 생산능력은 2025년에 0.34% 늘었고 capex/D&A 는 1.01x다 — 50조 가까운 지출이 물량도 사지 않고 감가상각을 겨우 채우는 유지 비용이다. 'capex 가 성장 투자라서 FCF 가 눌려 있다'는 강세 논리는 원문 두 곳에서 반박된다. IPS 가 허용하는 가장 관대한 할인율 9%에서도 강세 시나리오 연율은 −12.0%이고 확률가중은 −35.1%다. 다만 이 반대 논지의 한계를 명시한다 — 시장이 −33% 빠진 국면에서 개별 종목의 DCF 판정은 매크로 판단을 대신할 수 없다. KOSPI 가 왜 6주에 −33% 빠졌는지는 이 분석의 범위 밖이며 확인되지 않았다.",
+    "invalidation_signal": "다음 중 하나가 관측되면 이 반대 논지를 접는다 — (1) HBM4 공급계약의 물량·기간·가격 고정 조건이 공시되고, 그 조건이 메모리 단가를 사이클과 무관하게 2년 이상 고정한다. (2) 2개 분기 연속으로 분기 FCF 가 25조를 넘어 TTM FCF 가 90조 이상으로 올라간다(현재가의 요구 성장률을 실제로 충족). (3) 2026-10-22 재공시에서 주주환원 목적 자사주 매입·소각이 연 20조 이상 규모로 확정된다. 반대로 다음이 관측되면 반대 논지가 강화된다 — 연결 영업이익률이 2개 분기 연속 25% 미만으로 내려가거나, 재고자산이 2개 분기 연속 증가하면서 DRAM 현물가가 3개월 연속 하락하거나, CXMT 가 엔비디아·주요 CSP 중 한 곳에 HBM 을 양산 공급한다.",
+    "claim_ids": [
+      "CLAIM-MARKET-001",
+      "CLAIM-FCF-001",
+      "CLAIM-CAPEX-001",
+      "CLAIM-CXMT-001",
+      "CLAIM-BUYBACK-001"
+    ]
+  },
+  "expected_return": {
+    "horizon_months": 24,
+    "required_return_pct": 12.0,
+    "methodology": "2단계 FCF 역산 DCF (scripts/reverse_dcf.py). 할인율 12%, 영구성장 2.5%, 1단계 10년. 입력은 DART 연결 원문 스냅샷 FUND-413a84e45f2324987a32 — TTM FCF 56.49조(2Q25~1Q26), 순부채 −119.24조(순현금), 희석주식수 6,675.3M주(지배주주순이익 ÷ 희석주당이익, 우선주 포함). 시나리오 성장률은 검증된 분기 FCF 를 연율화한 범위(저점 17.3조 ~ 고점 92.6조)에 고정했다. 할인율을 IPS 범위 전역(9~14%)에서 흔들어도 세 시나리오 모두 음수라 판정이 뒤집히지 않는다.",
+    "calculation_id": "CALC-f539a684d8d357b9a2b4",
+    "probability_weighted_pct": -42.859,
+    "scenarios": {
+      "bear": {
+        "return_pct": -50.55018373569361,
+        "probability": 0.4,
+        "claim_ids": [
+          "CLAIM-BEAR-001",
+          "CLAIM-CXMT-001",
+          "CLAIM-CAPEX-001",
+          "CLAIM-MARKET-001"
+        ]
+      },
+      "base": {
+        "return_pct": -43.540458383103,
+        "probability": 0.4,
+        "claim_ids": [
+          "CLAIM-BASE-001",
+          "CLAIM-SEG-001"
+        ]
+      },
+      "bull": {
+        "return_pct": -26.113689338321077,
+        "probability": 0.2,
+        "claim_ids": [
+          "CLAIM-BULL-001",
+          "CLAIM-PEAK-001"
+        ]
+      }
+    }
+  },
+  "alternatives": [
+    {
+      "instrument_id": "CASH_KRW",
+      "expected_return_pct": 3.0,
+      "measure": "PROBABILITY_WEIGHTED",
+      "claim_ids": [
+        "CLAIM-ALT-CASH"
+      ],
+      "snapshot_id": "SNAPSHOT-20260728-005930"
+    }
+  ]
+}

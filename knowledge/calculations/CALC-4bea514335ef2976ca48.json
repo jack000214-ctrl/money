@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-4bea514335ef2976ca48",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "316140",
+  "created_at": "2026-10-16T09:23:03+09:00",
+  "source_ids": [
+    "FUND-72f8478b52e890c04783"
+  ],
+  "inputs": {
+    "price": 30850.0,
+    "shares": 755321804.5112782,
+    "fcf": 8313551000000.0,
+    "net_debt": 60935884000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 2.5,
+    "years": 10,
+    "input_provenance": {
+      "verified": false,
+      "source": "opendart_fnlttSinglAcntAll",
+      "fundamentals_id": "FUND-72f8478b52e890c04783",
+      "period_end": "2026-06-30",
+      "fundamentals_sha256": "f029a438f198902646bc0e4327323b3a85dd8d802387816762117a5febb15952",
+      "share_count": {
+        "origin": "MODEL_CHOICE",
+        "selected_shares": 755321804.5112782,
+        "snapshot_shares": 755321804.5112782,
+        "snapshot_basis": null,
+        "snapshot_tag": null,
+        "reason": "자동 파이프라인: 스냅샷(FUND-72f8478b52e890c04783) 희석주식수(755,321,805주) 적용",
+        "_note": "공시 스냅샷의 FCF·순부채는 유지한다. 명시적으로 선택한 주식수의 출처와 적합성은 모델이 확인하며 PC가 인증하지 않는다"
+      }
+    },
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -5.0,
+      "base": 5.0,
+      "bull": 15.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -5.0,
+        "value_per_share": 7665.535465417972,
+        "total_return_pct": -75.15223512020106,
+        "annualized_return_pct": -50.15246758384229
+      },
+      "base": {
+        "growth_pct": 5.0,
+        "value_per_share": 99773.95116245284,
+        "total_return_pct": 223.4163732980643,
+        "annualized_return_pct": 79.83780839914178
+      },
+      "bull": {
+        "growth_pct": 15.0,
+        "value_per_share": 295645.62111169944,
+        "total_return_pct": 858.3326454187988,
+        "annualized_return_pct": 209.56948257520457
+      }
+    },
+    "_units": "total_return_pct 는 수렴기간 말의 누적 총수익률이고 판단 계약의 expected_return_pct 로 가는 값이다. annualized_return_pct 는 같은 값을 연율로 바꾼 참고치이며 계약의 어느 자리에도 들어가지 않는다",
+    "implied_growth_pct": -1.6709709656426208,
+    "implied_growth_status": "SOLVED"
+  }
+}

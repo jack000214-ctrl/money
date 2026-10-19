@@ -1,0 +1,462 @@
+{
+  "schemaVersion": "decision-dashboard/0.6.0",
+  "sensitivity": {
+    "unavailable": true,
+    "reason": "잉여현금흐름(FCF)이 음수입니다. 정률성장 DCF 모델을 적용할 수 없어 민감도 분석을 생략합니다."
+  },
+  "meta": {
+    "asOf": "2026-10-18",
+    "priceAsOf": "2026-10-18 기준",
+    "financialAsOf": "2026-06-30",
+    "calculationId": "CALC-11d2bd4ea09d341849da",
+    "fundamentalsId": "FUND-1dcd8d3bd86d0029d84e",
+    "engineVersion": "2.2.0",
+    "generatedBy": "dashboard/scripts/build_decision_report.py"
+  },
+  "asset": {
+    "name": "현대차",
+    "ticker": "005380 · KOSPI",
+    "currency": "KRW",
+    "current": "294,500원",
+    "currentBase": "₩312,000",
+    "baseNote": "기준통화와 동일"
+  },
+  "priceEvidence": [
+    {
+      "label": "최근 2거래일",
+      "value": "+4.7%",
+      "explanation": "295,500원 → 309,500원. 최근 2거래일 움직임입니다.",
+      "signal": "bad"
+    },
+    {
+      "label": "기간 고점 대비 (2025-10-20~)",
+      "value": "-60.7%",
+      "explanation": "고점 750,000원 (2026-06-01) 대비.",
+      "signal": "watch"
+    },
+    {
+      "label": "기간 저점 대비 (2025-10-20~)",
+      "value": "+18.8%",
+      "explanation": "저점 248,000원 (2025-10-20) 대비.",
+      "signal": "good"
+    },
+    {
+      "label": "요구수익률 10% 만족 가격",
+      "value": "—",
+      "explanation": "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가입니다.",
+      "signal": "bad"
+    }
+  ],
+  "incomeStatement": {
+    "title": "수익성 피크아웃 이후 성장률 완만화 국면",
+    "conclusion": "매출은 2026~2027년 연간 1~3%대의 완만한 성장세를 유지하나, 인센티브 상승 및 고정비 부담으로 영업이익은 10~11조 원대로 하향 평탄화되고 있습니다.",
+    "equation": [
+      {
+        "label": "매출총이익",
+        "value": "8.74조"
+      },
+      {
+        "label": "판매비와관리비",
+        "value": "−5.89조",
+        "sign": "minus"
+      },
+      {
+        "label": "영업이익",
+        "value": "2.85조",
+        "sign": "equals"
+      }
+    ],
+    "rows": [
+      {
+        "metric": "매출",
+        "value": "49.22조",
+        "comparison": "전년 동기 대비 +1.9%",
+        "interpretation": "북미 중심 SUV 및 하이브리드 고수익 차종 비중 확대로 189조 원대 외형을 지지하고 있으나 전년 대비 성장률은 1.6% 수준으로 둔화되었습니다.",
+        "signal": "good"
+      },
+      {
+        "metric": "매출총이익률",
+        "value": "17.75%",
+        "comparison": "전년 동기 18.87% · -1.11%p",
+        "interpretation": "원자재가 하향 안정화에도 불구하고 글로벌 주요 시장 내 경쟁 격화에 따른 프로모션 및 인센티브 집행 확대로 마진 스프레드가 소폭 축소되었습니다.",
+        "signal": "good"
+      },
+      {
+        "metric": "판매비와관리비",
+        "value": "5.89조",
+        "comparison": "전년 동기 대비 +6.8%",
+        "interpretation": "연구개발비(R&D) 및 소프트웨어 전환 관련 고정비 투자가 지속되며 판관비율의 구조적 하향은 제한적인 구간입니다.",
+        "signal": "watch"
+      },
+      {
+        "metric": "영업이익",
+        "value": "2.85조",
+        "comparison": "전년 동기 대비 -20.8%",
+        "interpretation": "연간 10조 원 중반대의 안정적 이익 체력을 유지하고 있으나, 2023~2024년 고점 대비 20% 이상 감익된 수준에서 횡보 중입니다.",
+        "signal": "bad"
+      }
+    ]
+  },
+  "decision": {
+    "verdict": "BLOCKED",
+    "status": "추가 매수 차단",
+    "verdictNote": "PROCEED 는 수익 보장이 아니라 정책·근거 계약상 차단 사유가 없다는 뜻이다.",
+    "primaryReason": "HOLDINGS_INVALID",
+    "headline": "외형 성장 둔화와 순차입비율 상승 속 전동화·SDV Capex 부담 지속, 단기 밸류에이션 리레이팅 제한적",
+    "reason": "현재 주가(307,000원)는 증권사 컨센서스 목표가(610,000원) 대비 괴리가 크나, 2024년 피크 이후 영업이익률 및 ROE의 하향 안정화(2024년 12.4% → 2026E 7.8%)와 2025년 하반기 현금흐름 둔화로 인한 TTM 영업현금흐름 압박이 확인됩니다. 2026E 순차입금비율이 104% 수준으로 확대되는 국면에서 미래 모빌리티 투자 집행에 따른 FCF 회수 시점이 지연되고 있어, 보수적 요구수익률 기준의 분할 접근이 요구됩니다.",
+    "issues": [
+      {
+        "severity": "BLOCKED",
+        "code": "HOLDINGS_INVALID",
+        "message": "보유내역 파일을 찾을 수 없다: C:\\Project\\MyOwn\\money\\knowledge\\portfolio\\holdings.csv"
+      },
+      {
+        "severity": "BLOCKED",
+        "code": "INSUFFICIENT_CASH",
+        "message": "필요 현금 12,480,000원이 보유 현금 0원을 초과한다"
+      },
+      {
+        "severity": "RESEARCH_REQUIRED",
+        "code": "IPS_MISSING",
+        "message": "ips 파일을 찾을 수 없다: C:\\Project\\MyOwn\\money\\knowledge\\portfolio\\ips.json"
+      },
+      {
+        "severity": "RESEARCH_REQUIRED",
+        "code": "ANALYSIS_MISSING",
+        "message": "analysis 파일이 지정되지 않았다"
+      },
+      {
+        "severity": "RESEARCH_REQUIRED",
+        "code": "PRICE_UNVERIFIED",
+        "message": "예정가를 대조할 기준가가 없다 (스냅샷 통화 미상가 기준통화 KRW와 달라 환율 없이는 대조할 수 없다). price_fetch.py로 시세를 수집하거나 사유를 명시해야 한다"
+      }
+    ],
+    "measure": "?",
+    "positionReturn": "0.0%",
+    "requiredReturn": "10.0%",
+    "hurdleResult": "연 수익률 0.0% · 목표 10.0%",
+    "entryCeiling": "—",
+    "entryCeilingNote": "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가. FCF 흑자 전환 후 재산출이 필요합니다.",
+    "bullOnlyCeiling": "—",
+    "bullOnlyNote": "FCF 가 음수이므로 강세 단독 기준 가격 산출 불가.",
+    "actionNow": "추가 매수하지 않는다. 다음 분기 FCF 를 확인한다.",
+    "highlights": [
+      {
+        "meaning": "목표 수익률에 못 미칩니다",
+        "value": "0.0% < 목표 10.0%",
+        "context": "FCF 가 음수로 DCF 시나리오를 산출할 수 없습니다. FCF 흑자 전환 여부가 핵심 관전 포인트입니다.",
+        "confidence": "투자정책 판정",
+        "confidenceLevel": "high",
+        "signal": "bad"
+      },
+      {
+        "meaning": "현금은 실제로 남고 있습니다",
+        "value": "분기 FCF +0.05조",
+        "context": "영업현금 1.54조에서 CapEx 1.48조를 쓰고 남은 금액입니다.",
+        "confidence": "공시 확정",
+        "confidenceLevel": "high",
+        "signal": "good"
+      },
+      {
+        "meaning": "성장은 가격 부담을 지우지 못합니다",
+        "value": "PER 8.38x · PSR 0.41x",
+        "context": "현재가 기준입니다. 동종사 대비 프리미엄이 이미 반영돼 있습니다.",
+        "confidence": "시장·공시 데이터",
+        "confidenceLevel": "high",
+        "signal": "watch"
+      },
+      {
+        "meaning": "본업의 매출은 성장 중입니다",
+        "value": "매출 +1.9%",
+        "context": "매출총이익률도 17.75%로 전년 동기 18.87%입니다.",
+        "confidence": "공시 확정",
+        "confidenceLevel": "high",
+        "signal": "good"
+      }
+    ]
+  },
+  "reviewMap": [
+    {
+      "when": "지금 · 294,500원",
+      "state": "BLOCKED",
+      "action": "가격만 보고 진입하지 않습니다.",
+      "why": "연 수익률 0.0%가 목표 10.0%에 못 미칩니다.",
+      "signal": "bad"
+    },
+    {
+      "when": "다음 분기보고서",
+      "state": "강제 재검토",
+      "action": "dart_fetch fundamentals 로 스냅샷을 다시 만들고 reverse_dcf 를 재실행합니다.",
+      "why": "가격보다 투자 회수 여부가 더 중요한 판정 변수입니다.",
+      "signal": "watch"
+    },
+    {
+      "when": "FCF 2개 분기 연속 음수",
+      "state": "논지 훼손 점검",
+      "action": "강세 시나리오 확률을 낮추고 밸류에이션을 다시 계산합니다.",
+      "why": "투자가 회수되지 않고 현금 소모 구조로 바뀌는 신호입니다.",
+      "signal": "bad"
+    }
+  ],
+  "portfolio": {
+    "quantity": 40.0,
+    "priceKrw": "₩312,000",
+    "tradeValueKrw": "₩12,480,000",
+    "weights": [],
+    "bearBudget": {
+      "used": "0.00%",
+      "limit": "—",
+      "note": "약세 시나리오가 실현될 때 이 포지션 하나가 총자산에 입히는 손실",
+      "withinBudget": null
+    },
+    "costs": {
+      "총계": "₩0",
+      "내역": "수수료 ₩0 · 슬리피지 ₩0 · 환전 ₩0"
+    },
+    "snapshotId": "TRADE-SNAPSHOT-68187177f53b281cb8df"
+  },
+  "valuation": {
+    "title": "PBR 0.6배 수준의 저평가 영역이나 EV/EBITDA 멀티플 상승",
+    "conclusion": "PER 8.3배, PBR 0.63배로 전통적 지표상 저평가 구간이나, 차입금 증가 및 이익 정체로 EV/EBITDA는 13배 수준으로 과거 대비 리레이팅 문턱이 높아진 상태입니다.",
+    "entryExplanation": "단기 경기 사이클 둔화와 순차입금 증가 위험을 반영한 12~15% 수준의 할인율을 적용할 때, 안전마진이 확보되는 280,000~300,000원 대에서의 선별적 대응이 유리합니다.",
+    "impliedGrowth": "DCF 불가 — FCF 음수",
+    "modelInputs": "TTM FCF -10.61조 · FCF 음수로 DCF 적용 불가. 금융 자회사가 연결된 자동차·지주사는 영업현금흐름에 금융부문이 포함되므로 별도의 수정 모델이 필요합니다.",
+    "multiples": [
+      {
+        "label": "PER",
+        "value": "8.38x",
+        "basis": "TTM 순이익 9.21조 · 현재가 기준"
+      },
+      {
+        "label": "PSR",
+        "value": "0.41x",
+        "basis": "TTM 매출 188.71조 · 현재가 기준"
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "—",
+        "probability": "—",
+        "fcfGrowth": "FCF 음수 — DCF 시나리오 산출 불가",
+        "valuePerShare": "—",
+        "totalGap": "—",
+        "annualizedReturn": "—",
+        "signal": "bad"
+      }
+    ]
+  },
+  "cashFlow": {
+    "title": "2025 하반기 부진 이후 2026 상반기 반등, TTM Capex 부담 잔존",
+    "conclusion": "2025년 3~4분기 마이너스를 기록했던 영업현금흐름이 2026년 1~2분기 흑자로 돌아섰으나, 전동화 공장 증설 및 배터리 합작 투자 등 연간 Capex 소요로 인해 잉여현금흐름(FCF) 창출력은 과거 대비 압박을 받고 있습니다.",
+    "rows": [
+      {
+        "quarter": "FY2025 Q3",
+        "operatingCashFlow": "-4.86조",
+        "capex": "1.69조",
+        "freeCashFlow": "−6.55조",
+        "signal": "bad"
+      },
+      {
+        "quarter": "FY2025 Q4",
+        "operatingCashFlow": "-2.09조",
+        "capex": "2.82조",
+        "freeCashFlow": "−4.91조",
+        "signal": "bad"
+      },
+      {
+        "quarter": "FY2026 Q1",
+        "operatingCashFlow": "3.31조",
+        "capex": "2.52조",
+        "freeCashFlow": "+0.79조",
+        "signal": "good"
+      },
+      {
+        "quarter": "FY2026 Q2",
+        "operatingCashFlow": "1.54조",
+        "capex": "1.48조",
+        "freeCashFlow": "+0.05조",
+        "signal": "good"
+      }
+    ],
+    "chart": {
+      "viewBox": "0 0 1000 300",
+      "barWidth": "46.0",
+      "baselineY": "242.0",
+      "plotLeft": "58",
+      "plotRight": "984",
+      "quarterLabelY": "262.0",
+      "fcfLabelY": "282.0",
+      "ticks": [
+        {
+          "label": "0",
+          "y": "242.0"
+        },
+        {
+          "label": "1.00조",
+          "y": "188.0"
+        },
+        {
+          "label": "2.00조",
+          "y": "134.0"
+        },
+        {
+          "label": "3.00조",
+          "y": "80.0"
+        },
+        {
+          "label": "4.00조",
+          "y": "26.0"
+        }
+      ],
+      "groups": [
+        {
+          "quarter": "FY2025 Q3",
+          "labelX": "173.8",
+          "ocf": {
+            "x": "122.2",
+            "y": "504.5",
+            "height": "-262.5",
+            "label": "-4.86조",
+            "labelX": "145.2",
+            "labelY": "497.5"
+          },
+          "capex": {
+            "x": "179.3",
+            "y": "150.8",
+            "height": "91.2",
+            "label": "1.69조",
+            "labelX": "202.3",
+            "labelY": "143.8"
+          },
+          "fcf": "−6.55조",
+          "signal": "bad"
+        },
+        {
+          "quarter": "FY2025 Q4",
+          "labelX": "405.2",
+          "ocf": {
+            "x": "353.7",
+            "y": "354.9",
+            "height": "-112.9",
+            "label": "-2.09조",
+            "labelX": "376.7",
+            "labelY": "347.9"
+          },
+          "capex": {
+            "x": "410.8",
+            "y": "89.7",
+            "height": "152.3",
+            "label": "2.82조",
+            "labelX": "433.8",
+            "labelY": "82.7"
+          },
+          "fcf": "−4.91조",
+          "signal": "bad"
+        },
+        {
+          "quarter": "FY2026 Q1",
+          "labelX": "636.8",
+          "ocf": {
+            "x": "585.2",
+            "y": "63.1",
+            "height": "178.9",
+            "label": "3.31조",
+            "labelX": "608.2",
+            "labelY": "56.1"
+          },
+          "capex": {
+            "x": "642.3",
+            "y": "105.9",
+            "height": "136.1",
+            "label": "2.52조",
+            "labelX": "665.3",
+            "labelY": "98.9"
+          },
+          "fcf": "+0.79조",
+          "signal": "good"
+        },
+        {
+          "quarter": "FY2026 Q2",
+          "labelX": "868.2",
+          "ocf": {
+            "x": "816.7",
+            "y": "159.0",
+            "height": "83.0",
+            "label": "1.54조",
+            "labelX": "839.7",
+            "labelY": "152.0"
+          },
+          "capex": {
+            "x": "873.8",
+            "y": "161.9",
+            "height": "80.1",
+            "label": "1.48조",
+            "labelX": "896.8",
+            "labelY": "154.9"
+          },
+          "fcf": "+0.05조",
+          "signal": "good"
+        }
+      ]
+    }
+  },
+  "peersTable": {
+    "title": "글로벌 완성차 피어 대비 믹스 개선 및 밸류에이션 매력 점검",
+    "conclusion": "도요타, 폭스바겐 등 글로벌 레거시 OEM 대비 하이브리드(HEV) 중심 믹스 방어력은 우수하나, 북미·유럽 시장 내 전기차 수요 둔화 및 인센티브 경쟁 심화가 공통 리스크로 작용합니다.",
+    "basisWarning": "동종사 행은 수집 시점이 서로 다르다. basis 열을 함께 읽지 않으면 다른 기간을 비교하게 된다.",
+    "rows": [
+      {
+        "ticker": "005380",
+        "company": "현대차",
+        "basis": "2026-06-30 TTM",
+        "revenue": "188.71조",
+        "per": "8.38x",
+        "psr": "0.41x",
+        "focus": true
+      }
+    ]
+  },
+  "marketPositioning": {
+    "title": "시장 포지셔닝 및 수급 동향",
+    "conclusion": "주주환원 정책(밸류업 프로그램 및 자사주 소각) 기대감과 실적 둔화 우려가 팽팽히 맞서는 중립적 수급 상태입니다.",
+    "items": [
+      {
+        "id": "gap",
+        "label": "시장 수급 및 포지셔닝",
+        "status": "UNKNOWN",
+        "value": "공시 데이터 기반",
+        "comparison": "-",
+        "asOf": "2026-10-19",
+        "interpretation": "주요 기관 및 외국인 수급은 배당 매력과 주주환원 가시성에 따라 등락을 반복하며 제한적 박스권 매매 흐름을 보이고 있습니다.",
+        "limitation": "공시 원문 스냅샷 기준",
+        "signal": "plain"
+      }
+    ],
+    "decisionUse": "검증된 재무 스냅샷과 IPS 한도 기준으로 판정됩니다."
+  },
+  "peers": {
+    "title": "글로벌 완성차 피어 대비 믹스 개선 및 밸류에이션 매력 점검",
+    "conclusion": "도요타, 폭스바겐 등 글로벌 레거시 OEM 대비 하이브리드(HEV) 중심 믹스 방어력은 우수하나, 북미·유럽 시장 내 전기차 수요 둔화 및 인센티브 경쟁 심화가 공통 리스크로 작용합니다.",
+    "rows": []
+  },
+  "detailedAnalysis": {
+    "title": "무엇을 보고 이렇게 판단했는가",
+    "paragraphs": [
+      "현대차의 최근 주가 흐름은 거시경제 불확실성과 글로벌 완성차 업종 전반의 밸류에이션 디스카운트, 그리고 실적 피크아웃 우려가 복합 작용한 결과입니다. 2023~2024년 기록적인 영업이익(14~15조 원)을 달성했던 시기와 달리, 2025~2026년은 연간 영업이익이 10~11조 원 수준으로 레벨다운되며 시장 참여자들의 기대치가 재조정되고 있습니다.",
+      "재무 및 현금흐름 측면에서 2025년 하반기 대규모 분기별 마이너스 OCF(-4.86조, -2.09조)가 발생한 점은 운전자본 변동 및 일회성 요인을 감안하더라도 경계 요인입니다. 2026년 상반기 OCF가 +4.85조 원 규모로 정상 궤도에 진입했으나, 연간 Capex 지출 지속에 따라 2026E 순차입금비율이 104%까지 상승할 것으로 예상되어 과거 대비 재무적 완충력이 다소 약화되었습니다.",
+      "향후 긍정적 전환을 위한 핵심 트리거는 하이브리드 라인업의 글로벌 마진 방어력 확인, SDV 및 차세대 전동화 플랫폼 관련 대규모 투자의 실질적 가동률 확보, 그리고 총주주환원율(TSR) 확대 공시입니다. 단기적으로는 2026E ROE 7.85%와 확대된 순차입금을 고려해 무리한 추격 매수보다는 30만 원 이하 지지선 확인 후 분할 진입하는 보수적 접근이 유효합니다."
+    ]
+  },
+  "sources": [
+    "DART 공시 시스템 / SEC EDGAR",
+    "한국거래소(KRX) / Yahoo Finance / FnGuide",
+    {
+      "label": "밸류에이션 입력",
+      "detail": "DART 스냅샷 FUND-1dcd8d3bd86d0029d84e · 2026-06-30 기준"
+    },
+    {
+      "label": "판정 엔진",
+      "detail": "trade_check 2.2.0 · TRADE-SNAPSHOT-68187177f53b281cb8df"
+    }
+  ]
+}

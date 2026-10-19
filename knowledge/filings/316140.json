@@ -1,0 +1,649 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "316140",
+  "corp_code": "01350869",
+  "collected_at": "2026-10-16T00:23:01+00:00",
+  "source": "DART_LIST",
+  "since": "20251016",
+  "until": "20261016",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "30e891aa1154d27ceee5321a6a15368a9673b99138b48972190128d936e89c09",
+      "raw_locator": "data\\raw\\dart\\objects\\30e891aa1154d27ceee5321a6a15368a9673b99138b48972190128d936e89c09.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "db97ffb2c290395cfd12aaaca36ee67045b04a2dff96e351cf1bebf6d5d8ec50",
+      "raw_locator": "data\\raw\\dart\\objects\\db97ffb2c290395cfd12aaaca36ee67045b04a2dff96e351cf1bebf6d5d8ec50.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "raw_payload_sha256": "310f07d0835676f47b14609bb85bbc2aea590833547c8ab3a736aed1713eaa45",
+      "raw_locator": "data\\raw\\dart\\objects\\310f07d0835676f47b14609bb85bbc2aea590833547c8ab3a736aed1713eaa45.json"
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "0028339e87ba27ad2569ae7f268cc5e98e2f9e1c70cd7952b4ccd0560a5663ff",
+      "raw_locator": "data\\raw\\dart\\objects\\0028339e87ba27ad2569ae7f268cc5e98e2f9e1c70cd7952b4ccd0560a5663ff.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-09-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260916800520",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800520"
+    },
+    {
+      "filing_date": "2026-09-04",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260904800386",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260904800386"
+    },
+    {
+      "filing_date": "2026-08-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260826800470",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260826800470"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260819800327",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819800327"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260814003615",
+      "description": "[기재정정]일괄신고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003615"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814003410",
+      "description": "반기보고서 (2026.06)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003410"
+    },
+    {
+      "filing_date": "2026-08-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260813001275",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813001275"
+    },
+    {
+      "filing_date": "2026-08-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260813000004",
+      "description": "투자설명서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000004"
+    },
+    {
+      "filing_date": "2026-08-11",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260811000475",
+      "description": "증권발행실적보고서(합병등)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811000475"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260807000659",
+      "description": "[발행조건확정]증권신고서(채무증권)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807000659"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260807000647",
+      "description": "[기재정정]증권신고서(채무증권)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807000647"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260807000575",
+      "description": "[기재정정]주요사항보고서(상각형조건부자본증권발행결정)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807000575"
+    },
+    {
+      "filing_date": "2026-08-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260803000369",
+      "description": "증권신고서(채무증권)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260803000369"
+    },
+    {
+      "filing_date": "2026-08-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260803000313",
+      "description": "[기재정정]주요사항보고서(상각형조건부자본증권발행결정)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260803000313"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260724800552",
+      "description": "주식소각결정",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800552"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260724800545",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800545"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260724800494",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)(자회사의 주요경영사항)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800494"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260724800491",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800491"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260724800486",
+      "description": "투자판단관련주요경영사항",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800486"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260724000359",
+      "description": "주요사항보고서(자기주식취득신탁계약체결결정)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724000359"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260723000459",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723000459"
+    },
+    {
+      "filing_date": "2026-07-22",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260722000462",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260722000462"
+    },
+    {
+      "filing_date": "2026-07-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260722000457",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260722000457"
+    },
+    {
+      "filing_date": "2026-07-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260721801062",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260721801062"
+    },
+    {
+      "filing_date": "2026-07-16",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260716000044",
+      "description": "투자설명서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260716000044"
+    },
+    {
+      "filing_date": "2026-07-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260709000421",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260709000421"
+    },
+    {
+      "filing_date": "2026-07-08",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260708000509",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260708000509"
+    },
+    {
+      "filing_date": "2026-07-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260708000504",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260708000504"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260706000312",
+      "description": "[기재정정]증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706000312"
+    },
+    {
+      "filing_date": "2026-07-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260703000531",
+      "description": "[첨부정정]증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260703000531"
+    },
+    {
+      "filing_date": "2026-07-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260703000524",
+      "description": "[첨부정정]증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260703000524"
+    },
+    {
+      "filing_date": "2026-07-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260703000507",
+      "description": "[첨부정정]증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260703000507"
+    },
+    {
+      "filing_date": "2026-07-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260703000474",
+      "description": "[기재정정]증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260703000474"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260630800162",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800162"
+    },
+    {
+      "filing_date": "2026-06-25",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260625000390",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260625000390"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260624000342",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624000342"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260624000335",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624000335"
+    },
+    {
+      "filing_date": "2026-06-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260618800678",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260618800678"
+    },
+    {
+      "filing_date": "2026-06-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260610800817",
+      "description": "[기재정정]주식소각결정",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260610800817"
+    },
+    {
+      "filing_date": "2026-06-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260610800591",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260610800591"
+    },
+    {
+      "filing_date": "2026-06-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260610800585",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260610800585"
+    },
+    {
+      "filing_date": "2026-06-10",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260610000461",
+      "description": "주요사항보고서(자기주식취득신탁계약해지결정)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260610000461"
+    },
+    {
+      "filing_date": "2026-05-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260529001328",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260529001328"
+    },
+    {
+      "filing_date": "2026-05-28",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260528000894",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260528000894"
+    },
+    {
+      "filing_date": "2026-05-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260528000882",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260528000882"
+    },
+    {
+      "filing_date": "2026-05-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260522000468",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260522000468"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260521800703",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521800703"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260521000442",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521000442"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260521000429",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521000429"
+    },
+    {
+      "filing_date": "2026-05-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260519800377",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260519800377"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260515002884",
+      "description": "[기재정정]일괄신고서",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002884"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515002805",
+      "description": "분기보고서 (2026.03)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002805"
+    },
+    {
+      "filing_date": "2026-05-14",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260514001490",
+      "description": "증권신고서(주식의포괄적교환ㆍ이전)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514001490"
+    },
+    {
+      "filing_date": "2026-05-14",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260514001192",
+      "description": "[기재정정]주요사항보고서(주식교환ㆍ이전결정)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260514001192"
+    },
+    {
+      "filing_date": "2026-05-12",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260512000437",
+      "description": "증권발행실적보고서",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260512000437"
+    },
+    {
+      "filing_date": "2026-05-11",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260511000512",
+      "description": "투자설명서(일괄신고)",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260511000512"
+    },
+    {
+      "filing_date": "2026-05-11",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260511000501",
+      "description": "일괄신고추가서류",
+      "filer": "우리금융지주",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260511000501"
+    },
+    {
+      "filing_date": "2026-05-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260508800889",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508800889"
+    },
+    {
+      "filing_date": "2026-04-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260429800718",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "우리금융지주",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429800718"
+    },
+    {
+      "filing_date": "2026-04-29",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260429000768",
+      "description": "[기재정정]주요사항보고서(주식교환ㆍ이전결정)",
+      "filer": "우리금융지주",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429000768"
+    }
+  ]
+}

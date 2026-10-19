@@ -1,0 +1,539 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "066570",
+  "corp_code": "00401731",
+  "collected_at": "2026-10-16T00:03:54+00:00",
+  "source": "DART_LIST",
+  "since": "20251016",
+  "until": "20261016",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "524d0b1912be7cebe421cf302282786ea7844bcf4dc32fc80d163a2b252b4ab1",
+      "raw_locator": "data\\raw\\dart\\objects\\524d0b1912be7cebe421cf302282786ea7844bcf4dc32fc80d163a2b252b4ab1.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6",
+      "raw_locator": "data\\raw\\dart\\objects\\7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "raw_payload_sha256": "3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f",
+      "raw_locator": "data\\raw\\dart\\objects\\3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f.json"
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "949cd54c1075c8191780dd58e6af98e23e9d36b81bcb78181fc9ac9b05900333",
+      "raw_locator": "data\\raw\\dart\\objects\\949cd54c1075c8191780dd58e6af98e23e9d36b81bcb78181fc9ac9b05900333.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261007800158",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261007800158"
+    },
+    {
+      "filing_date": "2026-10-07",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20261007800145",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261007800145"
+    },
+    {
+      "filing_date": "2026-10-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261006800220",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261006800220"
+    },
+    {
+      "filing_date": "2026-09-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260907800165",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260907800165"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814001997",
+      "description": "반기보고서 (2026.06)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814001997"
+    },
+    {
+      "filing_date": "2026-08-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260806800672",
+      "description": "중대재해발생(종속회사의주요경영사항)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260806800672"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260730800391",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800391"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260729800583",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800583"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260729800572",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800572"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260729000310",
+      "description": "주요사항보고서(자기주식취득신탁계약해지결정)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729000310"
+    },
+    {
+      "filing_date": "2026-07-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260707800184",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707800184"
+    },
+    {
+      "filing_date": "2026-07-07",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260707800176",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707800176"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260706000276",
+      "description": "[기재정정]사업보고서 (2025.12)",
+      "filer": "LG전자",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706000276"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260630800321",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800321"
+    },
+    {
+      "filing_date": "2026-05-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260529800959",
+      "description": "기업지배구조보고서공시",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260529800959"
+    },
+    {
+      "filing_date": "2026-05-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260528000640",
+      "description": "증권발행실적보고서",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260528000640"
+    },
+    {
+      "filing_date": "2026-05-28",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260528000019",
+      "description": "투자설명서",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260528000019"
+    },
+    {
+      "filing_date": "2026-05-27",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260527000588",
+      "description": "[발행조건확정]증권신고서(채무증권)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260527000588"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260521000502",
+      "description": "[발행조건확정]증권신고서(채무증권)",
+      "filer": "LG전자",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521000502"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260521000489",
+      "description": "[기재정정]증권신고서(채무증권)",
+      "filer": "LG전자",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521000489"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260515002746",
+      "description": "증권신고서(채무증권)",
+      "filer": "LG전자",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002746"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515000856",
+      "description": "분기보고서 (2026.03)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515000856"
+    },
+    {
+      "filing_date": "2026-04-29",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260429800400",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429800400"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800272",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800272"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260407800248",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800248"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260331802750",
+      "description": "[기재정정]기업가치제고계획(자율공시)              (2025년 재공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331802750"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260331802735",
+      "description": "[기재정정]정기주주총회결과",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331802735"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260331802678",
+      "description": "[기재정정]현금ㆍ현물배당결정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331802678"
+    },
+    {
+      "filing_date": "2026-03-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260324800488",
+      "description": "기업가치제고계획(자율공시)              (2025년 재공시)",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260324800488"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260323802071",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802071"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260323802024",
+      "description": "대표이사(대표집행임원)변경(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802024"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260323801911",
+      "description": "정기주주총회결과",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323801911"
+    },
+    {
+      "filing_date": "2026-03-13",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260313000662",
+      "description": "사업보고서 (2025.12)",
+      "filer": "LG전자",
+      "remark": "정연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260313000662"
+    },
+    {
+      "filing_date": "2026-03-10",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260310801703",
+      "description": "감사보고서제출",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260310801703"
+    },
+    {
+      "filing_date": "2026-02-12",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260212800682",
+      "description": "주주총회소집결의",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260212800682"
+    },
+    {
+      "filing_date": "2026-02-12",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260212001501",
+      "description": "주요사항보고서(감자결정)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260212001501"
+    },
+    {
+      "filing_date": "2026-01-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260130800462",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260130800462"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260129800483",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800483"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260129800476",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800476"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260129800419",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변경",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800419"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260129000359",
+      "description": "주요사항보고서(자기주식취득신탁계약체결결정)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129000359"
+    },
+    {
+      "filing_date": "2026-01-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260109800131",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260109800131"
+    },
+    {
+      "filing_date": "2026-01-09",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260109800125",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260109800125"
+    },
+    {
+      "filing_date": "2025-12-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251216800039",
+      "description": "기타경영사항(자율공시)              (배당기준일 변경 안내)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251216800039"
+    },
+    {
+      "filing_date": "2025-12-12",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251212800492",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251212800492"
+    },
+    {
+      "filing_date": "2025-12-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251205800095",
+      "description": "풍문또는보도에대한해명",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251205800095"
+    },
+    {
+      "filing_date": "2025-11-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251128800080",
+      "description": "기업가치제고계획(자율공시)              (2025년 이행현황)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128800080"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": "2025-09-30",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20251114001332",
+      "description": "분기보고서 (2025.09)",
+      "filer": "LG전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114001332"
+    },
+    {
+      "filing_date": "2025-10-31",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20251031800296",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251031800296"
+    }
+  ]
+}

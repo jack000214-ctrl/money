@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "etf-dashboard/1.0.0",
+  "meta": {
+    "asOf": "2026-10-15",
+    "priceAsOf": "2026-10-15 기준",
+    "financialAsOf": null,
+    "calculationId": null,
+    "fundamentalsId": null,
+    "engineVersion": "etf",
+    "generatedBy": "scripts/stock_service.py:_build_etf_report"
+  },
+  "asset": {
+    "name": "SOL AI반도체TOP2플러스",
+    "ticker": "0167A0 · KOSPI",
+    "currency": "KRW",
+    "current": "₩14,180",
+    "currentBase": "₩14,180",
+    "baseNote": "기준통화와 동일",
+    "assetType": "ETF"
+  },
+  "decision": {
+    "verdict": "INSUFFICIENT",
+    "status": "재무 분석 해당 없음",
+    "verdictNote": "ETF는 개별 재무제표·DCF 분석 대상이 아닙니다.",
+    "primaryReason": "ETF 해당 없음",
+    "headline": "SOL AI반도체TOP2플러스 ETF 보유 현황",
+    "reason": "ETF는 개별 기업 재무분석이 아닌 포트폴리오 비중·NAV 추적 관점으로 관리됩니다.",
+    "issues": [],
+    "measure": "N/A",
+    "positionReturn": "—",
+    "requiredReturn": "—",
+    "hurdleResult": "ETF — DCF 계산 해당 없음",
+    "entryCeiling": "—",
+    "entryCeilingNote": "ETF는 DCF 기반 목표가 계산을 수행하지 않습니다.",
+    "bullOnlyCeiling": "—",
+    "bullOnlyNote": "ETF는 강세/약세 시나리오 DCF 계산을 수행하지 않습니다.",
+    "actionNow": "—",
+    "highlights": []
+  },
+  "portfolio": {
+    "snapshotId": "TRADE-SNAPSHOT-etf0167a0",
+    "ticker": "0167A0",
+    "quantity": 0.0,
+    "priceNative": 14180.0,
+    "priceKrw": "₩14,180",
+    "tradeValueKrw": "₩14,180",
+    "marketValueKrw": 0.0,
+    "weights": [],
+    "bearBudget": {
+      "used": "—",
+      "limit": "—",
+      "note": "ETF — 해당 없음",
+      "withinBudget": true
+    },
+    "costs": null
+  },
+  "valuation": {
+    "title": "밸류에이션",
+    "conclusion": "ETF는 DCF 밸류에이션 대상이 아닙니다.",
+    "impliedGrowth": "—",
+    "modelInputs": "ETF — 해당 없음",
+    "entryExplanation": "",
+    "multiples": [],
+    "scenarios": []
+  },
+  "incomeStatement": {
+    "title": "손익계산서",
+    "conclusion": "ETF는 개별 손익계산서가 없습니다.",
+    "equation": [],
+    "rows": []
+  },
+  "cashFlow": {
+    "title": "현금흐름",
+    "conclusion": "ETF는 개별 현금흐름표가 없습니다.",
+    "rows": [],
+    "chart": {
+      "labels": [],
+      "series": [],
+      "groups": [],
+      "ticks": []
+    }
+  },
+  "sensitivity": {},
+  "priceEvidence": [],
+  "reviewMap": [
+    {
+      "when": "정기 리밸런싱",
+      "state": "포트폴리오 비중 검토",
+      "action": "목표 비중 대비 현재 비중을 확인합니다.",
+      "why": "ETF는 비중 관리가 핵심입니다.",
+      "signal": "watch"
+    }
+  ],
+  "peersTable": {
+    "title": "동종 ETF",
+    "conclusion": "ETF 비교 데이터를 수집하지 않았습니다.",
+    "basisWarning": "",
+    "rows": []
+  },
+  "marketPositioning": {
+    "title": "시장 포지셔닝",
+    "conclusion": "ETF — 해당 없음",
+    "items": [],
+    "decisionUse": "ETF는 포트폴리오 비중으로 관리됩니다."
+  },
+  "detailedAnalysis": {
+    "title": "SOL AI반도체TOP2플러스 ETF",
+    "paragraphs": [
+      "SOL AI반도체TOP2플러스(0167A0) ETF 보유 현황입니다."
+    ],
+    "confirmed": [],
+    "unresolved": [],
+    "failureSignals": [],
+    "caveats": [
+      "ETF는 개별 재무분석 대상이 아닙니다."
+    ]
+  },
+  "sources": [
+    {
+      "label": "시세",
+      "detail": "Yahoo Finance / 한국거래소(KRX)"
+    }
+  ]
+}

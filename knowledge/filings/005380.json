@@ -1,0 +1,648 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "005380",
+  "corp_code": "00164742",
+  "collected_at": "2026-10-19T00:40:55+00:00",
+  "source": "DART_LIST",
+  "since": "20251019",
+  "until": "20261019",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "2488994a7a1cab00f3c2d4399b7c1ca0aedba0972545dbc52ff061433d9b054b",
+      "raw_locator": "data\\raw\\dart\\objects\\2488994a7a1cab00f3c2d4399b7c1ca0aedba0972545dbc52ff061433d9b054b.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "3b11d07968f67330c9bf6d8aeaf0971e1b78c6468b20b5567d4cf6b7a9bfe214",
+      "raw_locator": "data\\raw\\dart\\objects\\3b11d07968f67330c9bf6d8aeaf0971e1b78c6468b20b5567d4cf6b7a9bfe214.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "empty": true
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "df78b83717f6050f3839ea5e03bec802b67338e4aebbfd65941904c9e3210f8e",
+      "raw_locator": "data\\raw\\dart\\objects\\df78b83717f6050f3839ea5e03bec802b67338e4aebbfd65941904c9e3210f8e.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-01",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20261001800412",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261001800412"
+    },
+    {
+      "filing_date": "2026-09-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260918800063",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260918800063"
+    },
+    {
+      "filing_date": "2026-09-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260903800273",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260903800273"
+    },
+    {
+      "filing_date": "2026-09-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260903800271",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260903800271"
+    },
+    {
+      "filing_date": "2026-09-02",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260902800437",
+      "description": "생산재개(자율공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260902800437"
+    },
+    {
+      "filing_date": "2026-09-01",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260901800400",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260901800400"
+    },
+    {
+      "filing_date": "2026-08-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260828800249",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260828800249"
+    },
+    {
+      "filing_date": "2026-08-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260828800244",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260828800244"
+    },
+    {
+      "filing_date": "2026-08-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260826800261",
+      "description": "주식소각결정",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260826800261"
+    },
+    {
+      "filing_date": "2026-08-26",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260826800246",
+      "description": "장래사업ㆍ경영계획(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260826800246"
+    },
+    {
+      "filing_date": "2026-08-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260824800707",
+      "description": "[기재정정]생산중단",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260824800707"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814003521",
+      "description": "반기보고서 (2026.06)",
+      "filer": "현대자동차",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003521"
+    },
+    {
+      "filing_date": "2026-08-03",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260803800709",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260803800709"
+    },
+    {
+      "filing_date": "2026-07-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260731801010",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731801010"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260729800842",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800842"
+    },
+    {
+      "filing_date": "2026-07-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260724800692",
+      "description": "생산중단",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724800692"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260723800961",
+      "description": "공정거래자율준수프로그램운영현황(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800961"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260723800323",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800323"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260723800321",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800321"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260723800315",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800315"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260723000599",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "현대자동차",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723000599"
+    },
+    {
+      "filing_date": "2026-07-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260716800634",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260716800634"
+    },
+    {
+      "filing_date": "2026-07-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260713800350",
+      "description": "생산중단",
+      "filer": "현대자동차",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260713800350"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260710800714",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710800714"
+    },
+    {
+      "filing_date": "2026-07-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260703801045",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260703801045"
+    },
+    {
+      "filing_date": "2026-07-01",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260701800788",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701800788"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260630800715",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800715"
+    },
+    {
+      "filing_date": "2026-06-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260618800715",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260618800715"
+    },
+    {
+      "filing_date": "2026-06-01",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260601801279",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260601801279"
+    },
+    {
+      "filing_date": "2026-06-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260601800966",
+      "description": "기업지배구조보고서공시",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260601800966"
+    },
+    {
+      "filing_date": "2026-05-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260529802007",
+      "description": "기업가치제고계획(자율공시)              (2025년 이행현황)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260529802007"
+    },
+    {
+      "filing_date": "2026-05-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260521800573",
+      "description": "[기재정정]타법인주식및출자증권취득결정(자율공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521800573"
+    },
+    {
+      "filing_date": "2026-05-20",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260520800521",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260520800521"
+    },
+    {
+      "filing_date": "2026-05-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260518800599",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260518800599"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515002418",
+      "description": "분기보고서 (2026.03)",
+      "filer": "현대자동차",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002418"
+    },
+    {
+      "filing_date": "2026-05-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260506800556",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260506800556"
+    },
+    {
+      "filing_date": "2026-05-04",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260504800532",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260504800532"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260430801200",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430801200"
+    },
+    {
+      "filing_date": "2026-04-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260429800396",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429800396"
+    },
+    {
+      "filing_date": "2026-04-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260424800636",
+      "description": "타법인주식및출자증권취득결정(자율공시)",
+      "filer": "현대자동차",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424800636"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260423800640",
+      "description": "공정거래자율준수프로그램운영현황(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260423800640"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260423800359",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260423800359"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260423800355",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260423800355"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260423800339",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260423800339"
+    },
+    {
+      "filing_date": "2026-04-17",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260417800711",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260417800711"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800706",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800706"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800662",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800662"
+    },
+    {
+      "filing_date": "2026-04-02",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260402800224",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260402800224"
+    },
+    {
+      "filing_date": "2026-04-01",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260401800905",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260401800905"
+    },
+    {
+      "filing_date": "2026-03-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260330801391",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260330801391"
+    },
+    {
+      "filing_date": "2026-03-26",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260326802475",
+      "description": "정기주주총회결과",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326802475"
+    },
+    {
+      "filing_date": "2026-03-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260326802256",
+      "description": "대표이사(대표집행임원)변경(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326802256"
+    },
+    {
+      "filing_date": "2026-03-26",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260326001343",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "현대자동차",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326001343"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260318001394",
+      "description": "사업보고서 (2025.12)",
+      "filer": "현대자동차",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001394"
+    },
+    {
+      "filing_date": "2026-03-05",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260305801382",
+      "description": "[기재정정]주주총회소집결의",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260305801382"
+    },
+    {
+      "filing_date": "2026-03-04",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260304801600",
+      "description": "감사보고서제출",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260304801600"
+    },
+    {
+      "filing_date": "2026-03-03",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260303800605",
+      "description": "영업(잠정)실적(공정공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260303800605"
+    },
+    {
+      "filing_date": "2026-02-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260226801143",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260226801143"
+    },
+    {
+      "filing_date": "2026-02-25",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260225801593",
+      "description": "주주총회소집결의",
+      "filer": "현대자동차",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260225801593"
+    },
+    {
+      "filing_date": "2026-02-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260224801176",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "현대자동차",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260224801176"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-2f6664ad1038e48e1c80",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "TSLA",
+  "created_at": "2026-07-27T15:40:10+09:00",
+  "source_ids": [
+    "SRC-TSLA-10Q-2026Q2"
+  ],
+  "inputs": {
+    "price": 315.7,
+    "shares": 3540000000.0,
+    "fcf": 5762000000.0,
+    "net_debt": -35803000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 3.0,
+    "years": 10,
+    "input_provenance": {
+      "verified": true,
+      "source": "edgar_fundamentals",
+      "fundamentals_id": "FUND-f32a13f25691ac07a298",
+      "period_end": "2026-06-30",
+      "fundamentals_sha256": "c942bb8372482ca75f090e6dab2dc1f3bacd686a9f0ef1d8a2a84c73628972a8"
+    },
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": 3.0,
+      "base": 15.0,
+      "bull": 40.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": 3.0,
+        "value_per_share": 34.064043583535096,
+        "total_return_pct": -89.20999569732813,
+        "return_pct": -67.15185803934737
+      },
+      "base": {
+        "growth_pct": 15.0,
+        "value_per_share": 68.42461589196644,
+        "total_return_pct": -78.32606401901602,
+        "return_pct": -53.444725346117885
+      },
+      "bull": {
+        "growth_pct": 40.0,
+        "value_per_share": 354.32023403429474,
+        "total_return_pct": 12.233206852801626,
+        "return_pct": 5.940175029495598
+      }
+    },
+    "implied_growth_pct": 38.235328538740575,
+    "implied_growth_status": "SOLVED"
+  }
+}

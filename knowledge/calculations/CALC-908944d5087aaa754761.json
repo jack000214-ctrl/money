@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-908944d5087aaa754761",
+  "model": "reverse_dcf",
+  "model_version": "1.0.0",
+  "instrument_id": "316140",
+  "created_at": "2026-10-15T14:10:49+09:00",
+  "source_ids": [
+    "FUND-4e69826d5e5a7085bdb5"
+  ],
+  "inputs": {
+    "price": 34450.0,
+    "shares": 755321804.5112782,
+    "fcf": 8313551000000.0,
+    "net_debt": 60935884000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 2.5,
+    "years": 10,
+    "input_provenance": {
+      "verified": true,
+      "source": "opendart_fnlttSinglAcntAll",
+      "fundamentals_id": "FUND-4e69826d5e5a7085bdb5",
+      "period_end": "2026-06-30",
+      "fundamentals_sha256": "718ff5c372420f02693a99740f7ca0be96ee71851f6707223ff004d2f7252b69"
+    },
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": -5.0,
+      "base": 5.0,
+      "bull": 15.0
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": -5.0,
+        "value_per_share": 7665.535465417972,
+        "total_return_pct": -77.74880851838034,
+        "annualized_return_pct": -52.828831388633525
+      },
+      "base": {
+        "growth_pct": 5.0,
+        "value_per_share": 99773.95116245284,
+        "total_return_pct": 189.61959698825206,
+        "annualized_return_pct": 70.18213683822754
+      },
+      "bull": {
+        "growth_pct": 15.0,
+        "value_per_share": 295645.62111169944,
+        "total_return_pct": 758.1875794243816,
+        "annualized_return_pct": 192.948387847481
+      }
+    },
+    "_units": "total_return_pct 는 수렴기간 말의 누적 총수익률이고 판단 계약의 expected_return_pct 로 가는 값이다. annualized_return_pct 는 같은 값을 연율로 바꾼 참고치이며 계약의 어느 자리에도 들어가지 않는다",
+    "implied_growth_pct": -1.223383054538335,
+    "implied_growth_status": "SOLVED"
+  }
+}

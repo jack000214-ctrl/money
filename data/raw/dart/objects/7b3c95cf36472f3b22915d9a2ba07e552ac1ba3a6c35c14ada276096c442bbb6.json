@@ -1,0 +1,49 @@
+{
+  "fetched_at": "2026-10-15T07:35:55+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_066570_B",
+  "payload_sha256": "7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 3,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득신탁계약해지결정)",
+        "rcept_no": "20260729000310",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260729",
+        "rm": ""
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(감자결정)",
+        "rcept_no": "20260212001501",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260212",
+        "rm": ""
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득신탁계약체결결정)",
+        "rcept_no": "20260129000359",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260129",
+        "rm": ""
+      }
+    ]
+  }
+}

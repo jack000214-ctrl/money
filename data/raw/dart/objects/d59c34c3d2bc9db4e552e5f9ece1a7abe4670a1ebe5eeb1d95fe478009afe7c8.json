@@ -1,0 +1,60 @@
+{
+  "fetched_at": "2026-10-16T00:27:16+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_039130_A",
+  "payload_sha256": "d59c34c3d2bc9db4e552e5f9ece1a7abe4670a1ebe5eeb1d95fe478009afe7c8",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 4,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "반기보고서 (2026.06)",
+        "rcept_no": "20260814004029",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260814",
+        "rm": ""
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "분기보고서 (2026.03)",
+        "rcept_no": "20260515002056",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260515",
+        "rm": ""
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "사업보고서 (2025.12)",
+        "rcept_no": "20260319001345",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20260319",
+        "rm": "연"
+      },
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "분기보고서 (2025.09)",
+        "rcept_no": "20251114002146",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251114",
+        "rm": ""
+      }
+    ]
+  }
+}

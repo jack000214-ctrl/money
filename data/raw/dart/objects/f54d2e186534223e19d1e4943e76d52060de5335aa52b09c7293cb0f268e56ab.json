@@ -1,0 +1,60 @@
+{
+  "fetched_at": "2026-10-19T05:02:46+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_028300_A",
+  "payload_sha256": "f54d2e186534223e19d1e4943e76d52060de5335aa52b09c7293cb0f268e56ab",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 4,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00199252",
+        "corp_name": "HLB",
+        "stock_code": "028300",
+        "corp_cls": "K",
+        "report_nm": "반기보고서 (2026.06)",
+        "rcept_no": "20260814002713",
+        "flr_nm": "HLB",
+        "rcept_dt": "20260814",
+        "rm": ""
+      },
+      {
+        "corp_code": "00199252",
+        "corp_name": "HLB",
+        "stock_code": "028300",
+        "corp_cls": "K",
+        "report_nm": "분기보고서 (2026.03)",
+        "rcept_no": "20260515001567",
+        "flr_nm": "HLB",
+        "rcept_dt": "20260515",
+        "rm": ""
+      },
+      {
+        "corp_code": "00199252",
+        "corp_name": "HLB",
+        "stock_code": "028300",
+        "corp_cls": "K",
+        "report_nm": "사업보고서 (2025.12)",
+        "rcept_no": "20260323001673",
+        "flr_nm": "HLB",
+        "rcept_dt": "20260323",
+        "rm": "연"
+      },
+      {
+        "corp_code": "00199252",
+        "corp_name": "HLB",
+        "stock_code": "028300",
+        "corp_cls": "K",
+        "report_nm": "분기보고서 (2025.09)",
+        "rcept_no": "20251114001408",
+        "flr_nm": "HLB",
+        "rcept_dt": "20251114",
+        "rm": ""
+      }
+    ]
+  }
+}

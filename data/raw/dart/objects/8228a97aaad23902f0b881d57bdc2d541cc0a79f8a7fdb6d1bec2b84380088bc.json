@@ -1,0 +1,27 @@
+{
+  "fetched_at": "2026-10-16T00:27:17+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_039130_B",
+  "payload_sha256": "8228a97aaad23902f0b881d57bdc2d541cc0a79f8a7fdb6d1bec2b84380088bc",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 1,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00269940",
+        "corp_name": "하나투어",
+        "stock_code": "039130",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20251202000219",
+        "flr_nm": "하나투어",
+        "rcept_dt": "20251202",
+        "rm": ""
+      }
+    ]
+  }
+}

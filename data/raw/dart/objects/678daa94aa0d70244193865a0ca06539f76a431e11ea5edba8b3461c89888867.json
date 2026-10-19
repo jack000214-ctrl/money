@@ -1,0 +1,82 @@
+{
+  "fetched_at": "2026-10-16T00:41:51+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_000080_C",
+  "payload_sha256": "678daa94aa0d70244193865a0ca06539f76a431e11ea5edba8b3461c89888867",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 6,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "증권발행실적보고서",
+        "rcept_no": "20260303002574",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260303",
+        "rm": ""
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "투자설명서",
+        "rcept_no": "20260303000107",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260303",
+        "rm": ""
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[발행조건확정]증권신고서(채무증권)",
+        "rcept_no": "20260227008711",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260227",
+        "rm": ""
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[발행조건확정]증권신고서(채무증권)",
+        "rcept_no": "20260224004338",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260224",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]증권신고서(채무증권)",
+        "rcept_no": "20260224004295",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260224",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "증권신고서(채무증권)",
+        "rcept_no": "20260213002731",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260213",
+        "rm": "정"
+      }
+    ]
+  }
+}

@@ -1,0 +1,479 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "028300",
+  "corp_code": "00199252",
+  "collected_at": "2026-10-19T05:39:00+00:00",
+  "source": "DART_LIST",
+  "since": "20251019",
+  "until": "20261019",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "f54d2e186534223e19d1e4943e76d52060de5335aa52b09c7293cb0f268e56ab",
+      "raw_locator": "data\\raw\\dart\\objects\\f54d2e186534223e19d1e4943e76d52060de5335aa52b09c7293cb0f268e56ab.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "7a693a7906ddde1de4623d32f10d0eb466891f86628b9b418b1a1983317567e3",
+      "raw_locator": "data\\raw\\dart\\objects\\7a693a7906ddde1de4623d32f10d0eb466891f86628b9b418b1a1983317567e3.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "raw_payload_sha256": "11c8c8bc8e7bb673e5b016a043048f0ee0a1a3835e6b933a5f8c90064eb2e9c0",
+      "raw_locator": "data\\raw\\dart\\objects\\11c8c8bc8e7bb673e5b016a043048f0ee0a1a3835e6b933a5f8c90064eb2e9c0.json"
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "55f8c9e3ec5a791b68970add8cedad25ab5da39af6a0caf6c36662fee7281d61",
+      "raw_locator": "data\\raw\\dart\\objects\\55f8c9e3ec5a791b68970add8cedad25ab5da39af6a0caf6c36662fee7281d61.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261015900184",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015900184"
+    },
+    {
+      "filing_date": "2026-10-12",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261012900350",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012900350"
+    },
+    {
+      "filing_date": "2026-10-12",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261012900006",
+      "description": "기타경영사항(자율공시)              (HLB 간암 1차 치료제(리보세라닙,캄렐리주맙 병용요법) FDA에 재승인 서류 제출)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012900006"
+    },
+    {
+      "filing_date": "2026-09-08",
+      "report_date": null,
+      "form": "EQUITY_CHANGE",
+      "accession_number": "20260908900429",
+      "description": "전환사채(해외전환사채포함)발행후만기전사채취득",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260908900429"
+    },
+    {
+      "filing_date": "2026-08-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260828900517",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260828900517"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260819900418",
+      "description": "증권발행결과(자율공시)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819900418"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260814902346",
+      "description": "파생상품거래손실발생",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814902346"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814002713",
+      "description": "반기보고서 (2026.06)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002713"
+    },
+    {
+      "filing_date": "2026-08-05",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260805000480",
+      "description": "주요사항보고서(전환사채권발행결정)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260805000480"
+    },
+    {
+      "filing_date": "2026-07-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260727900352",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260727900352"
+    },
+    {
+      "filing_date": "2026-07-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260716900712",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260716900712"
+    },
+    {
+      "filing_date": "2026-07-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260715900545",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260715900545"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260710900006",
+      "description": "기타경영사항(자율공시)              (HLB 간암 1차 치료제(리보세라닙,캄렐리주맙 병용요법)FDA로부터 보완요구서한(CRL,Complete Response Letter)수령)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710900006"
+    },
+    {
+      "filing_date": "2026-07-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260708900302",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260708900302"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260630900881",
+      "description": "기타시장안내(약명및영문명)              (영문상호)",
+      "filer": "코스닥시장본부",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630900881"
+    },
+    {
+      "filing_date": "2026-06-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260629900644",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260629900644"
+    },
+    {
+      "filing_date": "2026-06-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260623900258",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260623900258"
+    },
+    {
+      "filing_date": "2026-06-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260618900401",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260618900401"
+    },
+    {
+      "filing_date": "2026-06-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260615900239",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260615900239"
+    },
+    {
+      "filing_date": "2026-06-04",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260604900352",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260604900352"
+    },
+    {
+      "filing_date": "2026-05-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260529900809",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260529900809"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515001567",
+      "description": "분기보고서 (2026.03)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001567"
+    },
+    {
+      "filing_date": "2026-04-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260416900406",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260416900406"
+    },
+    {
+      "filing_date": "2026-04-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260415900472",
+      "description": "증권발행결과(자율공시)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260415900472"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260407003007",
+      "description": "주요사항보고서(전환사채권발행결정)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407003007"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260331902796",
+      "description": "대표이사변경",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331902796"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260331900515",
+      "description": "정기주주총회결과",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331900515"
+    },
+    {
+      "filing_date": "2026-03-25",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260325900560",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260325900560"
+    },
+    {
+      "filing_date": "2026-03-25",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260325900558",
+      "description": "기업설명회(IR)개최",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260325900558"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260323902200",
+      "description": "감사보고서제출",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323902200"
+    },
+    {
+      "filing_date": "2026-03-23",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260323001673",
+      "description": "사업보고서 (2025.12)",
+      "filer": "HLB",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323001673"
+    },
+    {
+      "filing_date": "2026-03-09",
+      "report_date": null,
+      "form": "EQUITY_CHANGE",
+      "accession_number": "20260309901237",
+      "description": "전환사채(해외전환사채포함)발행후만기전사채취득",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260309901237"
+    },
+    {
+      "filing_date": "2026-02-26",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260226900780",
+      "description": "주주총회소집결의",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260226900780"
+    },
+    {
+      "filing_date": "2026-02-26",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260226900749",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변동",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260226900749"
+    },
+    {
+      "filing_date": "2026-01-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260126900008",
+      "description": "기타경영사항(자율공시)              (HLB 간암 1차 치료제(리보세라닙,캄렐리주맙 병용요법) FDA에 재승인 서류 제출)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260126900008"
+    },
+    {
+      "filing_date": "2026-01-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260116900672",
+      "description": "전환가액의조정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260116900672"
+    },
+    {
+      "filing_date": "2025-12-31",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20251231000397",
+      "description": "증권발행실적보고서(합병등)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251231000397"
+    },
+    {
+      "filing_date": "2025-12-31",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20251231000386",
+      "description": "[기재정정]주요사항보고서(회사합병결정)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251231000386"
+    },
+    {
+      "filing_date": "2025-12-11",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251211900520",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251211900520"
+    },
+    {
+      "filing_date": "2025-12-08",
+      "report_date": null,
+      "form": "EQUITY_CHANGE",
+      "accession_number": "20251208900498",
+      "description": "전환사채(해외전환사채포함)발행후만기전사채취득",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251208900498"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251114900076",
+      "description": "증권발행결과(자율공시)",
+      "filer": "HLB",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114900076"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": "2025-09-30",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20251114001408",
+      "description": "분기보고서 (2025.09)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114001408"
+    },
+    {
+      "filing_date": "2025-11-03",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20251103000268",
+      "description": "주요사항보고서(신주인수권부사채권발행결정)",
+      "filer": "HLB",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251103000268"
+    }
+  ]
+}

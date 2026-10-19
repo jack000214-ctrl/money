@@ -1,0 +1,20 @@
+{"seq": 1, "type": "STALE_ASSESSMENT", "ticker": "005930", "name": "삼성전자", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 2, "type": "STALE_ASSESSMENT", "ticker": "000660", "name": "SK하이닉스", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 3, "type": "STALE_ASSESSMENT", "ticker": "066570", "name": "LG전자", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 4, "type": "STALE_ASSESSMENT", "ticker": "005380", "name": "현대차", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 5, "type": "STALE_ASSESSMENT", "ticker": "316140", "name": "우리금융지주", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 6, "type": "STALE_ASSESSMENT", "ticker": "0167A0", "name": "SOL AI반도체TOP2플러스", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 7, "type": "STALE_ASSESSMENT", "ticker": "000080", "name": "하이트진로", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 8, "type": "STALE_ASSESSMENT", "ticker": "039130", "name": "하나투어", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 9, "type": "STALE_ASSESSMENT", "ticker": "011810", "name": "STX", "detected_at": "2026-10-19T11:39:02+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 10, "type": "STALE_ASSESSMENT", "ticker": "005930", "name": "삼성전자", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 11, "type": "STALE_ASSESSMENT", "ticker": "000660", "name": "SK하이닉스", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 12, "type": "STALE_ASSESSMENT", "ticker": "066570", "name": "LG전자", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 13, "type": "STALE_ASSESSMENT", "ticker": "005380", "name": "현대차", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 14, "type": "STALE_ASSESSMENT", "ticker": "316140", "name": "우리금융지주", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 15, "type": "STALE_ASSESSMENT", "ticker": "0167A0", "name": "SOL AI반도체TOP2플러스", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 16, "type": "STALE_ASSESSMENT", "ticker": "000080", "name": "하이트진로", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 17, "type": "STALE_ASSESSMENT", "ticker": "039130", "name": "하나투어", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 18, "type": "STALE_ASSESSMENT", "ticker": "011810", "name": "STX", "detected_at": "2026-10-19T14:05:56+09:00", "reason": "NO_LIVE_ASSESSMENT", "message_detail": "계약을 통과하는 판단이 없다"}
+{"seq": 19, "type": "STALE_ASSESSMENT", "ticker": "087010", "name": "펩트론", "detected_at": "2026-10-19T16:50:45+09:00", "reason": "NO_LIVE_ASSESSMENT", "qty": 100.0}
+{"seq": 20, "type": "STALE_ASSESSMENT", "ticker": "454910", "name": "두산로보틱스", "detected_at": "2026-10-19T16:50:45+09:00", "reason": "NO_LIVE_ASSESSMENT", "qty": 162.0}

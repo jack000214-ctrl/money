@@ -1,0 +1,258 @@
+{
+  "fetched_at": "2026-10-16T00:41:53+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_000080_I",
+  "payload_sha256": "74b3a389749be9c54728590b5b01cd2d1330224d25f0bf7c8a2486bf55ed43e1",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 22,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "생산중단(자율공시)              ",
+        "rcept_no": "20260909800221",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260909",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "지속가능경영보고서등관련사항(자율공시)              ",
+        "rcept_no": "20260708800281",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260708",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "최대주주등소유주식변동신고서              ",
+        "rcept_no": "20260608800419",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260608",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "기업지배구조보고서공시              ",
+        "rcept_no": "20260528800220",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260528",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "최대주주등소유주식변동신고서              ",
+        "rcept_no": "20260522800295",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260522",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "최대주주등소유주식변동신고서              ",
+        "rcept_no": "20260518800575",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260518",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "기업가치제고계획(자율공시)              ",
+        "rcept_no": "20260327801254",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260327",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "정기주주총회결과              ",
+        "rcept_no": "20260326800518",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260326",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "감사보고서제출              ",
+        "rcept_no": "20260318800822",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260318",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "주주총회소집결의              ",
+        "rcept_no": "20260311800627",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260311",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]매출액또는손익구조30%(대규모법인은15%)이상변경              ",
+        "rcept_no": "20260311800509",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260311",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]현금ㆍ현물배당결정              ",
+        "rcept_no": "20260209800740",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260209",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "현금ㆍ현물배당결정              ",
+        "rcept_no": "20260209800676",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260209",
+        "rm": "유정"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "매출액또는손익구조30%(대규모법인은15%)이상변경              ",
+        "rcept_no": "20260128800427",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260128",
+        "rm": "유정"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "최대주주등소유주식변동신고서              ",
+        "rcept_no": "20260112800299",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20260112",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]타법인주식및출자증권취득결정              ",
+        "rcept_no": "20251230800338",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251230",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]타법인주식및출자증권취득결정(종속회사의주요경영사항)              ",
+        "rcept_no": "20251230800355",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251230",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "임시주주총회결과              ",
+        "rcept_no": "20251230800196",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251230",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "대표이사(대표집행임원)변경(안내공시)              ",
+        "rcept_no": "20251230800197",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251230",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "주주명부폐쇄기간또는기준일설정              ",
+        "rcept_no": "20251210800158",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251210",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "주주총회소집결의              ",
+        "rcept_no": "20251208800175",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251208",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00150244",
+        "corp_name": "하이트진로",
+        "stock_code": "000080",
+        "corp_cls": "Y",
+        "report_nm": "주주명부폐쇄기간또는기준일설정              ",
+        "rcept_no": "20251121800292",
+        "flr_nm": "하이트진로",
+        "rcept_dt": "20251121",
+        "rm": "유"
+      }
+    ]
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "schema_version": "filing-archive/1.0.0",
+  "asset_id": "000080",
+  "updated_at": "2026-10-16T00:41:54+00:00",
+  "filings": {
+    "20251114001326": {
+      "filing_date": "2025-11-14",
+      "form": "QUARTER_REPORT",
+      "description": "분기보고서 (2025.09)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114001326"
+    },
+    "20251121800292": {
+      "filing_date": "2025-11-21",
+      "form": "OTHER",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251121800292"
+    },
+    "20251208800175": {
+      "filing_date": "2025-12-08",
+      "form": "GOVERNANCE",
+      "description": "주주총회소집결의",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251208800175"
+    },
+    "20251210800158": {
+      "filing_date": "2025-12-10",
+      "form": "OTHER",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251210800158"
+    },
+    "20251230800196": {
+      "filing_date": "2025-12-30",
+      "form": "GOVERNANCE",
+      "description": "임시주주총회결과",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800196"
+    },
+    "20251230800197": {
+      "filing_date": "2025-12-30",
+      "form": "OTHER",
+      "description": "대표이사(대표집행임원)변경(안내공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800197"
+    },
+    "20251230800338": {
+      "filing_date": "2025-12-30",
+      "form": "OTHER",
+      "description": "[기재정정]타법인주식및출자증권취득결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800338"
+    },
+    "20251230800355": {
+      "filing_date": "2025-12-30",
+      "form": "OTHER",
+      "description": "[기재정정]타법인주식및출자증권취득결정(종속회사의주요경영사항)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800355"
+    },
+    "20260112800299": {
+      "filing_date": "2026-01-12",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260112800299"
+    },
+    "20260128800427": {
+      "filing_date": "2026-01-28",
+      "form": "PROVISIONAL_RESULT",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변경",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800427"
+    },
+    "20260209800676": {
+      "filing_date": "2026-02-09",
+      "form": "OTHER",
+      "description": "현금ㆍ현물배당결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260209800676"
+    },
+    "20260209800740": {
+      "filing_date": "2026-02-09",
+      "form": "OTHER",
+      "description": "[기재정정]현금ㆍ현물배당결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260209800740"
+    },
+    "20260213002731": {
+      "filing_date": "2026-02-13",
+      "form": "MATERIAL_EVENT",
+      "description": "증권신고서(채무증권)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213002731"
+    },
+    "20260224004295": {
+      "filing_date": "2026-02-24",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]증권신고서(채무증권)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260224004295"
+    },
+    "20260224004338": {
+      "filing_date": "2026-02-24",
+      "form": "MATERIAL_EVENT",
+      "description": "[발행조건확정]증권신고서(채무증권)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260224004338"
+    },
+    "20260227008711": {
+      "filing_date": "2026-02-27",
+      "form": "MATERIAL_EVENT",
+      "description": "[발행조건확정]증권신고서(채무증권)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260227008711"
+    },
+    "20260303000107": {
+      "filing_date": "2026-03-03",
+      "form": "MATERIAL_EVENT",
+      "description": "투자설명서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260303000107"
+    },
+    "20260303002574": {
+      "filing_date": "2026-03-03",
+      "form": "OTHER",
+      "description": "증권발행실적보고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260303002574"
+    },
+    "20260311800509": {
+      "filing_date": "2026-03-11",
+      "form": "PROVISIONAL_RESULT",
+      "description": "[기재정정]매출액또는손익구조30%(대규모법인은15%)이상변경",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260311800509"
+    },
+    "20260311800627": {
+      "filing_date": "2026-03-11",
+      "form": "GOVERNANCE",
+      "description": "주주총회소집결의",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260311800627"
+    },
+    "20260318000752": {
+      "filing_date": "2026-03-18",
+      "form": "ANNUAL_REPORT",
+      "description": "사업보고서 (2025.12)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318000752"
+    },
+    "20260318800822": {
+      "filing_date": "2026-03-18",
+      "form": "AUDIT_REPORT",
+      "description": "감사보고서제출",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318800822"
+    },
+    "20260326800518": {
+      "filing_date": "2026-03-26",
+      "form": "GOVERNANCE",
+      "description": "정기주주총회결과",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326800518"
+    },
+    "20260327801254": {
+      "filing_date": "2026-03-27",
+      "form": "OTHER",
+      "description": "기업가치제고계획(자율공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260327801254"
+    },
+    "20260515001043": {
+      "filing_date": "2026-05-15",
+      "form": "QUARTER_REPORT",
+      "description": "분기보고서 (2026.03)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001043"
+    },
+    "20260518800575": {
+      "filing_date": "2026-05-18",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260518800575"
+    },
+    "20260522800295": {
+      "filing_date": "2026-05-22",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260522800295"
+    },
+    "20260528800220": {
+      "filing_date": "2026-05-28",
+      "form": "OTHER",
+      "description": "기업지배구조보고서공시",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260528800220"
+    },
+    "20260608800419": {
+      "filing_date": "2026-06-08",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260608800419"
+    },
+    "20260708800281": {
+      "filing_date": "2026-07-08",
+      "form": "OTHER",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260708800281"
+    },
+    "20260813000855": {
+      "filing_date": "2026-08-13",
+      "form": "HALF_REPORT",
+      "description": "반기보고서 (2026.06)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813000855"
+    },
+    "20260909800221": {
+      "filing_date": "2026-09-09",
+      "form": "OTHER",
+      "description": "생산중단(자율공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260909800221"
+    }
+  }
+}

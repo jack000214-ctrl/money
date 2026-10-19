@@ -1,0 +1,367 @@
+{
+  "schema_version": "filing-archive/1.0.0",
+  "asset_id": "011810",
+  "updated_at": "2026-10-19T00:34:44+00:00",
+  "filings": {
+    "20251128801260": {
+      "filing_date": "2025-11-28",
+      "form": "GOVERNANCE",
+      "description": "주주총회소집결의",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128801260"
+    },
+    "20251128801262": {
+      "filing_date": "2025-11-28",
+      "form": "OTHER",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251128801262"
+    },
+    "20251205800712": {
+      "filing_date": "2025-12-05",
+      "form": "OTHER",
+      "description": "[기재정정]금전대여결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251205800712"
+    },
+    "20251205800714": {
+      "filing_date": "2025-12-05",
+      "form": "OTHER",
+      "description": "타인에대한담보제공결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251205800714"
+    },
+    "20251208800543": {
+      "filing_date": "2025-12-08",
+      "form": "OTHER",
+      "description": "대출원리금연체사실발생",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251208800543"
+    },
+    "20251209800193": {
+      "filing_date": "2025-12-09",
+      "form": "OTHER",
+      "description": "[기재정정]금전대여결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251209800193"
+    },
+    "20251216800914": {
+      "filing_date": "2025-12-16",
+      "form": "OTHER",
+      "description": "대출원리금연체사실발생",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251216800914"
+    },
+    "20251219000324": {
+      "filing_date": "2025-12-19",
+      "form": "MATERIAL_EVENT",
+      "description": "주요사항보고서(회생절차개시신청)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251219000324"
+    },
+    "20251222000449": {
+      "filing_date": "2025-12-22",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(회생절차개시신청)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251222000449"
+    },
+    "20251222800705": {
+      "filing_date": "2025-12-22",
+      "form": "OTHER",
+      "description": "대출원리금연체사실발생",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251222800705"
+    },
+    "20251230800232": {
+      "filing_date": "2025-12-30",
+      "form": "GOVERNANCE",
+      "description": "[첨부추가]임시주주총회결과",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251230800232"
+    },
+    "20260128800758": {
+      "filing_date": "2026-01-28",
+      "form": "OTHER",
+      "description": "자본잠식50%이상또는매출액50억원미만사실발생",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800758"
+    },
+    "20260128800791": {
+      "filing_date": "2026-01-28",
+      "form": "OTHER",
+      "description": "투자유의안내",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800791"
+    },
+    "20260316801961": {
+      "filing_date": "2026-03-16",
+      "form": "GOVERNANCE",
+      "description": "주주총회소집결의",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316801961"
+    },
+    "20260323001638": {
+      "filing_date": "2026-03-23",
+      "form": "ANNUAL_REPORT",
+      "description": "사업보고서 (2025.12)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323001638"
+    },
+    "20260323802106": {
+      "filing_date": "2026-03-23",
+      "form": "AUDIT_REPORT",
+      "description": "감사보고서제출",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802106"
+    },
+    "20260323802360": {
+      "filing_date": "2026-03-23",
+      "form": "OTHER",
+      "description": "투자유의안내              (상장폐지기준 해당)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802360"
+    },
+    "20260323802444": {
+      "filing_date": "2026-03-23",
+      "form": "AUDIT_REPORT",
+      "description": "[기재정정]감사보고서제출",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323802444"
+    },
+    "20260327802512": {
+      "filing_date": "2026-03-27",
+      "form": "OTHER",
+      "description": "투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260327802512"
+    },
+    "20260331801604": {
+      "filing_date": "2026-03-31",
+      "form": "GOVERNANCE",
+      "description": "정기주주총회결과",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331801604"
+    },
+    "20260403003189": {
+      "filing_date": "2026-04-03",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(회생절차개시신청)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260403003189"
+    },
+    "20260406800930": {
+      "filing_date": "2026-04-06",
+      "form": "OTHER",
+      "description": "회생절차개시결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260406800930"
+    },
+    "20260413800789": {
+      "filing_date": "2026-04-13",
+      "form": "OTHER",
+      "description": "기타시장안내              (상장폐지 이의신청서 제출)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260413800789"
+    },
+    "20260428800916": {
+      "filing_date": "2026-04-28",
+      "form": "OTHER",
+      "description": "기타시장안내              (개선기간 부여)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260428800916"
+    },
+    "20260429801251": {
+      "filing_date": "2026-04-29",
+      "form": "OTHER",
+      "description": "단일판매ㆍ공급계약해지",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260429801251"
+    },
+    "20260430801870": {
+      "filing_date": "2026-04-30",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430801870"
+    },
+    "20260515001922": {
+      "filing_date": "2026-05-15",
+      "form": "QUARTER_REPORT",
+      "description": "분기보고서 (2026.03)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001922"
+    },
+    "20260601801725": {
+      "filing_date": "2026-06-01",
+      "form": "OTHER",
+      "description": "기업지배구조보고서공시",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260601801725"
+    },
+    "20260604800835": {
+      "filing_date": "2026-06-04",
+      "form": "OTHER",
+      "description": "투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260604800835"
+    },
+    "20260605800791": {
+      "filing_date": "2026-06-05",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260605800791"
+    },
+    "20260622800210": {
+      "filing_date": "2026-06-22",
+      "form": "OTHER",
+      "description": "기타시장안내              (개선기간 종료 및 향후 절차 안내)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260622800210"
+    },
+    "20260626800861": {
+      "filing_date": "2026-06-26",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626800861"
+    },
+    "20260626800911": {
+      "filing_date": "2026-06-26",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626800911"
+    },
+    "20260630800871": {
+      "filing_date": "2026-06-30",
+      "form": "OTHER",
+      "description": "기타시장안내              (개선계획 이행 여부 심의 요청)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630800871"
+    },
+    "20260702800957": {
+      "filing_date": "2026-07-02",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702800957"
+    },
+    "20260729800716": {
+      "filing_date": "2026-07-29",
+      "form": "OTHER",
+      "description": "기타시장안내              (상장적격성 실질심사 결과 안내)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800716"
+    },
+    "20260805800852": {
+      "filing_date": "2026-08-05",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260805800852"
+    },
+    "20260813801081": {
+      "filing_date": "2026-08-13",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260813801081"
+    },
+    "20260814004103": {
+      "filing_date": "2026-08-14",
+      "form": "HALF_REPORT",
+      "description": "[첨부추가]반기보고서 (2026.06)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814004103"
+    },
+    "20260814803209": {
+      "filing_date": "2026-08-14",
+      "form": "OTHER",
+      "description": "반기검토의견부적정,의견거절또는완전자본잠식사실발생",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814803209"
+    },
+    "20260814803848": {
+      "filing_date": "2026-08-14",
+      "form": "OTHER",
+      "description": "기타시장안내              (상장적격성 실질심사 사유 추가 관련 안내)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814803848"
+    },
+    "20260820800237": {
+      "filing_date": "2026-08-20",
+      "form": "OTHER",
+      "description": "기타시장안내              (상장폐지 이의신청서 제출)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260820800237"
+    },
+    "20260914800379": {
+      "filing_date": "2026-09-14",
+      "form": "OTHER",
+      "description": "기타시장안내              (상장공시위원회 개최기한 연장)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260914800379"
+    },
+    "20260916000537": {
+      "filing_date": "2026-09-16",
+      "form": "MATERIAL_EVENT",
+      "description": "주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000537"
+    },
+    "20260916000539": {
+      "filing_date": "2026-09-16",
+      "form": "MATERIAL_EVENT",
+      "description": "주요사항보고서(감자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000539"
+    },
+    "20260916000543": {
+      "filing_date": "2026-09-16",
+      "form": "MATERIAL_EVENT",
+      "description": "주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000543"
+    },
+    "20260916800429": {
+      "filing_date": "2026-09-16",
+      "form": "OTHER",
+      "description": "[기재정정]투자판단관련주요경영사항",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800429"
+    },
+    "20260916800442": {
+      "filing_date": "2026-09-16",
+      "form": "OTHER",
+      "description": "회생계획인가",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800442"
+    },
+    "20260921800442": {
+      "filing_date": "2026-09-21",
+      "form": "OTHER",
+      "description": "최대주주변경",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921800442"
+    },
+    "20260921800460": {
+      "filing_date": "2026-09-21",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서(최대주주변경시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921800460"
+    },
+    "20260930000771": {
+      "filing_date": "2026-09-30",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260930000771"
+    },
+    "20261012000507": {
+      "filing_date": "2026-10-13",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(감자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012000507"
+    },
+    "20261012000510": {
+      "filing_date": "2026-10-13",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012000510"
+    },
+    "20261013000422": {
+      "filing_date": "2026-10-13",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000422"
+    },
+    "20261013000426": {
+      "filing_date": "2026-10-13",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(감자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000426"
+    },
+    "20261013000428": {
+      "filing_date": "2026-10-14",
+      "form": "MATERIAL_EVENT",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013000428"
+    },
+    "20261013800433": {
+      "filing_date": "2026-10-13",
+      "form": "OTHER",
+      "description": "최대주주변경",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013800433"
+    },
+    "20261013800450": {
+      "filing_date": "2026-10-13",
+      "form": "OTHER",
+      "description": "최대주주등소유주식변동신고서(최대주주변경시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013800450"
+    },
+    "20261015800819": {
+      "filing_date": "2026-10-15",
+      "form": "OTHER",
+      "description": "기타시장안내              (개선기간 부여 결정)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800819"
+    },
+    "20261015800828": {
+      "filing_date": "2026-10-15",
+      "form": "OTHER",
+      "description": "상장적격성실질심사관련주요개선계획(자율공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800828"
+    }
+  }
+}

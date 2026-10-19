@@ -1,0 +1,148 @@
+{
+  "fetched_at": "2026-10-19T00:34:41+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_011810_B",
+  "payload_sha256": "db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 12,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(유상증자결정)",
+        "rcept_no": "20261013000428",
+        "flr_nm": "STX",
+        "rcept_dt": "20261014",
+        "rm": ""
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(감자결정)",
+        "rcept_no": "20261013000426",
+        "flr_nm": "STX",
+        "rcept_dt": "20261013",
+        "rm": ""
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(유상증자결정)",
+        "rcept_no": "20261013000422",
+        "flr_nm": "STX",
+        "rcept_dt": "20261013",
+        "rm": ""
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(유상증자결정)",
+        "rcept_no": "20261012000510",
+        "flr_nm": "STX",
+        "rcept_dt": "20261013",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(감자결정)",
+        "rcept_no": "20261012000507",
+        "flr_nm": "STX",
+        "rcept_dt": "20261013",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(유상증자결정)",
+        "rcept_no": "20260930000771",
+        "flr_nm": "STX",
+        "rcept_dt": "20260930",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(유상증자결정)",
+        "rcept_no": "20260916000543",
+        "flr_nm": "STX",
+        "rcept_dt": "20260916",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(감자결정)",
+        "rcept_no": "20260916000539",
+        "flr_nm": "STX",
+        "rcept_dt": "20260916",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(유상증자결정)",
+        "rcept_no": "20260916000537",
+        "flr_nm": "STX",
+        "rcept_dt": "20260916",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(회생절차개시신청)",
+        "rcept_no": "20260403003189",
+        "flr_nm": "STX",
+        "rcept_dt": "20260403",
+        "rm": ""
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(회생절차개시신청)",
+        "rcept_no": "20251222000449",
+        "flr_nm": "STX",
+        "rcept_dt": "20251222",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00138297",
+        "corp_name": "STX",
+        "stock_code": "011810",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(회생절차개시신청)",
+        "rcept_no": "20251219000324",
+        "flr_nm": "STX",
+        "rcept_dt": "20251219",
+        "rm": "정"
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "_note": "산문만 여기 둔다. 숫자는 build_decision_report.py 가 엔진·DART 원문에서 만든다.",
+  "decision": {
+    "headline": "TIGER 차이나휴머노이드로봇 의사결정 분석",
+    "reason": "TIGER 차이나휴머노이드로봇(0053L0)의 재무 및 밸류에이션 기반 분석 리포트입니다."
+  },
+  "sectionTitles": {
+    "incomeStatement": {
+      "title": "손익 - TIGER 차이나휴머노이드로봇 마진 및 수익 구조",
+      "conclusion": "매출 및 영업이익 추이와 마진 구조 분석입니다."
+    },
+    "cashFlow": {
+      "title": "현금흐름 - TIGER 차이나휴머노이드로봇 FCF 및 투자 구조",
+      "conclusion": "영업활동현금흐름과 Capex 및 잉여현금흐름(FCF) 추이입니다."
+    },
+    "valuation": {
+      "title": "밸류에이션 - 내재가치 및 시나리오 분석",
+      "conclusion": "DCF 및 시나리오별 내재가치와 요구수익률 기준 적정주가 분석입니다.",
+      "entryExplanation": "요구수익률과 확률가중치에 기반한 목표 진입가 기준입니다."
+    },
+    "peers": {
+      "title": "동종사 비교",
+      "conclusion": "동종 섹터 기업과의 비교 지표입니다."
+    }
+  },
+  "interpretations": {
+    "incomeStatement": {
+      "매출": "매출 성장 추이",
+      "매출총이익률": "수익성 지표",
+      "판매비와관리비": "비용 통제 지표",
+      "영업이익": "핵심 영업 성과"
+    }
+  },
+  "marketPositioning": {
+    "title": "시장 포지셔닝",
+    "conclusion": "수급 및 포지셔닝 분석입니다.",
+    "items": [
+      {
+        "id": "gap",
+        "label": "시장 포지셔닝",
+        "status": "UNKNOWN",
+        "value": "데이터 수집 대기",
+        "comparison": "-",
+        "asOf": "-",
+        "interpretation": "지분 공시 및 수급 데이터 스냅샷 대기 중입니다.",
+        "limitation": "공시 원문 기반 데이터가 수집되면 반영됩니다.",
+        "signal": "plain"
+      }
+    ],
+    "decisionUse": "검증된 재무 스냅샷과 IPS 한도 기준으로 판정됩니다."
+  },
+  "peers": {
+    "rows": []
+  },
+  "detailedAnalysis": {
+    "title": "TIGER 차이나휴머노이드로봇 투자 판단 상세",
+    "paragraphs": [
+      "TIGER 차이나휴머노이드로봇(0053L0) 종목의 실적 및 가격 추세에 대한 분석입니다."
+    ],
+    "confirmed": [
+      "TIGER 차이나휴머노이드로봇 DART/EDGAR 공시 및 재무 스냅샷이 확인되었습니다."
+    ],
+    "unresolved": [
+      "매크로 변수 및 향후 실적 가이던스 확인 필요"
+    ],
+    "failureSignals": [
+      "영업이익률 급락 또는 현금흐름 훼손 시 재평가"
+    ],
+    "caveats": [
+      "본 리포트는 자동 수집된 공시 데이터를 기반으로 산출되었습니다."
+    ]
+  },
+  "sources": [
+    "DART 공시 시스템 / SEC EDGAR",
+    "한국거래소(KRX) / Yahoo Finance"
+  ]
+}

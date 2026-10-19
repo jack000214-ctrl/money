@@ -1,0 +1,40 @@
+{
+  "schema_version": "watch-config/1.0.0",
+  "timezone": "Asia/Seoul",
+  "window": {
+    "start": "08:00",
+    "end": "19:00"
+  },
+  "interval_minutes": 60,
+  "markets": [
+    "KR"
+  ],
+  "channels": {
+    "console": false,
+    "file": false,
+    "dashboard": true,
+    "email": true
+  },
+  "email": {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "jack000214@gmail.com",
+    "smtp_from": "jack000214@gmail.com",
+    "recipients": [
+      {
+        "name": "YDN",
+        "address": "jack000214@gmail.com",
+        "enabled": true
+      }
+    ]
+  },
+  "review": {
+    "stale_after_days": 90,
+    "price_drift_pct": 15,
+    "earnings_within_business_days": 5
+  },
+  "briefing": {
+    "enabled": true,
+    "time": "08:30"
+  }
+}

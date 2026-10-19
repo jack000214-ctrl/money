@@ -1,0 +1,126 @@
+{
+  "fetched_at": "2026-10-16T00:15:02+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_005930_B",
+  "payload_sha256": "e693372ec4fff5d86a080b3613d533c38d154df9a749d45a66a2ace4fd471fb3",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 10,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20260821000616",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260821",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260713000395",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260713",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260707000403",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260707",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260318001203",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260318",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20260318001062",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260318",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260129000004",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260129",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20260129000003",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260129",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20260126000001",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260126",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득결정)",
+        "rcept_no": "20260107000715",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20260107",
+        "rm": ""
+      },
+      {
+        "corp_code": "00126380",
+        "corp_name": "삼성전자",
+        "stock_code": "005930",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식처분결정)",
+        "rcept_no": "20251030000502",
+        "flr_nm": "삼성전자",
+        "rcept_dt": "20251030",
+        "rm": ""
+      }
+    ]
+  }
+}

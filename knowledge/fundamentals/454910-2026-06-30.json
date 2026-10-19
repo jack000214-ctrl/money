@@ -1,0 +1,496 @@
+{
+  "schema_version": "1.1.0",
+  "instrument_id": "454910",
+  "company_name": "두산로보틱스",
+  "corp_code": "01105153",
+  "currency": "KRW",
+  "period_end": "2026-06-30",
+  "created_at": "2026-10-15T14:03:34+09:00",
+  "source": "opendart_fnlttSinglAcntAll",
+  "fs_div": "CFS",
+  "definitions": {
+    "capex": "유형자산의 취득만. 무형자산 취득은 intangible_capex_ttm 에 따로 둔다 (EDGAR 판의 PaymentsToAcquirePropertyPlantAndEquipment 와 같은 기준)",
+    "long_term_debt": "총차입. 차입금·사채·전환사채·리스부채를 모두 합했다 (분류별 합은 debt_by_category, 계정명은 debt_detail). 리스를 뺀 기준을 쓰려면 LEASE 를 덜어내고 다시 센다",
+    "debt_by_category": "BORROWING=차입금 BOND=사채 CONVERTIBLE=전환사채·신주인수권부사채 LEASE=리스부채. 리스 포함 여부는 방법론에 따라 갈리므로 합계만 주지 않고 분류를 함께 낸다",
+    "debt_basis": "MATCHED_LINE_ITEMS=차입 계정을 실제로 찾아 합했다. NO_DEBT_LINE_ITEMS=재무상태표는 읽혔는데 차입 계정이 없어 0으로 뒀다(무차입). 후자에서 0은 결측이 아니라 관측이다",
+    "shares_diluted": "지배기업 소유주지분 순이익 ÷ 주당이익. 어느 주당이익을 썼는지는 eps_basis 참조 — BASIC_NO_DILUTED_DISCLOSED 면 희석 공시가 없어 기본으로 계산한 값이라 희석증권이 생기면 틀린다",
+    "cash_flow_period": "현금흐름표는 연초 누계로 들어오므로 차감 복원했다 (derived=true 인 분기)",
+    "income_period": "손익계산서 thstrm_amount 는 이미 3개월이다. 4분기만 연간 − 3분기누계로 만들었다"
+  },
+  "quarters": {
+    "ocf": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": null,
+        "val": -1173393947.0,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": null,
+        "val": -5246512335.0,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": null,
+        "val": -10949913010.0,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": null,
+        "val": -7753300433.0,
+        "derived": true
+      }
+    ],
+    "capex": [
+      {
+        "fy": 2025,
+        "quarter": 3,
+        "end": "2025-09-30",
+        "filed": null,
+        "val": 2978178122.0,
+        "derived": true
+      },
+      {
+        "fy": 2025,
+        "quarter": 4,
+        "end": "2025-12-31",
+        "filed": null,
+        "val": 4723278362.0,
+        "derived": true
+      },
+      {
+        "fy": 2026,
+        "quarter": 1,
+        "end": "2026-03-31",
+        "filed": null,
+        "val": 3285204094.0,
+        "derived": false
+      },
+      {
+        "fy": 2026,
+        "quarter": 2,
+        "end": "2026-06-30",
+        "filed": null,
+        "val": 2509331996.0,
+        "derived": true
+      }
+    ]
+  },
+  "values": {
+    "ocf_ttm": -25123119725.0,
+    "capex_ttm": 13495992574.0,
+    "fcf_ttm": -38619112299.0,
+    "shares_diluted": 64935507.065989845,
+    "cash_and_equivalents": 96516791938.0,
+    "short_term_investments": 155843956303.0,
+    "long_term_debt": 83666903943.0,
+    "net_debt": -168693844298.0
+  },
+  "intangible_capex_ttm": 2088989179.0,
+  "short_term_investments_detail": [
+    {
+      "label": "단기금융상품",
+      "account_id": "ifrs-full_ShorttermDepositsNotClassifiedAsCashEquivalents",
+      "value": 155843956303.0
+    }
+  ],
+  "debt_detail": [
+    {
+      "label": "유동리스부채",
+      "account_id": "ifrs-full_CurrentLeaseLiabilities",
+      "category": "LEASE",
+      "value": 3763273126.0
+    },
+    {
+      "label": "비유동리스부채",
+      "account_id": "ifrs-full_NoncurrentLeaseLiabilities",
+      "category": "LEASE",
+      "value": 29903630817.0
+    },
+    {
+      "label": "장기차입금",
+      "account_id": "ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived",
+      "category": "BORROWING",
+      "value": 50000000000.0
+    }
+  ],
+  "debt_by_category": {
+    "LEASE": 33666903943.0,
+    "BORROWING": 50000000000.0
+  },
+  "debt_basis": "MATCHED_LINE_ITEMS",
+  "eps_basis": "DILUTED",
+  "expense_lines": [
+    {
+      "key": "expense_0",
+      "label": "판매비와관리비"
+    }
+  ],
+  "income_statement": {
+    "revenue": {
+      "tag": "ifrs-full_Revenue",
+      "ttm": 56135372231.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "val": 10034333350.0,
+          "derived": false,
+          "end": "2024-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "val": 11490277346.0,
+          "derived": true,
+          "end": "2024-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "val": 5279512001.0,
+          "derived": false,
+          "end": "2025-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "val": 4532272039.0,
+          "derived": false,
+          "end": "2025-06-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "val": 10164933789.0,
+          "derived": false,
+          "end": "2025-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "val": 13001620525.0,
+          "derived": true,
+          "end": "2025-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "val": 15294798751.0,
+          "derived": false,
+          "end": "2026-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "val": 17674019166.0,
+          "derived": false,
+          "end": "2026-06-30",
+          "filed": null
+        }
+      ]
+    },
+    "gross_profit": {
+      "tag": "ifrs-full_GrossProfit",
+      "ttm": 12728744818.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "val": 2889335110.0,
+          "derived": false,
+          "end": "2024-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "val": -653277162.0,
+          "derived": true,
+          "end": "2024-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "val": 610007121.0,
+          "derived": false,
+          "end": "2025-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "val": 360663117.0,
+          "derived": false,
+          "end": "2025-06-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "val": 2131936396.0,
+          "derived": false,
+          "end": "2025-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "val": 1316142749.0,
+          "derived": true,
+          "end": "2025-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "val": 4331125309.0,
+          "derived": false,
+          "end": "2026-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "val": 4949540364.0,
+          "derived": false,
+          "end": "2026-06-30",
+          "filed": null
+        }
+      ]
+    },
+    "operating_income": {
+      "tag": "dart_OperatingIncomeLoss",
+      "ttm": -58202298848.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "val": -9588228365.0,
+          "derived": false,
+          "end": "2024-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "val": -16857747365.0,
+          "derived": true,
+          "end": "2024-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "val": -12106456584.0,
+          "derived": false,
+          "end": "2025-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "val": -15650237991.0,
+          "derived": false,
+          "end": "2025-06-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "val": -15265456197.0,
+          "derived": false,
+          "end": "2025-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "val": -16450156818.0,
+          "derived": true,
+          "end": "2025-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "val": -12069485926.0,
+          "derived": false,
+          "end": "2026-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "val": -14417199907.0,
+          "derived": false,
+          "end": "2026-06-30",
+          "filed": null
+        }
+      ]
+    },
+    "net_income": {
+      "tag": "ifrs-full_ProfitLoss",
+      "ttm": -51468637031.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "val": -6881960502.0,
+          "derived": false,
+          "end": "2024-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "val": -23126464633.0,
+          "derived": true,
+          "end": "2024-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "val": -9417559053.0,
+          "derived": false,
+          "end": "2025-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "val": -16566633373.0,
+          "derived": false,
+          "end": "2025-06-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "val": -12857557431.0,
+          "derived": false,
+          "end": "2025-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "val": -16653591682.0,
+          "derived": true,
+          "end": "2025-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "val": -9165193026.0,
+          "derived": false,
+          "end": "2026-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "val": -12792294892.0,
+          "derived": false,
+          "end": "2026-06-30",
+          "filed": null
+        }
+      ]
+    },
+    "expense_0": {
+      "tag": "dart_TotalSellingGeneralAdministrativeExpenses",
+      "ttm": 70931043666.0,
+      "quarters": [
+        {
+          "fy": 2024,
+          "quarter": 3,
+          "val": 12477563475.0,
+          "derived": false,
+          "end": "2024-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2024,
+          "quarter": 4,
+          "val": 16204470203.0,
+          "derived": true,
+          "end": "2024-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 1,
+          "val": 12716463705.0,
+          "derived": false,
+          "end": "2025-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 2,
+          "val": 16010901108.0,
+          "derived": false,
+          "end": "2025-06-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 3,
+          "val": 17397392593.0,
+          "derived": false,
+          "end": "2025-09-30",
+          "filed": null
+        },
+        {
+          "fy": 2025,
+          "quarter": 4,
+          "val": 17766299567.0,
+          "derived": true,
+          "end": "2025-12-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 1,
+          "val": 16400611235.0,
+          "derived": false,
+          "end": "2026-03-31",
+          "filed": null
+        },
+        {
+          "fy": 2026,
+          "quarter": 2,
+          "val": 19366740271.0,
+          "derived": false,
+          "end": "2026-06-30",
+          "filed": null
+        }
+      ]
+    }
+  },
+  "share_count_cross_check": 64819980.0,
+  "raw_locator": "data\\raw\\dart\\objects\\b2578d2373818d4a4cfc662d40f792166a10b414be8cb2c81165afb90579d993.json",
+  "raw_payload_sha256": "b2578d2373818d4a4cfc662d40f792166a10b414be8cb2c81165afb90579d993",
+  "fundamentals_id": "FUND-b1c58e5349a5939408eb"
+}

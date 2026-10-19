@@ -1,0 +1,126 @@
+{
+  "fetched_at": "2026-10-16T00:22:56+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_316140_B",
+  "payload_sha256": "db97ffb2c290395cfd12aaaca36ee67045b04a2dff96e351cf1bebf6d5d8ec50",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 10,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(상각형조건부자본증권발행결정)",
+        "rcept_no": "20260807000575",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260807",
+        "rm": ""
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(상각형조건부자본증권발행결정)",
+        "rcept_no": "20260803000313",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260803",
+        "rm": "정"
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득신탁계약체결결정)",
+        "rcept_no": "20260724000359",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260724",
+        "rm": ""
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득신탁계약해지결정)",
+        "rcept_no": "20260610000461",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260610",
+        "rm": ""
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(주식교환ㆍ이전결정)",
+        "rcept_no": "20260514001192",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260514",
+        "rm": ""
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(주식교환ㆍ이전결정)",
+        "rcept_no": "20260429000768",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260429",
+        "rm": "정"
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(주식교환ㆍ이전결정)",
+        "rcept_no": "20260424000511",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260424",
+        "rm": "정"
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(상각형조건부자본증권발행결정)",
+        "rcept_no": "20260227007054",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260227",
+        "rm": "정"
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(자기주식취득신탁계약체결결정)",
+        "rcept_no": "20260206001097",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20260206",
+        "rm": ""
+      },
+      {
+        "corp_code": "01350869",
+        "corp_name": "우리금융지주",
+        "stock_code": "316140",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]주요사항보고서(상각형조건부자본증권발행결정)",
+        "rcept_no": "20251016000086",
+        "flr_nm": "우리금융지주",
+        "rcept_dt": "20251016",
+        "rm": ""
+      }
+    ]
+  }
+}

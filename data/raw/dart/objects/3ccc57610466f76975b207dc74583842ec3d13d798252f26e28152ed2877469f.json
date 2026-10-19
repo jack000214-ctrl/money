@@ -1,0 +1,82 @@
+{
+  "fetched_at": "2026-10-15T07:35:56+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_066570_C",
+  "payload_sha256": "3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 6,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "증권발행실적보고서",
+        "rcept_no": "20260528000640",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260528",
+        "rm": ""
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "투자설명서",
+        "rcept_no": "20260528000019",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260528",
+        "rm": ""
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "[발행조건확정]증권신고서(채무증권)",
+        "rcept_no": "20260527000588",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260527",
+        "rm": ""
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "[발행조건확정]증권신고서(채무증권)",
+        "rcept_no": "20260521000502",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260521",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]증권신고서(채무증권)",
+        "rcept_no": "20260521000489",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260521",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00401731",
+        "corp_name": "LG전자",
+        "stock_code": "066570",
+        "corp_cls": "Y",
+        "report_nm": "증권신고서(채무증권)",
+        "rcept_no": "20260515002746",
+        "flr_nm": "LG전자",
+        "rcept_dt": "20260515",
+        "rm": "정"
+      }
+    ]
+  }
+}

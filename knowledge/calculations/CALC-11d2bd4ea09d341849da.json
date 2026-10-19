@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.1.0",
+  "calculation_id": "CALC-11d2bd4ea09d341849da",
+  "model": "negative_fcf",
+  "model_version": "1.0.0",
+  "instrument_id": "005380",
+  "created_at": "2026-10-16T09:46:01+09:00",
+  "source_ids": [
+    "FUND-1dcd8d3bd86d0029d84e"
+  ],
+  "inputs": {
+    "price": 294500.0,
+    "shares": 262015486.9556179,
+    "fcf": -10614886000000.0,
+    "net_debt": 164424744000000.0,
+    "discount_rate_pct": 10.0,
+    "terminal_growth_pct": 2.5,
+    "years": 10,
+    "horizon_months": 24,
+    "scenario_growth_pct": {
+      "bear": 0.0,
+      "base": 0.0,
+      "bull": 0.0
+    },
+    "input_provenance": {
+      "verified": true,
+      "source": "opendart_fnlttSinglAcntAll",
+      "fundamentals_id": "FUND-1dcd8d3bd86d0029d84e",
+      "period_end": "2026-06-30",
+      "fundamentals_sha256": "",
+      "share_count": {
+        "origin": "SNAPSHOT",
+        "selected_shares": 262015486.9556179,
+        "snapshot_shares": 262015486.9556179,
+        "snapshot_basis": null,
+        "snapshot_tag": null,
+        "reason": null
+      }
+    }
+  },
+  "outputs": {
+    "scenarios": {
+      "bear": {
+        "growth_pct": 0.0,
+        "value_per_share": 0.0,
+        "total_return_pct": -100.0,
+        "annualized_return_pct": -100.0
+      },
+      "base": {
+        "growth_pct": 0.0,
+        "value_per_share": 0.0,
+        "total_return_pct": -100.0,
+        "annualized_return_pct": -100.0
+      },
+      "bull": {
+        "growth_pct": 0.0,
+        "value_per_share": 0.0,
+        "total_return_pct": -100.0,
+        "annualized_return_pct": -100.0
+      }
+    },
+    "implied_growth_pct": 0.0,
+    "implied_growth_status": "N/A",
+    "_note": "FCF 가 음수이므로 DCF 를 적용할 수 없다. 값은 전부 placeholder 다."
+  }
+}

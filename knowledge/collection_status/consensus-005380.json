@@ -1,0 +1,23 @@
+{
+  "asset_id": "005380",
+  "attempted_at": "2026-10-16T09:46:01+09:00",
+  "state": "AVAILABLE",
+  "components": {
+    "summary": {
+      "state": "AVAILABLE",
+      "reason": "비어 있는 칸은 null로 보존"
+    },
+    "brokers": {
+      "state": "AVAILABLE",
+      "reason": "제공처별 의견 상태; 실적 추정 유무와 별개"
+    },
+    "estimates": {
+      "state": "AVAILABLE",
+      "reason": "연도별 실적·추정 표의 관측 상태"
+    }
+  },
+  "raw_sources": {
+    "summary": "data\\raw\\naver\\consensus_005380_20261016_094559.html",
+    "estimates": "data\\raw\\naver\\estimates_005380_20261016_094559.html"
+  }
+}

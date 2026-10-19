@@ -1,0 +1,648 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "005930",
+  "corp_code": "00126380",
+  "collected_at": "2026-10-19T01:33:14+00:00",
+  "source": "DART_LIST",
+  "since": "20251019",
+  "until": "20261019",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "239e3e4050c8e21979b184b014be09cdbff96d9982000f140c71da16bf7cbc27",
+      "raw_locator": "data\\raw\\dart\\objects\\239e3e4050c8e21979b184b014be09cdbff96d9982000f140c71da16bf7cbc27.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "e693372ec4fff5d86a080b3613d533c38d154df9a749d45a66a2ace4fd471fb3",
+      "raw_locator": "data\\raw\\dart\\objects\\e693372ec4fff5d86a080b3613d533c38d154df9a749d45a66a2ace4fd471fb3.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "empty": true
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "b053f01475b4b759a43f0540c77957ad036993754c4313d5c53cec62da835577",
+      "raw_locator": "data\\raw\\dart\\objects\\b053f01475b4b759a43f0540c77957ad036993754c4313d5c53cec62da835577.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261013800651",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261013800651"
+    },
+    {
+      "filing_date": "2026-10-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261008800028",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261008800028"
+    },
+    {
+      "filing_date": "2026-10-08",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20261008800004",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261008800004"
+    },
+    {
+      "filing_date": "2026-10-02",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261002800981",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261002800981"
+    },
+    {
+      "filing_date": "2026-09-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260918800754",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260918800754"
+    },
+    {
+      "filing_date": "2026-09-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260908800624",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260908800624"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260821800837",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800837"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260821800763",
+      "description": "수시공시의무관련사항(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800763"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260821000616",
+      "description": "주요사항보고서(자기주식취득결정)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821000616"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814003699",
+      "description": "반기보고서 (2026.06)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699"
+    },
+    {
+      "filing_date": "2026-07-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260731801296",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731801296"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800825",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800825"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800822",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800822"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800137",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800137"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260730800103",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800103"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260730800077",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800077"
+    },
+    {
+      "filing_date": "2026-07-23",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260723800875",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800875"
+    },
+    {
+      "filing_date": "2026-07-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260721801260",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260721801260"
+    },
+    {
+      "filing_date": "2026-07-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260713000395",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260713000395"
+    },
+    {
+      "filing_date": "2026-07-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260707800015",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707800015"
+    },
+    {
+      "filing_date": "2026-07-07",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260707800004",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707800004"
+    },
+    {
+      "filing_date": "2026-07-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260707000403",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707000403"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260706800672",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706800672"
+    },
+    {
+      "filing_date": "2026-06-29",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260629801230",
+      "description": "[기재정정]장래사업ㆍ경영계획(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260629801230"
+    },
+    {
+      "filing_date": "2026-06-29",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260629801143",
+      "description": "장래사업ㆍ경영계획(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260629801143"
+    },
+    {
+      "filing_date": "2026-06-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260626800871",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626800871"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260624801004",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624801004"
+    },
+    {
+      "filing_date": "2026-06-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260608800918",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260608800918"
+    },
+    {
+      "filing_date": "2026-06-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260601800268",
+      "description": "기업지배구조보고서공시",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260601800268"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515002181",
+      "description": "분기보고서 (2026.03)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002181"
+    },
+    {
+      "filing_date": "2026-05-08",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260508801105",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508801105"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260430800106",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430800106"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260430800097",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430800097"
+    },
+    {
+      "filing_date": "2026-04-30",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260430800083",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430800083"
+    },
+    {
+      "filing_date": "2026-04-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260413800802",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260413800802"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800120",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800120"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260407800002",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800002"
+    },
+    {
+      "filing_date": "2026-04-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260403801246",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260403801246"
+    },
+    {
+      "filing_date": "2026-03-31",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260331800004",
+      "description": "주식소각결정",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331800004"
+    },
+    {
+      "filing_date": "2026-03-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260324801547",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260324801547"
+    },
+    {
+      "filing_date": "2026-03-20",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260320800948",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260320800948"
+    },
+    {
+      "filing_date": "2026-03-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260319801333",
+      "description": "기업가치제고계획(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260319801333"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260318801867",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318801867"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260318801211",
+      "description": "정기주주총회결과",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318801211"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260318001203",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001203"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260318001062",
+      "description": "주요사항보고서(자기주식취득결정)",
+      "filer": "삼성전자",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001062"
+    },
+    {
+      "filing_date": "2026-03-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260313801958",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260313801958"
+    },
+    {
+      "filing_date": "2026-03-10",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260310002820",
+      "description": "사업보고서 (2025.12)",
+      "filer": "삼성전자",
+      "remark": "연",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260310002820"
+    },
+    {
+      "filing_date": "2026-03-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260306801340",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260306801340"
+    },
+    {
+      "filing_date": "2026-02-25",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260225800211",
+      "description": "[기재정정]주주총회소집결의",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260225800211"
+    },
+    {
+      "filing_date": "2026-02-19",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260219800741",
+      "description": "[기재정정]감사보고서제출",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260219800741"
+    },
+    {
+      "filing_date": "2026-02-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260213801478",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213801478"
+    },
+    {
+      "filing_date": "2026-02-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260213801472",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213801472"
+    },
+    {
+      "filing_date": "2026-02-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260213801455",
+      "description": "기타경영사항(자율공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213801455"
+    },
+    {
+      "filing_date": "2026-02-13",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260213800423",
+      "description": "주주총회소집결의",
+      "filer": "삼성전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213800423"
+    },
+    {
+      "filing_date": "2026-02-12",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260212801353",
+      "description": "감사보고서제출",
+      "filer": "삼성전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260212801353"
+    },
+    {
+      "filing_date": "2026-02-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260206802497",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260206802497"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260129800009",
+      "description": "[기재정정]장래사업ㆍ경영계획(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800009"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260129800008",
+      "description": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800008"
+    },
+    {
+      "filing_date": "2026-01-29",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260129800005",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변경",
+      "filer": "삼성전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800005"
+    }
+  ]
+}

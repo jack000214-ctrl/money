@@ -1,0 +1,27 @@
+{
+  "fetched_at": "2026-10-19T05:02:47+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_028300_C",
+  "payload_sha256": "11c8c8bc8e7bb673e5b016a043048f0ee0a1a3835e6b933a5f8c90064eb2e9c0",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 1,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00199252",
+        "corp_name": "HLB",
+        "stock_code": "028300",
+        "corp_cls": "K",
+        "report_nm": "증권발행실적보고서(합병등)",
+        "rcept_no": "20251231000397",
+        "flr_nm": "HLB",
+        "rcept_dt": "20251231",
+        "rm": ""
+      }
+    ]
+  }
+}

@@ -1,0 +1,649 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "000660",
+  "corp_code": "00164779",
+  "collected_at": "2026-10-16T00:06:49+00:00",
+  "source": "DART_LIST",
+  "since": "20251016",
+  "until": "20261016",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "0cbdb8a170830f9d1611a2a4b37ab1c0fc0c6bc87d333a79b7dc36e86a37fd18",
+      "raw_locator": "data\\raw\\dart\\objects\\0cbdb8a170830f9d1611a2a4b37ab1c0fc0c6bc87d333a79b7dc36e86a37fd18.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "raw_payload_sha256": "a03e596d49ac5ff8774633ba14fd287ffe760be36127babe50f1b1ed2f8a38aa",
+      "raw_locator": "data\\raw\\dart\\objects\\a03e596d49ac5ff8774633ba14fd287ffe760be36127babe50f1b1ed2f8a38aa.json"
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "raw_payload_sha256": "baee11cae47c9d55ffd960b03cd47899aa3265bff1c0591074c0153e41cf878d",
+      "raw_locator": "data\\raw\\dart\\objects\\baee11cae47c9d55ffd960b03cd47899aa3265bff1c0591074c0153e41cf878d.json"
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "19b620c28d88c47ee293c7b1bfd5e6ae2b53232dac702533977e5bb921c2d470",
+      "raw_locator": "data\\raw\\dart\\objects\\19b620c28d88c47ee293c7b1bfd5e6ae2b53232dac702533977e5bb921c2d470.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-10-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20261014800385",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261014800385"
+    },
+    {
+      "filing_date": "2026-09-18",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260918800583",
+      "description": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260918800583"
+    },
+    {
+      "filing_date": "2026-09-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260909800559",
+      "description": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260909800559"
+    },
+    {
+      "filing_date": "2026-09-04",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260904800642",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260904800642"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260821800617",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800617"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260821800524",
+      "description": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800524"
+    },
+    {
+      "filing_date": "2026-08-21",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260821800214",
+      "description": "조회공시요구(풍문또는보도)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800214"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260819800340",
+      "description": "주식소각결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819800340"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260819800338",
+      "description": "수시공시의무관련사항(공정공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819800338"
+    },
+    {
+      "filing_date": "2026-08-19",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260819000254",
+      "description": "주요사항보고서(자기주식취득결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819000254"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260814802986",
+      "description": "파생상품거래손실발생",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814802986"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814003509",
+      "description": "반기보고서 (2026.06)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003509"
+    },
+    {
+      "filing_date": "2026-08-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260810800434",
+      "description": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260810800434"
+    },
+    {
+      "filing_date": "2026-08-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260810800101",
+      "description": "조회공시요구(풍문또는보도)",
+      "filer": "유가증권시장본부",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260810800101"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260807800613",
+      "description": "신규시설투자등",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807800613"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260807800602",
+      "description": "신규시설투자등",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807800602"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260807800596",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807800596"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260807800589",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807800589"
+    },
+    {
+      "filing_date": "2026-08-07",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260807000537",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260807000537"
+    },
+    {
+      "filing_date": "2026-08-05",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260805800806",
+      "description": "풍문또는보도에대한해명(미확정)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260805800806"
+    },
+    {
+      "filing_date": "2026-07-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260730800996",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800996"
+    },
+    {
+      "filing_date": "2026-07-29",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260729800013",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729800013"
+    },
+    {
+      "filing_date": "2026-07-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260722800829",
+      "description": "신규시설투자등",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260722800829"
+    },
+    {
+      "filing_date": "2026-07-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260722800178",
+      "description": "풍문또는보도에대한해명",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260722800178"
+    },
+    {
+      "filing_date": "2026-07-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260715800456",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260715800456"
+    },
+    {
+      "filing_date": "2026-07-15",
+      "report_date": null,
+      "form": "EQUITY_CHANGE",
+      "accession_number": "20260715800045",
+      "description": "유상증자또는주식관련사채등의발행결과(자율공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260715800045"
+    },
+    {
+      "filing_date": "2026-07-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260715000004",
+      "description": "증권발행실적보고서",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260715000004"
+    },
+    {
+      "filing_date": "2026-07-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260713000324",
+      "description": "주요사항보고서(해외증권시장주권등상장)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260713000324"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260710800023",
+      "description": "[기재정정]증권예탁증권(DR)발행결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710800023"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260710000012",
+      "description": "투자설명서",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710000012"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260710000010",
+      "description": "[발행조건확정]증권신고서(지분증권)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710000010"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260710000008",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710000008"
+    },
+    {
+      "filing_date": "2026-07-10",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260710000002",
+      "description": "[기재정정]주요사항보고서(해외증권시장주권등상장결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260710000002"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260706800684",
+      "description": "[기재정정]증권예탁증권(DR)발행결정",
+      "filer": "SK하이닉스",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706800684"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260706000444",
+      "description": "[기재정정]증권신고서(지분증권)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706000444"
+    },
+    {
+      "filing_date": "2026-07-06",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260706000403",
+      "description": "[기재정정]주요사항보고서(유상증자결정)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706000403"
+    },
+    {
+      "filing_date": "2026-06-30",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260630001095",
+      "description": "[기재정정]증권신고서(지분증권)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630001095"
+    },
+    {
+      "filing_date": "2026-06-29",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260629800981",
+      "description": "장래사업ㆍ경영계획(공정공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260629800981"
+    },
+    {
+      "filing_date": "2026-06-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260626801398",
+      "description": "중대재해발생",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626801398"
+    },
+    {
+      "filing_date": "2026-06-25",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260625800489",
+      "description": "지속가능경영보고서등관련사항(자율공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260625800489"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260624800801",
+      "description": "증권예탁증권(DR)발행결정",
+      "filer": "SK하이닉스",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624800801"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260624000511",
+      "description": "증권신고서(지분증권)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624000511"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260624000423",
+      "description": "주요사항보고서(해외증권시장주권등상장결정)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624000423"
+    },
+    {
+      "filing_date": "2026-06-24",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260624000420",
+      "description": "주요사항보고서(유상증자결정)",
+      "filer": "SK하이닉스",
+      "remark": "정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624000420"
+    },
+    {
+      "filing_date": "2026-06-16",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260616800847",
+      "description": "풍문또는보도에대한해명",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260616800847"
+    },
+    {
+      "filing_date": "2026-05-29",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260529801972",
+      "description": "기업지배구조보고서공시",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260529801972"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515002287",
+      "description": "분기보고서 (2026.03)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515002287"
+    },
+    {
+      "filing_date": "2026-05-13",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260513000549",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260513000549"
+    },
+    {
+      "filing_date": "2026-05-06",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260506800689",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260506800689"
+    },
+    {
+      "filing_date": "2026-04-28",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260428800513",
+      "description": "자기교환사채만기전취득결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260428800513"
+    },
+    {
+      "filing_date": "2026-04-23",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260423800001",
+      "description": "연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260423800001"
+    },
+    {
+      "filing_date": "2026-04-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260422800788",
+      "description": "현금ㆍ현물배당결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260422800788"
+    },
+    {
+      "filing_date": "2026-04-22",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260422800748",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260422800748"
+    },
+    {
+      "filing_date": "2026-04-22",
+      "report_date": null,
+      "form": "FAIR_DISCLOSURE",
+      "accession_number": "20260422800243",
+      "description": "장래사업ㆍ경영계획(공정공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260422800243"
+    },
+    {
+      "filing_date": "2026-04-22",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260422000633",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260422000633"
+    },
+    {
+      "filing_date": "2026-04-09",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260409800781",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260409800781"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800748",
+      "description": "[기재정정]최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800748"
+    },
+    {
+      "filing_date": "2026-04-07",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260407800698",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260407800698"
+    },
+    {
+      "filing_date": "2026-03-30",
+      "report_date": null,
+      "form": "MATERIAL_EVENT",
+      "accession_number": "20260330001812",
+      "description": "주요사항보고서(자기주식처분결정)",
+      "filer": "SK하이닉스",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260330001812"
+    },
+    {
+      "filing_date": "2026-03-26",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260326801940",
+      "description": "최대주주등소유주식변동신고서",
+      "filer": "SK하이닉스",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326801940"
+    }
+  ]
+}

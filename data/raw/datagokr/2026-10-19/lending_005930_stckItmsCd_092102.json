@@ -1,0 +1,157 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "NORMAL SERVICE."
+    },
+    "body": {
+      "numOfRows": 500,
+      "pageNo": 1,
+      "totalCount": 14,
+      "items": {
+        "item": [
+          {
+            "basDt": "20261016",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "3010516",
+            "rdptStckCnt": "873369",
+            "balnStckCnt": "84382879",
+            "balnStckAmt": "18184510424500"
+          },
+          {
+            "basDt": "20261015",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1764189",
+            "rdptStckCnt": "1627242",
+            "balnStckCnt": "82245732",
+            "balnStckAmt": "17271603720000"
+          },
+          {
+            "basDt": "20261014",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "3296129",
+            "rdptStckCnt": "917015",
+            "balnStckCnt": "82108785",
+            "balnStckAmt": "19049238120000"
+          },
+          {
+            "basDt": "20261013",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1216655",
+            "rdptStckCnt": "2390412",
+            "balnStckCnt": "79729671",
+            "balnStckAmt": "18497283672000"
+          },
+          {
+            "basDt": "20261012",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "2587470",
+            "rdptStckCnt": "3971933",
+            "balnStckCnt": "80903428",
+            "balnStckAmt": "20266308714000"
+          },
+          {
+            "basDt": "20261008",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1000402",
+            "rdptStckCnt": "145168",
+            "balnStckCnt": "82287891",
+            "balnStckAmt": "21559427442000"
+          },
+          {
+            "basDt": "20261007",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1548159",
+            "rdptStckCnt": "819917",
+            "balnStckCnt": "81432657",
+            "balnStckAmt": "21864668404500"
+          },
+          {
+            "basDt": "20261006",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "2932002",
+            "rdptStckCnt": "4402716",
+            "balnStckCnt": "80704415",
+            "balnStckAmt": "21951600880000"
+          },
+          {
+            "basDt": "20261002",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "7784216",
+            "rdptStckCnt": "1595848",
+            "balnStckCnt": "82175129",
+            "balnStckAmt": "22680335604000"
+          },
+          {
+            "basDt": "20261001",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "2672942",
+            "rdptStckCnt": "1069018",
+            "balnStckCnt": "75986661",
+            "balnStckAmt": "20972318436000"
+          },
+          {
+            "basDt": "20260930",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1328885",
+            "rdptStckCnt": "1698300",
+            "balnStckCnt": "74382737",
+            "balnStckAmt": "19971764884500"
+          },
+          {
+            "basDt": "20260929",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "1771811",
+            "rdptStckCnt": "8461482",
+            "balnStckCnt": "74752152",
+            "balnStckAmt": "20369961420000"
+          },
+          {
+            "basDt": "20260928",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "2526018",
+            "rdptStckCnt": "7091596",
+            "balnStckCnt": "81441823",
+            "balnStckAmt": "21989292210000"
+          },
+          {
+            "basDt": "20260923",
+            "mrktClsfNm": "코스피",
+            "stckItmsNm": "삼성전자",
+            "stckItmsCd": "005930",
+            "cclStckCnt": "491569",
+            "rdptStckCnt": "2168179",
+            "balnStckCnt": "86007401",
+            "balnStckAmt": "24555112985500"
+          }
+        ]
+      }
+    }
+  }
+}
