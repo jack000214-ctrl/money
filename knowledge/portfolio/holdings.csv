@@ -1,4 +1,5 @@
-asset_id,name,market,asset_type,risk_class,value_krw,fx_exposure,sector,quantity,avg_cost_krw,pnl_krw,note
+# retrieved_at 2026-10-19T14:30:00+00:00 / source manual
+asset_id,name,market,asset_type,risk_class,value_krw,fx_exposure,sector,quantity,avg_cost_krw,pnl_krw,note
 066570,LG전자,KR,STOCK,STOCK,16910000,,,100,236873,,
 CASH_KRW,원화 예수금,KR,CASH,CASH,0,KRW,,,,,
 000660,SK하이닉스,KR,STOCK,STOCK,18795000,,,15,2262111,,

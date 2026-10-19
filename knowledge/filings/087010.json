@@ -1,0 +1,207 @@
+{
+  "schema_version": "filing-index/1.0.0",
+  "asset_id": "087010",
+  "corp_code": "00415868",
+  "collected_at": "2026-10-19T15:05:49+00:00",
+  "source": "DART_LIST",
+  "since": "20251020",
+  "until": "20261020",
+  "pblntf_types": [
+    "A",
+    "B",
+    "C",
+    "I",
+    "F"
+  ],
+  "raw_sources": [
+    {
+      "pblntf_ty": "A",
+      "pblntf_ty_name": "정기공시",
+      "raw_payload_sha256": "8c09d4540515db7970b29edfd36c1ec4e4d7c6e615a6a2afa6db752abae52723",
+      "raw_locator": "data/raw/dart/objects/8c09d4540515db7970b29edfd36c1ec4e4d7c6e615a6a2afa6db752abae52723.json"
+    },
+    {
+      "pblntf_ty": "B",
+      "pblntf_ty_name": "주요사항보고",
+      "empty": true
+    },
+    {
+      "pblntf_ty": "C",
+      "pblntf_ty_name": "발행공시",
+      "empty": true
+    },
+    {
+      "pblntf_ty": "I",
+      "pblntf_ty_name": "거래소공시",
+      "raw_payload_sha256": "ed5ba702e1f847d97a51935093a40167eb1a3801f4d1528149419bd73959df0b",
+      "raw_locator": "data/raw/dart/objects/ed5ba702e1f847d97a51935093a40167eb1a3801f4d1528149419bd73959df0b.json"
+    },
+    {
+      "pblntf_ty": "F",
+      "pblntf_ty_name": "외부감사관련",
+      "empty": true
+    }
+  ],
+  "filings": [
+    {
+      "filing_date": "2026-09-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260903900076",
+      "description": "[기재정정]신규시설투자등",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260903900076"
+    },
+    {
+      "filing_date": "2026-08-25",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260825900548",
+      "description": "투자판단관련주요경영사항(임상시험계획승인신청)              (PT403의 제1상 임상시험계획 승인 신청)",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260825900548"
+    },
+    {
+      "filing_date": "2026-08-14",
+      "report_date": "2026-06-30",
+      "form": "HALF_REPORT",
+      "accession_number": "20260814002979",
+      "description": "반기보고서 (2026.06)",
+      "filer": "펩트론",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002979"
+    },
+    {
+      "filing_date": "2026-05-15",
+      "report_date": "2026-03-31",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20260515001967",
+      "description": "분기보고서 (2026.03)",
+      "filer": "펩트론",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260515001967"
+    },
+    {
+      "filing_date": "2026-03-26",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260326902553",
+      "description": "정기주주총회결과",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326902553"
+    },
+    {
+      "filing_date": "2026-03-20",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260320900521",
+      "description": "기업설명회(IR)개최",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260320900521"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": null,
+      "form": "AUDIT_REPORT",
+      "accession_number": "20260318900767",
+      "description": "감사보고서제출",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318900767"
+    },
+    {
+      "filing_date": "2026-03-18",
+      "report_date": "2025-12-31",
+      "form": "ANNUAL_REPORT",
+      "accession_number": "20260318001345",
+      "description": "사업보고서 (2025.12)",
+      "filer": "펩트론",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001345"
+    },
+    {
+      "filing_date": "2026-03-09",
+      "report_date": null,
+      "form": "GOVERNANCE",
+      "accession_number": "20260309900887",
+      "description": "주주총회소집결의",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260309900887"
+    },
+    {
+      "filing_date": "2026-03-09",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20260309900769",
+      "description": "매출액또는손익구조30%(대규모법인은15%)이상변동",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260309900769"
+    },
+    {
+      "filing_date": "2026-02-27",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20260227902156",
+      "description": "기타시장안내              (시장평가 우수기업 매출액 특례적용 관련)",
+      "filer": "코스닥시장본부",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260227902156"
+    },
+    {
+      "filing_date": "2025-12-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251215901064",
+      "description": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251215901064"
+    },
+    {
+      "filing_date": "2025-12-15",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251215901055",
+      "description": "주주명부폐쇄기간또는기준일설정",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251215901055"
+    },
+    {
+      "filing_date": "2025-12-03",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251203900572",
+      "description": "[기재정정]신규시설투자등",
+      "filer": "펩트론",
+      "remark": "코정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251203900572"
+    },
+    {
+      "filing_date": "2025-12-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251201900944",
+      "description": "[기재정정]투자판단관련주요경영사항              (플랫폼 기술 평가 계약 체결)",
+      "filer": "펩트론",
+      "remark": "코",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251201900944"
+    },
+    {
+      "filing_date": "2025-11-14",
+      "report_date": "2025-09-30",
+      "form": "QUARTER_REPORT",
+      "accession_number": "20251114001885",
+      "description": "분기보고서 (2025.09)",
+      "filer": "펩트론",
+      "remark": null,
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251114001885"
+    }
+  ]
+}

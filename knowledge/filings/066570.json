@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "066570",
   "corp_code": "00401731",
-  "collected_at": "2026-10-16T00:03:54+00:00",
+  "collected_at": "2026-10-19T15:03:33+00:00",
   "source": "DART_LIST",
-  "since": "20251016",
-  "until": "20261016",
+  "since": "20250915",
+  "until": "20261020",
   "pblntf_types": [
     "A",
     "B",
@@ -18,25 +18,25 @@
       "pblntf_ty": "A",
       "pblntf_ty_name": "정기공시",
       "raw_payload_sha256": "524d0b1912be7cebe421cf302282786ea7844bcf4dc32fc80d163a2b252b4ab1",
-      "raw_locator": "data\\raw\\dart\\objects\\524d0b1912be7cebe421cf302282786ea7844bcf4dc32fc80d163a2b252b4ab1.json"
+      "raw_locator": "data/raw/dart/objects/524d0b1912be7cebe421cf302282786ea7844bcf4dc32fc80d163a2b252b4ab1.json"
     },
     {
       "pblntf_ty": "B",
       "pblntf_ty_name": "주요사항보고",
       "raw_payload_sha256": "7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6",
-      "raw_locator": "data\\raw\\dart\\objects\\7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6.json"
+      "raw_locator": "data/raw/dart/objects/7b3c95cf36472f3b22915d9a2ba07e552ac1ba3a6c35c14ada276096c442bbb6.json"
     },
     {
       "pblntf_ty": "C",
       "pblntf_ty_name": "발행공시",
       "raw_payload_sha256": "3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f",
-      "raw_locator": "data\\raw\\dart\\objects\\3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f.json"
+      "raw_locator": "data/raw/dart/objects/3ccc57610466f76975b207dc74583842ec3d13d798252f26e28152ed2877469f.json"
     },
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "949cd54c1075c8191780dd58e6af98e23e9d36b81bcb78181fc9ac9b05900333",
-      "raw_locator": "data\\raw\\dart\\objects\\949cd54c1075c8191780dd58e6af98e23e9d36b81bcb78181fc9ac9b05900333.json"
+      "raw_payload_sha256": "b4ed6e28da02cb70ebd5437947498d3e03b625da067de20cbba2da91b4ed47a9",
+      "raw_locator": "data/raw/dart/objects/b4ed6e28da02cb70ebd5437947498d3e03b625da067de20cbba2da91b4ed47a9.json"
     },
     {
       "pblntf_ty": "F",
@@ -534,6 +534,56 @@
       "filer": "LG전자",
       "remark": "유",
       "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251031800296"
+    },
+    {
+      "filing_date": "2025-10-14",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251014800001",
+      "description": "[기재정정]타법인주식및출자증권처분결정",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251014800001"
+    },
+    {
+      "filing_date": "2025-10-13",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251013800157",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "filer": "LG전자",
+      "remark": "유",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251013800157"
+    },
+    {
+      "filing_date": "2025-10-13",
+      "report_date": null,
+      "form": "PROVISIONAL_RESULT",
+      "accession_number": "20251013800144",
+      "description": "[첨부추가]연결재무제표기준영업(잠정)실적(공정공시)",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251013800144"
+    },
+    {
+      "filing_date": "2025-10-01",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20251001800092",
+      "description": "[기재정정]타법인주식및출자증권처분결정",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251001800092"
+    },
+    {
+      "filing_date": "2025-09-30",
+      "report_date": null,
+      "form": "OTHER",
+      "accession_number": "20250930800083",
+      "description": "타법인주식및출자증권처분결정",
+      "filer": "LG전자",
+      "remark": "유정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250930800083"
     }
   ]
 }

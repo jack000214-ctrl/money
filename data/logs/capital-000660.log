@@ -1,19 +1,19 @@
 Traceback (most recent call last):
   File "<frozen runpy>", line 198, in _run_module_as_main
   File "<frozen runpy>", line 88, in _run_code
-  File "C:\Project\MyOwn\money\collectors\kr_capital.py", line 195, in <module>
+  File "C:\Project\money\collectors\kr_capital.py", line 195, in <module>
     main()
     ~~~~^^
-  File "C:\Project\MyOwn\money\collectors\kr_capital.py", line 191, in main
+  File "C:\Project\money\collectors\kr_capital.py", line 191, in main
     print(json.dumps(collect(args.asset_id), ensure_ascii=False, indent=2))
                      ~~~~~~~^^^^^^^^^^^^^^^
-  File "C:\Project\MyOwn\money\collectors\kr_capital.py", line 179, in collect
+  File "C:\Project\money\collectors\kr_capital.py", line 179, in collect
     report = make_report(asset_id, index, row, raw, path)
-  File "C:\Project\MyOwn\money\collectors\kr_capital.py", line 130, in make_report
+  File "C:\Project\money\collectors\kr_capital.py", line 130, in make_report
     observations = extract(raw["payload"]["documents"], corp_code=index["corp_code"], description=row["description"])
-  File "C:\Project\MyOwn\money\collectors\kr_capital.py", line 43, in extract
+  File "C:\Project\money\collectors\kr_capital.py", line 43, in extract
     root = ET.fromstring(xml)
-  File "C:\Python313\Lib\xml\etree\ElementTree.py", line 1348, in XML
+  File "C:\Program Files\Python313\Lib\xml\etree\ElementTree.py", line 1348, in XML
     parser.feed(text)
     ~~~~~~~~~~~^^^^^^
 xml.etree.ElementTree.ParseError: mismatched tag: line 164, column 78

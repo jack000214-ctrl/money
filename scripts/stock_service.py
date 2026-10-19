@@ -334,7 +334,7 @@ def list_assets() -> list[dict[str, Any]]:
             "has_calculation": has_calculation,
             "has_report": has_report,
             "is_selected": (ticker == current_selected_ticker),
-            "trading_halted": bool(asset.get("trading_halted", False)),
+            "trading_halted": bool(asset.get("suspended") or asset.get("trading_halted", False)),
         })
 
     # 한국, 미국, 이름순 정렬
@@ -371,11 +371,12 @@ def _update_holdings_csv(ticker: str, name: str, market: str, asset_type: str,
     FIELDNAMES = ["asset_id", "name", "market", "asset_type", "risk_class",
                   "value_krw", "fx_exposure", "sector", "quantity", "avg_cost_krw", "pnl_krw", "note"]
 
-    # 기존 행 읽기
+    # 기존 행 읽기 (# 주석 헤더 줄 건너뜀)
     rows: list[dict] = []
     if holdings_path.exists():
         with holdings_path.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+            non_comment = (line for line in f if not line.startswith("#"))
+            reader = csv.DictReader(non_comment)
             for row in reader:
                 if row.get("asset_id") != ticker:
                     rows.append(row)
@@ -416,7 +417,9 @@ def _update_holdings_csv(ticker: str, name: str, market: str, asset_type: str,
             "note": "",
         })
 
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with holdings_path.open("w", newline="", encoding="utf-8") as f:
+        f.write(f"# retrieved_at {now_iso} / source manual\n")
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
@@ -499,7 +502,9 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
     existing_chart_entry = existing_cfg.get("chartEntry", 0.0)
     if existing_chart_entry == 90.0:
         existing_chart_entry = 0.0
-    chart_entry = (chart_current * 0.9) if chart_current > 0 else float(existing_chart_entry or 0.0)
+    # 기존에 수동 설정된 값이 있으면 유지, 없으면 0(미설정)으로 둔다.
+    # current*0.9 자동 계산은 가짜 기본값이므로 사용하지 않는다.
+    chart_entry = float(existing_chart_entry or 0.0)
 
     new_cfg = {
         "tickerLabel": f"{ticker} · {exchange}",
@@ -578,6 +583,8 @@ def collect_price(ticker: str, range_str: str = "5y") -> dict[str, Any]:
     asset = assets_raw.get(ticker)
     if not asset:
         return {"success": False, "error": f"등록되지 않은 종목입니다: {ticker}"}
+    if asset.get("suspended"):
+        return {"success": False, "error": f"거래중지 종목입니다 (자동 업데이트 제외): {ticker}"}
 
     price_symbol = asset.get("price_symbol", ticker)
     code, output = execute_python_module("collectors.price", ["history", price_symbol, "--range", range_str])
@@ -601,8 +608,6 @@ def collect_price(ticker: str, range_str: str = "5y") -> dict[str, Any]:
             curr = asset.get("currency", cfg.get("currency", "KRW"))
             cfg["priceKrw"] = int(last_close) if curr == "KRW" else int(last_close * 1350)
             cfg["chartCurrent"] = last_close
-            if not cfg.get("chartEntry") or cfg.get("chartEntry") == 90.0 or cfg.get("chartEntry") == 0.0:
-                cfg["chartEntry"] = round(last_close * 0.9, 2)
             cfg["priceAsOf"] = datetime.now(timezone.utc).astimezone().isoformat()
             cfg["priceNote"] = f"{date.today().isoformat()} 기준"
             _save_json_file(TICKERS_FILE, tickers_cfg)
@@ -639,7 +644,11 @@ def collect_fundamentals(ticker: str) -> dict[str, Any]:
             current_year = date.today().year
             # 1. DART 재무제표 스냅샷 수집 (fundamentals)
             _t = _time.time()
-            f_code, f_out = execute_python_module("collectors.dart", ["fundamentals", ticker, "--year", str(current_year)])
+            fs_div = asset.get("fs_div")
+            fund_args = ["fundamentals", ticker, "--year", str(current_year)]
+            if fs_div:
+                fund_args += ["--fs", fs_div]
+            f_code, f_out = execute_python_module("collectors.dart", fund_args)
             logs.append(f"[DART Fundamentals {_time.time()-_t:.1f}s] {f_out.strip()}")
             # 2. DART 공시 목록 수집 (filings, 최근 1년)
             since_date = (date.today() - timedelta(days=365)).strftime("%Y%m%d")
@@ -1439,6 +1448,8 @@ def check_and_update_prices() -> dict[str, Any]:
 
     stale_assets: list[str] = []
     for ticker, asset in assets_raw.items():
+        if asset.get("suspended"):
+            continue
         price_symbol = asset.get("price_symbol", ticker)
         info = get_price_info(price_symbol)
         if not info["exists"] or info["last_date"] != target_str or info["session"] == "UNSETTLED":
@@ -1482,6 +1493,10 @@ def get_longterm_analysis() -> list[dict[str, Any]]:
 
         # ETF의 경우 가치평가(DCF 등)가 없으므로 가벼운 형태로 우회
         if asset_meta.get("asset_type") == "ETF":
+            etf_qty = int(ticker_info.get("qty", 0))
+            etf_avg = int(ticker_info.get("avg_cost_krw", 0))
+            etf_pnl = round((current_price - etf_avg) * etf_qty) if etf_qty > 0 and etf_avg > 0 and current_price > 0 else None
+            etf_pnl_pct = round((current_price - etf_avg) / etf_avg * 100, 2) if etf_qty > 0 and etf_avg > 0 and current_price > 0 else None
             analysis_list.append({
                 "ticker": ticker,
                 "name": asset_meta.get("name", ticker_info.get("name", ticker)),
@@ -1490,6 +1505,10 @@ def get_longterm_analysis() -> list[dict[str, Any]]:
                 "sector_code": asset_meta.get("sector_code", "ETF"),
                 "industry": asset_meta.get("industry", "ETF"),
                 "current_price": current_price,
+                "qty": etf_qty,
+                "avg_cost_krw": etf_avg,
+                "unrealized_pnl_krw": etf_pnl,
+                "pnl_pct": etf_pnl_pct,
                 "calc_id": None,
                 "has_calc": False,
                 "bear_value": None,
@@ -1532,6 +1551,14 @@ def get_longterm_analysis() -> list[dict[str, Any]]:
                 safety_margin_pct = ((base_value - current_price) / base_value) * 100
 
         calc_model = calc_data.get("model") if has_calc and calc_data else None
+        qty = int(ticker_info.get("qty", 0))
+        avg_cost_krw = int(ticker_info.get("avg_cost_krw", 0))
+        unrealized_pnl_krw = None
+        pnl_pct = None
+        if qty > 0 and avg_cost_krw > 0 and current_price > 0:
+            unrealized_pnl_krw = round((current_price - avg_cost_krw) * qty)
+            pnl_pct = round((current_price - avg_cost_krw) / avg_cost_krw * 100, 2)
+
         analysis_list.append({
             "ticker": ticker,
             "name": asset_meta.get("name", ticker_info.get("name", ticker)),
@@ -1540,6 +1567,10 @@ def get_longterm_analysis() -> list[dict[str, Any]]:
             "sector_code": asset_meta.get("sector_code", "일반"),
             "industry": asset_meta.get("industry", "일반"),
             "current_price": current_price,
+            "qty": qty,
+            "avg_cost_krw": avg_cost_krw,
+            "unrealized_pnl_krw": unrealized_pnl_krw,
+            "pnl_pct": pnl_pct,
             "calc_id": calc_data.get("calculation_id") if has_calc and calc_data else None,
             "calc_model": calc_model,
             "has_calc": has_calc,

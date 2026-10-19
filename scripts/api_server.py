@@ -245,15 +245,30 @@ class APIServerHandler(BaseHTTPRequestHandler):
                 longterm_data = get_longterm_analysis()
 
                 # 보유 중인 종목만 요약 정보 생성
+                policy = get_policy()
+                max_loss_per_position = (policy.get("risk") or {}).get("max_loss_per_position_krw")
+
                 held_assets_summary = []
                 for item in longterm_data:
                     ticker = item["ticker"]
                     matching_exposure = next((exp for exp in portfolio_data.get("exposures", []) if exp["asset_id"] == ticker), None)
                     if matching_exposure and matching_exposure.get("value_krw", 0) > 0:
+                        avg_cost = item.get("avg_cost_krw") or 0
+                        qty = item.get("qty") or 0
+                        current_price = item["current_price"]
+                        # 손절가: 평단 기준 최대 손실 한도 소진 시점
+                        stop_loss_price = None
+                        if avg_cost > 0 and qty > 0 and max_loss_per_position:
+                            stop_loss_price = round(avg_cost - max_loss_per_position / qty)
                         held_assets_summary.append({
                             "ticker": ticker,
                             "name": item["name"],
-                            "current_price": item["current_price"],
+                            "current_price": current_price,
+                            "qty": qty,
+                            "avg_cost_krw": avg_cost,
+                            "unrealized_pnl_krw": item.get("unrealized_pnl_krw"),
+                            "pnl_pct": item.get("pnl_pct"),
+                            "stop_loss_price": stop_loss_price,
                             "value_krw": matching_exposure["value_krw"],
                             "effective_pct": matching_exposure["effective_pct"],
                             "has_calc": item["has_calc"],
@@ -268,6 +283,11 @@ class APIServerHandler(BaseHTTPRequestHandler):
                 user_prompt = f"""
 안녕하세요, CIO로서 저의 보유 포트폴리오를 진단하고 리밸런싱 및 투자 추천 자문서(Korean)를 작성해 주세요.
 
+[투자 정책]
+- 종목당 최대 허용 손실: {f'{max_loss_per_position:,} KRW' if max_loss_per_position else '미설정'}
+- 목표 연수익률: {(policy.get('objective') or {}).get('target_annual_return_pct', '미설정')}%
+- 단일 종목 최대 비중: {(policy.get('concentration') or {}).get('max_single_position_pct_of_total', '미설정')}%
+
 [포트폴리오 총평 정보]
 - 총 평가금액: {portfolio_data.get('total_value_krw', 0):,} KRW
 - 보유 자산 수: {portfolio_data.get('asset_count', 0)}개
@@ -276,13 +296,15 @@ class APIServerHandler(BaseHTTPRequestHandler):
 - 경고 및 규율 검토 결과: {json.dumps(portfolio_data.get('warnings', []), ensure_ascii=False)}
 - 적용 한도 기준: {json.dumps(portfolio_data.get('limits_applied', {}), ensure_ascii=False)}
 
-[개별 보유 종목의 밸류에이션 및 기대수익 시나리오]
+[개별 보유 종목 — 손익 및 밸류에이션]
+각 항목 설명: avg_cost_krw=평단가(원), unrealized_pnl_krw=평가손익(원), pnl_pct=수익률(%), stop_loss_price=손절가(정책 최대손실 기준), safety_margin_pct=내재가치 대비 저평가율(%), expected_return_pct=기대수익률(%)
 {json.dumps(held_assets_summary, ensure_ascii=False, indent=2)}
 
-위 데이터를 기반으로 다음 세 가지 섹션을 포함한 가독성이 높은 진단 마크다운 리포트를 한국어로 작성해 주세요:
+위 데이터를 기반으로 다음 네 가지 섹션을 포함한 가독성이 높은 진단 마크다운 리포트를 한국어로 작성해 주세요:
 1. **포트폴리오 자산 배분 총평**: 현재 비중 및 편중 리스크, 한도 위반 여부에 대한 명확한 진단
-2. **보유 자산 내재가치 및 기대수익 대조**: 각 종목의 안전마진(내재가치 대비 저평가율)과 기대수익률 관점에서의 포지션 평가
-3. **구체적인 포트폴리오 리밸런싱 & 액션 제안**: 리스크 완화 및 수익률 극대화를 위해 비중을 확대할 종목, 축소/유지할 종목과 그 이유 및 향후 모니터야 할 핵심 무효화 시그널
+2. **종목별 손익 현황**: 평단 대비 현재 손익, 손절 기준(정책 최대손실) 근접 여부를 종목별로 정리
+3. **보유 자산 내재가치 및 기대수익 대조**: 각 종목의 안전마진(내재가치 대비 저평가율)과 기대수익률 관점에서의 포지션 평가
+4. **구체적인 포트폴리오 리밸런싱 & 액션 제안**: 리스크 완화 및 수익률 극대화를 위해 비중을 확대할 종목, 축소/유지할 종목과 그 이유 및 향후 모니터링해야 할 핵심 무효화 시그널
 """
 
                 # 3. LLM 인터페이스를 통해 Bob AI 구동

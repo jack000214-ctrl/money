@@ -1,0 +1,214 @@
+{
+  "schema_version": "cio-decision/1.0.0",
+  "assessment_id": null,
+  "context_id": "CTX-7d9676a34298b715d4aa",
+  "asset_id": "005930",
+  "created_at": "2026-10-20T00:18:00+09:00",
+  "model": {
+    "provider": "IBM",
+    "name": "Bob",
+    "version": null,
+    "prompt_version": "2.16"
+  },
+  "verdict": "WAIT",
+  "outcome_metric": "TERMINAL_TOTAL_RETURN_ASSET_CURRENCY",
+  "horizon_months": 12,
+  "win_definition": "12개월 뒤 검토가(216,250원) 대비 총수익률이 12% 이상",
+  "failure_definition": "12개월 뒤 검토가(216,250원) 대비 총수익률이 -25% 이하",
+  "win_return_threshold_pct": 12.0,
+  "failure_return_threshold_pct": -25.0,
+  "win_probability_pct": 49.9,
+  "confidence_pct": 40.0,
+  "expected_return_pct": {
+    "bear": -30.63583815028902,
+    "base": 15.421965317919085,
+    "bull": 72.94797687861272,
+    "probability_weighted": 13.109826589595382
+  },
+  "scenario_probability_pct": {
+    "bear": 30.0,
+    "base": 50.0,
+    "bull": 20.0
+  },
+  "price_plan": {
+    "currency": "KRW",
+    "preferred_entry": 205000.0,
+    "entry_range_low": 198000.0,
+    "entry_range_high": 212000.0,
+    "stop_price": 195000.0,
+    "scale_out_start": 250000.0,
+    "reask_below": 203000.0,
+    "reask_above": 245000.0,
+    "reask_events": [
+      "삼성전자 3분기 확정 실적 공시",
+      "TrendForce 4분기 DRAM·NAND 계약가 확정 발표",
+      "상위 CSP 4분기 실적발표의 CapEx 가이던스"
+    ],
+    "entry_conditions": [
+      "추가 매수는 이 질문의 범위가 아니다. NEW_BUY 또는 ADD로 새 매수 예산을 실어 다시 묻는다",
+      "3분기 확정 실적에서 순이익과 영업이익이 잠정치(영업이익 107.4조원)와 일치함을 확인한다"
+    ]
+  },
+  "proposed_trade": {
+    "amount": 0.0,
+    "currency": "KRW",
+    "rationale": "이 질문(HOLD_REVIEW)에는 매수 예산이 없다. 새 자금 투입은 판단하지 않는다"
+  },
+  "action": {
+    "direction": "HOLD",
+    "quantity": null,
+    "limit_price": null,
+    "sell_reason": null,
+    "rationale": "기준 가정의 기대수익률(13.1%)이 비교선(12%)을 근소하게 넘지만 세 가지 대체 가정 검사가 모두 비교선 아래로 내려간다. 우위가 얇아 팔 이유도 더 살 이유도 아니다. 평단(304,750원) 회복을 기준으로 삼지 않고 현재가 기준 12개월 수익률만 본다. 195,000원 손절로 정책의 종목당 최대 손실 한도 안에서 하방을 제한한다"
+  },
+  "drivers": [
+    {
+      "name": "DRAM·NAND 계약가 사이클",
+      "weight_pct": 45,
+      "basis": "2분기 영업이익 89.5조, 3분기 잠정 107.4조 증가분의 대부분이 메모리 가격에서 나온다",
+      "researched": true,
+      "finding": "TrendForce는 4Q26 일반 DRAM 계약가가 전분기 대비 10~15%, NAND가 15~20% 오른다고 전망하나 상승 속도는 둔화된다고 본다. 이는 언론 인용 전망이며 고정거래가격 시계열은 확보하지 못했다"
+    },
+    {
+      "name": "AI 서버·CSP CapEx 수요",
+      "weight_pct": 30,
+      "basis": "서버용 첨단 공정 우선 배정으로 일반 메모리 공급이 빠듯해진다",
+      "researched": true,
+      "finding": "TrendForce는 상위 9개 CSP의 CapEx가 2026년 9,570억 달러(+106%), 2027년 1.5조 달러 이상으로 상향됐다고 한다. AI 서버 출하는 2026년 +32.2%, 2027년 약 +36%다"
+    },
+    {
+      "name": "메모리 이외 사업(파운드리·모바일·가전)",
+      "weight_pct": 15,
+      "basis": "영업이익 기여가 메모리에 비해 작다",
+      "researched": false,
+      "skipped_reason": "영업이익 107.4조원 중 비중이 작아 12개월 수익률 문턱 판단을 바꾸지 못한다고 보았다"
+    },
+    {
+      "name": "한국 시장 위기(STRESS) 구간과 변동성",
+      "weight_pct": 10,
+      "basis": "KOSPI가 고점 대비 -36.7%이고 삼성전자 3개월 변동성이 90%다",
+      "researched": true,
+      "finding": "시장 상태 패킷이 STRESS이며 이는 손절가를 현재가에 가깝게 두는 이유가 아니라 bear 확률을 30%로 두는 근거다"
+    }
+  ],
+  "method": {
+    "valuation_family": "EARNINGS_MULTIPLE",
+    "why_fit": "TTM 영업이익 179.0조원과 순현금 167.6조원으로 이익이 양이다. 정점 이익 구간이라 현금흐름 추정보다 연환산 이익×낮은 배수로 시나리오 격차를 보는 편이 단순하다",
+    "assumptions": [
+      "base EPS 52,000원은 3분기 잠정 영업이익 107.4조원을 4배 연환산하고 2분기 순이익/영업이익 비율을 적용한 모델 추정이다. 3분기 순이익은 미공시다",
+      "배수는 이익 정점에서 낮게 형성되는 점을 반영해 4.8~5.5배로 좁게 두었다",
+      "배당 수취분은 0으로 둔다"
+    ]
+  },
+  "thesis": "메모리 가격 상승과 AI 서버 수요가 이어지는 한 연환산 이익은 현재 주가 대비 크게 높다(현재가 기준 PER 약 4.7배). 그러나 base 기대수익률이 비교선을 1.1%p 넘는 데 그치고 대체 가정 세 곳이 모두 비교선 아래라 우위가 얇다. 따라서 새 자금 판단은 WAIT, 보유분은 손절가를 둔 채 HOLD다",
+  "strongest_counter_thesis": {
+    "text": "이익이 정점이면 시장은 낮은 PER을 계속 준다. TrendForce도 가격 상승 속도가 완만해지고 소비자 쪽 압박이 이어진다고 보므로 4분기 이후 계약가가 꺾이면 연환산 이익 전제가 무너져 bear(-30.6%)가 현실이 된다",
+    "evidence_refs": [
+      "WEBSNAP:96e0ad197da6",
+      "FUNDAMENTALS:005930",
+      "MARKET_STATE:KR"
+    ]
+  },
+  "invalidation_signals": [
+    {
+      "signal": "TrendForce가 발표하는 DRAM 일반 계약가의 전분기 대비 변동률이 두 분기 연속 0% 이하",
+      "action": "EXIT",
+      "rationale": "연환산 이익 전제와 base 시나리오 전체가 메모리 계약가 상승 위에 서 있다"
+    },
+    {
+      "signal": "삼성전자 3분기 확정 실적의 영업이익이 잠정치 107.4조원보다 5% 넘게 낮게 확정되거나 4분기 영업이익 컨센서스가 3분기 잠정치보다 낮아짐",
+      "action": "TRIM_HALF",
+      "rationale": "base EPS 52,000원이 3분기 이익 연환산에 기대므로 4분기 이익이 3분기 아래면 base가 컨센서스 2026 수준(약 45,500원)으로 내려간다"
+    },
+    {
+      "signal": "상위 CSP 중 둘 이상이 4분기 실적발표에서 다음 해 CapEx 가이던스를 하향",
+      "action": "REASK",
+      "rationale": "AI 서버 수요가 일반 메모리 공급 부족의 전제이지만 CapEx 하향이 곧바로 이익 훼손을 뜻하지는 않아 재질문으로 처리한다"
+    }
+  ],
+  "unknowns": [
+    "DRAM·NAND 고정거래가격 시계열이 없다. TrendForce 고정거래가격은 유료 구간이고 확보한 것은 언론 인용 전망과 현물가 표(선행지표)뿐이다",
+    "3분기 순이익이 공시되지 않아 base EPS는 2분기 순이익/영업이익 비율로 추정했다",
+    "3분기 잠정치는 패킷의 earnings_bridge에 반영돼 있지 않아 FUNDAMENTALS 수치와 시점이 다르다",
+    "배당 수취 총액을 확인하지 못했다",
+    "계좌 총자산과 현금 비중이 없어 집중도 한도(단일 종목 25%)와 현금 한도를 대조하지 못했다",
+    "평단과 수량은 사용자 입력이며 증권사 잔고로 검증되지 않았다"
+  ],
+  "research_requests": [],
+  "sources": [
+    {
+      "source_id": "WEBSNAP:96e0ad197da6",
+      "type": "WEB_PRESS_RELEASE",
+      "locator": "https://www.trendforce.com/presscenter/news/20260930-13258.html",
+      "published_at": "2026-09-30T00:00:00+09:00",
+      "retrieved_at": "2026-10-20T00:10:53+09:00"
+    },
+    {
+      "source_id": "WEBSNAP:75223cfdf34d",
+      "type": "WEB_PRESS_RELEASE",
+      "locator": "https://www.trendforce.com/presscenter/news/20261014-13269.html",
+      "published_at": "2026-10-14T00:00:00+09:00",
+      "retrieved_at": "2026-10-20T00:10:54+09:00"
+    },
+    {
+      "source_id": "WEBSNAP:0894e802c658",
+      "type": "WEB_PRICE_TABLE",
+      "locator": "https://www.trendforce.com/price/dram/dram_spot",
+      "published_at": null,
+      "retrieved_at": "2026-10-20T00:10:55+09:00"
+    }
+  ],
+  "evidence_refs": [
+    "FUNDAMENTALS:005930",
+    "CONSENSUS:005930",
+    "MARKET_STATE:KR",
+    "PRICE:005930.KS",
+    "POLICY:INVESTOR",
+    "PORTFOLIO:HOLDINGS",
+    "WEBSNAP:96e0ad197da6",
+    "WEBSNAP:75223cfdf34d",
+    "WEBSNAP:0894e802c658"
+  ],
+  "assumption_review": {
+    "status": "EVALUATED",
+    "analysis_id": "ASM-13266d4b9df428473617",
+    "interpretation": "기준 가정의 기대수익률은 13.1%로 비교선 12%를 1.1%p 넘고 조건부 승리확률 합산은 49.9%다. 배수를 4.0으로 낮추면 3.5%, base EPS를 42,000원(컨센서스 2026 수준)으로 낮추면 2.0%, bear 확률을 40%로 올리면 5.6%로 모두 비교선 아래다. base 배수 4.71배 또는 base EPS 51,000원이 손익분기 경계라 기준 가정(4.8배, 52,000원)이 경계에서 매우 가깝다. 즉 우위가 크지 않으며 3분기 확정 순이익, 4분기 계약가가 가정을 갈라놓는다. 그래서 새 매수는 WAIT, 보유분은 손절가를 둔 HOLD로 둔다",
+    "responses": [
+      {
+        "id": "lower_multiple",
+        "effect": "KEEP",
+        "verdict": "WAIT",
+        "action": "HOLD",
+        "rationale": "배수 4.0이면 기대수익률 3.5%로 비교선 아래다. 그러나 이 상태에서도 195,000원 손절이 하방을 제한하므로 매도로 바꿀 정도의 증거는 아니다"
+      },
+      {
+        "id": "lower_base_eps",
+        "effect": "REASSESS",
+        "verdict": null,
+        "action": null,
+        "rationale": "base EPS 42,000원이면 기대수익률 2.0%다. 3분기 확정 순이익과 4분기 컨센서스로 이 가정이 맞는지 확인되면 TRIM_HALF 신호로 다시 판단한다"
+      },
+      {
+        "id": "risk_shift",
+        "effect": "KEEP",
+        "verdict": "WAIT",
+        "action": "HOLD",
+        "rationale": "bear 확률 40%이면 기대수익률 5.6%, 승리확률 42.5%다. 확률 이동만으로 보유 결론은 바뀌지 않으나 STRESS 구간이 길어지면 재질문 대상이다"
+      },
+      {
+        "id": "required_multiple",
+        "effect": "KEEP",
+        "verdict": "WAIT",
+        "action": "HOLD",
+        "rationale": "비교선 12%를 만족하는 base 배수가 4.71배로 기준 4.8배와 거의 같다. 현재 PER(약 4.7배)과도 가까워 배수 재평가 없이도 경계에 걸쳐 있다"
+      },
+      {
+        "id": "required_base_eps",
+        "effect": "KEEP",
+        "verdict": "WAIT",
+        "action": "HOLD",
+        "rationale": "필요 base EPS 51,000원은 기준(52,000원)보다 2% 낮을 뿐이다. 3분기 확정 순이익이 이 값을 확인하거나 깨는 시점에 다시 질문한다"
+      }
+    ]
+  }
+}

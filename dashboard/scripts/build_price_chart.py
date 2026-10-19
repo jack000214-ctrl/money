@@ -34,7 +34,7 @@ def read_prices(path: Path) -> list[dict]:
             "close": float(row["close"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
-            "volume": int(row["volume"]),
+            "volume": int(float(row["volume"])),
         }
         for row in rows
     ]

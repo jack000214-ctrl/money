@@ -134,6 +134,20 @@ class TestRunRefreshOutcomes(unittest.TestCase):
         self.assertEqual(results[0]["status"], "UPDATED")
         self.assertEqual(code, 0)
 
+    def test_collector_output_is_read_as_utf8(self):
+        """Windows 기본(cp949)으로 읽으면 한글 출력에서 읽기 스레드가 죽는다."""
+        completed = type("P", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("cio.refresh.DATA_DIR", Path(tmp)), \
+                patch("cio.refresh.ROOT", Path(tmp)), \
+                patch("cio.refresh.tasks_for", return_value=[self.task()]), \
+                patch("cio.refresh.inspect_task",
+                      side_effect=lambda task, **kw: setattr(task, "state", "STALE") or task), \
+                patch("cio.refresh.subprocess.run", return_value=completed) as run:
+            run_refresh("000660")
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
+
     def test_exit_zero_without_a_usable_artifact_is_a_failure(self):
         """수집기가 0 으로 끝나고도 파일을 못 쓰는 경우가 있다.
 

@@ -1,0 +1,305 @@
+{
+  "schema_version": "cio-assumption-analysis/1.0.0",
+  "engine_version": "1.2.0",
+  "context_id": "CTX-7d9676a34298b715d4aa",
+  "asset_id": "005930",
+  "created_at": "2026-10-19T15:14:28+00:00",
+  "spec": {
+    "schema_version": "cio-assumption-spec/1.0.0",
+    "inputs": {
+      "method": "EARNINGS_MULTIPLE",
+      "price": 216250,
+      "currency": "KRW",
+      "horizon_months": 12,
+      "win_return_threshold_pct": 12,
+      "scenarios": {
+        "bear": {
+          "eps": 30000,
+          "multiple": 5.0,
+          "cash_distribution": 0,
+          "probability_pct": 30,
+          "conditional_win_probability_pct": 3
+        },
+        "base": {
+          "eps": 52000,
+          "multiple": 4.8,
+          "cash_distribution": 0,
+          "probability_pct": 50,
+          "conditional_win_probability_pct": 60
+        },
+        "bull": {
+          "eps": 68000,
+          "multiple": 5.5,
+          "cash_distribution": 0,
+          "probability_pct": 20,
+          "conditional_win_probability_pct": 95
+        }
+      }
+    },
+    "comparison": {
+      "basis": "MODEL",
+      "total_return_pct": 12,
+      "rationale": "투자자 정책의 종목 목표수익률 12%를 12개월 비교 기준으로 쓴다."
+    },
+    "bases": [
+      {
+        "id": "eps",
+        "parameters": [
+          "scenarios.bear.eps",
+          "scenarios.base.eps",
+          "scenarios.bull.eps"
+        ],
+        "origin": "MODEL_ESTIMATE",
+        "rationale": "base는 3분기 잠정 영업이익 107.4조원을 4배 연환산하고 2분기의 순이익/영업이익 비율을 적용한 뒤 희석주식수로 나눈 값(약 5만 2천원)이다. 3분기 순이익은 공시되지 않았다. 이 값은 컨센서스 2026 EPS 45,521원과 2027 EPS 68,241원 사이다. bull은 2027 컨센서스(68,241원)와 같은 수준으로 놓는다. bear는 메모리 가격 상승이 꺾여 연환산 이익이 base의 약 58%로 줄어드는 경우다.",
+        "evidence_refs": [
+          "FUNDAMENTALS:005930",
+          "CONSENSUS:005930",
+          "DARTDOC:20261008800004"
+        ],
+        "revisit_when": "삼성전자 3분기 확정 실적(순이익 포함) 공시 또는 4분기 DRAM·NAND 계약가 확정 발표 시 다시 정한다."
+      },
+      {
+        "id": "multiple",
+        "parameters": [
+          "scenarios.bear.multiple",
+          "scenarios.base.multiple",
+          "scenarios.bull.multiple"
+        ],
+        "origin": "MODEL_CHOICE",
+        "rationale": "현재가 기준 PER은 약 4.7배다. 과거 3년 확정연도 PER 밴드(최소 10.75, 중앙값 18.27)는 이익이 정점인 현재에 그대로 쓰기 어렵다. 이익이 정점일 때는 PER이 낮게 형성되므로 4.8~5.5배의 좁은 범위만 쓰고 재평가는 가정하지 않는다.",
+        "evidence_refs": [
+          "FUNDAMENTALS:005930",
+          "PRICE:005930.KS"
+        ],
+        "revisit_when": "KOSPI 위기 구간(STRESS) 해소 또는 연환산 이익이 2개 분기 연속 꺾일 때 다시 정한다."
+      },
+      {
+        "id": "cash_distribution",
+        "parameters": [
+          "scenarios.bear.cash_distribution",
+          "scenarios.base.cash_distribution",
+          "scenarios.bull.cash_distribution"
+        ],
+        "origin": "MODEL_CHOICE",
+        "rationale": "배당 수취분은 근거 자료를 확보하지 못해 0으로 보수적으로 둔다.",
+        "evidence_refs": [],
+        "revisit_when": "분기 배당 공시로 12개월 배당 총액이 확인될 때 다시 정한다."
+      },
+      {
+        "id": "probability_pct",
+        "parameters": [
+          "scenarios.bear.probability_pct",
+          "scenarios.base.probability_pct",
+          "scenarios.bull.probability_pct"
+        ],
+        "origin": "MODEL_CHOICE",
+        "rationale": "TrendForce 4분기 계약가 상승 전망과 CSP CapEx 상향은 base 이상을 지지한다. 그러나 가격 상승 속도가 완만해지고 KOSPI가 고점 대비 -36.7%인 STRESS 구간이며 삼성전자 3개월 변동성이 90%로 커서 bear에 30%를 둔다.",
+        "evidence_refs": [
+          "WEBSNAP:96e0ad197da6",
+          "WEBSNAP:75223cfdf34d",
+          "MARKET_STATE:KR"
+        ],
+        "revisit_when": "4분기 고정거래가격 확정, CSP 4분기 CapEx 가이던스 변경 시 다시 정한다."
+      },
+      {
+        "id": "conditional_win_probability_pct",
+        "parameters": [
+          "scenarios.bear.conditional_win_probability_pct",
+          "scenarios.base.conditional_win_probability_pct",
+          "scenarios.bull.conditional_win_probability_pct"
+        ],
+        "origin": "MODEL_CHOICE",
+        "rationale": "승리 정의는 12개월 뒤 검토가 대비 총수익률 12% 이상이다. base 시나리오 목표 주가는 12% 문턱을 넘지만 12개월 변동성이 커서 60%만 둔다. bear는 거의 도달하지 못하고 bull은 거의 확실하다.",
+        "evidence_refs": [
+          "PRICE:005930.KS"
+        ],
+        "revisit_when": "승리 정의 수익률이나 보유 기간을 바꿀 때 다시 정한다."
+      }
+    ],
+    "tests": [
+      {
+        "id": "lower_multiple",
+        "changes": {
+          "scenarios.base.multiple": 4.0
+        },
+        "rationale": "이익 정점 인식이 커져 base 배수가 낮아지는 경우"
+      },
+      {
+        "id": "lower_base_eps",
+        "changes": {
+          "scenarios.base.eps": 42000
+        },
+        "rationale": "4분기 이익이 3분기 연환산에 못 미쳐 base EPS가 컨센서스 2026 수준으로 내려가는 경우"
+      },
+      {
+        "id": "risk_shift",
+        "changes": {
+          "scenarios.bear.probability_pct": 40,
+          "scenarios.base.probability_pct": 45,
+          "scenarios.bull.probability_pct": 15
+        },
+        "rationale": "메모리 사이클 정점 우려로 하방 확률이 커지는 경우"
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "required_multiple",
+        "parameter": "scenarios.base.multiple",
+        "low": 1,
+        "high": 20
+      },
+      {
+        "id": "required_base_eps",
+        "parameter": "scenarios.base.eps",
+        "low": 10000,
+        "high": 100000
+      }
+    ]
+  },
+  "comparison": {
+    "basis": "MODEL",
+    "total_return_pct": 12,
+    "rationale": "투자자 정책의 종목 목표수익률 12%를 12개월 비교 기준으로 쓴다."
+  },
+  "outputs": {
+    "baseline": {
+      "scenarios": {
+        "bear": {
+          "value_per_share": 150000.0,
+          "total_return_pct": -30.63583815028902,
+          "annualized_return_pct": -30.63583815028902
+        },
+        "base": {
+          "value_per_share": 249600.0,
+          "total_return_pct": 15.421965317919085,
+          "annualized_return_pct": 15.421965317919085
+        },
+        "bull": {
+          "value_per_share": 374000.0,
+          "total_return_pct": 72.94797687861272,
+          "annualized_return_pct": 72.94797687861272
+        }
+      },
+      "expected_return_pct": 13.109826589595382,
+      "win_probability_pct": 49.9,
+      "comparison_relation": "ABOVE"
+    },
+    "comparison_total_return_pct": 12,
+    "tests": [
+      {
+        "id": "lower_multiple",
+        "changes": {
+          "scenarios.base.multiple": 4.0
+        },
+        "rationale": "이익 정점 인식이 커져 base 배수가 낮아지는 경우",
+        "basis_ids": [
+          "multiple"
+        ],
+        "expected_return_pct": 3.491329479768786,
+        "change_pp": -9.618497109826595,
+        "win_probability_pct": 49.9,
+        "comparison_relation": "BELOW"
+      },
+      {
+        "id": "lower_base_eps",
+        "changes": {
+          "scenarios.base.eps": 42000
+        },
+        "rationale": "4분기 이익이 3분기 연환산에 못 미쳐 base EPS가 컨센서스 2026 수준으로 내려가는 경우",
+        "basis_ids": [
+          "eps"
+        ],
+        "expected_return_pct": 2.0115606936416195,
+        "change_pp": -11.098265895953762,
+        "win_probability_pct": 49.9,
+        "comparison_relation": "BELOW"
+      },
+      {
+        "id": "risk_shift",
+        "changes": {
+          "scenarios.bear.probability_pct": 40,
+          "scenarios.base.probability_pct": 45,
+          "scenarios.bull.probability_pct": 15
+        },
+        "rationale": "메모리 사이클 정점 우려로 하방 확률이 커지는 경우",
+        "basis_ids": [
+          "probability_pct"
+        ],
+        "expected_return_pct": 5.627745664739887,
+        "change_pp": -7.482080924855495,
+        "win_probability_pct": 42.45,
+        "comparison_relation": "BELOW"
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "required_multiple",
+        "parameter": "scenarios.base.multiple",
+        "low": 1,
+        "high": 20,
+        "low_return_pct": -32.57803468208092,
+        "high_return_pct": 195.8612716763006,
+        "required_value": 4.707692307692307,
+        "status": "SOLVED",
+        "return_at_boundary_pct": 11.999999999999996
+      },
+      {
+        "id": "required_base_eps",
+        "parameter": "scenarios.base.eps",
+        "low": 10000,
+        "high": 100000,
+        "low_return_pct": -33.5028901734104,
+        "high_return_pct": 66.3815028901734,
+        "required_value": 51000.0,
+        "status": "SOLVED",
+        "return_at_boundary_pct": 12.000000000000007
+      }
+    ],
+    "_role": "가정·검사 범위·조건부 승리확률은 모델이 정했다. PC는 수익률과 비교선의 관계만 계산하며 행동을 정하지 않는다. 경계값은 나머지 가정을 고정한 역산값이다."
+  },
+  "evidence_index": [
+    {
+      "source_id": "CONSENSUS:005930",
+      "path": "knowledge/evidence/objects/b4e840f37bfaec1d096ab959a2504aa0336b7c5a81aca98ffaf044c6fa26822f.json",
+      "content_sha256": "b4e840f37bfaec1d096ab959a2504aa0336b7c5a81aca98ffaf044c6fa26822f",
+      "kind": "SECONDARY_ESTIMATE"
+    },
+    {
+      "source_id": "DARTDOC:20261008800004",
+      "path": "knowledge/evidence/objects/a6782b17c4a811f3801de1797e0468992a4696a305c0ab66afc2a9172aea17b8.json",
+      "content_sha256": "a6782b17c4a811f3801de1797e0468992a4696a305c0ab66afc2a9172aea17b8",
+      "kind": "DART_DOCUMENT"
+    },
+    {
+      "source_id": "FUNDAMENTALS:005930",
+      "path": "knowledge/evidence/objects/91bc42be8d36e2ad7755312bba17de5a67b7febe63d3726328faf51421935aa8.json",
+      "content_sha256": "91bc42be8d36e2ad7755312bba17de5a67b7febe63d3726328faf51421935aa8",
+      "kind": "FILING_DERIVED"
+    },
+    {
+      "source_id": "MARKET_STATE:KR",
+      "path": "knowledge/evidence/objects/af8df40e00e0cd46a93eb47571170d9bd071b2171ff478e544c603f4e0c1a832.json",
+      "content_sha256": "af8df40e00e0cd46a93eb47571170d9bd071b2171ff478e544c603f4e0c1a832",
+      "kind": "DERIVED"
+    },
+    {
+      "source_id": "PRICE:005930.KS",
+      "path": "knowledge/evidence/objects/a5e1193cc240118d091858afc56ab6251143e34ebe447c9d2fd46588f5384794.csv",
+      "content_sha256": "a5e1193cc240118d091858afc56ab6251143e34ebe447c9d2fd46588f5384794",
+      "kind": "MARKET_DATA"
+    },
+    {
+      "source_id": "WEBSNAP:75223cfdf34d",
+      "path": "knowledge/evidence/objects/0c10a32c7e343ccad71d8ee0b23cd2534b4e14ff26e059eabb4db29976039522.json",
+      "content_sha256": "0c10a32c7e343ccad71d8ee0b23cd2534b4e14ff26e059eabb4db29976039522",
+      "kind": "WEB_SNAPSHOT"
+    },
+    {
+      "source_id": "WEBSNAP:96e0ad197da6",
+      "path": "knowledge/evidence/objects/4b4ddbe8f36d0112a6c5883e43e817a7bb3ce86efca1744c9b79947647ea2934.json",
+      "content_sha256": "4b4ddbe8f36d0112a6c5883e43e817a7bb3ce86efca1744c9b79947647ea2934",
+      "kind": "WEB_SNAPSHOT"
+    }
+  ],
+  "analysis_id": "ASM-13266d4b9df428473617"
+}

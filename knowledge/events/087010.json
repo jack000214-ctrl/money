@@ -1,0 +1,126 @@
+{
+  "schema_version": "event-packet/2.1.0",
+  "asset_id": "087010",
+  "symbol": "087010.KQ",
+  "collected_at": "2026-10-20T00:03:59+09:00",
+  "window": {
+    "since": "2026-07-21",
+    "until": "2026-10-19",
+    "trading_days": 60
+  },
+  "threshold": "적응형 — 직전 60거래일 초과변동 표준편차 × 2.0",
+  "benchmark": {
+    "symbol": "^KS11",
+    "available": true,
+    "daily_relative_method": "asset_return_pct - benchmark_return_pct (beta=1 조사 우선순위용)",
+    "calendar_gaps": []
+  },
+  "last_bar": {
+    "date": "2026-10-19",
+    "settled": true,
+    "excluded_unsettled_bar": null,
+    "_note": "수집 시점에 마지막 봉이 확정 종가였다"
+  },
+  "benchmark_comparison": {
+    "available": true,
+    "benchmark_symbol": "^KS11",
+    "method": "(1 + asset_return) / (1 + benchmark_return) - 1 (beta=1 단순 비교)",
+    "legs": [
+      {
+        "label": "구간 고점 → 현재",
+        "from": "2026-08-13",
+        "to": "2026-10-19",
+        "asset_return_pct": -48.8,
+        "benchmark_return_pct": -15.3,
+        "benchmark_relative_pct": -39.5
+      },
+      {
+        "label": "구간 저점 → 현재",
+        "from": "2026-10-13",
+        "to": "2026-10-19",
+        "asset_return_pct": 21.6,
+        "benchmark_return_pct": -4.4,
+        "benchmark_relative_pct": 27.2
+      },
+      {
+        "label": "구간 전체",
+        "from": "2026-07-21",
+        "to": "2026-10-19",
+        "asset_return_pct": -5.2,
+        "benchmark_return_pct": -14.5,
+        "benchmark_relative_pct": 10.9
+      }
+    ],
+    "_note": "상대수익률은 기술통계이며 시장·종목 요인의 인과 기여도가 아니다"
+  },
+  "judged_on": "벤치마크 대비 beta=1 상대변동",
+  "latest": {
+    "date": "2026-10-19",
+    "close": 100800.0
+  },
+  "moves": [
+    {
+      "date": "2026-07-28",
+      "close": 143000.0,
+      "change_pct": 10.94,
+      "benchmark_pct": -10.84,
+      "excess_pct": 21.78,
+      "threshold_pct": 16.09,
+      "sigma_used": 8.04,
+      "direction": "up",
+      "volume": 271574,
+      "volume_vs_avg": 1.29,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-08-03",
+      "close": 166100.0,
+      "change_pct": 29.97,
+      "benchmark_pct": -5.12,
+      "excess_pct": 35.09,
+      "threshold_pct": 17.5,
+      "sigma_used": 8.75,
+      "direction": "up",
+      "volume": 265443,
+      "volume_vs_avg": 1.26,
+      "candidate_filings": []
+    },
+    {
+      "date": "2026-10-08",
+      "close": 91500.0,
+      "change_pct": -29.94,
+      "benchmark_pct": -2.62,
+      "excess_pct": -27.32,
+      "threshold_pct": 17.63,
+      "sigma_used": 8.82,
+      "direction": "down",
+      "volume": 600660,
+      "volume_vs_avg": 2.85,
+      "candidate_filings": []
+    }
+  ],
+  "filings_in_window": [
+    {
+      "filed": "2026-09-03",
+      "name": "[기재정정]신규시설투자등              ",
+      "rcept_no": "20260903900076",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-08-25",
+      "name": "투자판단관련주요경영사항(임상시험계획승인신청)              (PT403의 제1상 임상시험계획 승인 신청)",
+      "rcept_no": "20260825900548",
+      "scheduled": false
+    },
+    {
+      "filed": "2026-08-14",
+      "name": "반기보고서 (2026.06)",
+      "rcept_no": "20260814002979",
+      "scheduled": true
+    }
+  ],
+  "_note": "candidate_filings 는 시간적으로 가까운 공시일 뿐 원인이 아니다. 여러 건이면 다 넣었다 — 하나를 고르는 것이 인과 판단이고 그건 모델의 몫이다",
+  "_gaps": [
+    "근접 공시가 없는 급변 3건 (2026-07-28, 2026-08-03, 2026-10-08) — 산업 뉴스·동종사·지수 원문은 CIO 모델이 직접 추가 조사한다."
+  ]
+}

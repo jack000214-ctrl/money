@@ -1,0 +1,388 @@
+AI Server Demand Sustains Memory Contract Price Increases in 4Q26, While Consumer-Side Pressure Persists, Says TrendForce
+
+Research Report
+
+Back
+
+Research Report
+
+AI & Smart Terminals
+
+AI Server / Data Center
+
+Consumer Electronics
+
+Robot
+
+Semiconductors
+
+Memory & Storage
+
+IC Design
+
+Wafer Fabrication / Foundry
+
+Semiconductor Device
+
+IC Testing & Packaging
+
+Optoelectronics & Displays
+
+Display Applications
+
+Display Panel
+
+LED Lighting
+
+LED Display
+
+Specialty LED
+
+Emerging Technologies & Applications
+
+Automotive / EV
+
+Green Energy & Storage
+
+Selected Topics
+
+Semiconductors
+
+Telecommunications
+
+Computer System
+
+Consumer Electronics
+
+Automotive / EV
+
+Green Energy & Storage
+
+Display Panel & LED
+
+Economics
+
+Selected Topics
+
+Membership
+
+Back
+
+Semiconductor
+N
+
+Display
+
+Optoelectronics
+
+Green Energy
+
+ICT Applications Research
+
+Selected Topics
+
+Price Trends
+
+Back
+
+DRAM
+
+DRAM Spot Price
+
+DRAM Contract Price
+
+Module Spot Price
+
+GDDR Spot Price
+
+LPDDR Spot Price
+
+Mobile DRAM Contract Price
+
+NAND Flash
+
+NAND Flash Spot Price
+
+NAND Flash Contract Price
+
+Wafer Spot Price
+
+Memory Card Spot Price
+
+PC-Client OEM SSD Contract Price
+
+SSD Street Price
+
+NAND Flash Wafer Contract Price
+
+eMMC Spot Price
+
+eMMC/UFS Contract Price
+
+TFT-LCD
+
+Large Size Panel Price
+
+LCD Smartphone Panel Price
+
+Street Price
+
+Large Size Panel Shipment
+
+PV
+
+Polysilicon
+
+Wafer
+
+Cell
+
+Module
+
+PV Glass
+
+Li-Ion Battery
+
+Battery Cell & Pack
+
+Precursor & Cathode Material
+
+Anode Material
+
+Separator
+
+Electrolyte
+
+Li & Co & Ni
+
+Other
+
+Insights
+
+Back
+
+Industry Insights
+
+News
+
+Press Center
+
+Roadshow
+
+Discover
+
+Back
+
+DataTrack
+
+AI Agent
+
+Data Center Tracker
+
+Sign In
+
+Get Support
+
+Popular Keywords
+
+#DRAM
+#Foundry
+#AI Server
+#HBM
+#FOPLP
+#CoWoS
+#NAND Flash
+#Automotive
+#MLCC
+#Server
+#Micro LED
+#IC Design
+
+Shopping List
+
+0 items
+
+Your cart is empty
+
+Total
+USD 0
+
+View Cart
+
+Sign In
+
+Press Center
+
+Home
+
+Press Center
+
+AI Server Demand Sustains Memory Contract Price Increases in 4Q26, While Consumer-Side Pressure Persists, Says TrendForce
+
+30 September 2026
+
+Semiconductors
+
+TrendForce
+
+
+Conventional DRAM contract prices are projected to grow 10–15% QoQ in 4Q26, while NAND Flash contract prices are expected to increase 15–20%
+
+Enterprise SSDs are the only category expected to see price growth accelerate due to strong demand from CSPs
+
+
+
+TrendForce’s latest memory industry research reveals that DRAM suppliers continue to prioritize advanced-process capacity for high-performance server products in 4Q26, keeping the overall market undersupplied. However, the pace of contract price increases is expected to moderate, with conventional DRAM prices projected to rise 10–15% QoQ.
+
+
+Meanwhile, the NAND Flash market is seeing a divergence between accelerating AI demand and weak consumer demand, although prices are still rising across segments. Overall NAND Flash contract prices are projected to increase 15–20% QoQ.
+
+
+For PC DRAM, notebook inventories are increasingly reflecting higher component costs in the fourth quarter, weighing on end-market sales. Nevertheless, PC OEMs continue to procure aggressively amid expectations that DRAM supply will remain tight in 2027, providing continued support for prices. On the supply side, DRAM suppliers have been fulfilling agreed volumes to PC OEMs and module makers every quarter throughout 2026. However, the PC DRAM supply could decline in 2027 as more capacity shifts to server applications.
+
+
+In the server DRAM market, improving server CPU availability has prompted CSPs and server OEMs to increase bit procurement from suppliers to meet growing RDIMM demand for general servers supporting agentic AI workloads. Memory suppliers have increased the share of lower-capacity RDIMMs in their product mix to better address customer demand. However, constraints in component supply, packaging and testing capacity, and front-end DRAM production flexibility continue to prevent supply from fully aligning with demand. Server DRAM is therefore expected to remain undersupplied in 4Q26. On the pricing front, increases for some suppliers are expected to lag the market average due to pricing mechanisms stipulated in long-term agreements (LTAs).
+
+
+For mobile DRAM, rising costs and the depletion of low-cost inventories continue to weigh on smartphone production, suppressing overall bit demand. At the same time, strong demand and higher margins in AI-related applications are prompting suppliers to continue shifting capacity toward server products, leaving mobile DRAM allocations tight. Consequently, the upward price trend remains firmly in place. However, because substantial increases were already priced in during previous quarters, growth is expected to moderate in 4Q26.
+
+
+In graphics DRAM, some PC brands are reconsidering GDDR6 as a means of reducing overall BOM costs. GDDR7 demand, meanwhile, continues to be driven primarily by AI chips, with procurement momentum outperforming the PC market.
+
+
+
+On the supply side, suppliers continue to scale back GDDR6 production while gradually exiting the market. GDDR7 output also remains limited as advanced-process capacity is increasingly allocated to applications such as server DRAM. These constraints are expected to keep graphics DRAM prices on an upward trajectory.
+
+
+For consumer DRAM, recent incremental demand has come primarily from SSD customers, supplementing existing demand from consumer networking and TV applications. In particular, the improved outlook for QLC SSD demand has increased corresponding demand for DRAM components. However, major suppliers remain committed to production cuts, leaving the market heavily reliant on Taiwanese suppliers. Prices are therefore expected to continue rising—albeit at a slower pace.
+
+
+Turning to client SSDs, PC OEMs can rely on finished-goods inventories and channel stock built during the first half of the year to support fourth-quarter shipments, limiting procurement largely to components in short supply. PC brands are also reducing SSD capacities in mainstream models to lower BOM costs, resulting in declines in both procurement volumes and average capacity per device. With buyers holding sufficient inventories and purchasing requirements remaining limited, NAND Flash suppliers have adopted a more flexible pricing stance, restraining the magnitude of price increases.
+
+
+The enterprise SSD market presents a markedly different picture. Bit demand for enterprise SSDs is projected to grow by more than 80% YoY in 2026 as CSPs continue to expand AI inference infrastructure. Demand is also shifting from LLM training toward actual AI deployment. Additionally, the large-scale rollout of agentic AI is driving exponential growth in data volumes for real-time retrieval and caching, while QLC penetration in vector databases continues to rise.
+
+
+In response, suppliers are expanding QLC capacity and the availability of high-capacity products, while PCIe 6.0 adoption is ramping alongside next-generation AI server platforms. However, most incremental supply has already been committed, leaving little available on the open market. Enterprise SSD price growth is therefore expected to accelerate in 4Q26, making it the only memory product category to see a larger increase than in the previous quarter.
+
+
+For eMMC/UFS, smartphone brands—the primary source of demand—are largely relying on existing inventories to support fourth-quarter production, resulting in very limited incremental procurement from suppliers. Lower-margin products such as TVs, set-top boxes, and wearables have even less room to absorb higher prices.
+
+
+Although suppliers are seeking broader price increases on the back of strong AI-driven pricing momentum, OEMs are responding with only the minimum purchase volumes needed to maintain supplier relationships. As a result, negotiations have effectively narrowed to price confirmation for relatively small order volumes.
+
+
+In the NAND Flash wafer market, prices have reached historical highs that downstream retail channels are increasingly unable to absorb. This has prompted module makers—the primary buyers—to adopt a more cautious procurement stance.
+
+
+On the supply side, suppliers continue to prioritize capacity based on profitability, keeping overall wafer availability constrained. However, weak purchasing momentum among module makers is expected to limit overall price growth to a modest increase.
+
+
+
+
+
+For more information on TrendForce’s semiconductor reports and market data, please visit the Report Page , leave a Message , or Email (SR_MI@trendforce.com) the Sales Department.
+
+
+
+For more on the latest technology industry news and trends, please visit News .
+
+Previous Article
+
+Six Leading Suppliers Bet on VCSEL NPO; VCSEL Demand Projected to Reach 650 Million Units by 2031, Says TrendForce
+
+Next Article
+
+HBM Supply Constraints Persist, 2027 Price Outlook Revised Upward with Blended ASP Forecast to Rise 121% YoY, Says TrendForce
+
+Subject
+
+Press Releases
+
+Subscribe to Newsletters
+
+Attribution Guide
+
+RSS Subscription
+
+In-Depth Analyses
+
+Infographics
+
+Videos
+
+Related Articles
+
+Optical Fiber Spot Prices Surge Severalfold in 2026, with Data Center-Driven Supply Shortages Expected to Persist Through 2028, Says TrendForce
+
+2026.10.19
+
+CSP CapEx Projected to Exceed US$1.5 Trillion in 2027, with AI Server Revenue Growing Over 90% YoY on Higher Shipments and Prices, Says TrendForce
+
+2026.10.14
+
+Integrated Optical-Electrical Testing Platforms Become Key to CPO Mass Production, Reshaping the Test Equipment Supply Chain, Says TrendForce
+
+2026.10.13
+
+Related Reports
+
+WW SSD Street Price - Oct. 16, 2026
+
+2026.10.16
+
+DRAM Monthly Datasheet Oct. 2026
+
+2026.10.16
+
+NAND Flash Monthly Datasheet Oct. 2026
+
+2026.10.15
+
+About Us
+
+Research Report
+
+Tags
+
+Industry Insights
+
+Terms of Use
+
+Privacy Policy
+
+Membership Terms & Conditions
+
+Contact Us
+
+Subscribe to Industry Insights
+
+Subscribe
+
+English
+
+繁體中文
+
+简体中文
+
+© 2026 TrendForce Corp. All rights reserved
+
+Get in touch with us
+
+Your Email
+
+Message
+
+Send
+
+Cancel
+
+Get in touch with us
+
+Your Email
+
+Message
+
+Send
+
+Cancel

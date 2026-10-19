@@ -2,10 +2,10 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "316140",
   "corp_code": "01350869",
-  "collected_at": "2026-10-16T00:23:01+00:00",
+  "collected_at": "2026-10-19T15:03:53+00:00",
   "source": "DART_LIST",
-  "since": "20251016",
-  "until": "20261016",
+  "since": "20250915",
+  "until": "20261020",
   "pblntf_types": [
     "A",
     "B",
@@ -18,25 +18,25 @@
       "pblntf_ty": "A",
       "pblntf_ty_name": "정기공시",
       "raw_payload_sha256": "30e891aa1154d27ceee5321a6a15368a9673b99138b48972190128d936e89c09",
-      "raw_locator": "data\\raw\\dart\\objects\\30e891aa1154d27ceee5321a6a15368a9673b99138b48972190128d936e89c09.json"
+      "raw_locator": "data/raw/dart/objects/30e891aa1154d27ceee5321a6a15368a9673b99138b48972190128d936e89c09.json"
     },
     {
       "pblntf_ty": "B",
       "pblntf_ty_name": "주요사항보고",
-      "raw_payload_sha256": "db97ffb2c290395cfd12aaaca36ee67045b04a2dff96e351cf1bebf6d5d8ec50",
-      "raw_locator": "data\\raw\\dart\\objects\\db97ffb2c290395cfd12aaaca36ee67045b04a2dff96e351cf1bebf6d5d8ec50.json"
+      "raw_payload_sha256": "72f15f02a68b204237f02cdf74c116a37606439d9d996d55ec93ea796549de13",
+      "raw_locator": "data/raw/dart/objects/72f15f02a68b204237f02cdf74c116a37606439d9d996d55ec93ea796549de13.json"
     },
     {
       "pblntf_ty": "C",
       "pblntf_ty_name": "발행공시",
-      "raw_payload_sha256": "310f07d0835676f47b14609bb85bbc2aea590833547c8ab3a736aed1713eaa45",
-      "raw_locator": "data\\raw\\dart\\objects\\310f07d0835676f47b14609bb85bbc2aea590833547c8ab3a736aed1713eaa45.json"
+      "raw_payload_sha256": "541f186f710404229c7cee5e6ed24174dd0f9569895dff74ebf170f2643fc1fe",
+      "raw_locator": "data/raw/dart/objects/541f186f710404229c7cee5e6ed24174dd0f9569895dff74ebf170f2643fc1fe.json"
     },
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
       "raw_payload_sha256": "0028339e87ba27ad2569ae7f268cc5e98e2f9e1c70cd7952b4ccd0560a5663ff",
-      "raw_locator": "data\\raw\\dart\\objects\\0028339e87ba27ad2569ae7f268cc5e98e2f9e1c70cd7952b4ccd0560a5663ff.json"
+      "raw_locator": "data/raw/dart/objects/0028339e87ba27ad2569ae7f268cc5e98e2f9e1c70cd7952b4ccd0560a5663ff.json"
     },
     {
       "pblntf_ty": "F",

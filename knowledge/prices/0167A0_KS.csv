@@ -1,6 +1,6 @@
 # schema_version price-series/2.1.0
 # symbol 0167A0.KS / currency KRW
-# retrieved_at 2026-10-19T06:21:20+00:00 / source Yahoo Finance chart API
+# retrieved_at 2026-10-19T15:20:40+00:00 / source Yahoo Finance chart API
 # last_bar 2026-10-19 / session SETTLED
 # last_bar_timestamp 1792368000 / source Yahoo timestamp
 date,close,adjusted_close,split_adjustment_factor,high,low,volume
@@ -148,4 +148,4 @@ date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2026-10-14,16165.0,16165.0,1,16790.0,15925.0,13654121
 2026-10-15,14285.0,14285.0,1,15145.0,13950.0,24093994
 2026-10-16,14590.0,14590.0,1,15020.0,14255.0,16456679
-2026-10-19,14390.0,14390.0,1,14535.0,13895.0,22633060
+2026-10-19,14595.0,14595.0,1,14595.0,13895.0,23610872

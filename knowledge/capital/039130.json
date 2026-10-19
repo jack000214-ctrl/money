@@ -1,0 +1,13 @@
+{
+  "schema_version": "kr-capital-announcement/1.0.0",
+  "asset_id": "039130",
+  "created_at": "2026-10-19T15:04:07+00:00",
+  "filing": null,
+  "corp_code": "00269940",
+  "raw_path": null,
+  "raw_sha256": null,
+  "state": "NO_EVENTS",
+  "events": [],
+  "share_bases": {},
+  "unresolved": []
+}

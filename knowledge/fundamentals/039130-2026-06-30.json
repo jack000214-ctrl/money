@@ -5,7 +5,7 @@
   "corp_code": "00269940",
   "currency": "KRW",
   "period_end": "2026-06-30",
-  "created_at": "2026-10-16T09:27:15+09:00",
+  "created_at": "2026-10-20T00:04:03+09:00",
   "source": "opendart_fnlttSinglAcntAll",
   "fs_div": "CFS",
   "definitions": {
@@ -443,7 +443,7 @@
     }
   },
   "share_count_cross_check": 15044932.0,
-  "raw_locator": "data\\raw\\dart\\objects\\5d8d98700f428f2efb3ae73ebb859129eabeada298772cf39f38ccf0e0e15009.json",
+  "raw_locator": "data/raw/dart/objects/5d8d98700f428f2efb3ae73ebb859129eabeada298772cf39f38ccf0e0e15009.json",
   "raw_payload_sha256": "5d8d98700f428f2efb3ae73ebb859129eabeada298772cf39f38ccf0e0e15009",
   "fundamentals_id": "FUND-818601e1b8e85de143b8"
 }

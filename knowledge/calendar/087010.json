@@ -1,0 +1,42 @@
+{
+  "schema_version": "earnings-calendar/1.0.0",
+  "asset_id": "087010",
+  "collected_at": "2026-10-20T00:03:58+09:00",
+  "as_of_date": "2026-10-20",
+  "source": "DART_DOCUMENT",
+  "source_grade": "PRIMARY",
+  "next_provisional_result": null,
+  "expected_periodic_report": null,
+  "expected_periodic_report_missing_reason": null,
+  "periodic_report_lag": {
+    "observation_count": 2,
+    "observations": [
+      {
+        "provisional_date": "2026-03-09",
+        "report_date": "2026-03-18",
+        "report_form": "ANNUAL_REPORT",
+        "report_class": "ANNUAL",
+        "gap_days": 9
+      },
+      {
+        "provisional_date": "2026-03-09",
+        "report_date": "2026-05-15",
+        "report_form": "QUARTER_REPORT",
+        "report_class": "INTERIM",
+        "gap_days": 67
+      }
+    ],
+    "median_gap_days_by_class": {
+      "ANNUAL": null,
+      "INTERIM": null
+    },
+    "sample_size_by_class": {
+      "ANNUAL": 1,
+      "INTERIM": 1
+    },
+    "_note": "정기보고서 제출일은 공시되지 않는다. 과거 (잠정실적 → 그 다음 정기보고서) 간격의 중앙값이며 추정이다. INTERIM(분기·반기, 기간말 +45일)과 ANNUAL(사업보고서, +90일)은 법정 기한이 달라 따로 센다. 관측이 2건 미만인 부류는 내지 않는다"
+  },
+  "business_day_basis": "주말만 제외한 근사다. 한국 공휴일은 반영하지 않았으므로 실제 영업일 수는 이 값 이하다",
+  "_note": "발표 예정일은 회사가 변경할 수 있다고 원문이 명시한다. 확정일이 아니며, 날짜가 지나도 공시가 없으면 연기된 것이다",
+  "_not_a_judgment": "이벤트까지 남은 날짜는 측정치다. 이벤트 전에 사지 말라는 지시가 아니라, 판단이 이벤트와 어디에 놓였는지 보이게 하는 값이다"
+}

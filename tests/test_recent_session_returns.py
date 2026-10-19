@@ -11,9 +11,9 @@ class TestRecentSessionReturns(unittest.TestCase):
     def test_prompt_version_is_read_from_canonical_header(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'prompt.md'
-            path.write_text('# CIO prompt v2.10\n규칙\n')
+            path.write_text('# CIO prompt v2.10\n규칙\n', encoding='utf-8')
             self.assertEqual(_prompt_version(path), '2.10')
-            path.write_text('# Missing version\n')
+            path.write_text('# Missing version\n', encoding='utf-8')
             with self.assertRaises(ContextError):
                 _prompt_version(path)
 

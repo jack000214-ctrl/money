@@ -1,0 +1,23 @@
+{
+  "asset_id": "454910",
+  "attempted_at": "2026-10-19T23:34:43+09:00",
+  "state": "PARTIAL",
+  "components": {
+    "summary": {
+      "state": "PARSE_ERROR",
+      "reason": "요약표 열을 해석하지 못했다"
+    },
+    "brokers": {
+      "state": "NO_DATA",
+      "reason": "제공처별 의견 상태; 실적 추정 유무와 별개"
+    },
+    "estimates": {
+      "state": "AVAILABLE",
+      "reason": "연도별 실적·추정 표의 관측 상태"
+    }
+  },
+  "raw_sources": {
+    "summary": "data/raw/naver/consensus_454910_20261019_233443.html",
+    "estimates": "data/raw/naver/estimates_454910_20261019_233443.html"
+  }
+}

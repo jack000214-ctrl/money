@@ -11,6 +11,12 @@ import sys
 import unittest
 from pathlib import Path
 
+# Windows 터미널 인코딩 문제 해결: cp949 환경에서도 UTF-8 텍스트를 안전하게 출력한다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))

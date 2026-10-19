@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "316140",
-  "collected_at": "2026-10-16T09:23:03+09:00",
+  "collected_at": "2026-10-20T00:03:55+09:00",
   "as_of": "2026-10-14",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
@@ -27,7 +27,7 @@
     "rating": 4.0,
     "target_price": 43526.0,
     "eps": 4365.0,
-    "per": 7.14,
+    "per": 7.18,
     "institution_count": 19
   },
   "estimates": {
@@ -86,7 +86,7 @@
         "operating_income_100m": 43452.0,
         "net_income_100m": 32051.0,
         "eps": 4365.0,
-        "per": 7.14,
+        "per": 7.18,
         "pbr": 0.58,
         "roe_pct": 8.5,
         "ev_ebitda": null,
@@ -101,7 +101,7 @@
         "operating_income_100m": 47097.0,
         "net_income_100m": 34176.0,
         "eps": 4639.0,
-        "per": 6.72,
+        "per": 6.76,
         "pbr": 0.55,
         "roe_pct": 8.46,
         "ev_ebitda": null,
@@ -331,17 +331,17 @@
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_316140_20261016_092301.html",
-    "estimates": "data\\raw\\naver\\estimates_316140_20261016_092301.html"
+    "summary": "data/raw/naver/consensus_316140_20261020_000355.html",
+    "estimates": "data/raw/naver/estimates_316140_20261020_000355.html"
   },
   "history": [
     {
       "as_of": "2026-10-14",
-      "collected_at": "2026-10-16T09:23:03+09:00",
+      "collected_at": "2026-10-20T00:03:55+09:00",
       "rating": 4.0,
       "target_price": 43526.0,
       "eps": 4365.0,
-      "per": 7.14,
+      "per": 7.18,
       "institution_count": 19
     }
   ]

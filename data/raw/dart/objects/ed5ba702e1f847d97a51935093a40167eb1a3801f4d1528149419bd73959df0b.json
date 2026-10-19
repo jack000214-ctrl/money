@@ -1,0 +1,148 @@
+{
+  "fetched_at": "2026-10-19T14:48:22+00:00",
+  "source": "opendart.fss.or.kr",
+  "request_name": "filings_087010_I",
+  "payload_sha256": "ed5ba702e1f847d97a51935093a40167eb1a3801f4d1528149419bd73959df0b",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 12,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "[기재정정]신규시설투자등              ",
+        "rcept_no": "20260903900076",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260903",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "투자판단관련주요경영사항(임상시험계획승인신청)              (PT403의 제1상 임상시험계획 승인 신청)",
+        "rcept_no": "20260825900548",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260825",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "정기주주총회결과              ",
+        "rcept_no": "20260326902553",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260326",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "기업설명회(IR)개최              ",
+        "rcept_no": "20260320900521",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260320",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "감사보고서제출              ",
+        "rcept_no": "20260318900767",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260318",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "주주총회소집결의              ",
+        "rcept_no": "20260309900887",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260309",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "매출액또는손익구조30%(대규모법인은15%)이상변동              ",
+        "rcept_no": "20260309900769",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20260309",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "기타시장안내              (시장평가 우수기업 매출액 특례적용 관련)",
+        "rcept_no": "20260227902156",
+        "flr_nm": "코스닥시장본부",
+        "rcept_dt": "20260227",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "현금ㆍ현물배당을위한주주명부폐쇄(기준일)결정              ",
+        "rcept_no": "20251215901064",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20251215",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "주주명부폐쇄기간또는기준일설정              ",
+        "rcept_no": "20251215901055",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20251215",
+        "rm": "코"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "[기재정정]신규시설투자등              ",
+        "rcept_no": "20251203900572",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20251203",
+        "rm": "코정"
+      },
+      {
+        "corp_code": "00415868",
+        "corp_name": "펩트론",
+        "stock_code": "087010",
+        "corp_cls": "K",
+        "report_nm": "[기재정정]투자판단관련주요경영사항              (플랫폼 기술 평가 계약 체결)",
+        "rcept_no": "20251201900944",
+        "flr_nm": "펩트론",
+        "rcept_dt": "20251201",
+        "rm": "코"
+      }
+    ]
+  }
+}

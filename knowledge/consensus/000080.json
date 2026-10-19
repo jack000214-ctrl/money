@@ -1,7 +1,7 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "000080",
-  "collected_at": "2026-10-16T09:41:56+09:00",
+  "collected_at": "2026-10-20T00:04:17+09:00",
   "as_of": "2026-10-13",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
@@ -27,7 +27,7 @@
     "rating": 4.0,
     "target_price": 24250.0,
     "eps": 1462.0,
-    "per": 10.56,
+    "per": 10.75,
     "institution_count": 4
   },
   "estimates": {
@@ -86,10 +86,10 @@
         "operating_income_100m": 1945.0,
         "net_income_100m": 1042.0,
         "eps": 1462.0,
-        "per": 10.56,
-        "pbr": 0.92,
+        "per": 10.75,
+        "pbr": 0.94,
         "roe_pct": 9.09,
-        "ev_ebitda": 5.39,
+        "ev_ebitda": 5.45,
         "net_debt_ratio_pct": 58.8
       },
       {
@@ -101,10 +101,10 @@
         "operating_income_100m": 2004.0,
         "net_income_100m": 1057.0,
         "eps": 1483.0,
-        "per": 10.41,
-        "pbr": 0.89,
+        "per": 10.59,
+        "pbr": 0.9,
         "roe_pct": 8.86,
-        "ev_ebitda": 5.2,
+        "ev_ebitda": 5.26,
         "net_debt_ratio_pct": 54.11
       }
     ],
@@ -196,17 +196,17 @@
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_000080_20261016_094154.html",
-    "estimates": "data\\raw\\naver\\estimates_000080_20261016_094154.html"
+    "summary": "data/raw/naver/consensus_000080_20261020_000417.html",
+    "estimates": "data/raw/naver/estimates_000080_20261020_000417.html"
   },
   "history": [
     {
       "as_of": "2026-10-13",
-      "collected_at": "2026-10-16T09:41:56+09:00",
+      "collected_at": "2026-10-20T00:04:17+09:00",
       "rating": 4.0,
       "target_price": 24250.0,
       "eps": 1462.0,
-      "per": 10.56,
+      "per": 10.75,
       "institution_count": 4
     }
   ]

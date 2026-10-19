@@ -340,6 +340,7 @@ def tasks_for_asset(
                         asset["asset_id"],
                         "--year",
                         str(dt.date.today().year),
+                        *(["--fs", asset["fs_div"]] if asset.get("fs_div") else []),
                     ],
                 )
             )
@@ -2004,11 +2005,15 @@ def run_refresh(
             if task.required:
                 failures += 1
             continue
+        # 수집기는 UTF-8 로 출력한다. text=True 만 쓰면 Windows 에서 cp949 로 읽다
+        # 읽기 스레드가 UnicodeDecodeError 를 내고 로그 일부가 사라진다.
         completed = subprocess.run(
             task.command,
             cwd=ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         log_path = log_dir / f"{task.name.replace(':', '-')}.log"
         log_path.write_text(

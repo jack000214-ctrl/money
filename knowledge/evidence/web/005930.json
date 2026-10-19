@@ -1,0 +1,45 @@
+{
+  "schema_version": "web-evidence/1.0.0",
+  "asset_id": "005930",
+  "snapshots": [
+    {
+      "source_id": "WEBSNAP:96e0ad197da6",
+      "label": "tf-4q26-memory-contract",
+      "url": "https://www.trendforce.com/presscenter/news/20260930-13258.html",
+      "requested_url": "https://www.trendforce.com/presscenter/news/20260930-13258.html",
+      "title": "AI Server Demand Sustains Memory Contract Price Increases in 4Q26, While Consumer-Side Pressure Persists, Says TrendForce",
+      "note": "4Q26 메모리 계약가 전망(TrendForce 보도자료)",
+      "content_sha256": "96e0ad197da6904ef1f0fb4415cd1d5c1f0cdc11884c2ee9c77bde34f914673f",
+      "path": "data/raw/web/objects/96e0ad197da6904ef1f0fb4415cd1d5c1f0cdc11884c2ee9c77bde34f914673f.json",
+      "fetched_at": "2026-10-20T00:10:53+09:00",
+      "content_length": 152220,
+      "shell_page_warning": null
+    },
+    {
+      "source_id": "WEBSNAP:75223cfdf34d",
+      "label": "tf-csp-capex-2027",
+      "url": "https://www.trendforce.com/presscenter/news/20261014-13269.html",
+      "requested_url": "https://www.trendforce.com/presscenter/news/20261014-13269.html",
+      "title": "CSP CapEx Projected to Exceed US$1.5 Trillion in 2027, with AI Server Revenue Growing Over 90% YoY on Higher Shipments and Prices, Says TrendForce",
+      "note": "CSP CapEx 2026-27 전망, AI 서버 수요(TrendForce 보도자료)",
+      "content_sha256": "75223cfdf34d73bb32d8626658d24c4923fd03f563dbfd28f1e8c8969038895a",
+      "path": "data/raw/web/objects/75223cfdf34d73bb32d8626658d24c4923fd03f563dbfd28f1e8c8969038895a.json",
+      "fetched_at": "2026-10-20T00:10:54+09:00",
+      "content_length": 148918,
+      "shell_page_warning": null
+    },
+    {
+      "source_id": "WEBSNAP:0894e802c658",
+      "label": "tf-dram-spot-20261019",
+      "url": "https://www.trendforce.com/price/dram/dram_spot",
+      "requested_url": "https://www.trendforce.com/price/dram/dram_spot",
+      "title": "DRAM Price Trends | TrendForce",
+      "note": "DRAM 현물가·계약가 표 2026-10-19(TrendForce, 선행지표)",
+      "content_sha256": "0894e802c6583af25466e72c8262ba9c8cbebc796673136622c301288222feca",
+      "path": "data/raw/web/objects/0894e802c6583af25466e72c8262ba9c8cbebc796673136622c301288222feca.json",
+      "fetched_at": "2026-10-20T00:10:55+09:00",
+      "content_length": 177310,
+      "shell_page_warning": null
+    }
+  ]
+}

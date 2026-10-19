@@ -1,9 +1,10 @@
 # schema_version price-series/2.1.0
 # symbol 005930.KS / currency KRW
-# retrieved_at 2026-10-19T06:21:14+00:00 / source Yahoo Finance chart API
-# last_bar 2026-10-19 / session SETTLED
-# last_bar_timestamp 1792368000 / source Yahoo timestamp
+# retrieved_at 2026-10-19T15:20:33+00:00 / source Yahoo Finance chart API
+# last_bar 2026-10-16 / session SETTLED
+# last_bar_timestamp 1792108800 / source Yahoo timestamp
 # backfilled 2025-09-19 / source KRX Open API (sto/stk_bydd_trd) — 거래소 원문
+# missing_sessions 2026-10-19 / 봉이 저장됐다가 응답에서 사라졌고 확정값으로 재확인되지 않았다
 date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2021-08-03,81400.0,73642.2,1,81400.0,79300.0,24339360
 2021-08-04,82900.0,74999.3,1,83100.0,81800.0,25642368
@@ -1274,4 +1275,3 @@ date,close,adjusted_close,split_adjustment_factor,high,low,volume
 2026-10-14,232000.0,232000.0,1,241500.0,230000.0,19009052
 2026-10-15,210000.0,210000.0,1,221500.0,204500.0,34330565
 2026-10-16,215500.0,215500.0,1,222500.0,210500.0,18908560
-2026-10-19,216250.0,216250.0,1,219500.0,206500.0,13302768

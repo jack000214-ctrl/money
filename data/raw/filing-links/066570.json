@@ -1,8 +1,38 @@
 {
   "schema_version": "filing-archive/1.0.0",
   "asset_id": "066570",
-  "updated_at": "2026-10-15T07:35:58+00:00",
+  "updated_at": "2026-10-19T15:03:33+00:00",
   "filings": {
+    "20250930800083": {
+      "filing_date": "2025-09-30",
+      "form": "OTHER",
+      "description": "타법인주식및출자증권처분결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250930800083"
+    },
+    "20251001800092": {
+      "filing_date": "2025-10-01",
+      "form": "OTHER",
+      "description": "[기재정정]타법인주식및출자증권처분결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251001800092"
+    },
+    "20251013800144": {
+      "filing_date": "2025-10-13",
+      "form": "PROVISIONAL_RESULT",
+      "description": "[첨부추가]연결재무제표기준영업(잠정)실적(공정공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251013800144"
+    },
+    "20251013800157": {
+      "filing_date": "2025-10-13",
+      "form": "OTHER",
+      "description": "기업설명회(IR)개최(안내공시)",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251013800157"
+    },
+    "20251014800001": {
+      "filing_date": "2025-10-14",
+      "form": "OTHER",
+      "description": "[기재정정]타법인주식및출자증권처분결정",
+      "document_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20251014800001"
+    },
     "20251031800296": {
       "filing_date": "2025-10-31",
       "form": "PROVISIONAL_RESULT",

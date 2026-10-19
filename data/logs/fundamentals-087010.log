@@ -1,0 +1,26 @@
+  fetch 2024 1q: 0.1s 013(없음)
+  xbrl  2024 1q: 0.2s 없음
+  fetch 2024 half: 0.1s 013(없음)
+  xbrl  2024 half: 0.2s 없음
+  fetch 2024 3q: 0.1s 013(없음)
+  xbrl  2024 3q: 0.2s 없음
+  fetch 2024 annual: 0.1s 013(없음)
+  xbrl  2024 annual: 0.3s 없음
+  fetch 2025 1q: 0.1s 013(없음)
+  xbrl  2025 1q: 0.2s 없음
+  fetch 2025 half: 0.1s 013(없음)
+  xbrl  2025 half: 0.2s 없음
+  fetch 2025 3q: 0.1s 013(없음)
+  xbrl  2025 3q: 0.2s 없음
+  fetch 2025 annual: 0.1s 013(없음)
+  xbrl  2025 annual: 0.3s 없음
+  fetch 2026 1q: 0.1s 013(없음)
+  xbrl  2026 1q: 0.1s 없음
+  fetch 2026 half: 0.0s 013(없음)
+  xbrl  2026 half: 0.1s 없음
+  fetch 2026 3q: 0.1s 013(없음)
+  xbrl  2026 3q: 0.1s 없음
+  fetch 2026 annual: 0.1s 013(없음)
+  xbrl  2026 annual: 0.2s 없음
+  fetch 전체: 3.0s
+오류: 펩트론: [2024, 2025, 2026] 구간에서 재무제표를 받지 못했다

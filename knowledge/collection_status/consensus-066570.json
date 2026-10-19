@@ -1,6 +1,6 @@
 {
   "asset_id": "066570",
-  "attempted_at": "2026-10-16T09:03:57+09:00",
+  "attempted_at": "2026-10-20T00:03:36+09:00",
   "state": "AVAILABLE",
   "components": {
     "summary": {
@@ -17,7 +17,7 @@
     }
   },
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_066570_20261016_090355.html",
-    "estimates": "data\\raw\\naver\\estimates_066570_20261016_090355.html"
+    "summary": "data/raw/naver/consensus_066570_20261020_000335.html",
+    "estimates": "data/raw/naver/estimates_066570_20261020_000335.html"
   }
 }

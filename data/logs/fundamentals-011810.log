@@ -1,17 +1,17 @@
-  fetch 2024 1q: 7.5s OK
-  fetch 2024 half: 8.2s OK
-  fetch 2024 3q: 8.3s OK
-  fetch 2024 annual: 10.7s OK
-  fetch 2025 1q: 7.0s OK
-  fetch 2025 half: 7.4s OK
-  fetch 2025 3q: 8.0s OK
-  fetch 2025 annual: 11.2s OK
-  fetch 2026 1q: 7.4s OK
-  fetch 2026 half: 7.7s OK
-  fetch 2026 3q: 0.9s 013(없음)
-  xbrl  2026 3q: 1.7s 없음
-  fetch 2026 annual: 0.8s 013(없음)
-  xbrl  2026 annual: 1.9s 없음
-  fetch 전체: 88.6s
+  fetch 2024 1q: 0.2s OK
+  fetch 2024 half: 0.1s OK
+  fetch 2024 3q: 0.1s OK
+  fetch 2024 annual: 0.1s OK
+  fetch 2025 1q: 0.1s OK
+  fetch 2025 half: 0.1s OK
+  fetch 2025 3q: 0.1s OK
+  fetch 2025 annual: 0.1s OK
+  fetch 2026 1q: 0.1s OK
+  fetch 2026 half: 0.1s OK
+  fetch 2026 3q: 0.1s 013(없음)
+  xbrl  2026 3q: 0.2s 없음
+  fetch 2026 annual: 0.1s 013(없음)
+  xbrl  2026 annual: 0.2s 없음
+  fetch 전체: 1.7s
 오류: 손익 항등식이 맞지 않는다: 매출총이익 -47억 − (찾은 비용 라인 없음) = -47억 인데 영업이익은 -189억 이다 (차이 143억).
   IS_EXPENSE_IDS 에 이 회사의 비용 계정 표준코드를 추가한다. 원문 계정 목록: python -m collectors.dart financials 로 확인

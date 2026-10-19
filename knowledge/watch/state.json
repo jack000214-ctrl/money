@@ -68,79 +68,13 @@
     }
   },
   "last_cycle": {
-    "at": "2026-10-19T18:29:49+09:00",
-    "result": "OK",
-    "reason": null,
-    "counts": {
-      "holdings": 11,
-      "quotes_ok": 11,
-      "quotes_failed": 0,
-      "events": 11
-    },
-    "errors": [],
-    "not_monitored": [
-      {
-        "item": "policy:011810",
-        "reason": "대조 가능한 현재가가 없다"
-      },
-      {
-        "item": "earnings:005930",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:000660",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:066570",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:005380",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:316140",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:0167A0",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:000080",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:039130",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:011810",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:087010",
-        "reason": "실적 캘린더 산출물이 없다"
-      },
-      {
-        "item": "earnings:454910",
-        "reason": "실적 캘린더 산출물이 없다"
-      }
-    ],
-    "channels": {
-      "email": {
-        "ok": true,
-        "reason": "발송했다"
-      },
-      "dashboard": {
-        "ok": true,
-        "reason": "이벤트 로그를 대시보드가 읽는다"
-      }
-    }
+    "at": "2026-10-20T00:19:30+09:00",
+    "result": "SKIPPED",
+    "reason": "BEFORE_WINDOW",
+    "message": "감시 시작(08:00) 전이다"
   },
   "briefing_sent_dates": [
     "2026-10-19"
   ],
-  "events_read_through": 20
+  "events_read_through": 31
 }

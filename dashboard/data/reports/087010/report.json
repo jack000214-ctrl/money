@@ -1,0 +1,474 @@
+{
+  "schemaVersion": "decision-dashboard/0.6.0",
+  "sensitivity": {
+    "unavailable": true,
+    "reason": "잉여현금흐름(FCF)이 음수입니다. 정률성장 DCF 모델을 적용할 수 없어 민감도 분석을 생략합니다."
+  },
+  "meta": {
+    "asOf": "2026-10-19",
+    "priceAsOf": "2026-10-20 기준",
+    "financialAsOf": "2026-06-30",
+    "calculationId": "CALC-99c7b5bf1bfe0bb27d83",
+    "fundamentalsId": "FUND-55ce8e8a4db3fb4569c9",
+    "engineVersion": "2.2.0",
+    "generatedBy": "dashboard/scripts/build_decision_report.py"
+  },
+  "asset": {
+    "name": "펩트론",
+    "ticker": "087010 · KOSDAQ",
+    "currency": "KRW",
+    "current": "100,800원",
+    "currentBase": "₩99,200",
+    "baseNote": "기준통화와 동일"
+  },
+  "priceEvidence": [
+    {
+      "label": "최근 2거래일",
+      "value": "+11.0%",
+      "explanation": "89,400원 → 99,200원. 최근 2거래일 움직임입니다.",
+      "signal": "bad"
+    },
+    {
+      "label": "기간 고점 대비 (2025-10-16~)",
+      "value": "-73.9%",
+      "explanation": "고점 386,000원 (2025-11-20) 대비.",
+      "signal": "watch"
+    },
+    {
+      "label": "기간 저점 대비 (2025-10-16~)",
+      "value": "+21.6%",
+      "explanation": "저점 82,900원 (2026-10-13) 대비.",
+      "signal": "good"
+    },
+    {
+      "label": "요구수익률 10% 만족 가격",
+      "value": "—",
+      "explanation": "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가입니다.",
+      "signal": "bad"
+    }
+  ],
+  "incomeStatement": {
+    "title": "손익 분석: 원문 손익 자료 미제공으로 판단 불가",
+    "conclusion": "매출총이익, 영업이익률, 판관비 추이를 확인할 수 있는 손익 자료가 제공되지 않았습니다. 손익 개선 여부는 판단하지 않으며, 수치를 추정하거나 임의로 채우지 않습니다.",
+    "equation": [
+      {
+        "label": "매출총이익",
+        "value": "-0.00조"
+      },
+      {
+        "label": "판매비와관리비",
+        "value": "−0.01조",
+        "sign": "minus"
+      },
+      {
+        "label": "영업이익",
+        "value": "-0.01조",
+        "sign": "equals"
+      }
+    ],
+    "rows": [
+      {
+        "metric": "매출",
+        "value": "0.00조",
+        "comparison": "전년 동기 대비 +1.4%",
+        "interpretation": "매출 자료가 제공되지 않았습니다(컨센서스 연간 표의 매출 항목이 전부 비어 있음). 해석하지 않습니다.",
+        "signal": "good"
+      },
+      {
+        "metric": "매출총이익률",
+        "value": "-37.01%",
+        "comparison": "전년 동기 57.23% · -94.24%p",
+        "interpretation": "마진 자료가 제공되지 않았습니다. 마진 구조는 판단 불가입니다. 다만 OCF가 4개 분기 연속 음수라는 점에서 영업 단계의 현금 창출은 아직 확인되지 않습니다.",
+        "signal": "good"
+      },
+      {
+        "metric": "판매비와관리비",
+        "value": "0.01조",
+        "comparison": "전년 동기 대비 +27.9%",
+        "interpretation": "판관비 자료가 제공되지 않았습니다. 판관비 통제 여부는 판단 불가입니다.",
+        "signal": "watch"
+      },
+      {
+        "metric": "영업이익",
+        "value": "-0.01조",
+        "comparison": "전년 동기 대비 +59.6%",
+        "interpretation": "영업이익 자료가 제공되지 않았습니다. 기여 부문은 판단 불가입니다. 영업현금흐름 기준으로는 분기 유출이 -73.0억 원에서 -36.3억 원으로 줄었다는 사실만 확인됩니다.",
+        "signal": "bad"
+      }
+    ]
+  },
+  "decision": {
+    "verdict": "BLOCKED",
+    "status": "추가 매수 차단",
+    "verdictNote": "PROCEED 는 수익 보장이 아니라 정책·근거 계약상 차단 사유가 없다는 뜻이다.",
+    "primaryReason": "현금 부족",
+    "headline": "주가는 하루 만에 12% 올랐지만, 현금은 계속 나가고 있어 가치 판단을 뒷받침할 근거가 없습니다",
+    "reason": "2026-10-16 종가는 99,200원으로 직전 종가 88,300원보다 약 +12.3% 올랐습니다. 제공된 자료에는 이 상승을 설명할 실적이나 컨센서스 변화가 없습니다. 최근 4개 분기(2025년 3분기~2026년 2분기) 영업활동현금흐름(OCF)은 모두 음수이고 합계는 약 -202.6억 원입니다. 분기별로는 -73.0억, -49.1억, -44.2억, -36.3억 원으로 유출 폭이 줄고 있습니다. 다만 흑자 전환과는 거리가 멉니다. 목표주가, 투자의견, EPS, 매출, 영업이익, 시가총액, 유형자산 취득(Capex), 순현금 자료가 모두 없습니다. 그래서 내재가치와 현재가를 비교할 수 없고, 목표 진입가도 산출할 수 없습니다. 지금 가격은 검증 가능한 재무 근거가 아니라 시장 심리와 기대로 움직이고 있을 가능성이 큽니다. 현재 자료만으로는 추격 매수를 정당화하기 어렵습니다. 매출·마진·현금 잔고와 자금 조달 여력이 확인되기 전까지는 신규 비중 확대를 보류하는 것이 타당합니다.",
+    "issues": [
+      {
+        "severity": "BLOCKED",
+        "code": "INSUFFICIENT_CASH",
+        "message": "필요 현금 9,920,000원이 보유 현금 0원을 초과한다"
+      },
+      {
+        "severity": "RESEARCH_REQUIRED",
+        "code": "IPS_MISSING",
+        "message": "ips 파일을 찾을 수 없다: C:\\Project\\money\\knowledge\\portfolio\\ips.json"
+      },
+      {
+        "severity": "RESEARCH_REQUIRED",
+        "code": "ANALYSIS_MISSING",
+        "message": "analysis 파일이 지정되지 않았다"
+      }
+    ],
+    "measure": "?",
+    "positionReturn": "0.0%",
+    "requiredReturn": "10.0%",
+    "hurdleResult": "연 수익률 0.0% · 목표 10.0%",
+    "entryCeiling": "—",
+    "entryCeilingNote": "FCF 가 음수이므로 DCF 기반 매수 상한 산출 불가. FCF 흑자 전환 후 재산출이 필요합니다.",
+    "bullOnlyCeiling": "—",
+    "bullOnlyNote": "FCF 가 음수이므로 강세 단독 기준 가격 산출 불가.",
+    "actionNow": "추가 매수하지 않는다. 다음 분기 FCF 를 확인한다.",
+    "highlights": [
+      {
+        "meaning": "목표 수익률에 못 미칩니다",
+        "value": "0.0% < 목표 10.0%",
+        "context": "FCF 가 음수로 DCF 시나리오를 산출할 수 없습니다. FCF 흑자 전환 여부가 핵심 관전 포인트입니다.",
+        "confidence": "투자정책 판정",
+        "confidenceLevel": "high",
+        "signal": "bad"
+      },
+      {
+        "meaning": "현금은 아직 회수되지 않았습니다",
+        "value": "분기 FCF −0.00조",
+        "context": "영업현금 -0.00조보다 CapEx 0.00조가 큽니다.",
+        "confidence": "공시 확정",
+        "confidenceLevel": "high",
+        "signal": "bad"
+      },
+      {
+        "meaning": "성장은 가격 부담을 지우지 못합니다",
+        "value": "PER -114.05x · PSR 390.2x",
+        "context": "현재가 기준입니다. 동종사 대비 프리미엄이 이미 반영돼 있습니다.",
+        "confidence": "시장·공시 데이터",
+        "confidenceLevel": "high",
+        "signal": "watch"
+      },
+      {
+        "meaning": "본업의 매출은 성장 중입니다",
+        "value": "매출 +1.4%",
+        "context": "매출총이익률도 -37.01%로 전년 동기 57.23%입니다.",
+        "confidence": "공시 확정",
+        "confidenceLevel": "high",
+        "signal": "good"
+      }
+    ]
+  },
+  "reviewMap": [
+    {
+      "when": "지금 · 100,800원",
+      "state": "BLOCKED",
+      "action": "가격만 보고 진입하지 않습니다.",
+      "why": "연 수익률 0.0%가 목표 10.0%에 못 미칩니다.",
+      "signal": "bad"
+    },
+    {
+      "when": "다음 분기보고서",
+      "state": "강제 재검토",
+      "action": "dart_fetch fundamentals 로 스냅샷을 다시 만들고 reverse_dcf 를 재실행합니다.",
+      "why": "가격보다 투자 회수 여부가 더 중요한 판정 변수입니다.",
+      "signal": "watch"
+    },
+    {
+      "when": "FCF 2개 분기 연속 음수",
+      "state": "논지 훼손 점검",
+      "action": "강세 시나리오 확률을 낮추고 밸류에이션을 다시 계산합니다.",
+      "why": "투자가 회수되지 않고 현금 소모 구조로 바뀌는 신호입니다.",
+      "signal": "bad"
+    }
+  ],
+  "portfolio": {
+    "quantity": 100.0,
+    "priceKrw": "₩99,200",
+    "tradeValueKrw": "₩9,920,000",
+    "weights": [
+      {
+        "label": "총자산",
+        "before": "8.06%",
+        "after": "15.98%",
+        "denominator": "₩125,120,860",
+        "definition": "현금을 포함한 전체 평가자산"
+      },
+      {
+        "label": "주식 슬리브",
+        "before": "8.06%",
+        "after": "14.81%",
+        "denominator": "₩135,040,860",
+        "definition": "STOCK·ETF·REIT 평가자산"
+      },
+      {
+        "label": "위험자산",
+        "before": "8.06%",
+        "after": "14.81%",
+        "denominator": "₩135,040,860",
+        "definition": "CASH·CASH_EQUIVALENT·BOND를 제외한 평가자산"
+      }
+    ],
+    "bearBudget": {
+      "used": "0.00%",
+      "limit": "—",
+      "note": "약세 시나리오가 실현될 때 이 포지션 하나가 총자산에 입히는 손실",
+      "withinBudget": null
+    },
+    "costs": {
+      "총계": "₩0",
+      "내역": "수수료 ₩0 · 슬리피지 ₩0 · 환전 ₩0"
+    },
+    "snapshotId": "TRADE-SNAPSHOT-1a52001b074a676ea4b4"
+  },
+  "valuation": {
+    "title": "밸류에이션 분석: 이익·현금흐름 배수를 계산할 수 없는 구간",
+    "conclusion": "PER, PBR, ROE, EV/EBITDA, EPS, 목표주가가 모두 없고 시가총액도 제공되지 않았습니다. TTM OCF가 음수이므로 현금흐름 기준 배수(P/OCF, FCF 수익률)는 의미 있는 값으로 계산되지 않습니다. 이 종목의 현재가는 이익이나 현금흐름이 아니라 미래 성과에 대한 기대를 반영한 가격으로 해석해야 합니다.",
+    "entryExplanation": "요구수익률과 확률가중 시나리오를 적용하려면 향후 현금흐름 추정치, 성공·실패 확률, 희석 가능성, 현금 잔고가 필요합니다. 이 입력값들이 없어 목표 진입가를 제시하지 않습니다. 가격을 임의로 제시하면 근거 없는 숫자가 되므로 공란으로 둡니다.",
+    "impliedGrowth": "DCF 불가 — FCF 음수",
+    "modelInputs": "TTM FCF -0.03조 · FCF 음수로 DCF 적용 불가. 금융 자회사가 연결된 자동차·지주사는 영업현금흐름에 금융부문이 포함되므로 별도의 수정 모델이 필요합니다.",
+    "multiples": [
+      {
+        "label": "PER",
+        "value": "-114.05x",
+        "basis": "TTM 순이익 -0.02조 · 현재가 기준"
+      },
+      {
+        "label": "PSR",
+        "value": "390.2x",
+        "basis": "TTM 매출 0.01조 · 현재가 기준"
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "—",
+        "probability": "—",
+        "fcfGrowth": "FCF 음수 — DCF 시나리오 산출 불가",
+        "valuePerShare": "—",
+        "totalGap": "—",
+        "annualizedReturn": "—",
+        "signal": "bad"
+      }
+    ]
+  },
+  "cashFlow": {
+    "title": "현금흐름 분석: 4개 분기 연속 영업현금 유출, 유출 폭은 축소 중",
+    "conclusion": "TTM OCF는 약 -202.6억 원입니다. 분기별로 2025년 3분기 -73.0억, 4분기 -49.1억, 2026년 1분기 -44.2억, 2분기 -36.3억 원입니다. 유출이 줄어드는 방향은 긍정적입니다. 그러나 4개 분기 모두 영업활동으로 현금이 빠져나갔습니다. Capex 자료가 없어 잉여현금흐름(FCF)은 계산하지 않았습니다. OCF가 이미 음수이므로 FCF는 OCF보다 더 나쁘거나 같을 수밖에 없습니다. 2026년 1분기만 보고값이고 나머지 3개 분기는 누적값에서 차감해 산출한 값입니다(derived). 공시일(filed)도 비어 있어 분기 수치는 원문 재확인이 필요합니다.",
+    "rows": [
+      {
+        "quarter": "FY2025 Q3",
+        "operatingCashFlow": "-0.01조",
+        "capex": "0.00조",
+        "freeCashFlow": "−0.01조",
+        "signal": "bad"
+      },
+      {
+        "quarter": "FY2025 Q4",
+        "operatingCashFlow": "-0.00조",
+        "capex": "0.00조",
+        "freeCashFlow": "−0.01조",
+        "signal": "bad"
+      },
+      {
+        "quarter": "FY2026 Q1",
+        "operatingCashFlow": "-0.00조",
+        "capex": "0.01조",
+        "freeCashFlow": "−0.01조",
+        "signal": "bad"
+      },
+      {
+        "quarter": "FY2026 Q2",
+        "operatingCashFlow": "-0.00조",
+        "capex": "0.00조",
+        "freeCashFlow": "−0.00조",
+        "signal": "bad"
+      }
+    ],
+    "chart": {
+      "viewBox": "0 0 1000 300",
+      "barWidth": "46.0",
+      "baselineY": "242.0",
+      "plotLeft": "58",
+      "plotRight": "984",
+      "quarterLabelY": "262.0",
+      "fcfLabelY": "282.0",
+      "ticks": [
+        {
+          "label": "0",
+          "y": "242.0"
+        },
+        {
+          "label": "0.00조",
+          "y": "188.0"
+        },
+        {
+          "label": "0.00조",
+          "y": "134.0"
+        },
+        {
+          "label": "0.01조",
+          "y": "80.0"
+        },
+        {
+          "label": "0.01조",
+          "y": "26.0"
+        }
+      ],
+      "groups": [
+        {
+          "quarter": "FY2025 Q3",
+          "labelX": "173.8",
+          "ocf": {
+            "x": "122.2",
+            "y": "439.1",
+            "height": "-197.1",
+            "label": "-0.01조",
+            "labelX": "145.2",
+            "labelY": "432.1"
+          },
+          "capex": {
+            "x": "179.3",
+            "y": "231.9",
+            "height": "10.1",
+            "label": "0.00조",
+            "labelX": "202.3",
+            "labelY": "224.9"
+          },
+          "fcf": "−0.01조",
+          "signal": "bad"
+        },
+        {
+          "quarter": "FY2025 Q4",
+          "labelX": "405.2",
+          "ocf": {
+            "x": "353.7",
+            "y": "374.7",
+            "height": "-132.7",
+            "label": "-0.00조",
+            "labelX": "376.7",
+            "labelY": "367.7"
+          },
+          "capex": {
+            "x": "410.8",
+            "y": "200.8",
+            "height": "41.2",
+            "label": "0.00조",
+            "labelX": "433.8",
+            "labelY": "193.8"
+          },
+          "fcf": "−0.01조",
+          "signal": "bad"
+        },
+        {
+          "quarter": "FY2026 Q1",
+          "labelX": "636.8",
+          "ocf": {
+            "x": "585.2",
+            "y": "361.2",
+            "height": "-119.2",
+            "label": "-0.00조",
+            "labelX": "608.2",
+            "labelY": "354.2"
+          },
+          "capex": {
+            "x": "642.3",
+            "y": "62.8",
+            "height": "179.2",
+            "label": "0.01조",
+            "labelX": "665.3",
+            "labelY": "55.8"
+          },
+          "fcf": "−0.01조",
+          "signal": "bad"
+        },
+        {
+          "quarter": "FY2026 Q2",
+          "labelX": "868.2",
+          "ocf": {
+            "x": "816.7",
+            "y": "340.0",
+            "height": "-98.0",
+            "label": "-0.00조",
+            "labelX": "839.7",
+            "labelY": "333.0"
+          },
+          "capex": {
+            "x": "873.8",
+            "y": "222.5",
+            "height": "19.5",
+            "label": "0.00조",
+            "labelX": "896.8",
+            "labelY": "215.5"
+          },
+          "fcf": "−0.00조",
+          "signal": "bad"
+        }
+      ]
+    }
+  },
+  "peersTable": {
+    "title": "동종사 비교",
+    "conclusion": "동종사 비교 데이터가 제공되지 않아 경쟁력은 평가하지 않았습니다.",
+    "basisWarning": "동종사 행은 수집 시점이 서로 다르다. basis 열을 함께 읽지 않으면 다른 기간을 비교하게 된다.",
+    "rows": [
+      {
+        "ticker": "087010",
+        "company": "펩트론",
+        "basis": "2026-06-30 TTM",
+        "revenue": "0.01조",
+        "per": "-114.05x",
+        "psr": "390.2x",
+        "focus": true
+      }
+    ]
+  },
+  "marketPositioning": {
+    "title": "시장 포지셔닝",
+    "conclusion": "기관·외국인 수급, 지분 공시, 공매도 자료가 제공되지 않았습니다. 종가가 직전 종가 대비 약 +12.3% 오른 사실만 확인됩니다. 이 상승이 누구의 매수에서 비롯됐는지는 판단할 수 없습니다.",
+    "items": [
+      {
+        "id": "gap",
+        "label": "시장 수급 및 포지셔닝",
+        "status": "UNKNOWN",
+        "value": "공시 데이터 기반",
+        "comparison": "-",
+        "asOf": "-",
+        "interpretation": "수급 및 지분 공시 자료가 제공되지 않아 주요 기관 수급은 요약할 수 없습니다. 종가 99,200원, 직전 종가 88,300원(약 +12.3%)만 확인됩니다.",
+        "limitation": "공시 원문 스냅샷 기준",
+        "signal": "plain"
+      }
+    ],
+    "decisionUse": "검증된 재무 스냅샷과 IPS 한도 기준으로 판정됩니다."
+  },
+  "peers": {
+    "title": "동종사 비교",
+    "conclusion": "동종사 비교 데이터가 제공되지 않아 경쟁력은 평가하지 않았습니다.",
+    "rows": []
+  },
+  "detailedAnalysis": {
+    "title": "무엇을 보고 이렇게 판단했는가",
+    "paragraphs": [
+      "문단 1: 2026-10-16 종가는 99,200원이고 직전 종가는 88,300원으로 약 +12.3% 상승했습니다. 시세는 확정 상태(SETTLED)입니다. 제공된 자료에는 시장 전체 지수, 업종 지수, 공시, 컨센서스 변화가 없습니다. 그래서 이 상승을 시장 요인과 종목 고유 요인으로 나눌 수 없습니다. 같은 이유로 이유 없이 오른 것인지 새 정보 때문인지도 단정하지 않습니다. 확인되는 것은 가격이 움직였다는 사실과, 그 움직임을 뒷받침하는 재무 변화는 제공되지 않았다는 사실입니다.",
+      "문단 2: 최근 4개 분기 OCF는 -73.0억, -49.1억, -44.2억, -36.3억 원이고 합계는 약 -202.6억 원입니다. 영업으로 현금이 계속 빠져나가며, 유출 폭은 분기마다 줄었습니다. 이는 비용 구조가 개선되고 있을 수 있다는 신호입니다. 그러나 현금 창출 기업으로 바뀌었다는 증거는 아닙니다. Capex, 현금 및 단기금융상품 잔액, 차입·증자 계획이 없어 이 속도로 얼마나 버틸 수 있는지는 계산할 수 없습니다. 2025년 3분기·4분기와 2026년 2분기 값은 차감 방식으로 산출된 값(derived)이고 공시일이 비어 있어, 원문 대조 전에는 확정 수치로 쓰지 않아야 합니다.",
+      "문단 3: 반대 논지는 다음과 같습니다. OCF 유출이 4개 분기 연속 줄어든 만큼 손익분기점에 가까워지고 있고, 시장이 이를 앞서 반영했을 수 있습니다. 그러나 이를 검증할 자료가 없습니다. 다음 신호가 확인되면 판단을 다시 해야 합니다. 첫째, 2026년 3분기 OCF가 -36.3억 원보다 개선되는지, 흑자 전환 시점이 가까워지는지. 둘째, 매출과 영업이익 및 컨센서스(목표주가, EPS)가 채워지는지. 셋째, 현금 잔고와 자금 조달 계획, 증자 등 희석 가능성. 넷째, 12% 급등 이후에도 종가가 유지되는지와 거래량·수급 자료. 이 중 재무 항목이 확인되기 전에는 현재가를 정당화할 근거가 부족합니다."
+    ]
+  },
+  "sources": [
+    "DART 공시 시스템 / SEC EDGAR",
+    "한국거래소(KRX) / Yahoo Finance / FnGuide",
+    {
+      "label": "밸류에이션 입력",
+      "detail": "DART 스냅샷 FUND-55ce8e8a4db3fb4569c9 · 2026-06-30 기준"
+    },
+    {
+      "label": "판정 엔진",
+      "detail": "trade_check 2.2.0 · TRADE-SNAPSHOT-1a52001b074a676ea4b4"
+    }
+  ]
+}

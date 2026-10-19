@@ -187,6 +187,7 @@
       "market": "KR",
       "exchange": "KOSPI",
       "asset_type": "STOCK",
+      "suspended": true,
       "currency": "KRW",
       "price_symbol": "011810.KS",
       "sector_code": "TECH_SERVICES",
@@ -243,7 +244,8 @@
       ],
       "optional_collectors": [],
       "filing_source": "DART",
-      "filing_profile": "DART_KIFRS"
+      "filing_profile": "DART_KIFRS",
+      "fs_div": "OFS"
     },
     "454910": {
       "name": "두산로보틱스",

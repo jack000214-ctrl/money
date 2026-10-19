@@ -1,8 +1,584 @@
 {
   "schema_version": "document-index/1.0.0",
   "extract_version": "v3",
-  "updated_at": "2026-10-19T09:54:55+00:00",
+  "updated_at": "2026-10-19T15:14:28+00:00",
   "documents": [
+    {
+      "digest": "0894e802c6583af25466e72c8262ba9c8cbebc796673136622c301288222feca",
+      "locator": "data/raw/web/objects/0894e802c6583af25466e72c8262ba9c8cbebc796673136622c301288222feca.json",
+      "fetched_at": "2026-10-19T15:10:55+00:00",
+      "text_chars": 5810,
+      "parts": [
+        {
+          "name": "https://www.trendforce.com/price/dram/dram_spot",
+          "chars": 5810
+        }
+      ],
+      "kind": "WEB_SNAPSHOT",
+      "doc_id": "WEBSNAP:0894e802c658",
+      "url": "https://www.trendforce.com/price/dram/dram_spot",
+      "title": "DRAM Price Trends | TrendForce"
+    },
+    {
+      "digest": "75223cfdf34d73bb32d8626658d24c4923fd03f563dbfd28f1e8c8969038895a",
+      "locator": "data/raw/web/objects/75223cfdf34d73bb32d8626658d24c4923fd03f563dbfd28f1e8c8969038895a.json",
+      "fetched_at": "2026-10-19T15:10:54+00:00",
+      "text_chars": 6387,
+      "parts": [
+        {
+          "name": "https://www.trendforce.com/presscenter/news/20261014-13269.html",
+          "chars": 6387
+        }
+      ],
+      "kind": "WEB_SNAPSHOT",
+      "doc_id": "WEBSNAP:75223cfdf34d",
+      "url": "https://www.trendforce.com/presscenter/news/20261014-13269.html",
+      "title": "CSP CapEx Projected to Exceed US$1.5 Trillion in 2027, with AI Server Revenue Growing Over 90% YoY on Higher Shipments a"
+    },
+    {
+      "digest": "96e0ad197da6904ef1f0fb4415cd1d5c1f0cdc11884c2ee9c77bde34f914673f",
+      "locator": "data/raw/web/objects/96e0ad197da6904ef1f0fb4415cd1d5c1f0cdc11884c2ee9c77bde34f914673f.json",
+      "fetched_at": "2026-10-19T15:10:53+00:00",
+      "text_chars": 10073,
+      "parts": [
+        {
+          "name": "https://www.trendforce.com/presscenter/news/20260930-13258.html",
+          "chars": 10073
+        }
+      ],
+      "kind": "WEB_SNAPSHOT",
+      "doc_id": "WEBSNAP:96e0ad197da6",
+      "url": "https://www.trendforce.com/presscenter/news/20260930-13258.html",
+      "title": "AI Server Demand Sustains Memory Contract Price Increases in 4Q26, While Consumer-Side Pressure Persists, Says TrendForc"
+    },
+    {
+      "digest": "16aaea65f824e0c204342c9ef12b2d866f336474b4465adf4a6716e2a74a3944",
+      "locator": "data/raw/dart/objects/16aaea65f824e0c204342c9ef12b2d866f336474b4465adf4a6716e2a74a3944.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2147,
+      "parts": [
+        {
+          "name": "20260723800315.xml",
+          "chars": 2121
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260723800315",
+      "rcept_no": "20260723800315",
+      "title": "현대자동차/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.23)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "4553883f05f74903aac90256421d9ee93773292ec8c941adb777f1394b1feac8",
+      "locator": "data/raw/dart/objects/4553883f05f74903aac90256421d9ee93773292ec8c941adb777f1394b1feac8.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2153,
+      "parts": [
+        {
+          "name": "20260423800339.xml",
+          "chars": 2127
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260423800339",
+      "rcept_no": "20260423800339",
+      "title": "현대자동차/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.23)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "4b0ca00fca666cf0e8cc7e162f6104aa8d0128239b1817bab6564890168dce4c",
+      "locator": "data/raw/dart/objects/4b0ca00fca666cf0e8cc7e162f6104aa8d0128239b1817bab6564890168dce4c.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2286,
+      "parts": [
+        {
+          "name": "20260803800709.xml",
+          "chars": 2260
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260803800709",
+      "rcept_no": "20260803800709",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.08.03)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "9cf817876ab5512fdfac9748c6823e0d88c9b46841070a262c35e3a229156feb",
+      "locator": "data/raw/dart/objects/9cf817876ab5512fdfac9748c6823e0d88c9b46841070a262c35e3a229156feb.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2285,
+      "parts": [
+        {
+          "name": "20260601801279.xml",
+          "chars": 2259
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260601801279",
+      "rcept_no": "20260601801279",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.06.01)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "af2bb033282a5e59cb0302b0b43f4b03ff69eb956c66bee5baca4bf2bbf797ec",
+      "locator": "data/raw/dart/objects/af2bb033282a5e59cb0302b0b43f4b03ff69eb956c66bee5baca4bf2bbf797ec.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2281,
+      "parts": [
+        {
+          "name": "20260701800788.xml",
+          "chars": 2255
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260701800788",
+      "rcept_no": "20260701800788",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.07.01)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "fcd56b7b7ef86976e627734fc93a54a483d1237632f1ad05415834213c53d85f",
+      "locator": "data/raw/dart/objects/fcd56b7b7ef86976e627734fc93a54a483d1237632f1ad05415834213c53d85f.json",
+      "fetched_at": "2026-10-19T15:04:25+00:00",
+      "text_chars": 2287,
+      "parts": [
+        {
+          "name": "20260504800532.xml",
+          "chars": 2261
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260504800532",
+      "rcept_no": "20260504800532",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.05.04)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "0e0f80e627bc16adf6c2c6a1ffff87d08e31d718eee104727eb048d09ba5d75d",
+      "locator": "data/raw/dart/objects/0e0f80e627bc16adf6c2c6a1ffff87d08e31d718eee104727eb048d09ba5d75d.json",
+      "fetched_at": "2026-10-19T15:04:24+00:00",
+      "text_chars": 2293,
+      "parts": [
+        {
+          "name": "20261001800412.xml",
+          "chars": 2267
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20261001800412",
+      "rcept_no": "20261001800412",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.10.01)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "8b07d7fccc8a92f0c2d379a75af164d5b9a35b50f72b10a2942487dc7105ad46",
+      "locator": "data/raw/dart/objects/8b07d7fccc8a92f0c2d379a75af164d5b9a35b50f72b10a2942487dc7105ad46.json",
+      "fetched_at": "2026-10-19T15:04:24+00:00",
+      "text_chars": 2290,
+      "parts": [
+        {
+          "name": "20260901800400.xml",
+          "chars": 2264
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260901800400",
+      "rcept_no": "20260901800400",
+      "title": "현대자동차/영업(잠정)실적(공정공시)/(2026.09.01)영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "fdf9713a33ae4e960ad96b3ad255dd127ae7bfc18925383e0684f7565fe733b8",
+      "locator": "data/raw/dart/objects/fdf9713a33ae4e960ad96b3ad255dd127ae7bfc18925383e0684f7565fe733b8.json",
+      "fetched_at": "2026-10-19T15:04:16+00:00",
+      "text_chars": 1973,
+      "parts": [
+        {
+          "name": "20260128800427.xml",
+          "chars": 1947
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260128800427",
+      "rcept_no": "20260128800427",
+      "title": "하이트진로/매출액또는손익구조30%(대규모법인은15%)이상변경/(2026.01.28)매출액또는손익구조30%(대규모법인은15%)이상변경"
+    },
+    {
+      "digest": "0d586683625f907a255bbe3f023d1f8556e63cef77abd30bbc434cc30c7e0dd1",
+      "locator": "data/raw/dart/objects/0d586683625f907a255bbe3f023d1f8556e63cef77abd30bbc434cc30c7e0dd1.json",
+      "fetched_at": "2026-10-19T15:04:15+00:00",
+      "text_chars": 2910,
+      "parts": [
+        {
+          "name": "20260311800509.xml",
+          "chars": 2884
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260311800509",
+      "rcept_no": "20260311800509",
+      "title": "하이트진로/매출액또는손익구조30%(대규모법인은15%)이상변경/(2026.03.11)매출액또는손익구조30%(대규모법인은15%)이상변경"
+    },
+    {
+      "digest": "3fac1127691aab3c647957b9be8df178aa71478dcea3afa6d96c2b7c339b7070",
+      "locator": "data/raw/dart/objects/3fac1127691aab3c647957b9be8df178aa71478dcea3afa6d96c2b7c339b7070.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 492,
+      "parts": [
+        {
+          "name": "20260729800707.xml",
+          "chars": 466
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260729800707",
+      "rcept_no": "20260729800707",
+      "title": "하나투어/결산실적공시 예고(안내공시)/(2026.07.29)결산실적공시 예고(안내공시)"
+    },
+    {
+      "digest": "55d7ebf8ff8d38a0decd18acc1bae5dd77fb8644880b342bde06f55ba01da4d0",
+      "locator": "data/raw/dart/objects/55d7ebf8ff8d38a0decd18acc1bae5dd77fb8644880b342bde06f55ba01da4d0.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 2169,
+      "parts": [
+        {
+          "name": "20251105800421.xml",
+          "chars": 2143
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20251105800421",
+      "rcept_no": "20251105800421",
+      "title": "하나투어/연결재무제표기준영업(잠정)실적(공정공시)/(2025.11.05)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "6f4b4742e956ca7917ab4712c6a515028e3537f565be7052e001bbe09294af57",
+      "locator": "data/raw/dart/objects/6f4b4742e956ca7917ab4712c6a515028e3537f565be7052e001bbe09294af57.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 2091,
+      "parts": [
+        {
+          "name": "20260805800659.xml",
+          "chars": 2065
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260805800659",
+      "rcept_no": "20260805800659",
+      "title": "하나투어/연결재무제표기준영업(잠정)실적(공정공시)/(2026.08.05)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "8c9eb5fb5b7fb368d5d2ca41ffcb776cf8dfe5decd7da2ecd510e4924a178045",
+      "locator": "data/raw/dart/objects/8c9eb5fb5b7fb368d5d2ca41ffcb776cf8dfe5decd7da2ecd510e4924a178045.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 2098,
+      "parts": [
+        {
+          "name": "20260513800858.xml",
+          "chars": 2072
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260513800858",
+      "rcept_no": "20260513800858",
+      "title": "하나투어/연결재무제표기준영업(잠정)실적(공정공시)/(2026.05.13)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "bac0668247ded15acdea5b3d689926851f280f29779421e2f80129a7ca84252b",
+      "locator": "data/raw/dart/objects/bac0668247ded15acdea5b3d689926851f280f29779421e2f80129a7ca84252b.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 1988,
+      "parts": [
+        {
+          "name": "20260203800687.xml",
+          "chars": 1962
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260203800687",
+      "rcept_no": "20260203800687",
+      "title": "하나투어/매출액또는손익구조30%(대규모법인은15%)이상변경/(2026.02.03)매출액또는손익구조30%(대규모법인은15%)이상변경"
+    },
+    {
+      "digest": "ed80531dfbfa0477ac57309c08843d5bb4917fc331c5d3ca05008e6e1a71c6a8",
+      "locator": "data/raw/dart/objects/ed80531dfbfa0477ac57309c08843d5bb4917fc331c5d3ca05008e6e1a71c6a8.json",
+      "fetched_at": "2026-10-19T15:04:06+00:00",
+      "text_chars": 2167,
+      "parts": [
+        {
+          "name": "20260203800704.xml",
+          "chars": 2141
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260203800704",
+      "rcept_no": "20260203800704",
+      "title": "하나투어/연결재무제표기준영업(잠정)실적(공정공시)/(2026.02.03)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "1d47e23d16c5b43d7c2b903ba928cb8f23cb29ff4d7c78525567c5064603b175",
+      "locator": "data/raw/dart/objects/1d47e23d16c5b43d7c2b903ba928cb8f23cb29ff4d7c78525567c5064603b175.json",
+      "fetched_at": "2026-10-19T15:03:54+00:00",
+      "text_chars": 2330,
+      "parts": [
+        {
+          "name": "20260724800491.xml",
+          "chars": 2304
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260724800491",
+      "rcept_no": "20260724800491",
+      "title": "우리금융지주/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.24)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "3802ad99e9590e47a7e9e728d3bee8158e0d2b338767e1428746aa1bab320ab4",
+      "locator": "data/raw/dart/objects/3802ad99e9590e47a7e9e728d3bee8158e0d2b338767e1428746aa1bab320ab4.json",
+      "fetched_at": "2026-10-19T15:03:54+00:00",
+      "text_chars": 2378,
+      "parts": [
+        {
+          "name": "20260724800494.xml",
+          "chars": 2352
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260724800494",
+      "rcept_no": "20260724800494",
+      "title": "우리금융지주/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.24)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "20db721d22f2752f1d5dfdd18dbcbbf844bb05b8b8fda48a7ce961c840496c30",
+      "locator": "data/raw/dart/objects/20db721d22f2752f1d5dfdd18dbcbbf844bb05b8b8fda48a7ce961c840496c30.json",
+      "fetched_at": "2026-10-19T15:03:46+00:00",
+      "text_chars": 415,
+      "parts": [
+        {
+          "name": "20260715800461.xml",
+          "chars": 389
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260715800461",
+      "rcept_no": "20260715800461",
+      "title": "두산로보틱스/결산실적공시 예고(안내공시)/(2026.07.15)결산실적공시 예고(안내공시)"
+    },
+    {
+      "digest": "d3c089c1d2f3151b7a3a54a7be5c345164ccd0cf487c6b3ffae0c3d658116d8c",
+      "locator": "data/raw/dart/objects/d3c089c1d2f3151b7a3a54a7be5c345164ccd0cf487c6b3ffae0c3d658116d8c.json",
+      "fetched_at": "2026-10-19T15:03:46+00:00",
+      "text_chars": 1994,
+      "parts": [
+        {
+          "name": "20260724800506.xml",
+          "chars": 1968
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260724800506",
+      "rcept_no": "20260724800506",
+      "title": "두산로보틱스/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.24)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "db854413a1d3e33d49497ae17a25775c83abb8ef75fe784214f87e68463cd97d",
+      "locator": "data/raw/dart/objects/db854413a1d3e33d49497ae17a25775c83abb8ef75fe784214f87e68463cd97d.json",
+      "fetched_at": "2026-10-19T15:03:46+00:00",
+      "text_chars": 1975,
+      "parts": [
+        {
+          "name": "20260428800563.xml",
+          "chars": 1949
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260428800563",
+      "rcept_no": "20260428800563",
+      "title": "두산로보틱스/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.28)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "ed48f62293feaaa59acb16644091b5a90e67ed9d5ed2cc0d551cca29ded49b74",
+      "locator": "data/raw/dart/objects/ed48f62293feaaa59acb16644091b5a90e67ed9d5ed2cc0d551cca29ded49b74.json",
+      "fetched_at": "2026-10-19T15:03:46+00:00",
+      "text_chars": 1862,
+      "parts": [
+        {
+          "name": "20260211800864.xml",
+          "chars": 1836
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260211800864",
+      "rcept_no": "20260211800864",
+      "title": "두산로보틱스/매출액또는손익구조30%(대규모법인은15%)이상변경/(2026.02.11)매출액또는손익구조30%(대규모법인은15%)이상변경"
+    },
+    {
+      "digest": "fd98b7d24bfc64049f893315f031a310cfc0b1719da6285a291aef4e5f6cbccd",
+      "locator": "data/raw/dart/objects/fd98b7d24bfc64049f893315f031a310cfc0b1719da6285a291aef4e5f6cbccd.json",
+      "fetched_at": "2026-10-19T15:03:46+00:00",
+      "text_chars": 2002,
+      "parts": [
+        {
+          "name": "20251106800365.xml",
+          "chars": 1976
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20251106800365",
+      "rcept_no": "20251106800365",
+      "title": "두산로보틱스/연결재무제표기준영업(잠정)실적(공정공시)/(2025.11.06)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "2ac8ae681d6fdf981d4ba668b02d6425b9bc117b317f4e36355c2abe382900db",
+      "locator": "data/raw/dart/objects/2ac8ae681d6fdf981d4ba668b02d6425b9bc117b317f4e36355c2abe382900db.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 1927,
+      "parts": [
+        {
+          "name": "20260707800176.xml",
+          "chars": 1901
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260707800176",
+      "rcept_no": "20260707800176",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.07)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "53800dfcec1298de11543e422d1f980278c59230d08e0c8dfa8bc8a08babe8ce",
+      "locator": "data/raw/dart/objects/53800dfcec1298de11543e422d1f980278c59230d08e0c8dfa8bc8a08babe8ce.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 2797,
+      "parts": [
+        {
+          "name": "20260730800391.xml",
+          "chars": 2771
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260730800391",
+      "rcept_no": "20260730800391",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "5d4fca3f4838dd8d685e62fd018594e8397395b128fffc867540f613c788ed3a",
+      "locator": "data/raw/dart/objects/5d4fca3f4838dd8d685e62fd018594e8397395b128fffc867540f613c788ed3a.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 1944,
+      "parts": [
+        {
+          "name": "20260129800419.xml",
+          "chars": 1918
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260129800419",
+      "rcept_no": "20260129800419",
+      "title": "LG전자/매출액또는손익구조30%(대규모법인은15%)이상변경/(2026.01.29)매출액또는손익구조30%(대규모법인은15%)이상변경"
+    },
+    {
+      "digest": "6434e7053dcff22a8cf6431bc1552474244cae98b35a1231789480e6d333ced8",
+      "locator": "data/raw/dart/objects/6434e7053dcff22a8cf6431bc1552474244cae98b35a1231789480e6d333ced8.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 2828,
+      "parts": [
+        {
+          "name": "20260429800400.xml",
+          "chars": 2802
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260429800400",
+      "rcept_no": "20260429800400",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.29)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "8769185f9c97569bb89f04986ff11ffb21be9d5e7a437aa9ca415b05301c3b05",
+      "locator": "data/raw/dart/objects/8769185f9c97569bb89f04986ff11ffb21be9d5e7a437aa9ca415b05301c3b05.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 1929,
+      "parts": [
+        {
+          "name": "20260407800248.xml",
+          "chars": 1903
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260407800248",
+      "rcept_no": "20260407800248",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.07)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "9151d8ced7a27b91722711da55ee96dc968d7042ffcae7eff87d9e1ac96c8ce6",
+      "locator": "data/raw/dart/objects/9151d8ced7a27b91722711da55ee96dc968d7042ffcae7eff87d9e1ac96c8ce6.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 2791,
+      "parts": [
+        {
+          "name": "20260130800462.xml",
+          "chars": 2765
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260130800462",
+      "rcept_no": "20260130800462",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.01.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "e3784a373b2cfab6b1fadbdf909feb5ceea4b6486e2dcba76c389efd47cc1c5f",
+      "locator": "data/raw/dart/objects/e3784a373b2cfab6b1fadbdf909feb5ceea4b6486e2dcba76c389efd47cc1c5f.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 1926,
+      "parts": [
+        {
+          "name": "20260109800125.xml",
+          "chars": 1900
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260109800125",
+      "rcept_no": "20260109800125",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.01.09)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "eb52382bc6763e549b96999bedc63e4bc7a644181aabc45a8c3da289adbd880a",
+      "locator": "data/raw/dart/objects/eb52382bc6763e549b96999bedc63e4bc7a644181aabc45a8c3da289adbd880a.json",
+      "fetched_at": "2026-10-19T15:03:34+00:00",
+      "text_chars": 1925,
+      "parts": [
+        {
+          "name": "20261007800145.xml",
+          "chars": 1899
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20261007800145",
+      "rcept_no": "20261007800145",
+      "title": "LG전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.10.07)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "e7d29d6f0b8873074de96c6985a1e48e73e7c03a577939fb2483317f108b0c3c",
+      "locator": "data/raw/dart/objects/e7d29d6f0b8873074de96c6985a1e48e73e7c03a577939fb2483317f108b0c3c.json",
+      "fetched_at": "2026-10-19T14:51:56+00:00",
+      "text_chars": 1771,
+      "parts": [
+        {
+          "name": "20260309900769.xml",
+          "chars": 1745
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260309900769",
+      "rcept_no": "20260309900769",
+      "title": "펩트론/매출액 또는 손익구조 30%(대규모법인은 15%)이상 변동/(2026.03.09)매출액 또는 손익구조 30%(대규모법인은 15%)이상 변동"
+    },
+    {
+      "digest": "6c84892e82e164c4d38e19631781868d88474e00ba09738b69d58a571477ab34",
+      "locator": "data/raw/dart/objects/6c84892e82e164c4d38e19631781868d88474e00ba09738b69d58a571477ab34.json",
+      "fetched_at": "2026-10-19T09:54:56+00:00",
+      "text_chars": 4893,
+      "parts": [
+        {
+          "name": "20261013000428.xml",
+          "chars": 4867
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20261013000428",
+      "rcept_no": "20261013000428",
+      "title": "주요사항보고서(유상증자결정)"
+    },
     {
       "digest": "a8cab1755e5befdc2ce5b991e92bdca26f4b5a37226c00d9ec0bde32b2ff3d09",
       "locator": "data/raw/dart/objects/a8cab1755e5befdc2ce5b991e92bdca26f4b5a37226c00d9ec0bde32b2ff3d09.json",

@@ -2,7 +2,7 @@
   "schema_version": "event-packet/2.1.0",
   "asset_id": "005930",
   "symbol": "005930.KS",
-  "collected_at": "2026-10-19T18:52:59+09:00",
+  "collected_at": "2026-10-19T23:58:40+09:00",
   "window": {
     "since": "2026-07-21",
     "until": "2026-10-19",
