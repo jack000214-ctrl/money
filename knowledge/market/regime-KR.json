@@ -1,0 +1,78 @@
+{
+  "schema_version": "market-regime/2.0.0",
+  "collected_at": "2026-10-19T18:55:01+09:00",
+  "lookback_days": 500,
+  "by_market": {
+    "KR": {
+      "market": "KR",
+      "regime": "STRESS",
+      "mark": "🟠",
+      "score": 3,
+      "notes": [
+        "주요 지수 고점 대비 -36.7% — 약세장"
+      ],
+      "indices": [
+        {
+          "symbol": "^KS11",
+          "name": "KOSPI",
+          "as_of": "2026-10-19",
+          "close": 5768.0098,
+          "high": 9114.5498,
+          "drawdown_pct": -36.72
+        },
+        {
+          "symbol": "^KQ11",
+          "name": "KOSDAQ",
+          "as_of": "2026-10-19",
+          "close": 808.89,
+          "high": 1226.1801,
+          "drawdown_pct": -34.03
+        }
+      ],
+      "volatility": {
+        "symbol": "^VIX",
+        "name": "VIX (global reference)",
+        "as_of": "2026-10-19",
+        "value": 18.68,
+        "median": 17.09,
+        "percentile": 68.8,
+        "in_score": false
+      },
+      "worst_drawdown_pct": -36.72
+    }
+  },
+  "macro": {
+    "by_market": {
+      "KR": []
+    }
+  },
+  "input_sources": [
+    {
+      "symbol": "^KS11",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-10-19",
+      "path": "knowledge/prices/KS11.csv",
+      "content_sha256": "ee5149edfc6c4c35eea03aea637fe2c988b57f6a9d16bcb2146ab62114d1c3f9"
+    },
+    {
+      "symbol": "^KQ11",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-10-19",
+      "path": "knowledge/prices/KQ11.csv",
+      "content_sha256": "eb0221e77a2cd98f08df47a9e9afc4d7d861c1b128c8c9326933b82e31850df6"
+    },
+    {
+      "symbol": "^VIX",
+      "mode": "LOCAL_SNAPSHOT",
+      "data_as_of": "2026-10-19",
+      "path": "knowledge/prices/VIX.csv",
+      "content_sha256": "73a8645b36ac5010aa285ccc57a0dc848262d0c8ee30cc22973444e4c3901031"
+    }
+  ],
+  "input_fingerprints": {
+    "knowledge/prices/KS11.csv": "ee5149edfc6c4c35eea03aea637fe2c988b57f6a9d16bcb2146ab62114d1c3f9",
+    "knowledge/prices/KQ11.csv": "eb0221e77a2cd98f08df47a9e9afc4d7d861c1b128c8c9326933b82e31850df6",
+    "knowledge/prices/VIX.csv": "73a8645b36ac5010aa285ccc57a0dc848262d0c8ee30cc22973444e4c3901031"
+  },
+  "_note": "측정값이며 투자 행동을 지시하지 않는다"
+}

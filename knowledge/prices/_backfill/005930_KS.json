@@ -1,0 +1,13 @@
+{
+  "schema_version": "price-backfill/1.0.0",
+  "symbol": "005930.KS",
+  "target": "005930_KS.csv",
+  "collected_at": "2026-10-19T09:51:26+00:00",
+  "calendar_source": "한국 시계열 19개의 합집합 1270거래일",
+  "checked_range": {
+    "from": "2021-08-03",
+    "to": "2026-10-19"
+  },
+  "filled": [],
+  "unfilled": []
+}

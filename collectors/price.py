@@ -415,6 +415,33 @@ def missing_sessions(path: Path) -> list[str]:
     return _header_notes(path, MISSING_SESSIONS_PREFIX)[0]
 
 
+# 거래정지 중 Yahoo 가 분할조정 계수를 잘못 누적해서 내려주는 배율 기준.
+# 실제 거래가 없는 날에 Yahoo 가 전기간 분할계수(예: 116×)를 다시 곱해서
+# 시세가 수백 배로 뻥튀기된다. 이 값 이상이면 거래정지로 간주한다.
+SUSPENDED_SPLIT_FACTOR_THRESHOLD = 10.0
+
+
+def _is_suspended_by_split_factor(rows: list[dict]) -> bool:
+    """새 수집분의 대부분이 비정상 분할조정 계수를 갖고 있으면 거래정지로 판단.
+
+    거래정지 종목은 Yahoo 가 과거 분할계수를 거래정지 기간 전체에 잘못 누적해
+    종가가 수십~수백 배로 뻥튀기된다. 마지막 봉(잠정값)을 제외한 행의 절반
+    이상이 임계값을 넘으면 정지로 본다 — 일부 행이 분할 직후라 계수가 클 수
+    있어 '절반 이상' 기준을 쓴다.
+    """
+    check_rows = rows[:-1] if len(rows) > 1 else rows
+    if not check_rows:
+        return False
+    try:
+        abnormal = sum(
+            1 for r in check_rows
+            if float(r.get("split_adjustment_factor") or 0) > SUSPENDED_SPLIT_FACTOR_THRESHOLD
+        )
+    except (TypeError, ValueError):
+        return False
+    return abnormal >= len(check_rows) / 2
+
+
 def merge_with_existing(
     path: Path, rows: list[dict]
 ) -> tuple[list[dict], list[str], list[str]]:
@@ -449,10 +476,26 @@ def merge_with_existing(
     **겹치는 구간이 어긋나면 병합하지 않는다.** 액면분할은 그 이전의 모든
     봉을 바꾸므로 마지막 봉 하나를 빼도 드러난다. 그때 옛 행을 남기면 두 기준이
     한 파일에 섞인다. 새 수집분만 쓰고 사실을 알린다 — 조용히 고르지 않는다.
+
+    **거래정지 종목은 기존 값을 보존한다.** Yahoo 가 거래정지 기간에 분할조정
+    계수를 잘못 누적해 시세가 수백 배로 뻥튀기되는 경우가 있다. 새 수집분에서
+    이 패턴이 감지되면 기존 파일을 그대로 두고 경고만 낸다. 거래정지가 풀리면
+    분할계수가 정상화돼 다음 수집에서 자동으로 교체된다.
     """
     previous = _existing_rows(path)
     if not previous or not rows:
         return rows, [], []
+
+    # 거래정지로 인한 분할계수 오류 감지: 기존 값을 보존한다.
+    if _is_suspended_by_split_factor(rows):
+        note = (
+            f"거래정지 감지 (분할조정 계수 {SUSPENDED_SPLIT_FACTOR_THRESHOLD:.0f}× 초과): "
+            "Yahoo 응답의 시세가 비정상적으로 크다. "
+            "기존 마지막 값을 유지하고 이번 수집을 무시했다. "
+            "거래정지가 풀리면 다음 수집에서 자동으로 갱신된다"
+        )
+        print(f"※ {note}", file=sys.stderr)
+        return previous, [note], []
     fresh = {row["date"]: row for row in rows}
     last_stored = previous[-1].get("date")
     # 이번 수집의 마지막 봉도 장중일 수 있어 같이 뺀다.

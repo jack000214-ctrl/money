@@ -125,6 +125,7 @@
       "industry": "AI 반도체 테마 ETF",
       "analysis_lens": "ETF_NAV",
       "valuation_family": [
+        "ETF_NAV",
         "PEER_MULTIPLE"
       ],
       "benchmarks": [
@@ -132,9 +133,9 @@
       ],
       "optional_collectors": [],
       "etf": {
-        "strategy": "THEMATIC_SEMICONDUCTORS",
-        "holdings_source": "SECONDARY",
-        "distribution_policy": "ACCUMULATING",
+        "strategy": "AI 반도체 밸류체인 상위 2개국(미국·한국) 대표 종목 집중 투자. 삼성전자·SK하이닉스·엔비디아 등 편입.",
+        "holdings_source": "ISSUER",
+        "distribution_policy": "분배금 없음 (성장형 재투자)",
         "derivative_use": false,
         "leverage": 1.0
       }

@@ -1,0 +1,43 @@
+삼성전자 (005930) — 기준 2026-06-30 / 단위 억원 / 연결
+==========================================================================
+영업현금흐름 TTM                 1,967,293
+capex TTM (유형)               535,936
+FCF TTM                    1,431,357   = 영업현금흐름 − capex
+  (무형자산 취득 TTM)               43,173   ※ capex 에 미포함
+희석주식수                        6,640.2M
+순부채                       -1,675,903   (차입 224,087 − 현금 929,164 − 단기투자 970,826)
+
+[ 현금흐름 분기 복원 — 누계 차감 ]
+  FY2025 Q3  2025-09-30  영업   225,745  capex   108,095  FCF   117,650  (차감)
+  FY2025 Q4  2025-12-31  영업   287,997  capex   115,493  FCF   172,504  (차감)
+  FY2026 Q1  2026-03-31  영업   402,741  capex   171,270  FCF   231,471  (직접)
+  FY2026 Q2  2026-06-30  영업 1,050,811  capex   141,078  FCF   909,733  (차감)
+
+[ 손익 항등식 — 최근 분기 ]
+  매출총이익 1,193,007 − 판매비와관리비 298,083 = 영업이익 894,924
+
+[ 차입 내역 ]
+  단기차입금                        137,101억  BORROWING
+  유동성장기부채                       12,058억  BORROWING
+  사채                                77억  BOND
+  장기차입금                         74,851억  BORROWING
+  BOND 77억  BORROWING 224,011억
+
+fundamentals_id  FUND-f5c9a7bb93251ba10c0c
+저장: knowledge\fundamentals\005930-2026-06-30.json
+원본: data\raw\dart\objects\07ae17a428248983b213e7078d5df3d7026df5c14218778fc535052f7daa2e03.json
+  fetch 2024 1q: 7.9s OK
+  fetch 2024 half: 7.8s OK
+  fetch 2024 3q: 7.7s OK
+  fetch 2024 annual: 8.6s OK
+  fetch 2025 1q: 8.4s OK
+  fetch 2025 half: 8.5s OK
+  fetch 2025 3q: 8.5s OK
+  fetch 2025 annual: 9.4s OK
+  fetch 2026 1q: 7.9s OK
+  fetch 2026 half: 8.4s OK
+  fetch 2026 3q: 0.9s 013(없음)
+  xbrl  2026 3q: 1.8s 없음
+  fetch 2026 annual: 0.9s 013(없음)
+  xbrl  2026 annual: 1.8s 없음
+  fetch 전체: 88.4s

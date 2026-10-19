@@ -1,6 +1,183 @@
 {
   "schema_version": "document-index/1.0.0",
   "extract_version": "v3",
-  "updated_at": "2026-10-19T09:26:07+00:00",
-  "documents": []
+  "updated_at": "2026-10-19T09:54:55+00:00",
+  "documents": [
+    {
+      "digest": "a8cab1755e5befdc2ce5b991e92bdca26f4b5a37226c00d9ec0bde32b2ff3d09",
+      "locator": "data/raw/dart/objects/a8cab1755e5befdc2ce5b991e92bdca26f4b5a37226c00d9ec0bde32b2ff3d09.json",
+      "fetched_at": "2026-10-19T09:53:27+00:00",
+      "text_chars": 16303,
+      "parts": [
+        {
+          "name": "20260710000008.xml",
+          "chars": 16277
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260710000008",
+      "rcept_no": "20260710000008",
+      "title": "주요사항보고서(유상증자결정)"
+    },
+    {
+      "digest": "c729d3e3abfde667aff5ce43b6335f52fd09c5ef284d6680bc8a47ef28d6ffc6",
+      "locator": "data/raw/dart/objects/c729d3e3abfde667aff5ce43b6335f52fd09c5ef284d6680bc8a47ef28d6ffc6.json",
+      "fetched_at": "2026-10-19T09:53:24+00:00",
+      "text_chars": 2130,
+      "parts": [
+        {
+          "name": "20260423800001.xml",
+          "chars": 2104
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260423800001",
+      "rcept_no": "20260423800001",
+      "title": "SK하이닉스/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.23)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "eea5e68031509383b8ce5d677372403d57523f8da47e99ab76bf1883278c71c0",
+      "locator": "data/raw/dart/objects/eea5e68031509383b8ce5d677372403d57523f8da47e99ab76bf1883278c71c0.json",
+      "fetched_at": "2026-10-19T09:53:23+00:00",
+      "text_chars": 2145,
+      "parts": [
+        {
+          "name": "20260729800013.xml",
+          "chars": 2119
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260729800013",
+      "rcept_no": "20260729800013",
+      "title": "SK하이닉스/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.29)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "4faad12bd9717e7abcaac2c830cb085c5d919fc9661a692e61549289a5284c43",
+      "locator": "data/raw/dart/objects/4faad12bd9717e7abcaac2c830cb085c5d919fc9661a692e61549289a5284c43.json",
+      "fetched_at": "2026-10-19T09:51:56+00:00",
+      "text_chars": 2972,
+      "parts": [
+        {
+          "name": "20260129800008.xml",
+          "chars": 2946
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260129800008",
+      "rcept_no": "20260129800008",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.01.29)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "3c5025baa3e8bf0e39e09304bdf1056b30a8981a030615789eb63507e6bb90bb",
+      "locator": "data/raw/dart/objects/3c5025baa3e8bf0e39e09304bdf1056b30a8981a030615789eb63507e6bb90bb.json",
+      "fetched_at": "2026-10-19T09:51:55+00:00",
+      "text_chars": 1875,
+      "parts": [
+        {
+          "name": "20260407800002.xml",
+          "chars": 1849
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260407800002",
+      "rcept_no": "20260407800002",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.07)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "5d583ef5878591e56de41c4f9d76afcfde30e703dfa879a466992b6a7cd1f332",
+      "locator": "data/raw/dart/objects/5d583ef5878591e56de41c4f9d76afcfde30e703dfa879a466992b6a7cd1f332.json",
+      "fetched_at": "2026-10-19T09:51:54+00:00",
+      "text_chars": 2173,
+      "parts": [
+        {
+          "name": "20260430800083.xml",
+          "chars": 2147
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260430800083",
+      "rcept_no": "20260430800083",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "abb091a5cb99fe3a1787dc3d4a9664e9f6c5e524ab6e756f2fa591a8e1dd9f97",
+      "locator": "data/raw/dart/objects/abb091a5cb99fe3a1787dc3d4a9664e9f6c5e524ab6e756f2fa591a8e1dd9f97.json",
+      "fetched_at": "2026-10-19T09:51:53+00:00",
+      "text_chars": 2978,
+      "parts": [
+        {
+          "name": "20260430800097.xml",
+          "chars": 2952
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260430800097",
+      "rcept_no": "20260430800097",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.04.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "9993fcf80585fd5be778013a8fbf3e295838019287c7d4a65b4f3e77795a4c89",
+      "locator": "data/raw/dart/objects/9993fcf80585fd5be778013a8fbf3e295838019287c7d4a65b4f3e77795a4c89.json",
+      "fetched_at": "2026-10-19T09:51:52+00:00",
+      "text_chars": 1883,
+      "parts": [
+        {
+          "name": "20260707800004.xml",
+          "chars": 1857
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260707800004",
+      "rcept_no": "20260707800004",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.07)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "b759d4dcc93d2df1755b620ff09d5aa7c34cbbfa70858381648208ecb7fe62fe",
+      "locator": "data/raw/dart/objects/b759d4dcc93d2df1755b620ff09d5aa7c34cbbfa70858381648208ecb7fe62fe.json",
+      "fetched_at": "2026-10-19T09:51:51+00:00",
+      "text_chars": 2196,
+      "parts": [
+        {
+          "name": "20260730800077.xml",
+          "chars": 2170
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260730800077",
+      "rcept_no": "20260730800077",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "d91995e780aaf78fc2d086bb19faf957f778f14bf65525e8670026df1d9cbba3",
+      "locator": "data/raw/dart/objects/d91995e780aaf78fc2d086bb19faf957f778f14bf65525e8670026df1d9cbba3.json",
+      "fetched_at": "2026-10-19T09:51:50+00:00",
+      "text_chars": 2996,
+      "parts": [
+        {
+          "name": "20260730800103.xml",
+          "chars": 2970
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20260730800103",
+      "rcept_no": "20260730800103",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.07.30)연결재무제표기준영업(잠정)실적(공정공시)"
+    },
+    {
+      "digest": "b0c36fa4497953a02df53bfafe9ff46e25adc52ed0d7079f5c03baced04547b4",
+      "locator": "data/raw/dart/objects/b0c36fa4497953a02df53bfafe9ff46e25adc52ed0d7079f5c03baced04547b4.json",
+      "fetched_at": "2026-10-19T09:51:49+00:00",
+      "text_chars": 1886,
+      "parts": [
+        {
+          "name": "20261008800004.xml",
+          "chars": 1860
+        }
+      ],
+      "kind": "DART_DOCUMENT",
+      "doc_id": "DARTDOC:20261008800004",
+      "rcept_no": "20261008800004",
+      "title": "삼성전자/연결재무제표기준영업(잠정)실적(공정공시)/(2026.10.08)연결재무제표기준영업(잠정)실적(공정공시)"
+    }
+  ]
 }

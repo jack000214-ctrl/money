@@ -1013,6 +1013,14 @@ def _secondary_csv_error(
     return None
 
 
+def _is_large_split_factor(value: str, threshold: float = 10.0) -> bool:
+    """분할조정 계수가 임계값을 초과하는지 확인한다."""
+    try:
+        return float(value) > threshold
+    except (TypeError, ValueError):
+        return False
+
+
 def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
     if task.capability in {"US_CAPITAL", "US_SEGMENTS", "US_EARNINGS"}:
         import importlib
@@ -1102,6 +1110,27 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             last_close = math.nan
         if not math.isfinite(last_close):
             return "가격 파일 마지막 행의 종가가 숫자가 아니다"
+        # 거래정지 감지: 분할조정 계수가 비정상적으로 큰 행이 절반 이상이면
+        # Yahoo 가 거래정지 기간에 누적 분할계수를 잘못 적용한 것이다.
+        # collectors/price.py 가 이미 기존 값을 보존했으므로 여기서는
+        # SUSPENDED 상태를 알려 run_refresh 가 재수집을 건너뛰게 한다.
+        try:
+            split_idx = header.index("split_adjustment_factor")
+            check_rows = data_rows[:-1] if len(data_rows) > 1 else data_rows
+            if check_rows:
+                abnormal = sum(
+                    1 for r in check_rows
+                    if _is_large_split_factor(r[split_idx] if len(r) > split_idx else "0")
+                )
+                if abnormal >= len(check_rows) / 2:
+                    last_normal_date = dates[-1]
+                    return (
+                        f"{SUSPENDED_REASON_PREFIX}거래정지로 추정 — "
+                        f"마지막 봉 {last_normal_date} 의 분할조정 계수가 "
+                        "비정상적으로 크다. 거래정지가 풀리면 자동으로 갱신된다"
+                    )
+        except (ValueError, IndexError):
+            pass
         # 신선도는 회수시각으로 잰다. 그러나 **지금 받았다는 것과 지금의 시세라는
         # 것은 다르다** — 과거에 끝난 시계열을 오늘 받아도 회수시각은 오늘이다.
         # 마지막 봉이 회수일과 너무 멀면 현재 시세가 아니고, 회수일보다 뒤면
@@ -1611,6 +1640,10 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
 # 한국 영업일 기준으로 가장 긴 연휴(추석+주말)도 열흘을 넘지 않는다.
 MAX_HOLDINGS_LAG_DAYS = 14
 MAX_PRICE_BAR_LAG_DAYS = 14
+# 거래정지 감지용 reason prefix. run_refresh 에서 이 prefix 로 시작하는
+# reason 이 있으면 수집을 스킵한다 — 거래정지 중에는 Yahoo 응답이 이미
+# collectors/price.py 에서 막히므로 재시도해도 파일이 바뀌지 않는다.
+SUSPENDED_REASON_PREFIX = "SUSPENDED:"
 
 
 def _holdings_retrieved_at(path: Path) -> dt.datetime | None:
@@ -1928,6 +1961,21 @@ def run_refresh(
         task = inspect_task(planned_task)
         if not force and task.state == "FRESH":
             results.append({"task": task.name, "status": "SKIPPED_FRESH"})
+            continue
+        # 거래정지 중인 종목의 가격 수집은 건너뛴다. collectors/price.py 가
+        # 이미 기존 값을 보존했으므로 재시도해도 파일이 바뀌지 않는다.
+        # --force 로 강제 실행하면 수집을 시도한다(거래정지 해제 확인용).
+        if (
+            not force
+            and task.state == "STALE"
+            and isinstance(task.reason, str)
+            and task.reason.startswith(SUSPENDED_REASON_PREFIX)
+        ):
+            results.append({
+                "task": task.name,
+                "status": "SKIPPED_SUSPENDED",
+                "reason": task.reason,
+            })
             continue
         retry_after = None if force else _recent_us_earnings_failure(
             task, now=dt.datetime.now(dt.timezone.utc),

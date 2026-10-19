@@ -1,5 +1,38 @@
 {
   "active_triggers": {
+    "REV|AVGCOST|005930": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|000660": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|066570": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|005380": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|316140": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|0167A0": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|000080": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|039130": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|011810": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|087010": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
+    "REV|AVGCOST|454910": {
+      "since": "2026-10-19T18:29:49+09:00"
+    },
     "REV|STALE|none|005930": {
       "since": "2026-10-19T14:05:56+09:00"
     },
@@ -35,14 +68,14 @@
     }
   },
   "last_cycle": {
-    "at": "2026-10-19T17:50:54+09:00",
+    "at": "2026-10-19T18:29:49+09:00",
     "result": "OK",
     "reason": null,
     "counts": {
       "holdings": 11,
       "quotes_ok": 11,
       "quotes_failed": 0,
-      "events": 0
+      "events": 11
     },
     "errors": [],
     "not_monitored": [
@@ -95,7 +128,16 @@
         "reason": "실적 캘린더 산출물이 없다"
       }
     ],
-    "channels": {}
+    "channels": {
+      "email": {
+        "ok": true,
+        "reason": "발송했다"
+      },
+      "dashboard": {
+        "ok": true,
+        "reason": "이벤트 로그를 대시보드가 읽는다"
+      }
+    }
   },
   "briefing_sent_dates": [
     "2026-10-19"

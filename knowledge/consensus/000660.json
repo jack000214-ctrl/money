@@ -1,8 +1,8 @@
 {
   "schema_version": "consensus-packet/1.0.0",
   "asset_id": "000660",
-  "collected_at": "2026-10-16T09:06:52+09:00",
-  "as_of": "2026-10-13",
+  "collected_at": "2026-10-19T18:48:40+09:00",
+  "as_of": "2026-10-15",
   "as_of_basis": "LATEST_BROKER_REPORT",
   "estimates_as_of": null,
   "components": {
@@ -27,7 +27,7 @@
     "rating": 4.0,
     "target_price": 3257727.0,
     "eps": 353888.0,
-    "per": 3.57,
+    "per": 3.59,
     "institution_count": 22
   },
   "estimates": {
@@ -86,10 +86,10 @@
         "operating_income_100m": 2625690.0,
         "net_income_100m": 2557449.0,
         "eps": 353888.0,
-        "per": 3.57,
-        "pbr": 2.39,
+        "per": 3.59,
+        "pbr": 2.4,
         "roe_pct": 103.36,
-        "ev_ebitda": 2.66,
+        "ev_ebitda": 2.68,
         "net_debt_ratio_pct": -47.44
       },
       {
@@ -101,10 +101,10 @@
         "operating_income_100m": 4035532.0,
         "net_income_100m": 3316019.0,
         "eps": 453943.0,
-        "per": 2.78,
-        "pbr": 1.29,
+        "per": 2.8,
+        "pbr": 1.3,
         "roe_pct": 62.11,
-        "ev_ebitda": 1.19,
+        "ev_ebitda": 1.2,
         "net_debt_ratio_pct": -59.66
       }
     ],
@@ -127,18 +127,18 @@
       "mean": 3257727.0,
       "spread_pct": 217.57,
       "oldest": "2026-07-30",
-      "newest": "2026-10-13"
+      "newest": "2026-10-15"
     },
     "recent": {
       "window_days": 30,
-      "count": 12,
-      "min": 1480000.0,
+      "count": 11,
+      "min": 2640000.0,
       "max": 4000000.0,
-      "median": 3250000.0,
-      "mean": 3193333.0,
-      "spread_pct": 170.27,
-      "oldest": "2026-09-14",
-      "newest": "2026-10-13"
+      "median": 3300000.0,
+      "mean": 3349091.0,
+      "spread_pct": 51.52,
+      "oldest": "2026-09-29",
+      "newest": "2026-10-15"
     },
     "_note": "목표가가 넓게 갈릴수록 평균은 합의가 아니라 평균일 뿐이다. 두 창의 최대·최소가 다르면 오래된 목표가가 평균을 끌고 있다는 신호이며, 그 목표가는 지금과 다른 주가 수준에서 잡힌 값이다"
   },
@@ -167,6 +167,14 @@
     "_note": "상향·하향 전환은 관측 가능한 사건이다. 목표가 수준보다 방향이 정보를 담는다"
   },
   "brokers": [
+    {
+      "broker": "대신",
+      "date": "2026-10-15",
+      "target_price": 3200000.0,
+      "prior_target_price": 3200000.0,
+      "change_pct": 0.0,
+      "rating": "Buy"
+    },
     {
       "broker": "하나",
       "date": "2026-10-13",
@@ -204,14 +212,6 @@
       "date": "2026-10-07",
       "target_price": 3400000.0,
       "prior_target_price": 3400000.0,
-      "change_pct": 0.0,
-      "rating": "Buy"
-    },
-    {
-      "broker": "대신",
-      "date": "2026-10-07",
-      "target_price": 3200000.0,
-      "prior_target_price": 3200000.0,
       "change_pct": 0.0,
       "rating": "Buy"
     },
@@ -347,8 +347,8 @@
   "_warning": "목표주가는 애널리스트의 결론이지 입력이 아니다. 매도 리포트가 사실상 나오지 않아 거의 항상 현재가 위에 있고 주가를 따라 개정되므로, '목표가가 현재가보다 높다'는 사실 자체는 정보가 아니다. 밸류에이션 근거로는 eps 를 쓰고 멀티플은 직접 정한다",
   "_source_note": "FnGuide 가 네이버에 제공하는 기업분석 페이지 · 2차 출처이므로 EXPLORATORY 등급이다. 컨센서스는 최근 3개월간 증권사 발표 추정치의 평균이다",
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_000660_20261016_090649.html",
-    "estimates": "data\\raw\\naver\\estimates_000660_20261016_090649.html"
+    "summary": "data/raw/naver/consensus_000660_20261019_184838.html",
+    "estimates": "data/raw/naver/estimates_000660_20261019_184838.html"
   },
   "history": [
     {
@@ -358,6 +358,15 @@
       "target_price": 3257727.0,
       "eps": 353888.0,
       "per": 3.57,
+      "institution_count": 22
+    },
+    {
+      "as_of": "2026-10-15",
+      "collected_at": "2026-10-19T18:48:40+09:00",
+      "rating": 4.0,
+      "target_price": 3257727.0,
+      "eps": 353888.0,
+      "per": 3.59,
       "institution_count": 22
     }
   ]

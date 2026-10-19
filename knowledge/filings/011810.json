@@ -2,9 +2,9 @@
   "schema_version": "filing-index/1.0.0",
   "asset_id": "011810",
   "corp_code": "00138297",
-  "collected_at": "2026-10-19T00:34:44+00:00",
+  "collected_at": "2026-10-19T09:54:54+00:00",
   "source": "DART_LIST",
-  "since": "20251019",
+  "since": "20250914",
   "until": "20261019",
   "pblntf_types": [
     "A",
@@ -18,13 +18,13 @@
       "pblntf_ty": "A",
       "pblntf_ty_name": "정기공시",
       "raw_payload_sha256": "02c96e56cd5eb7a5093820f53c505a361e33187b201626202236530827321152",
-      "raw_locator": "data\\raw\\dart\\objects\\02c96e56cd5eb7a5093820f53c505a361e33187b201626202236530827321152.json"
+      "raw_locator": "data/raw/dart/objects/02c96e56cd5eb7a5093820f53c505a361e33187b201626202236530827321152.json"
     },
     {
       "pblntf_ty": "B",
       "pblntf_ty_name": "주요사항보고",
       "raw_payload_sha256": "db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904",
-      "raw_locator": "data\\raw\\dart\\objects\\db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904.json"
+      "raw_locator": "data/raw/dart/objects/db79bb47567dd362cbae1a0622cb7cc195658c7b7295056c7a4d19698cc86904.json"
     },
     {
       "pblntf_ty": "C",
@@ -34,8 +34,8 @@
     {
       "pblntf_ty": "I",
       "pblntf_ty_name": "거래소공시",
-      "raw_payload_sha256": "f199254d400ecb8e47da8b83506e2279b2216bd315badce4067bc50becba0017",
-      "raw_locator": "data\\raw\\dart\\objects\\f199254d400ecb8e47da8b83506e2279b2216bd315badce4067bc50becba0017.json"
+      "raw_payload_sha256": "879961302be4ae17f930033f2cc894560b4366d5dcf089bb669c79ef3e8d4876",
+      "raw_locator": "data/raw/dart/objects/879961302be4ae17f930033f2cc894560b4366d5dcf089bb669c79ef3e8d4876.json"
     },
     {
       "pblntf_ty": "F",

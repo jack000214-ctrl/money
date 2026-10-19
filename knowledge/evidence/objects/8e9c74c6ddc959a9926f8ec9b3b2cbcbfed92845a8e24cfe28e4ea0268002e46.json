@@ -1,0 +1,70 @@
+{
+  "schema_version": "cio-investor-policy/1.0.0",
+  "policy_version": "2026-10-19",
+  "base_currency": "KRW",
+  "_role": "이 종목이 좋은가가 아니라 내 자본을 어떻게 쓰는가에 대한 사용자의 제약이다. PC는 이 값을 대조만 하고 정하지 않는다. null은 '제한 없음'이 아니라 '아직 정하지 않음'이며, 그 공백이 결론에 필요하면 모델은 action.direction=UNDETERMINED / undetermined_reason=NO_INVESTOR_POLICY로 답한다.",
+  "objective": {
+    "primary_goal": "장기 자본 증식",
+    "target_annual_return_pct": 12
+  },
+  "horizon": {
+    "typical_holding_months": 12,
+    "liquidity_need_within_months": 6
+  },
+  "risk": {
+    "stop_style": "PRICE",
+    "max_loss_per_position_krw": 2000000,
+    "max_portfolio_drawdown_pct": 20
+  },
+  "concentration": {
+    "max_single_position_pct_of_total": 25,
+    "max_sector_pct_of_total": 40
+  },
+  "liquidity": {
+    "min_cash_krw": 3000000,
+    "monthly_net_income_krw": null
+  },
+  "instruments": {
+    "leverage_allowed": false,
+    "derivative_etf_allowed": false,
+    "notes": null
+  },
+  "tax": {
+    "account_type": null,
+    "notes": null
+  },
+  "denominator": {
+    "included": [
+      "주식 평가액",
+      "예수금"
+    ],
+    "excluded": [],
+    "note": "주식 평가액 + 증권 계좌 예수금만 분모로 산정. 부동산·연금 등 이동 불가 자산 제외."
+  },
+  "intentionally_unset": [
+    {
+      "field": "liquidity.monthly_net_income_krw",
+      "why": "월 소득은 매수 수량 산정에 직접 쓰지 않으므로 우선순위 낮음"
+    },
+    {
+      "field": "tax.account_type",
+      "why": "계좌 유형별 세율 차이를 모델에 반영하지 않는 현재 단계에서는 미입력"
+    }
+  ],
+  "default_alternatives": [
+    {
+      "id": "CASH_KRW",
+      "label": "원화 현금 보유",
+      "why": "아무것도 하지 않는 선택지. 모든 매수는 최소한 이것보다 나아야 한다"
+    }
+  ],
+  "total_assets_krw": 214000000,
+  "cash_krw": 0,
+  "allocation": {
+    "safe_asset_target_pct": 30,
+    "risk_asset_target_pct": 70
+  },
+  "rebalance": {
+    "tolerance_pct": 5
+  }
+}

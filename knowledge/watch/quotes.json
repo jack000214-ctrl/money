@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-19T17:50:54+09:00",
+  "updated_at": "2026-10-19T18:29:49+09:00",
   "quotes": {
     "005930": {
       "price": 218000.0,
@@ -13,7 +13,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "삼성전자",
       "price_symbol": "005930.KS",
       "last_error": null
@@ -30,7 +30,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "SK하이닉스",
       "price_symbol": "000660.KS",
       "last_error": null
@@ -47,7 +47,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "LG전자",
       "price_symbol": "066570.KS",
       "last_error": null
@@ -64,7 +64,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "현대차",
       "price_symbol": "005380.KS",
       "last_error": null
@@ -81,7 +81,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "우리금융지주",
       "price_symbol": "316140.KS",
       "last_error": null
@@ -98,7 +98,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "SOL AI반도체TOP2플러스",
       "price_symbol": "0167A0.KS",
       "last_error": null
@@ -115,7 +115,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "하이트진로",
       "price_symbol": "000080.KS",
       "last_error": null
@@ -132,7 +132,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "하나투어",
       "price_symbol": "039130.KS",
       "last_error": null
@@ -149,7 +149,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "STX",
       "price_symbol": "011810.KS",
       "last_error": null
@@ -166,7 +166,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "펩트론",
       "price_symbol": "087010.KQ",
       "last_error": null
@@ -183,7 +183,7 @@
       "source": "YAHOO_CHART_META",
       "_note": "정규장 가격이다. 시간외·NXT 가격은 받지 못한다",
       "status": "OK",
-      "fetched_at": "2026-10-19T17:50:54+09:00",
+      "fetched_at": "2026-10-19T18:29:49+09:00",
       "name": "두산로보틱스",
       "price_symbol": "454910.KS",
       "last_error": null

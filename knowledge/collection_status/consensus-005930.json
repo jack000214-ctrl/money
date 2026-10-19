@@ -1,6 +1,6 @@
 {
   "asset_id": "005930",
-  "attempted_at": "2026-10-16T09:15:08+09:00",
+  "attempted_at": "2026-10-19T18:51:59+09:00",
   "state": "AVAILABLE",
   "components": {
     "summary": {
@@ -17,7 +17,7 @@
     }
   },
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_005930_20261016_091506.html",
-    "estimates": "data\\raw\\naver\\estimates_005930_20261016_091506.html"
+    "summary": "data/raw/naver/consensus_005930_20261019_185156.html",
+    "estimates": "data/raw/naver/estimates_005930_20261019_185156.html"
   }
 }

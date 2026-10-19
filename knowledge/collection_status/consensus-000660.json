@@ -1,6 +1,6 @@
 {
   "asset_id": "000660",
-  "attempted_at": "2026-10-16T09:06:52+09:00",
+  "attempted_at": "2026-10-19T18:48:40+09:00",
   "state": "AVAILABLE",
   "components": {
     "summary": {
@@ -17,7 +17,7 @@
     }
   },
   "raw_sources": {
-    "summary": "data\\raw\\naver\\consensus_000660_20261016_090649.html",
-    "estimates": "data\\raw\\naver\\estimates_000660_20261016_090649.html"
+    "summary": "data/raw/naver/consensus_000660_20261019_184838.html",
+    "estimates": "data/raw/naver/estimates_000660_20261019_184838.html"
   }
 }

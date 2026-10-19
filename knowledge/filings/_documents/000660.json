@@ -1,0 +1,14 @@
+{
+  "asset_id": "000660",
+  "collected_at": "2026-10-19T18:53:22+09:00",
+  "forms": [
+    "PROVISIONAL_RESULT"
+  ],
+  "fetched": [
+    "20260729800013",
+    "20260423800001"
+  ],
+  "skipped": [],
+  "failed": [],
+  "missing_index": false
+}
