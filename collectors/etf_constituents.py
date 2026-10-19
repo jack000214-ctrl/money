@@ -319,7 +319,7 @@ def _valuation_block(
     object_path, digest = web.save_snapshot(payload, label=label)
     web.record_index(
         asset_id, label=label, digest=digest,
-        locator=str(object_path.relative_to(ROOT)), payload=payload,
+        locator=object_path.relative_to(ROOT).as_posix(), payload=payload,
         note=f"구성종목 배수 관측(2차 출처: {VALUATION_PROVIDER})",
     )
     return (
@@ -415,7 +415,7 @@ def collect(asset_id: str, *, with_valuation: bool = True,
         "asset_id": asset["asset_id"],
         "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "holdings_as_of": next(iter(as_of_values)),
-        "holdings_path": str(holdings_path.relative_to(ROOT)),
+        "holdings_path": holdings_path.relative_to(ROOT).as_posix(),
         "holdings_sha256": content_hash(holdings_path),
         "holdings_total": len(rows),
         "quote_currency": quote,

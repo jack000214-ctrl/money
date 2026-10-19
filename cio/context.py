@@ -230,7 +230,7 @@ def _price_summary(symbol: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     source = {
         "source_id": f"PRICE:{symbol}",
         "kind": "MARKET_DATA",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     if not path.exists():
@@ -455,7 +455,7 @@ def _latest_fundamentals(
     if not candidates:
         return None, source
     _, path, data = max(candidates, key=lambda item: item[0])
-    source["path"] = str(path.relative_to(ROOT))
+    source["path"] = path.relative_to(ROOT).as_posix()
     source["data_as_of"] = data.get("period_end")
     binding_errors = []
     if data.get("instrument_id") != asset_id:
@@ -872,7 +872,7 @@ def _filing_summary(
     source = {
         "source_id": f"FILINGS:{asset_id}",
         "kind": "REGULATOR_FILING_INDEX",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     if not path.exists():
@@ -1000,7 +1000,7 @@ def _earnings_calendar_section(
     source = {
         "source_id": f"EARNINGS_CALENDAR:{asset_id}",
         "kind": "REGULATOR_FILING_DOCUMENT",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     if not path.exists():
@@ -1299,7 +1299,7 @@ def _latest_calculation(
     source = {
         "source_id": data["calculation_id"],
         "kind": "CALCULATION",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": data.get("created_at"),
     }
     return summary, source
@@ -1310,7 +1310,7 @@ def _market_summary(market: str) -> tuple[dict[str, Any] | None, dict[str, Any]]
     source = {
         "source_id": f"MARKET_STATE:{market}",
         "kind": "DERIVED",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     if not path.exists():
@@ -1375,7 +1375,7 @@ def _event_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[s
     source = {
         "source_id": f"EVENTS:{asset['asset_id']}",
         "kind": "FILING_EVENT_INDEX",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     if not path.exists():
@@ -1491,7 +1491,7 @@ def _etf_summary(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
         errors.append("구성종목 기준일이 행마다 다르다")
     weighted.sort(key=lambda row: row["weight_pct"], reverse=True)
     as_of = next(iter(as_of_values), path.stem.removeprefix("holdings-"))
-    source["path"] = str(path.relative_to(ROOT))
+    source["path"] = path.relative_to(ROOT).as_posix()
     source["data_as_of"] = as_of
     coverage = round(sum(row["weight_pct"] for row in weighted), 2)
     warnings = []
@@ -1550,7 +1550,7 @@ def _etf_issuer_facts(
     source = {
         "source_id": f"ETF_ISSUER:{asset['asset_id']}",
         "kind": "ISSUER_FACTS",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": data.get("as_of"),
     }
     nav = _as_float(data.get("nav"))
@@ -1603,7 +1603,7 @@ def _etf_lookthrough(
     source = {
         "source_id": f"ETF_CONSTITUENTS:{asset['asset_id']}",
         "kind": "SECONDARY_MARKET_DATA",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": None,
     }
     try:
@@ -2623,7 +2623,7 @@ def _optional_collection_summaries(
                     {
                         "source_id": f"CONSENSUS:{asset_id}",
                         "kind": "SECONDARY_ESTIMATE",
-                        "path": str(path.relative_to(ROOT)),
+                        "path": path.relative_to(ROOT).as_posix(),
                         "data_as_of": data.get("as_of"),
                     }
                 )
@@ -2641,7 +2641,7 @@ def _optional_collection_summaries(
                     summary["state"] = "STALE_AFTER_FAILURE" if summary.get("estimates") else attempt["state"]
                     summary["components"] = attempt.get("components")
                 sources.append({"source_id": f"COLLECTION_STATUS:{asset_id}", "kind": "COLLECTION_STATUS",
-                                "path": str(attempt_path.relative_to(ROOT)), "data_as_of": attempt.get("attempted_at")})
+                                "path": attempt_path.relative_to(ROOT).as_posix(), "data_as_of": attempt.get("attempted_at")})
         peer_block = _peer_multiples(asset)
         if peer_block:
             summaries["peer_multiples"] = peer_block
@@ -2653,7 +2653,7 @@ def _optional_collection_summaries(
                     sources.append({
                         "source_id": f"CONSENSUS_PEER:{peer['asset_id']}",
                         "kind": "SECONDARY_ESTIMATE",
-                        "path": str(peer_path.relative_to(ROOT)),
+                        "path": peer_path.relative_to(ROOT).as_posix(),
                         "data_as_of": None,
                     })
 
@@ -2697,7 +2697,7 @@ def _optional_collection_summaries(
                     {
                         "source_id": f"KR_FLOW:{asset_id}",
                         "kind": "SECONDARY_MARKET_DATA",
-                        "path": str(path.relative_to(ROOT)),
+                        "path": path.relative_to(ROOT).as_posix(),
                         "data_as_of": recent[-1].get("date"),
                     }
                 )
@@ -2739,7 +2739,7 @@ def _optional_collection_summaries(
                     {
                         "source_id": f"KR_LENDING:{asset_id}",
                         "kind": "MARKET_DATA",
-                        "path": str(path.relative_to(ROOT)),
+                        "path": path.relative_to(ROOT).as_posix(),
                         "data_as_of": recent[-1].get("date"),
                     }
                 )
@@ -2768,7 +2768,7 @@ def _optional_collection_summaries(
                     {
                         "source_id": f"KR_INVENTORY:{asset_id}",
                         "kind": "FILING_DERIVED",
-                        "path": str(path.relative_to(ROOT)),
+                        "path": path.relative_to(ROOT).as_posix(),
                         "data_as_of": trend[-1]["period_end"],
                     }
                 )
@@ -2829,7 +2829,7 @@ def _optional_collection_summaries(
                 {
                     "source_id": f"KR_SEGMENTS:{asset_id}",
                     "kind": "FILING_DERIVED",
-                    "path": str(path.relative_to(ROOT)),
+                    "path": path.relative_to(ROOT).as_posix(),
                     "data_as_of": data.get("filing_date"),
                 }
             )
@@ -2866,7 +2866,7 @@ def _optional_collection_summaries(
                 {
                     "source_id": f"KR_PRODUCT_SALES:{asset_id}",
                     "kind": "FILING_DERIVED",
-                    "path": str(path.relative_to(ROOT)),
+                    "path": path.relative_to(ROOT).as_posix(),
                     "data_as_of": data["quarters"][-1].get("period_end"),
                 }
             )
@@ -2891,7 +2891,7 @@ def _optional_collection_summaries(
                 summaries["epc_contract_notes"] = {"available": False, "state": "INVALID", "problems": errors}
             else:
                 summaries["epc_contract_notes"] = epc_summary(data, fundamentals)
-                sources.append({"source_id": f"KR_EPC:{asset_id}", "kind": "FILING_DERIVED", "path": str(path.relative_to(ROOT)), "data_as_of": data["reports"][0]["report_date"]})
+                sources.append({"source_id": f"KR_EPC:{asset_id}", "kind": "FILING_DERIVED", "path": path.relative_to(ROOT).as_posix(), "data_as_of": data["reports"][0]["report_date"]})
 
     if "NORMALIZED_EARNINGS" in enabled:
         path = KNOWLEDGE_DIR / "normalized" / f"{asset_id}.json"
@@ -2915,7 +2915,7 @@ def _optional_collection_summaries(
                 {
                     "source_id": f"NORMALIZED_EARNINGS:{asset_id}",
                     "kind": "CALCULATION",
-                    "path": str(path.relative_to(ROOT)),
+                    "path": path.relative_to(ROOT).as_posix(),
                     "data_as_of": (latest or {}).get("period_end"),
                 }
             )
@@ -3067,7 +3067,7 @@ def _us_automated_summaries(
                 summaries[key]["available"] = False
         sources.append({"source_id": f"{source_prefix}:{asset['asset_id']}",
                         "kind": "ISSUER_EVENT_CALENDAR" if key == "us_earnings" else "FILING_DERIVED",
-                        "path": str(path.relative_to(ROOT)), "data_as_of": data.get("collected_at")})
+                        "path": path.relative_to(ROOT).as_posix(), "data_as_of": data.get("collected_at")})
         for document in data.get("reports", data.get("sources", [])):
             if isinstance(document, dict) and document.get("source_id") and document.get("path"):
                 sources.append({"source_id": document["source_id"], "path": document["path"],
@@ -3373,7 +3373,7 @@ def _portfolio_summary(
     source = {
         "source_id": "PORTFOLIO:HOLDINGS",
         "kind": "USER_DATA",
-        "path": str(path.relative_to(ROOT)),
+        "path": path.relative_to(ROOT).as_posix(),
         "data_as_of": holdings_as_of,
     }
     try:
@@ -4105,7 +4105,7 @@ def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> 
         if identifier and plan_path.is_file():
             if seal_plans:
                 plan_path = _snapshot_evidence(plan_path, content_hash(plan_path))
-            carried["entry_plan_ref"] = {"assessment_id": identifier, "path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)}
+            carried["entry_plan_ref"] = {"assessment_id": identifier, "path": plan_path.relative_to(ROOT).as_posix(), "content_sha256": content_hash(plan_path)}
             carried.pop("entry_plan")
             trimmed.append("prior_assessments.carried_forward.entry_plan (use entry_plan_ref)")
             if fits():
@@ -4116,7 +4116,7 @@ def _fit_context_budget(packet: dict[str, Any], *, seal_plans: bool = False) -> 
         if identifier and plan_path.is_file():
             if seal_plans:
                 plan_path = _snapshot_evidence(plan_path, content_hash(plan_path))
-            carried["exit_plan_ref"] = {"assessment_id": identifier, "path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)}
+            carried["exit_plan_ref"] = {"assessment_id": identifier, "path": plan_path.relative_to(ROOT).as_posix(), "content_sha256": content_hash(plan_path)}
             carried.pop("exit_plan")
             trimmed.append("prior_assessments.carried_forward.exit_plan (use exit_plan_ref)")
             if fits():
@@ -4450,7 +4450,7 @@ def _memory_digest(
     if latest_with_plan and (not result or latest_with_plan["assessment_id"] != result[-1]["assessment_id"]):
         plan_path = directory / f"{latest_with_plan['assessment_id']}.json"
         digest["latest_entry_plan"] = {"assessment_id": latest_with_plan["assessment_id"],
-            "entry_plan_ref": {"path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)},
+            "entry_plan_ref": {"path": plan_path.relative_to(ROOT).as_posix(), "content_sha256": content_hash(plan_path)},
             "_role": "가장 최근의 유효한 분할 제안 기록이다. 이후 판단에 계획이 생략됐다고 잃지 않는다. 현재 실행 지시가 아니며 조건·취소 기록을 재검토한다."}
     latest_exit_plan = next((a for a, _ in reversed(assessments) if a.get("exit_plan")), None)
     if latest_exit_plan and (not result or latest_exit_plan["assessment_id"] != result[-1]["assessment_id"]):
@@ -4477,7 +4477,7 @@ def _memory_digest(
                     "note": _clip(check["note"], 160),
                 }
         digest["latest_exit_plan"] = {"assessment_id": latest_exit_plan["assessment_id"],
-            "exit_plan_ref": {"path": str(plan_path.relative_to(ROOT)), "content_sha256": content_hash(plan_path)},
+            "exit_plan_ref": {"path": plan_path.relative_to(ROOT).as_posix(), "content_sha256": content_hash(plan_path)},
             "execution": "UNKNOWN", "status": "HISTORICAL_REFERENCE",
             "stage_reviews": [stage_reviews[stage["stage_id"]] for stage in latest_exit_plan["exit_plan"]["stages"] if stage["stage_id"] in stage_reviews],
             "_role": "가장 최근의 미래 분할매도 제안과 단계별 최종 검토 기록이다. CANCELLED는 이 계획에서 되살릴 수 없고 새 계획이 필요하다. 주문이 살아 있거나 체결됐다는 뜻은 아니다."}
@@ -5228,7 +5228,7 @@ def build_context(
             {
                 "source_id": "POLICY:INVESTOR",
                 "kind": "USER_DATA",
-                "path": str(POLICY_PATH.relative_to(ROOT)),
+                "path": POLICY_PATH.relative_to(ROOT).as_posix(),
                 "data_as_of": policy_data.get("policy_version"),
             }
         )
@@ -5450,7 +5450,7 @@ def build_context(
             continue
         stored = KNOWLEDGE_DIR / "assessments" / asset["asset_id"] / f"{assessment_id}.json"
         try:
-            locator = str(stored.relative_to(ROOT))
+            locator = stored.relative_to(ROOT).as_posix()
         except ValueError:
             continue
         sources.append(
@@ -5481,7 +5481,7 @@ def build_context(
         if save:
             snapshot = _snapshot_evidence(origin, digest)
             entry["origin_path"] = item["path"]
-            entry["path"] = str(snapshot.relative_to(ROOT))
+            entry["path"] = snapshot.relative_to(ROOT).as_posix()
         previous = evidence_by_id.get(source_id)
         if previous:
             if previous["content_sha256"] != digest:

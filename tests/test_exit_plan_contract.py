@@ -26,7 +26,7 @@ def sell_fixture():
         "sell_reason": "VALUATION", "rationale": "현재 1175주를 먼저 줄인다",
     }
     decision["exit_plan"] = {
-        "currency": "USD", "reference_date": "2026-01-01",
+        "currency": "KRW", "reference_date": "2026-01-01",
         "reference_basis": "질문 시점의 보통주 1주",
         "stages": [
             {"stage_id": "higher", "name": "추가 상승 시 첫 매도", "quantity": 600, "limit_price": 4.70,
@@ -58,7 +58,7 @@ class ExitPlanContractTests(unittest.TestCase):
             lambda d: d["exit_plan"]["stages"][1].update(stage_id="higher"),
             lambda d: d["exit_plan"]["stages"][0].update(depends_on="highest"),
             lambda d: d["exit_plan"]["stages"][1].update(depends_on="not_a_stage"),
-            lambda d: d["exit_plan"].update(currency="KRW"),
+            lambda d: d["exit_plan"].update(currency="USD"),
             lambda d: d["exit_plan"].update(reference_date="2026-01-02"),
             lambda d: d["exit_plan"]["stages"][0].update(valid_until="2025-12-31"),
             lambda d: (d["exit_plan"]["stages"][0].update(valid_from="2026-09-01"),
@@ -111,7 +111,7 @@ class ExitPlanContractTests(unittest.TestCase):
         ]}
         check = {"assessment_id": old_id, "stage_id": "higher",
                  "condition": plan["stages"][0]["condition"], "state": "SATISFIED",
-                 "note": "원문을 확인했다", "evidence_refs": ["PRICE:TSLA"]}
+                 "note": "원문을 확인했다", "evidence_refs": ["PRICE:005930"]}
         decision["exit_plan_checks"] = [check]
         self.assertEqual(validate(decision, context), [])
         for change in (

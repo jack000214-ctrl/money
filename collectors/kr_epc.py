@@ -186,7 +186,7 @@ def collect(asset_id, limit=2):
         result = extract(document, filing["report_date"])
         reports.append({"report_date": filing["report_date"], "filing_date": filing["filing_date"],
                         "rcept_no": filing["accession_number"], "source_id": f"DARTDOC:{filing['accession_number']}",
-                        "raw_locator": str(path.relative_to(ROOT)), "raw_file_sha256": content_hash(path), **result})
+                        "raw_locator": path.relative_to(ROOT).as_posix(), "raw_file_sha256": content_hash(path), **result})
     if not reports:
         raise ValueError("정기보고서 색인이 없다")
     return {"schema_version": SCHEMA, "asset_id": asset_id, "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "reports": reports,

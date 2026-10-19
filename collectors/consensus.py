@@ -495,7 +495,7 @@ def main() -> int:
             prefix = "consensus" if component == "summary" else "estimates"
             raw_path = RAW_DIR / f"{prefix}_{args.asset_id}_{stamp}.html"
             raw_path.write_text(fetched[component], encoding="utf-8")
-            originals[component] = str(raw_path.relative_to(ROOT))
+            originals[component] = raw_path.relative_to(ROOT).as_posix()
         except SystemExit:
             failures[component] = "NETWORK_ERROR"
     packet = build(args.asset_id, fetched.get("summary", ""), fetched.get("estimates", ""))

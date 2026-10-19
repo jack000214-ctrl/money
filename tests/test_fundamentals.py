@@ -37,10 +37,10 @@ def valid_fundamentals(**overrides):
     capex = [2248e6, 2393e6, 2493e6, 5789e6]
     data = {
         "schema_version": "1.1.0",
-        "instrument_id": "TSLA",
-        "company_name": "Tesla, Inc.",
-        "cik": "0001318605",
-        "currency": "USD",
+        "instrument_id": "005930",
+        "company_name": "삼성전자",
+        "corp_code": "00126380",
+        "currency": "KRW",
         "period_end": "2026-06-30",
         "created_at": "2026-07-27T14:00:00+09:00",
         "tags": {"ocf": "NetCashProvidedByUsedInOperatingActivities",

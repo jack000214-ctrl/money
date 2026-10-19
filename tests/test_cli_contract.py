@@ -63,7 +63,7 @@ class TestParserWiring(unittest.TestCase):
         """가격 없이 packet 을 만들면 '얼마에 살까'가 없는 질문이 된다."""
         with self.assertRaises(SystemExit):
             with redirect_stderr(io.StringIO()):
-                cli.build_parser().parse_args(["prepare", "TSLA"])
+                cli.build_parser().parse_args(["prepare", "005930"])
 
     def test_prepare_intent_choices_track_the_context_module(self):
         """INTENTS 에 갈래를 더하고 CLI 를 안 고치면 그 갈래를 물을 수 없다."""
@@ -102,7 +102,7 @@ class TestPrepareExitCode(unittest.TestCase):
     def test_pass_exits_zero(self):
         with patch.object(cli, "build_context",
                           return_value=(self.packet("PASS"), "some/path.json")):
-            code, out = run(["prepare", "TSLA", "--price", "100"])
+            code, out = run(["prepare", "005930", "--price", "100"])
         self.assertEqual(code, 0)
         self.assertIn("compact_size_bytes", out)
 
@@ -110,7 +110,7 @@ class TestPrepareExitCode(unittest.TestCase):
         """파일이 저장됐다는 것과 쓸 만하다는 것은 다른 사실이다."""
         with patch.object(cli, "build_context",
                           return_value=(self.packet("BLOCKED"), "some/path.json")):
-            code, out = run(["prepare", "TSLA", "--price", "100"])
+            code, out = run(["prepare", "005930", "--price", "100"])
         self.assertEqual(code, 2)
         self.assertIn("입력이 낡았다", out)
 
@@ -123,7 +123,7 @@ class TestSearchExitCode(unittest.TestCase):
                 result = {"total_matches": total}
                 with patch.object(cli, "search_asset", return_value=result), \
                         patch.object(cli, "format_search", return_value=""):
-                    code, _ = run(["search", "TSLA", "패턴"])
+                    code, _ = run(["search", "005930", "패턴"])
                 self.assertEqual(code, expected)
 
 
@@ -178,7 +178,7 @@ class TestScoreExitCode(unittest.TestCase):
             with self.subTest(skipped=bool(skipped)):
                 with patch.object(cli, "score_asset",
                                   return_value={"skipped": skipped}):
-                    code, _ = run(["score", "TSLA"])
+                    code, _ = run(["score", "005930"])
                 self.assertEqual(code, expected)
 
 
@@ -186,7 +186,7 @@ class TestErrorPathsExitTwo(unittest.TestCase):
     def test_pipeline_input_error_exits_two(self):
         with patch.object(cli, "record_program",
                           side_effect=PipelineError("출처가 없다")):
-            code, _ = run(["pipeline", "RXRX", "--name", "REC-1"])
+            code, _ = run(["pipeline", "028300", "--name", "REC-1"])
         self.assertEqual(code, 2)
 
     def test_pipeline_lookup_of_an_unregistered_asset_is_an_error(self):
@@ -196,21 +196,21 @@ class TestErrorPathsExitTwo(unittest.TestCase):
 
     def test_retire_error_exits_two(self):
         with patch.object(cli, "retire", side_effect=RetireError("대상이 없다")):
-            code, _ = run(["retire", "TSLA", "--reason", "구버전"])
+            code, _ = run(["retire", "005930", "--reason", "구버전"])
         self.assertEqual(code, 2)
 
     def test_retire_refuses_a_pasted_placeholder_reason(self):
         """안내문의 `--reason "<사유>"` 를 그대로 넣은 폐기가 기록에 남았다."""
         for reason in ("<사유>", "  <reason> "):
             with self.subTest(reason=reason), self.assertRaises(RetireError):
-                retire_judgments("TSLA", reason=reason)
+                retire_judgments("005930", reason=reason)
 
     def test_retire_without_reason_only_surveys(self):
         """사유 없이 부르면 조회다. 실수로 폐기가 일어나면 안 된다."""
         with patch.object(cli, "survey", return_value={}) as surveyed, \
                 patch.object(cli, "format_survey", return_value="상태"), \
                 patch.object(cli, "retire") as retired:
-            code, out = run(["retire", "TSLA"])
+            code, out = run(["retire", "005930"])
         self.assertEqual(code, 0)
         self.assertIn("상태", out)
         surveyed.assert_called_once()
@@ -225,7 +225,7 @@ class TestErrorPathsExitTwo(unittest.TestCase):
         }
         with patch.object(cli, "retire", return_value=plan) as retired, \
                 patch.object(cli, "format_survey", return_value="상태"):
-            code, out = run(["retire", "TSLA", "--reason", "구버전"])
+            code, out = run(["retire", "005930", "--reason", "구버전"])
         self.assertEqual(code, 0)
         self.assertIn("폐기 대상 1건", out)
         self.assertFalse(retired.call_args.kwargs["confirm"])

@@ -13,7 +13,10 @@ from cio.context import _price_summary
 from cio.memory import evaluate_assessment
 from cio.refresh import RefreshTask, inspect_task
 from collectors import kr_events, price
-from test_cio_core import valid_context, valid_decision
+from test_cio_core import (
+    small_price_context as valid_context,
+    small_price_decision as valid_decision,
+)
 from cio.decision import normalize_decision
 
 

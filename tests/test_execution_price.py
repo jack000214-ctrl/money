@@ -180,7 +180,7 @@ class TestItReachesTheScreen(unittest.TestCase):
         self.assertIn("390,000", line)
         self.assertIn("지정가", line)
         # 통화 없는 가격은 지정가로 옮겨 적을 수 없다.
-        self.assertIn("USD", line)
+        self.assertIn("KRW", line)
 
     def test_an_add_without_a_quantity_still_shows_its_price(self):
         line = self.order_line({

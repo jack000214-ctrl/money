@@ -166,6 +166,32 @@ class TestPolicyContract(unittest.TestCase):
             any("음수일 수 없다" in e for e in validate_policy(data))
         )
 
+    def test_dashboard_fields_are_accepted_but_optional(self):
+        """대시보드 '투자 정책' 탭이 저장하는 항목은 계약 위반이 아니다."""
+        data = valid_policy()
+        data["total_assets_krw"] = 214_000_000
+        data["cash_krw"] = 0
+        data["allocation"] = {
+            "safe_asset_target_pct": 30,
+            "risk_asset_target_pct": 70,
+        }
+        data["rebalance"] = {"tolerance_pct": 5}
+        self.assertEqual(validate_policy(data), [])
+        self.assertEqual(validate_policy(valid_policy()), [])
+
+    def test_dashboard_fields_are_still_validated(self):
+        data = valid_policy()
+        data["total_assets_krw"] = -1
+        data["allocation"] = {"safe_asset_target_pct": 130, "max_yolo": 1}
+        data["rebalance"] = "5"
+        errors = validate_policy(data)
+        self.assertTrue(any("total_assets_krw" in e for e in errors), errors)
+        self.assertTrue(
+            any("allocation.safe_asset_target_pct" in e for e in errors), errors
+        )
+        self.assertTrue(any("allocation: 알 수 없는 필드" in e for e in errors), errors)
+        self.assertTrue(any("rebalance: 객체가 필요하다" in e for e in errors), errors)
+
     def test_missing_file_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             data, errors = load_policy(Path(tmp) / "nope.json")

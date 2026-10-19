@@ -235,7 +235,7 @@ class TestWiring(unittest.TestCase):
     def test_refresh_plans_the_task_after_the_filing_documents(self):
         from cio import refresh
         from cio.assets import get_asset
-        asset = {**get_asset("214450"), "optional_collectors": ["KR_PRODUCT_SALES"]}
+        asset = {**get_asset("005930"), "asset_id": "214450", "optional_collectors": ["KR_PRODUCT_SALES"]}
         with patch.object(refresh, "get_asset", return_value=asset):
             tasks = refresh.tasks_for("214450", include_optional=True)
         task = next(t for t in tasks if t.name == "product_sales:214450")

@@ -1513,7 +1513,7 @@ def score_asset(asset_id: str) -> dict[str, Any]:
         row = {
             "assessment_id": stored_id,
             "evaluation_id": evaluation["evaluation_id"],
-            "path": str(out.relative_to(ROOT)),
+            "path": out.relative_to(ROOT).as_posix(),
         }
         if is_retired:
             retired_evaluated.append(row)

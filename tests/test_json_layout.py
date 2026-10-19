@@ -17,10 +17,14 @@
 import json
 import shutil
 import tempfile
+import sys
 import unittest
 from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from helpers import ROOT
 from calculators.contracts import (
@@ -40,7 +44,7 @@ READ_WINDOW_LINES = 2000
 
 SAMPLE = {
     "schema_version": "x/1.0.0",
-    "request": {"asset_id": "214450", "price": 399500.0, "claims": []},
+    "request": {"asset_id": "005930", "price": 399500.0, "claims": []},
     "context": {
         "price": {"close": 399500.0, "returns_pct": {"1m": -3.2, "3m": None}},
         "fundamentals": {
@@ -216,7 +220,7 @@ class TestTheSavedPacketIsWhatTheBudgetMeasured(unittest.TestCase):
             stack.enter_context(
                 patch.object(context, "KNOWLEDGE_DIR", root / "knowledge"))
             packet, path = context.build_context(
-                "TSLA", price=100, amount=1000, amount_currency="USD", save=True)
+                "005930", price=200000, amount=1000000, amount_currency="KRW", save=True)
             return packet, path.read_text(encoding="utf-8")  # pyright: ignore[reportOptionalMemberAccess]
 
     def test_the_file_holds_exactly_the_packet(self):

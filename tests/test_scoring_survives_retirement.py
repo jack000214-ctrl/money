@@ -12,9 +12,13 @@ from __future__ import annotations
 import datetime as dt
 import json
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from cio.decision import normalize_decision
 from cio.memory import (
@@ -103,7 +107,7 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
             knowledge = root / "knowledge"
             context = valid_context()
             context_path = (
-                knowledge / "contexts" / "TSLA" / f"{context['context_id']}.json")
+                knowledge / "contexts" / "005930" / f"{context['context_id']}.json")
             context_path.parent.mkdir(parents=True)
             context_path.write_text(json.dumps(context), encoding="utf-8")
             decision_path = root / "decision.json"
@@ -112,7 +116,7 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
             old["thesis"] = "폐기된 옛 판단의 논지"
             retired = normalize_decision(old)
             retired_path = (
-                knowledge / "retired" / "TSLA" / f"{retired['assessment_id']}.json")
+                knowledge / "retired" / "005930" / f"{retired['assessment_id']}.json")
             retired_path.parent.mkdir(parents=True)
             retired_path.write_text(json.dumps({**retired, "_retired": {
                 "retired_at": "2026-08-01T09:00:00+09:00", "class": "VALID",
@@ -127,10 +131,10 @@ class TestCitabilityIsSeparateFromMeasurability(unittest.TestCase):
                     decision_path,
                     now=dt.datetime.fromisoformat("2026-07-28T10:05:00+09:00"),
                 ).read_text(encoding="utf-8"))
-                report = score_asset("TSLA")
+                report = score_asset("005930")
                 stored = {
                     path.stem: json.loads(path.read_text(encoding="utf-8"))
-                    for path in (knowledge / "evaluations" / "TSLA").glob("EVAL-*.json")
+                    for path in (knowledge / "evaluations" / "005930").glob("EVAL-*.json")
                 }
         return report, live["assessment_id"], retired["assessment_id"], stored
 

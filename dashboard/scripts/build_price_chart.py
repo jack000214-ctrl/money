@@ -76,7 +76,10 @@ def main() -> None:
     plot_width = width - left - right
     plot_height = height - top - bottom
 
-    raw_low = min(min(row["low"] for row in rows), args.entry_ceiling)
+    if args.entry_ceiling > 0:
+        raw_low = min(min(row["low"] for row in rows), args.entry_ceiling)
+    else:
+        raw_low = min(row["low"] for row in rows)
     raw_high = max(row["high"] for row in rows)
     # 축 경계를 값 크기에 맞춰 반올림한다. 25 를 박아두면 USD 에서는 맞지만
     # KRW 에서는 231,000 을 25원 단위로 맞추는 무의미한 정밀도가 된다.

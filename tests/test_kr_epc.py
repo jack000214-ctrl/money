@@ -8,6 +8,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import helpers  # noqa: F401
 from calculators.contracts import canonical_payload_hash, write_json
 from calculators.epc import summary
@@ -125,6 +129,21 @@ class TestEpcContract(unittest.TestCase):
         payload = {'rcept_no': self.receipt, 'documents': {'main.xml': document()}}
         self.source = write_json(self.root / 'raw.json', {'payload_sha256': canonical_payload_hash(payload), 'payload': payload})
         write_json(self.knowledge / 'filings/028050.json', {'filings': [{'form': 'HALF_REPORT', 'report_date': '2026-06-30', 'filing_date': '2026-08-14', 'accession_number': self.receipt}]})
+        mock_asset = {
+            "asset_id": "028050",
+            "name": "삼성엔지니어링",
+            "market": "KR",
+            "exchange": "KOSPI",
+            "asset_type": "STOCK",
+            "currency": "KRW",
+            "price_symbol": "028050.KS",
+            "benchmarks": ["^KS11"],
+            "filing_source": "DART",
+            "optional_collectors": ["KR_EPC"],
+        }
+        self.stack.enter_context(patch("cio.assets.get_asset", return_value=mock_asset))
+        self.stack.enter_context(patch("cio.refresh.get_asset", return_value=mock_asset))
+        self.stack.enter_context(patch("collectors.kr_epc.get_asset", return_value=mock_asset))
         self.stack.enter_context(patch('collectors.kr_epc._fetched_document', return_value=(document(), self.source)))
 
     def test_reextract_contract_detects_tampering(self):

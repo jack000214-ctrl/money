@@ -385,7 +385,7 @@ def collect(asset_id: str) -> dict[str, Any]:
         "report_name": filing.get("description"),
         "filing_date": filing.get("filing_date"),
         "raw_payload_sha256": object_path.stem,
-        "raw_locator": str(object_path.relative_to(ROOT)),
+        "raw_locator": object_path.relative_to(ROOT).as_posix(),
         **content,
     }
     if content.get("available") is False:

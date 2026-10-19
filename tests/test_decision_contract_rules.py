@@ -198,25 +198,25 @@ class TestPricePlanRules(RuleTable, unittest.TestCase):
          lambda d: set_plan(d, currency="EUR"),
          "KRW 또는 USD여야 한다"),
         ("진입 범위 상하 역전",
-         lambda d: set_plan(d, entry_range_low=110.0),
+         lambda d: set_plan(d, entry_range_low=210000.0),
          "entry_range_low는 entry_range_high 이하"),
         ("선호 진입가가 범위 밖",
-         lambda d: set_plan(d, preferred_entry=50.0),
+         lambda d: set_plan(d, preferred_entry=100000.0),
          "진입 범위 안이어야 한다"),
         ("손절가가 진입 범위 안",
-         lambda d: set_plan(d, stop_price=95.0),
+         lambda d: set_plan(d, stop_price=190000.0),
          "진입 범위 하단보다 낮아야 한다"),
         ("분할매도 시작가가 진입 범위 안",
-         lambda d: set_plan(d, scale_out_start=95.0),
+         lambda d: set_plan(d, scale_out_start=190000.0),
          "진입 범위 상단보다 높아야 한다"),
         ("재질문 하단이 검토가보다 높음",
-         lambda d: set_plan(d, reask_below=120.0),
+         lambda d: set_plan(d, reask_below=220000.0),
          "reask_below: 입력 가격보다 낮아야 한다"),
         ("재질문 상단이 검토가보다 낮음",
-         lambda d: set_plan(d, reask_above=90.0),
+         lambda d: set_plan(d, reask_above=190000.0),
          "reask_above: 입력 가격보다 높아야 한다"),
         ("통화가 검토 가격 통화와 다름",
-         lambda d: set_plan(d, currency="KRW"),
+         lambda d: set_plan(d, currency="USD"),
          "입력 가격 통화와 달라선 안 된다"),
     )
 
@@ -230,7 +230,7 @@ class TestProposedTradeRules(RuleTable, unittest.TestCase):
          lambda d: d["proposed_trade"].update(currency="EUR"),
          "proposed_trade.currency"),
         ("통화가 입력 금액 통화와 다름",
-         lambda d: d["proposed_trade"].update(currency="KRW"),
+         lambda d: d["proposed_trade"].update(currency="USD"),
          "입력 금액 통화와 달라선 안 된다"),
         ("사유가 비어 있음",
          lambda d: d["proposed_trade"].update(rationale="  "),
@@ -284,7 +284,7 @@ class TestMethodAndCounterRules(RuleTable, unittest.TestCase):
          "strongest_counter_thesis.text"),
         ("반대 논지 근거 중복",
          lambda d: d["strongest_counter_thesis"].update(
-             evidence_refs=["PRICE:TSLA", "PRICE:TSLA"]),
+             evidence_refs=["PRICE:005930", "PRICE:005930"]),
          "strongest_counter_thesis.evidence_refs: 중복"),
     )
 
@@ -309,7 +309,7 @@ class TestSourceAndEvidenceRules(RuleTable, unittest.TestCase):
              web_source(retrieved_at="2026-07-28T23:00:00+09:00")]),
          "decision created_at보다 늦을 수 없다"),
         ("evidence_refs 중복",
-         lambda d: d.update(evidence_refs=["PRICE:TSLA", "PRICE:TSLA"]),
+         lambda d: d.update(evidence_refs=["PRICE:005930", "PRICE:005930"]),
          "evidence_refs: 중복 ID가 있다"),
         ("어디에도 없는 근거 ID",
          lambda d: d.update(evidence_refs=["PRICE:없는것"]),
@@ -524,8 +524,8 @@ class TestMutationsAreIndependent(unittest.TestCase):
 
     def test_fixture_is_rebuilt_for_every_row(self):
         first = valid_decision()
-        first["price_plan"]["currency"] = "KRW"
-        self.assertEqual(valid_decision()["price_plan"]["currency"], "USD")
+        first["price_plan"]["currency"] = "USD"
+        self.assertEqual(valid_decision()["price_plan"]["currency"], "KRW")
 
     def test_deep_structures_are_not_shared(self):
         one, two = valid_decision(), valid_decision()

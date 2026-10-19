@@ -63,6 +63,7 @@ def _title(event: dict[str, Any]) -> str:
         "POLICY_BREACH": "정책 한도 초과",
         "STALE_ASSESSMENT": "판단 재검토 필요 사실",
         "EARNINGS_NEAR": "실적 발표 임박",
+        "MISSING_COST": "평단 미입력",
     }
     return f"{labels.get(str(kind), '감시 이벤트')} — {who}".strip(" —")
 
@@ -128,6 +129,11 @@ def format_event(event: dict[str, Any]) -> dict[str, str]:
                 f"{_money(event['price'], 'KRW')}까지 {event['measured']['value']:+}% 벗어났다"
                 f"(사용자가 정한 기준 ±{event['limit']['value']}%)."
             )
+    elif kind == "MISSING_COST":
+        lines.append(
+            f"{event.get('qty'):g}주 보유 중인데 평단이 입력되지 않았다. "
+            "수익률과 손실 한도를 계산할 수 없다. 대시보드 [내 종목]에서 평단을 입력해야 한다."
+        )
     elif kind == "EARNINGS_NEAR":
         lines.append(
             f"{event.get('event')} {event.get('event_date')}까지 "

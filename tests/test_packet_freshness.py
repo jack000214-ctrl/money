@@ -247,27 +247,27 @@ class TestSegmentsBelongToTheCompany(Workspace):
 
 class TestStaleEtfMaterial(unittest.TestCase):
     def test_constituent_multiples_older_than_the_refresh_window_are_marked(self):
-        asset = get_asset("0053L0")
+        asset = {**get_asset("0167A0"), "optional_collectors": ["ETF_CONSTITUENTS"]}
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            directory = root / "knowledge" / "etfs" / "0053L0"
+            directory = root / "knowledge" / "etfs" / "0167A0"
             directory.mkdir(parents=True)
             (directory / "holdings-2026-09-01.csv").write_text(
                 "# retrieved_at 2026-08-14T00:00:00+00:00 / source 합성\n"
                 "etf_id,holding_id,holding_name,weight_pct,as_of\n"
-                "0053L0,TEST,Test,100,2026-09-01\n", encoding="utf-8")
+                "0167A0,TEST,Test,100,2026-09-01\n", encoding="utf-8")
             (directory / "constituents-2026-09-01.json").write_text(json.dumps({
-                "schema_version": "etf-constituents/1.0.0", "asset_id": "0053L0",
+                "schema_version": "etf-constituents/1.0.0", "asset_id": "0167A0",
                 "collected_at": "2026-09-13T00:00:00+00:00",
                 "holdings_as_of": "2026-09-01",
                 "holdings": [{"holding_id": "TEST", "weight_pct": 100,
                               "market": "US", "valuation": {"forward_pe": 20}}],
             }), encoding="utf-8")
             task = refresh.RefreshTask(
-                "constituents:0053L0", "ETF_CONSTITUENTS",
-                "knowledge/etfs/0053L0/constituents-*.json", 168, ["합성"],
+                "constituents:0167A0", "ETF_CONSTITUENTS",
+                "knowledge/etfs/0167A0/constituents-*.json", 168, ["합성"],
                 required=False,
-                dependencies=["knowledge/etfs/0053L0/holdings-*.csv"])
+                dependencies=["knowledge/etfs/0167A0/holdings-*.csv"])
             with patch.object(refresh, "ROOT", root), \
                     patch.object(context, "ROOT", root), \
                     patch.object(context, "KNOWLEDGE_DIR", root / "knowledge"):

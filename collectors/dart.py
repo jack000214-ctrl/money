@@ -685,7 +685,7 @@ def cmd_filings(a, key):
             "pblntf_ty": type_code,
             "pblntf_ty_name": type_name,
             "raw_payload_sha256": path.stem,
-            "raw_locator": str(path.relative_to(ROOT)),
+            "raw_locator": path.relative_to(ROOT).as_posix(),
         })
         try:
             row_groups.append(
@@ -1898,7 +1898,7 @@ def cmd_fundamentals(a, key):
         "expense_lines": expense_lines,
         "income_statement": income,
         "share_count_cross_check": share_cross,
-        "raw_locator": str(raw_path.relative_to(ROOT)),
+        "raw_locator": raw_path.relative_to(ROOT).as_posix(),
         "raw_payload_sha256": raw_path.stem,
     }
     snapshot["fundamentals_id"] = fundamentals_id_for(snapshot)

@@ -44,7 +44,7 @@ class Task:
 
 HOLDINGS = """# 기준일 2026-08-06
 asset_id,name,market,asset_type,risk_class,value_krw,fx_exposure,sector,quantity,pnl_krw,pnl_pct,note
-214450,파마리서치,KR,STOCK,STOCK,9000000,,,30,2000000,28.6,
+005930,삼성전자,KR,STOCK,STOCK,9000000,,,30,2000000,28.6,
 CASH_KRW,원화,KR,CASH,CASH,41000000,KRW,,,,,
 """
 
@@ -67,7 +67,7 @@ def _summary(**kwargs):
             patch("cio.context.KNOWLEDGE_DIR", knowledge),
             patch("cio.context.ROOT", knowledge),
         ):
-            portfolio, _source = _portfolio_summary(get_asset("214450"), **options)
+            portfolio, _source = _portfolio_summary(get_asset("005930"), **options)
     return portfolio
 
 
@@ -353,7 +353,7 @@ def _build_packet(
     *,
     intent,
     amount,
-    asset_id="214450",
+    asset_id="005930",
     review_quantity=None,
     target_quantity=None,
     held_quantity=None,
@@ -368,7 +368,7 @@ def _build_packet(
 ):
     """수집물은 고정하고 intent 경로만 본다."""
     price = {
-        "symbol": "214450",
+        "symbol": "005930.KS",
         "currency": "KRW",
         "as_of": "2026-08-06",
         "close": 300_000.0,
@@ -377,7 +377,7 @@ def _build_packet(
                      "is_settled_close": True, "_warning": None},
     }
     source = {
-        "source_id": "PRICE:214450",
+        "source_id": "PRICE:005930",
         "kind": "MARKET_DATA",
         "path": None,
         "data_as_of": "2026-08-06",
@@ -392,12 +392,13 @@ def _build_packet(
                 "quantity": 30.0,
                 "value_at_review_price_krw": 9_000_000.0,
                 "weight_at_review_price_pct": 18.0,
+                "average_cost": 233333.0,
             },
             "proposed_trade": {"side": "SELL", "held_quantity": 30.0,
                                "review_quantity": review_quantity,
                                "review_quantity_basis": "USER_INPUT"},
         }
-    plan = [Task("price:214450")]
+    plan = [Task(f"price:{asset_id}")]
     if stale_ledger:
         plan.append(
             Task(
@@ -413,7 +414,7 @@ def _build_packet(
             "cio.context._latest_fundamentals",
             return_value=(
                 {"fundamentals_id": "FUND-x", "period_end": "2026-03-31"},
-                {"source_id": "FUNDAMENTALS:214450", "kind": "FILING_DERIVED",
+                {"source_id": f"FUNDAMENTALS:{asset_id}", "kind": "FILING_DERIVED",
                  "path": None, "data_as_of": "2026-03-31"},
             ),
         ),

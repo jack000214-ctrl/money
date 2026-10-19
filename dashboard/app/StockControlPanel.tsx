@@ -2069,6 +2069,23 @@ export function StockControlPanel({
               </div>
 
 
+              {assets.some((a) => a.qty > 0 && !(a.avg_cost_krw > 0)) && (
+                <div style={{
+                  background: "#78350f",
+                  color: "#fde68a",
+                  border: "1px solid #b45309",
+                  borderRadius: "8px",
+                  padding: "10px 16px",
+                  marginBottom: "12px",
+                  fontSize: "13px",
+                }}>
+                  평단이 입력되지 않은 보유 종목: {assets
+                    .filter((a) => a.qty > 0 && !(a.avg_cost_krw > 0))
+                    .map((a) => a.name)
+                    .join(", ")}. 수정 화면에서 평단을 입력해야 수익률과 손실 한도를 계산할 수 있다.
+                </div>
+              )}
+
               {/* 종목 리스트 테이블 */}
               <div style={{
                 background: "#1e293b",
@@ -2137,7 +2154,23 @@ export function StockControlPanel({
                           </span>
                           <span style={{ fontSize: "12px", color: "#94a3b8" }}>{asset.asset_type}</span>
                         </td>
-                        <td style={{ padding: "14px 16px" }}>{asset.qty}주</td>
+                        <td style={{ padding: "14px 16px" }}>
+                          {asset.qty}주
+                          {asset.qty > 0 && !(asset.avg_cost_krw > 0) && (
+                            <div style={{
+                              display: "inline-block",
+                              marginLeft: "6px",
+                              background: "#78350f",
+                              color: "#fcd34d",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                              padding: "2px 6px",
+                              borderRadius: "3px",
+                            }}>
+                              평단 미입력
+                            </div>
+                          )}
+                        </td>
                         <td style={{ padding: "14px 16px" }}>
                           {asset.price_info.exists ? (
                             <span style={{ color: "#34d399", fontWeight: 500 }}>

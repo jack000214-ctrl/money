@@ -160,7 +160,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
     CLAIMS = [("UA-aaa1", "실적이 1,860% 나왔다"), ("UA-bbb2", "2일 연속 하락했다")]
 
     # 실적 주장은 재무·공시로, 가격 주장은 가격 자료로 닫는다. 예전 이 파일은
-    # 두 주장을 모두 PRICE:TSLA 로 닫는 것을 성공으로 고정했다 — 그 테스트가
+    # 두 주장을 모두 PRICE:005930 로 닫는 것을 성공으로 고정했다 — 그 테스트가
     # 틀렸다. 종류가 맞는지는 tests/test_evidence_binding.py 가 지킨다.
     EARNINGS = {
         "claim_kind": "EARNINGS",
@@ -169,7 +169,7 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
             "period": "2026 회계연도 2분기",
             "comparison": "전년동기 대비",
         },
-        "evidence_refs": ["FUNDAMENTALS:TSLA"],
+        "evidence_refs": ["FUNDAMENTALS:005930"],
     }
     PRICE = {
         "claim_kind": "PRICE",
@@ -178,14 +178,14 @@ class TestUserClaimsMustBeClosed(unittest.TestCase):
             "period": "직전 2거래일",
             "comparison": "전일 대비",
         },
-        "evidence_refs": ["PRICE:TSLA"],
+        "evidence_refs": ["PRICE:005930"],
     }
 
     def context_with(self, claims):
         context = with_claims(claims)
         context["evidence_index"] = [
-            {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA"},
-            {"source_id": "FUNDAMENTALS:TSLA", "kind": "FILING_DERIVED"},
+            {"source_id": "PRICE:005930", "kind": "MARKET_DATA"},
+            {"source_id": "FUNDAMENTALS:005930", "kind": "FILING_DERIVED"},
         ]
         from cio.decision import context_id_for
 

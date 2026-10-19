@@ -25,7 +25,7 @@ from cio.decision import context_id_for, validate_decision
 from test_cio_core import valid_context, valid_decision
 
 
-def _context(*, required=True, price=100.0):
+def _context(*, required=True, price=200000.0):
     context = valid_context()
     context["request"]["price"] = price
     if required:
@@ -48,7 +48,7 @@ def _errors(context, *, verdict="WAIT", conditions=None, amount=0.0):
 
 
 class TestWaitingInsideYourOwnEntryRangeNeedsAReason(unittest.TestCase):
-    """fixture 의 진입 범위는 90~100 이고 검토 가격은 100 이다."""
+    """fixture 의 진입 범위는 180,000~200,000 이고 검토 가격은 200,000 이다."""
 
     def test_wait_at_the_top_of_the_entry_range_without_a_condition_is_refused(self):
         errors = _errors(_context())
@@ -56,7 +56,7 @@ class TestWaitingInsideYourOwnEntryRangeNeedsAReason(unittest.TestCase):
         self.assertIn("entry_conditions", errors[0])
 
     def test_wait_below_the_entry_range_without_a_condition_is_refused(self):
-        self.assertTrue(_errors(_context(price=88.0)))
+        self.assertTrue(_errors(_context(price=175000.0)))
 
     def test_avoid_inside_the_entry_range_is_refused_the_same_way(self):
         self.assertTrue(_errors(_context(), verdict="AVOID"))
@@ -69,10 +69,10 @@ class TestWaitingInsideYourOwnEntryRangeNeedsAReason(unittest.TestCase):
 
     def test_wait_above_the_entry_range_is_waiting_for_the_price(self):
         """가격이 진입 범위 위면 기다리는 것이 가격 자체다. 조건이 없어도 된다."""
-        self.assertEqual(_errors(_context(price=105.0)), [])
+        self.assertEqual(_errors(_context(price=210000.0)), [])
 
     def test_buy_now_is_not_asked_for_a_condition(self):
-        self.assertEqual(_errors(_context(), verdict="BUY_NOW", amount=500.0), [])
+        self.assertEqual(_errors(_context(), verdict="BUY_NOW", amount=500000.0), [])
 
     def test_a_context_that_did_not_declare_the_rule_is_not_held_to_it(self):
         """저장된 판단은 당시 context 로 재검증된다. 소급하면 살아 있는 판단이

@@ -52,7 +52,7 @@ def calculation():
         ),
         "model": MODEL,
         "model_version": MODEL_VERSION,
-        "instrument_id": "TSLA",
+        "instrument_id": "005930",
         "created_at": "2026-07-28T10:00:00+09:00",
         "source_ids": ["FUND-fixture"],
         "inputs": inputs,
@@ -127,7 +127,7 @@ class TestValuationShareBasis(unittest.TestCase):
 
     def arguments(self, **overrides):
         args = dict(
-            fundamentals=str(self.path), instrument="TSLA", shares=None,
+            fundamentals=str(self.path), instrument="005930", shares=None,
             shares_reason=None, fcf=None, net_debt=None, price=100,
             revenue=None, fcf_margin=None, inputs_unverified_reason=None,
             discount_rate=10, terminal_growth=2, years=10,

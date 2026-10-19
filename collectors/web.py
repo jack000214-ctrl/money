@@ -264,7 +264,7 @@ def snapshot(
         fail("label은 소문자·숫자·하이픈 2~40자여야 한다")
     payload = fetch(url)
     object_path, digest = save_snapshot(payload, label=label)
-    locator = str(object_path.relative_to(ROOT))
+    locator = object_path.relative_to(ROOT).as_posix()
     record_index(
         asset_id,
         label=label,
@@ -282,7 +282,7 @@ def snapshot(
         "content_sha256": digest,
         "path": locator,
         "content_length": payload["content_length"],
-        "index": str(index_path(asset_id).relative_to(ROOT)),
+        "index": index_path(asset_id).relative_to(ROOT).as_posix(),
         "shell_page_warning": shell_page_warning(payload),
     }
 

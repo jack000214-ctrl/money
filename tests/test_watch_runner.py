@@ -70,7 +70,7 @@ class Harness(unittest.TestCase):
             collect=self.collect,
             assessment=lambda t: assessment(t) if t == "005930" else {**assessment(t), "price_plan": {"currency": "KRW", "stop_price": 100000.0}},
             asked_price=lambda t, a: None,
-            average_cost=lambda t: None,
+            average_cost=lambda t: 100000.0,
             sectors=lambda: {},
             policy=lambda: None,
             calendar=lambda t: None,
@@ -183,6 +183,27 @@ class TestCycle(Harness):
         reasons = {e.get("reason") for e in ws.read_events()}
         self.assertEqual(reasons, {"AGE"})
         self.assertEqual(cycle["counts"]["events"], 2)
+
+    def test_missing_average_cost_is_reported_once_and_stays_quiet(self):
+        deps = self.deps(average_cost=lambda t: None if t == "005930" else 100000.0)
+        self.prices["005930"] = 250000.0
+        self.prices["000660"] = 250000.0
+        first = wr.run_cycle(MON_10, deps, self.config)
+        missing = [e for e in ws.read_events() if e["type"] == "MISSING_COST"]
+        self.assertEqual([e["ticker"] for e in missing], ["005930"])
+        self.assertEqual(first["counts"]["events"], 1)
+        second = wr.run_cycle(MON_10 + dt.timedelta(hours=1), deps, self.config)
+        self.assertEqual(second["counts"]["events"], 0)
+
+    def test_entering_the_cost_clears_the_alert_and_removing_it_alerts_again(self):
+        self.prices["005930"] = 250000.0
+        self.prices["000660"] = 250000.0
+        wr.run_cycle(MON_10, self.deps(average_cost=lambda t: None), self.config)
+        wr.run_cycle(MON_10 + dt.timedelta(hours=1), self.deps(), self.config)
+        third = wr.run_cycle(
+            MON_10 + dt.timedelta(hours=2), self.deps(average_cost=lambda t: None), self.config
+        )
+        self.assertEqual(third["counts"]["events"], 2)
 
 
 class TestLock(Harness):

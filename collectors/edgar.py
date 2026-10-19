@@ -858,7 +858,7 @@ def cmd_filings(a, ua):
         "source": "SEC_EDGAR_SUBMISSIONS",
         "forms_filter": sorted(wanted) if wanted else None,
         "raw_payload_sha256": path.stem,
-        "raw_locator": str(path.relative_to(ROOT)),
+        "raw_locator": path.relative_to(ROOT).as_posix(),
         "filings": filings,
     }
     # 색인은 최근 50건에서 잘린다. 덮어쓰기 전에, 곧 창 밖으로 밀릴 행까지 자산별
@@ -1280,7 +1280,7 @@ def cmd_fundamentals(a, ua):
         "short_term_investments_basis": short_inv_basis,
         "short_term_investments_note": short_inv_note,
         "income_statement": derived["income_statement"],
-        "raw_locator": str(raw_path.relative_to(ROOT)),
+        "raw_locator": raw_path.relative_to(ROOT).as_posix(),
         "raw_payload_sha256": raw_path.stem,
     }
     snapshot["fundamentals_id"] = fundamentals_id_for(snapshot)

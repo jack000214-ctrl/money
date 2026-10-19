@@ -27,7 +27,10 @@ from calculators.contracts import ContractError
 from cio import memory
 from cio.decision import context_id_for, normalize_decision
 from cio.memory import _fixed_horizon_returns, _settled_through, evaluate_assessment
-from test_cio_core import valid_context, valid_decision
+from test_cio_core import (
+    small_price_context as valid_context,
+    small_price_decision as valid_decision,
+)
 
 
 def bar(day, close, *, factor=1.0, adjusted=None, low=None, high=None):

@@ -27,7 +27,7 @@ def section(asset):
     source_id = f"CAPITAL:{asset['asset_id']}"
     summary = {k: report[k] for k in ("state", "events", "share_bases", "unresolved")}
     summary.update(source_id=source_id, filing=row, _role="공시된 계획의 산술이다. POST_*는 예정 시나리오이며 현재 잔고·증자 완료가 아니다. ex_date와 completed_at이 null이면 확인되지 않았다. 원문에 없는 CB 상환·전환·청약권 소유를 만들지 않는다")
-    sources = [{"source_id": source_id, "kind": "FILING_DERIVED", "path": str(path.relative_to(ROOT)), "data_as_of": row["filing_date"]}]
+    sources = [{"source_id": source_id, "kind": "FILING_DERIVED", "path": path.relative_to(ROOT).as_posix(), "data_as_of": row["filing_date"]}]
     if report.get("raw_path"):
         sources.append({"source_id": f"DARTDOC:{row['accession_number']}", "kind": "REGULATOR_FILING_DOCUMENT", "path": report["raw_path"], "data_as_of": row["filing_date"]})
     return summary, sources

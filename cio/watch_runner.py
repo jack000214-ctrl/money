@@ -56,10 +56,17 @@ def _default_asked_price(ticker: str, assessment: dict[str, Any]) -> float | Non
 
 
 def _default_average_cost(ticker: str) -> float | None:
-    from calculators.position import read_ledger
+    """사용자가 대시보드에 직접 입력한 평단(`tickers.json` 의 `avg_cost_krw`)만 쓴다.
 
-    value = read_ledger(ticker, "price_krw").get("average_cost")
-    return float(value) if isinstance(value, (int, float)) else None
+    비어 있거나 0 이하이면 입력하지 않은 것이다.
+    """
+    from collectors import quote
+
+    row = quote._read_json(quote.TICKERS_FILE).get(ticker)
+    value = row.get("avg_cost_krw") if isinstance(row, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not value > 0:
+        return None
+    return float(value)
 
 
 def _default_sectors() -> dict[str, str]:
@@ -261,6 +268,16 @@ def _run_locked(now: dt.datetime, at: str, deps: Deps, config: dict[str, Any]) -
             events.extend(new)
     except Exception as exc:  # noqa: BLE001
         errors.append(f"정책 한도 대조 실패({type(exc).__name__})")
+
+    # 2-1) 평단 누락: 보유 수량이 있는데 사용자가 평단을 입력하지 않았다
+    try:
+        missing = watch_review.missing_cost_conditions(holdings, average_costs, now_text)
+        new, active = watch_review.apply_dedup(
+            active, missing, [watch_review.PREFIX + "AVGCOST|"], now_text
+        )
+        events.extend(new)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"평단 누락 대조 실패({type(exc).__name__})")
 
     # 3) 판단 노후화
     try:

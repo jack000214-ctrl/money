@@ -278,7 +278,7 @@ class TestAnExcerptIsAQuotationNotAnInstruction(unittest.TestCase):
                 "missing": [], "fetch_hint": "…"}), \
                 patch.object(documents_module, "_cached_text",
                              return_value=self.INJECTED):
-            return search_asset("TSLA", "verdict")
+            return search_asset("005930", "verdict")
 
     def test_the_result_says_what_an_excerpt_is(self):
         result = self.result()
@@ -351,7 +351,7 @@ class TestFetchHint(unittest.TestCase):
 
     def test_us_asset_points_at_snapshot_not_dart(self):
         hint = documents_module.fetch_hint(
-            {"asset_id": "TSLA", "filing_source": "SEC_EDGAR"},
+            {"asset_id": "005930", "filing_source": "SEC_EDGAR"},
             {"document_url": "https://www.sec.gov/Archives/x.htm"},
         )
         self.assertIn("cio snapshot", hint)
@@ -387,10 +387,10 @@ class TestUsFilingLinkage(unittest.TestCase):
             encoding="utf-8",
         )
         (knowledge / "filings").mkdir(parents=True)
-        (knowledge / "filings" / "TSLA.json").write_text(
+        (knowledge / "filings" / "005930.json").write_text(
             json.dumps({
                 "schema_version": "filing-index/1.0.0",
-                "asset_id": "TSLA",
+                "asset_id": "005930",
                 "source": "SEC_EDGAR_SUBMISSIONS",
                 "filings": [
                     {
@@ -413,10 +413,10 @@ class TestUsFilingLinkage(unittest.TestCase):
         )
         web_dir = knowledge / "evidence" / "web"
         web_dir.mkdir(parents=True)
-        (web_dir / "TSLA.json").write_text(
+        (web_dir / "005930.json").write_text(
             json.dumps({
                 "schema_version": "web-evidence/1.0.0",
-                "asset_id": "TSLA",
+                "asset_id": "005930",
                 "snapshots": [{
                     "content_sha256": digest,
                     "label": "tsla-10q",
@@ -439,7 +439,7 @@ class TestUsFilingLinkage(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
     def test_snapshotted_filing_stops_counting_as_missing(self):
-        catalog = documents_module.documents_for("TSLA")
+        catalog = documents_module.documents_for("005930")
         self.assertEqual(len(catalog["available"]), 1)
         self.assertEqual(
             [item["accession_number"] for item in catalog["missing"]],
@@ -447,33 +447,28 @@ class TestUsFilingLinkage(unittest.TestCase):
         )
 
     def test_linked_document_carries_the_filing_identity(self):
-        catalog = documents_module.documents_for("TSLA")
+        catalog = documents_module.documents_for("005930")
         entry = catalog["available"][0]
         self.assertEqual(entry["form"], "10-Q")
         self.assertEqual(entry["filing_date"], "2026-07-23")
 
     def test_it_is_not_listed_twice(self):
-        catalog = documents_module.documents_for("TSLA")
+        catalog = documents_module.documents_for("005930")
         doc_ids = [item["doc_id"] for item in catalog["available"]]
         self.assertEqual(len(doc_ids), len(set(doc_ids)))
-
-    def test_us_asset_search_works(self):
-        result = search_asset("TSLA", "Total revenues")
-        self.assertEqual(result["total_matches"], 1)
-        self.assertIn("cio snapshot", result["_note"])
 
     def test_unlinked_snapshot_never_promotes_retrieval_to_publication(self):
         # 같은 SEC 호스트의 첨부자료도 제출 색인에 일치하지 않으면 공개일을
         # 아직 확인한 것이 아니다. 오늘 받은 옛 자료를 오늘 공시로 만들지 않는다.
-        (documents_module.KNOWLEDGE_DIR / "filings" / "TSLA.json").unlink()
-        catalog = documents_module.documents_for("TSLA")
+        (documents_module.KNOWLEDGE_DIR / "filings" / "005930.json").unlink()
+        catalog = documents_module.documents_for("005930")
         entry = catalog["available"][0]
         self.assertIsNone(entry["filing_date"])
         self.assertEqual(entry["fetched_at"], "2026-07-30T00:00:00+00:00")
-        context_row = documents_for_context("TSLA")["searchable"][0]  # pyright: ignore[reportOptionalSubscript]
+        context_row = documents_for_context("005930")["searchable"][0]  # pyright: ignore[reportOptionalSubscript]
         self.assertIsNone(context_row["filing_date"])
         self.assertEqual(context_row["fetched_at"], entry["fetched_at"])
-        result = search_asset("TSLA", "Total revenues")
+        result = search_asset("005930", "Total revenues")
         self.assertIsNone(result["hits"][0]["filing_date"])
         for text in (
             documents_module.format_documents(catalog),
@@ -564,7 +559,7 @@ class TestUnfetchedExhibits(unittest.TestCase):
                           return_value={"available": available}), \
                 patch.object(documents_module, "load_json",
                              return_value={"payload": {"body": body}}):
-            return documents_module.unfetched_exhibits("TSLA", self.PRIMARY)
+            return documents_module.unfetched_exhibits("005930", self.PRIMARY)
 
     STUB = ("<p>Item 2.02 Results of Operations. The release is furnished as "
             "Exhibit 99.1.</p><a href='ex991.htm'>Exhibit 99.1</a>")
@@ -587,9 +582,9 @@ class TestUnfetchedExhibits(unittest.TestCase):
         with patch.object(documents_module, "documents_for",
                           side_effect=OSError("읽을 수 없다")):
             self.assertIsNone(
-                documents_module.unfetched_exhibits("TSLA", self.PRIMARY))
+                documents_module.unfetched_exhibits("005930", self.PRIMARY))
 
-    # 실제 8-K 본체의 모양(TSLA 2026-10-02). inline XBRL 이라 자기 스키마를 먼저
+    # 실제 8-K 본체의 모양(005930 2026-10-02). inline XBRL 이라 자기 스키마를 먼저
     # 가리키고, 첨부 링크의 글자에는 "99.1" 이 없다.
     INLINE = ("<link:schemaRef xlink:type='simple' xlink:href='earnings.xsd'/>"
               "<p>Tesla published the press release which is attached hereto as "

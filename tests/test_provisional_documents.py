@@ -3,7 +3,7 @@
 2026-08-07 판단이 답하지 못한 질문 — 영업이익률 37.2% 가 믹스인가 판가 경쟁인가 —
 의 근거는 품목군별 매출 시계열이었다. 그 숫자는 잠정실적 공정공시 본문의
 "기타 투자판단에 참고할 사항" 에 들어 있고, 해당 공시 두 건은 그날 이미
-`knowledge/filings/214450.json` 색인에 접수번호까지 실려 있었다. 원문을 받는 데
+`knowledge/filings/005930.json` 색인에 접수번호까지 실려 있었다. 원문을 받는 데
 걸린 시간은 10초였다.
 
 그런데 판단은 그것을 사용자 대기열(`research_requests`)로 넘겼다. refresh 가
@@ -27,12 +27,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import helpers  # noqa: F401  (저장소 루트를 sys.path 에 올린다)
 from collectors import dart
 
 
 FILINGS = {
-    "asset_id": "214450",
+    "asset_id": "005930",
     "source": "DART_LIST",
     "filings": [
         {
@@ -70,7 +74,7 @@ class ProvisionalCase(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.knowledge = self.root / "knowledge"
         (self.knowledge / "filings").mkdir(parents=True)
-        (self.knowledge / "filings" / "214450.json").write_text(
+        (self.knowledge / "filings" / "005930.json").write_text(
             json.dumps(FILINGS), encoding="utf-8"
         )
         self.fetched: list[str] = []
@@ -88,7 +92,7 @@ class ProvisionalCase(unittest.TestCase):
         with patch.object(dart, "fetch_document", side_effect=fake_fetch), \
                 patch.object(dart, "stored_filing_keys", return_value=set(stored)):
             return dart.sync_provisional_documents(
-                "214450", key="k", limit=limit
+                "005930", key="k", limit=limit
             )
 
 
@@ -136,10 +140,10 @@ class TestTheMarker(ProvisionalCase):
     def test_a_marker_is_written_with_what_was_fetched(self):
         self.run_sync()
         marker = json.loads(
-            (self.knowledge / "filings" / "_documents" / "214450.json")
+            (self.knowledge / "filings" / "_documents" / "005930.json")
             .read_text(encoding="utf-8")
         )
-        self.assertEqual(marker["asset_id"], "214450")
+        self.assertEqual(marker["asset_id"], "005930")
         self.assertTrue(marker["collected_at"])
         self.assertEqual(
             sorted(marker["fetched"]), ["20260508900237", "20260807900190"]
@@ -150,7 +154,7 @@ class TestTheMarker(ProvisionalCase):
         # 산출물이 없다는 이유로 영원히 다시 돈다.
         self.run_sync(stored={"20260807900190", "20260508900237"})
         self.assertTrue(
-            (self.knowledge / "filings" / "_documents" / "214450.json").exists()
+            (self.knowledge / "filings" / "_documents" / "005930.json").exists()
         )
 
     def test_it_records_what_it_could_not_read(self):
@@ -161,7 +165,7 @@ class TestTheMarker(ProvisionalCase):
 
         with patch.object(dart, "fetch_document", side_effect=boom), \
                 patch.object(dart, "stored_filing_keys", return_value=set()):
-            result = dart.sync_provisional_documents("214450", key="k")
+            result = dart.sync_provisional_documents("005930", key="k")
         self.assertEqual(result["fetched"], [])
         self.assertEqual(len(result["failed"]), 2)
 
@@ -172,31 +176,31 @@ class TestItIsWiredIntoRefresh(unittest.TestCase):
     def plan(self):
         from cio.refresh import tasks_for
 
-        return {task.name: task for task in tasks_for("214450")}
+        return {task.name: task for task in tasks_for("005930")}
 
     def test_the_task_exists_for_a_dart_asset(self):
-        self.assertIn("filing_documents:214450", self.plan())
+        self.assertIn("filing_documents:005930", self.plan())
 
     def test_it_reruns_when_the_index_changes(self):
         # 새 잠정실적이 색인에 들어오면 원문도 따라 들어와야 한다.
-        task = self.plan()["filing_documents:214450"]
-        self.assertIn("knowledge/filings/214450.json", task.dependencies)
+        task = self.plan()["filing_documents:005930"]
+        self.assertIn("knowledge/filings/005930.json", task.dependencies)
 
     def test_a_missing_document_does_not_block_the_packet(self):
         # required 면 원문 하나를 못 받았다고 판단 자체가 멈춘다. 있으면 좋은
         # 입력 때문에 BLOCKED 가 되는 것은 이 저장소가 피하려는 실패다.
-        self.assertFalse(self.plan()["filing_documents:214450"].required)
+        self.assertFalse(self.plan()["filing_documents:005930"].required)
 
     def test_it_is_not_planned_for_a_us_asset(self):
         from cio.refresh import tasks_for
 
-        names = {task.name for task in tasks_for("IBM")}
-        self.assertNotIn("filing_documents:IBM", names)
+        names = {task.name for task in tasks_for("0167A0")}
+        self.assertNotIn("filing_documents:0167A0", names)
 
 
 class TestWithoutAnIndex(ProvisionalCase):
     def test_a_missing_index_is_not_a_crash(self):
-        (self.knowledge / "filings" / "214450.json").unlink()
+        (self.knowledge / "filings" / "005930.json").unlink()
         result = self.run_sync()
         self.assertEqual(result["fetched"], [])
         self.assertEqual(result["missing_index"], True)

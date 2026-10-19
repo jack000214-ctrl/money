@@ -3,7 +3,7 @@
 초판 검증기는 `evidence_refs` 가 비어 있지 않은지만 봤다. 그래서 다음이
 전부 통과했다.
 
-  · "영업이익 1,860%" 주장을 PRICE:TSLA(가격 CSV)로 CONFIRMED
+  · "영업이익 1,860%" 주장을 PRICE:005930(가격 CSV)로 CONFIRMED
   · 존재하지 않는 GHOST 근거 ID로 CONFIRMED
 
 앞은 **다른 종류의 자료로 확인했다고 말한 것**이고 뒤는 **아무것도 가리키지
@@ -112,9 +112,9 @@ def _context(claims=(("UA-aaa1", "이번 실적발표가 1,860% 나왔다"),), e
         for claim_id, text in claims
     ]
     context["evidence_index"] = evidence or [
-        {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA"},
-        {"source_id": "FUNDAMENTALS:TSLA", "kind": "FILING_DERIVED"},
-        {"source_id": "FILINGS:TSLA", "kind": "REGULATOR_FILING_INDEX"},
+        {"source_id": "PRICE:005930", "kind": "MARKET_DATA"},
+        {"source_id": "FUNDAMENTALS:005930", "kind": "FILING_DERIVED"},
+        {"source_id": "FILINGS:005930", "kind": "REGULATOR_FILING_INDEX"},
         {"source_id": "PORTFOLIO:HOLDINGS", "kind": "USER_DATA"},
     ]
     context["context_id"] = context_id_for(context)
@@ -128,7 +128,7 @@ def _check(claim_id="UA-aaa1", **overrides):
         "claim_kind": "EARNINGS",
         "basis": dict(BASIS),
         "finding": "2분기 영업이익 전년동기 +1,810%",
-        "evidence_refs": ["FUNDAMENTALS:TSLA"],
+        "evidence_refs": ["FUNDAMENTALS:005930"],
     }
     row.update(overrides)
     return row
@@ -151,7 +151,7 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
     def test_earnings_confirmed_by_a_price_file_is_rejected(self):
         """가격 CSV 에는 영업이익이 없다. 파일을 열어보면 아는 사실이다."""
         context = _context()
-        self.assertTrue(_errors(context, _check(evidence_refs=["PRICE:TSLA"])))
+        self.assertTrue(_errors(context, _check(evidence_refs=["PRICE:005930"])))
 
     def test_earnings_confirmed_by_the_financial_snapshot_passes(self):
         self.assertEqual(_errors(_context(), _check()), [])
@@ -167,7 +167,7 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
                            "comparison": "전일 대비"},
                     finding="직전 거래일은 +21.5% 상승이다",
                     status="REFUTED",
-                    evidence_refs=["PRICE:TSLA"],
+                    evidence_refs=["PRICE:005930"],
                 ),
             ),
             [],
@@ -190,7 +190,7 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
     def test_earnings_confirmed_by_a_filing_title_is_rejected(self):
         """공시 색인에는 제목만 있다. 제목으로 숫자를 확인할 수 없다."""
         context = _context()
-        self.assertTrue(_errors(context, _check(evidence_refs=["FILINGS:TSLA"])))
+        self.assertTrue(_errors(context, _check(evidence_refs=["FILINGS:005930"])))
 
     def test_the_disclosure_date_can_be_confirmed_by_the_index(self):
         """'발표가 났다'는 색인이 답할 수 있는 질문이다."""
@@ -202,7 +202,7 @@ class TestEvidenceKindMustMatchClaimKind(unittest.TestCase):
                     claim_kind="EVENT_DATE",
                     basis={"metric": "잠정실적 공시 접수", "period": "2026-07-30",
                            "comparison": "공시 색인 대조"},
-                    evidence_refs=["FILINGS:TSLA"],
+                    evidence_refs=["FILINGS:005930"],
                 ),
             ),
             [],
@@ -486,7 +486,7 @@ class TestAClaimAboutAPriorJudgmentIsClosedByThatJudgment(unittest.TestCase):
         return _context(
             claims=(("UA-aaa1", "지난번에 262,000원이면 다시 오라고 했다"),),
             evidence=[
-                {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA"},
+                {"source_id": "PRICE:005930", "kind": "MARKET_DATA"},
                 {"source_id": PRIOR, "kind": "PRIOR_JUDGMENT"},
             ],
         )
@@ -502,7 +502,7 @@ class TestAClaimAboutAPriorJudgmentIsClosedByThatJudgment(unittest.TestCase):
     def test_a_price_file_cannot_say_what_the_judgment_said(self):
         self.assertTrue(_errors(self.context(), _check(
             claim_kind="PRIOR_JUDGMENT", basis=dict(PRIOR_BASIS),
-            evidence_refs=["PRICE:TSLA"])))
+            evidence_refs=["PRICE:005930"])))
 
     def test_a_past_judgment_is_not_a_source_for_earnings(self):
         """과거 판단이 적은 숫자는 그 판단의 서술이지 재무 자료가 아니다."""
@@ -562,13 +562,13 @@ class TestLocalEvidenceCannotPostDateTheContext(unittest.TestCase):
             path.write_text("{}", encoding="utf-8")
             context = valid_context()
             context["evidence_index"].append({
-                "source_id": "FUNDAMENTALS:TSLA", "kind": kind,
+                "source_id": "FUNDAMENTALS:005930", "kind": kind,
                 "path": path.name, "content_sha256": content_hash(path),
                 "data_as_of": data_as_of})
             context["context_id"] = context_id_for(context)
             with patch("cio.decision.ROOT", Path(tmp)):
                 return [error for error in validate_context_integrity(context)
-                        if "FUNDAMENTALS:TSLA" in error]
+                        if "FUNDAMENTALS:005930" in error]
 
     def test_evidence_dated_after_the_context_is_refused(self):
         errors = self.integrity("2026-12-31")

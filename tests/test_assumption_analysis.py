@@ -18,16 +18,16 @@ from test_cio_core import valid_context, valid_decision
 
 
 def spec_fixture():
-    inputs = {"method": "EARNINGS_MULTIPLE", "price": 100, "currency": "USD", "horizon_months": 12,
+    inputs = {"method": "EARNINGS_MULTIPLE", "price": 200000.0, "currency": "KRW", "horizon_months": 12,
               "win_return_threshold_pct": 10,
               "scenarios": {n: {"eps": eps, "multiple": multiple, "cash_distribution": 0,
                   "probability_pct": prob, "conditional_win_probability_pct": win}
-                  for n, eps, multiple, prob, win in [("bear", 10, 5, 25, 5), ("base", 15, 8, 50, 50), ("bull", 20, 10, 25, 95)]}}
+                  for n, eps, multiple, prob, win in [("bear", 20000, 5, 25, 5), ("base", 30000, 8, 50, 50), ("bull", 40000, 10, 25, 95)]}}
     return {"schema_version": SCHEMA, "inputs": inputs,
             "comparison": {"basis": "MODEL", "total_return_pct": 10, "rationale": "모델이 선택한 비교 수익률"},
             "bases": [{"id": "model_inputs", "parameters": list(parameter_values(inputs)), "origin": "MODEL_ESTIMATE",
                        "rationale": "매출·이익 관측에서 만든 가정이다. 배수·확률은 모델 추정이다.",
-                       "evidence_refs": ["FUNDAMENTALS:TSLA"], "revisit_when": "다음 실적의 이익과 수익성이 달라지면 다시 추정"}],
+                       "evidence_refs": ["FUNDAMENTALS:005930"], "revisit_when": "다음 실적의 이익과 수익성이 달라지면 다시 추정"}],
             "tests": [{"id": "lower_multiple", "changes": {"scenarios.base.multiple": 6}, "rationale": "성장 프리미엄 축소"},
                       {"id": "risk_shift", "changes": {"scenarios.bear.probability_pct": 30, "scenarios.base.probability_pct": 45}, "rationale": "하방 불확실성 증가"}],
             "boundaries": [{"id": "required_multiple", "parameter": "scenarios.base.multiple", "low": 1, "high": 20}]}
@@ -67,13 +67,13 @@ class TestAssumptionMath(unittest.TestCase):
         spec = spec_fixture(); spec["comparison"] = {"basis": "POLICY_TARGET"}
         policy = lambda currency: {"context": {"investor_policy": {  # noqa: E731
             "base_currency": currency, "objective": {"target_annual_return_pct": 10}}}}
-        mismatched = comparison(spec, policy("KRW"))
+        mismatched = comparison(spec, policy("USD"))
         self.assertAlmostEqual(mismatched["total_return_pct"], 10)
         self.assertEqual(mismatched["currency_basis"]["matched"], False)
         self.assertEqual((mismatched["currency_basis"]["policy_currency"],
-                          mismatched["currency_basis"]["return_currency"]), ("KRW", "USD"))
+                          mismatched["currency_basis"]["return_currency"]), ("USD", "KRW"))
         self.assertIn("환율", mismatched["currency_basis"]["_warning"])
-        self.assertNotIn("currency_basis", comparison(spec, policy("USD")))
+        self.assertNotIn("currency_basis", comparison(spec, policy("KRW")))
         self.assertNotIn("currency_basis", comparison(spec, policy(None)))
 
     def test_outside_search_range_has_no_fabricated_boundary(self):
@@ -85,7 +85,7 @@ class TestAssumptionMath(unittest.TestCase):
     def test_dcf_reuses_existing_formula_and_handles_decreasing_parameter(self):
         spec = spec_fixture()
         spec["inputs"]["method"] = "DCF"
-        spec["inputs"]["dcf"] = {"fcf": 10, "shares": 1, "net_debt": 0, "discount_rate_pct": 10, "terminal_growth_pct": 2, "years": 1}
+        spec["inputs"]["dcf"] = {"fcf": 20000, "shares": 1, "net_debt": 0, "discount_rate_pct": 10, "terminal_growth_pct": 2, "years": 1}
         for row in spec["inputs"]["scenarios"].values():
             for field in ("eps", "multiple", "cash_distribution"): del row[field]
             row["growth_pct"] = 0
@@ -93,7 +93,7 @@ class TestAssumptionMath(unittest.TestCase):
         spec["tests"] = [{"id": "higher_discount", "changes": {"dcf.discount_rate_pct": 12}, "rationale": "요구 수익률 변화"}]
         spec["boundaries"] = [{"id": "required_discount", "parameter": "dcf.discount_rate_pct", "low": 5, "high": 20}]
         result = analyze(spec, 10)
-        self.assertAlmostEqual(result["baseline"]["scenarios"]["base"]["value_per_share"], 125)
+        self.assertAlmostEqual(result["baseline"]["scenarios"]["base"]["value_per_share"], 250000)
         self.assertLess(result["tests"][0]["expected_return_pct"], 25)
         self.assertAlmostEqual(result["boundaries"][0]["return_at_boundary_pct"], 10)
 
@@ -125,8 +125,8 @@ class TestAssumptionPersistence(unittest.TestCase):
             self.stack.enter_context(patch(f"{module}.ROOT", self.root))
             self.stack.enter_context(patch(f"{module}.KNOWLEDGE_DIR", self.knowledge))
         self.stack.enter_context(patch("cio.exit_plan.ROOT", self.root))
-        source = self.root / "source.json"; source.write_text('{"eps": [10, 15, 20]}')
-        self.context = valid_context()
+        source = self.root / "source.json"; source.write_text('{"eps": [10, 15, 20]}', encoding='utf-8')
+        self.context = valid_context("005930")
         # 이 묶음의 판단은 지금 시각으로 만든다. packet 은 판단의 입력으로 쓸 수 있는
         # 기한이 있으므로(가격 신선도와 같은 12시간) context 도 방금 만든 것으로 둔다.
         self.context["created_at"] = (
@@ -135,8 +135,8 @@ class TestAssumptionPersistence(unittest.TestCase):
         self.context["context"] = {"portfolio": {"existing_position": {"held": True, "quantity": 10}}}
         self.context["model_contract"]["assumption_review_required"] = True
         self.context["evidence_index"] = [
-            {"source_id": "PRICE:TSLA"},
-            {"source_id": "FUNDAMENTALS:TSLA", "path": "source.json", "kind": "FILING_DERIVED", "content_sha256": content_hash(source)}]
+            {"source_id": "PRICE:005930"},
+            {"source_id": "FUNDAMENTALS:005930", "path": "source.json", "kind": "FILING_DERIVED", "content_sha256": content_hash(source)}]
         self.context["context_id"] = context_id_for(self.context)
         self.spec = spec_fixture()
 
@@ -156,7 +156,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         report = create_analysis(self.spec, self.context)
         d = self.decision(report)
         self.assertEqual(validate_decision(d, context=self.context), [])
-        write_json(self.knowledge / "contexts" / "TSLA" / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / "contexts" / "005930" / f"{self.context['context_id']}.json", self.context)
         draft = write_json(self.root / "decision.json", d)
         path = record_decision_file(draft)
         self.assertTrue(path.is_file())
@@ -168,7 +168,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         self.assertEqual(d["assumption_review"]["responses"][0]["action"], "HOLD")
         from cio.context import _memory_digest
         with patch("cio.context.retired_summary", return_value={}):
-            memory = _memory_digest("TSLA")
+            memory = _memory_digest("005930")
         self.assertEqual(memory["live"][-1]["carried_forward"]["assumption_review"]["analysis_id"], report["analysis_id"])
         from cio.report import format_assessment
         rendered = format_assessment(d, status="LIVE", warnings=[])
@@ -183,21 +183,21 @@ class TestAssumptionPersistence(unittest.TestCase):
         report = create_analysis(self.spec, self.context)
         d = self.decision(report)
         d['entry_plan'] = plan_fixture()
-        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / 'contexts' / '005930' / f"{self.context['context_id']}.json", self.context)
         path = record_decision_file(write_json(self.root / 'plan.json', d))
-        saved = json.loads(path.read_text())
+        saved = json.loads(path.read_text(encoding='utf-8'))
         self.assertEqual(saved['entry_plan'], d['entry_plan'])
         self.assertIn('first: 예산 600', format_assessment(saved,status='LIVE',warnings=[]))
-        memory = _memory_digest('TSLA')
+        memory = _memory_digest('005930')
         self.assertEqual(memory['live'][-1]['carried_forward']['entry_plan'], d['entry_plan'])
         # An intervening review without a new plan must not erase the older plan.
         followup = deepcopy(d);followup.pop('entry_plan');followup['created_at']=(dt.datetime.fromisoformat(d['created_at'])+dt.timedelta(seconds=1)).isoformat()
         record_decision_file(write_json(self.root/'followup.json',followup))
-        memory = _memory_digest('TSLA')
+        memory = _memory_digest('005930')
         self.assertEqual(memory['latest_entry_plan']['assessment_id'],saved['assessment_id'])
         from cio.entry_plan import carried_plans
         with patch('cio.entry_plan.ROOT',self.root):
-            remembered=carried_plans({'request':{'asset_id':'TSLA'},'context':{'prior_assessments':memory}})
+            remembered=carried_plans({'request':{'asset_id':'005930'},'context':{'prior_assessments':memory}})
         self.assertEqual(remembered[(saved['assessment_id'],'first')]['condition'],d['entry_plan']['stages'][0]['condition'])
         bars=[{'date':'2026-09-09','close':110,'high':115,'low':80,'adjusted_close':110,'has_adjusted_close':True,'split_adjustment_factor':1}]
         # No confirmation was recorded: touching the price is not a strategy fill.
@@ -218,9 +218,9 @@ class TestAssumptionPersistence(unittest.TestCase):
                                   rationale='4주 매도 체결 후 새 공시가 없으면 115달러에 3주, 120달러에 3주를 줄인다.')
         for response in decision['assumption_review']['responses']:
             response['action'] = 'TRIM'
-        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / 'contexts' / '005930' / f"{self.context['context_id']}.json", self.context)
         record_decision_file(write_json(self.root / 'sell.json', decision))
-        carried = _memory_digest('TSLA')['live'][-1]['carried_forward']
+        carried = _memory_digest('005930')['live'][-1]['carried_forward']
         self.assertEqual(carried['action'], decision['action'])
         self.assertEqual(carried['action_execution']['status'], 'UNKNOWN')
         self.assertEqual(carried['action_execution']['staged_sell_plan'], 'NARRATIVE_ONLY')
@@ -237,24 +237,24 @@ class TestAssumptionPersistence(unittest.TestCase):
             response['action'] = 'TRIM'
         start = dt.datetime.fromisoformat(decision['created_at']).date()
         decision['exit_plan'] = {
-            'currency': 'USD', 'reference_date': self.context['request']['as_of'][:10],
+            'currency': 'KRW', 'reference_date': self.context['request']['as_of'][:10],
             'reference_basis': '질문 시점 보통주 1주 기준',
             'stages': [
-                {'stage_id': 'next_sale', 'name': '다음 축소', 'quantity': 3, 'limit_price': 115,
+                {'stage_id': 'next_sale', 'name': '다음 축소', 'quantity': 3, 'limit_price': 220000,
                  'requires_review': True, 'depends_on': 'CURRENT_ACTION',
                  'condition': '다음 실적 원문을 확인한다', 'cancel_if': '논지가 깨지면 취소',
                  'valid_from': start.isoformat(), 'valid_until': (start + dt.timedelta(days=90)).isoformat()},
-                {'stage_id': 'last_sale', 'name': '마지막 축소', 'quantity': 3, 'limit_price': 120,
+                {'stage_id': 'last_sale', 'name': '마지막 축소', 'quantity': 3, 'limit_price': 240000,
                  'requires_review': True, 'depends_on': 'next_sale',
                  'condition': '추가 상승과 사업 근거를 다시 확인한다', 'cancel_if': '가격 계획을 바꾸면 취소',
                  'valid_from': start.isoformat(), 'valid_until': (start + dt.timedelta(days=90)).isoformat()},
             ],
         }
-        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / 'contexts' / '005930' / f"{self.context['context_id']}.json", self.context)
         saved_path = record_decision_file(write_json(self.root / 'exit.json', decision))
-        saved = json.loads(saved_path.read_text())
+        saved = json.loads(saved_path.read_text(encoding='utf-8'))
         self.assertEqual(saved['exit_plan'], decision['exit_plan'])
-        carried = _memory_digest('TSLA')['live'][-1]['carried_forward']
+        carried = _memory_digest('005930')['live'][-1]['carried_forward']
         self.assertEqual(carried['exit_plan'], decision['exit_plan'])
         self.assertEqual(carried['action_execution']['staged_sell_plan'], 'STRUCTURED')
         self.assertEqual(carried['action_execution']['status'], 'UNKNOWN')
@@ -263,23 +263,23 @@ class TestAssumptionPersistence(unittest.TestCase):
         followup.pop('exit_plan')
         followup['created_at'] = (dt.datetime.fromisoformat(decision['created_at']) + dt.timedelta(seconds=1)).isoformat()
         record_decision_file(write_json(self.root / 'exit-followup.json', followup))
-        memory = _memory_digest('TSLA')
+        memory = _memory_digest('005930')
         self.assertEqual(memory['latest_exit_plan']['assessment_id'], saved['assessment_id'])
         self.assertEqual(memory['latest_exit_plan']['execution'], 'UNKNOWN')
         self.assertEqual(memory['latest_exit_plan']['status'], 'HISTORICAL_REFERENCE')
         with patch('cio.exit_plan.ROOT', self.root):
-            recovered = carried_plans({'request': {'asset_id': 'TSLA'}, 'context': {'prior_assessments': memory}})
+            recovered = carried_plans({'request': {'asset_id': '005930'}, 'context': {'prior_assessments': memory}})
         self.assertEqual(recovered[(saved['assessment_id'], 'next_sale')]['quantity'], 3)
 
     def test_large_future_sell_plan_becomes_a_reference_before_signals_are_dropped(self):
         from cio.context import _fit_context_budget, _compact_size
         plan = {'stages': [{'stage_id': 'later', 'condition': 'x' * 1800, 'cancel_if': 'y' * 1800}]}
         identifier = 'CIO-' + 'a' * 20
-        path = self.knowledge / 'assessments' / 'TSLA' / f'{identifier}.json'
+        path = self.knowledge / 'assessments' / '005930' / f'{identifier}.json'
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({'exit_plan': plan}), encoding='utf-8')
         carried = {'exit_plan': plan, 'invalidation_signals': [{'signal': 'risk', 'action': 'EXIT'}]}
-        packet = {'request': {'asset_id': 'TSLA'}, 'validation': {'optional_gaps': []},
+        packet = {'request': {'asset_id': '005930'}, 'validation': {'optional_gaps': []},
                   'context': {'prior_assessments': {'live': [{'assessment_id': identifier,
                                                               'carried_forward': carried}]}}}
         with patch('cio.context.MAX_CONTEXT_JSON_BYTES', 2000):
@@ -298,7 +298,7 @@ class TestAssumptionPersistence(unittest.TestCase):
             context = deepcopy(self.context)
             context['context']['prior_assessments'] = prior
             context['context_id'] = context_id_for(context)
-            write_json(self.knowledge / 'contexts' / 'TSLA' / f"{context['context_id']}.json", context)
+            write_json(self.knowledge / 'contexts' / '005930' / f"{context['context_id']}.json", context)
             return context
 
         def next_decision(context, prior_created_at):
@@ -319,43 +319,43 @@ class TestAssumptionPersistence(unittest.TestCase):
             ]
             return decision
 
-        write_json(self.knowledge / 'contexts' / 'TSLA' / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / 'contexts' / '005930' / f"{self.context['context_id']}.json", self.context)
         first = next_decision(self.context, self.context['created_at'])
-        first['action'].update(direction='TRIM', quantity=4, limit_price=110,
+        first['action'].update(direction='TRIM', quantity=4, limit_price=210000,
                                sell_reason='VALUATION', rationale='4주를 먼저 줄인다')
         for response in first['assumption_review']['responses']:
             response['action'] = 'TRIM'
         first['exit_plan'] = {
-            'currency': 'USD', 'reference_date': self.context['request']['as_of'][:10],
+            'currency': 'KRW', 'reference_date': self.context['request']['as_of'][:10],
             'reference_basis': '질문 시점 보통주 1주',
-            'stages': [{'stage_id': 'later', 'name': '추가 축소', 'quantity': 3, 'limit_price': 115,
+            'stages': [{'stage_id': 'later', 'name': '추가 축소', 'quantity': 3, 'limit_price': 220000,
                         'requires_review': True, 'depends_on': 'CURRENT_ACTION',
                         'condition': '실적 원문을 확인한다', 'cancel_if': '논지가 바뀌면 취소',
                         'valid_from': first['created_at'][:10],
                         'valid_until': (dt.date.fromisoformat(first['created_at'][:10]) + dt.timedelta(days=90)).isoformat()}],
         }
-        plan = json.loads(record_decision_file(write_json(self.root / 'sell-plan.json', first)).read_text())
+        plan = json.loads(record_decision_file(write_json(self.root / 'sell-plan.json', first)).read_text(encoding='utf-8'))
 
-        second_context = next_context(_memory_digest('TSLA'))
+        second_context = next_context(_memory_digest('005930'))
         second = next_decision(second_context, first['created_at'])
         second['exit_plan_checks'] = [{
             'assessment_id': plan['assessment_id'], 'stage_id': 'later',
             'condition': first['exit_plan']['stages'][0]['condition'], 'state': 'CANCELLED',
-            'note': '새 근거로 이전 가격 계획을 취소했다', 'evidence_refs': ['PRICE:TSLA'],
+            'note': '새 근거로 이전 가격 계획을 취소했다', 'evidence_refs': ['PRICE:005930'],
         }]
-        cancelled = json.loads(record_decision_file(write_json(self.root / 'sell-cancel.json', second)).read_text())
+        cancelled = json.loads(record_decision_file(write_json(self.root / 'sell-cancel.json', second)).read_text(encoding='utf-8'))
 
-        third_context = next_context(_memory_digest('TSLA'))
+        third_context = next_context(_memory_digest('005930'))
         third = next_decision(third_context, second['created_at'])
         record_decision_file(write_json(self.root / 'sell-later.json', third))
-        memory = _memory_digest('TSLA')
+        memory = _memory_digest('005930')
         reference = memory['latest_exit_plan']
         self.assertEqual(reference['status'], 'HISTORICAL_REFERENCE')
         self.assertEqual(reference['execution'], 'UNKNOWN')
         review = reference['stage_reviews'][0]
         self.assertEqual((review['stage_id'], review['state']), ('later', 'CANCELLED'))
         self.assertEqual(review['review_assessment_id'], cancelled['assessment_id'])
-        self.assertEqual(review['review_date'], _assessment_market_date(cancelled['created_at'], 'US'))
+        self.assertEqual(review['review_date'], _assessment_market_date(cancelled['created_at'], 'KR'))
         self.assertEqual(review['reviewed_at'], cancelled['created_at'])
 
         fourth_context = next_context(memory)
@@ -363,7 +363,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         attempted_revival['exit_plan_checks'] = [{
             'assessment_id': plan['assessment_id'], 'stage_id': 'later',
             'condition': first['exit_plan']['stages'][0]['condition'], 'state': 'SATISFIED',
-            'note': '옛 계획을 다시 쓰려 한다', 'evidence_refs': ['PRICE:TSLA'],
+            'note': '옛 계획을 다시 쓰려 한다', 'evidence_refs': ['PRICE:005930'],
         }]
         self.assertTrue(validate_exit_plan(attempted_revival, fourth_context))
 
@@ -377,31 +377,31 @@ class TestAssumptionPersistence(unittest.TestCase):
         from cio.__main__ import build_parser
         from contextlib import redirect_stdout
         import io
-        write_json(self.knowledge / "contexts" / "TSLA" / f"{self.context['context_id']}.json", self.context)
+        write_json(self.knowledge / "contexts" / "005930" / f"{self.context['context_id']}.json", self.context)
         path = write_json(self.root / "spec.json", self.spec)
         out = io.StringIO()
         args = build_parser().parse_args(["assumptions", str(path), "--context", self.context["context_id"], "--json"])
         with redirect_stdout(out): self.assertEqual(args.func(args), 0)
         report = json.loads(out.getvalue())
         out = io.StringIO()
-        args = build_parser().parse_args(["assumptions", report["analysis_id"], "--asset", "TSLA"])
+        args = build_parser().parse_args(["assumptions", report["analysis_id"], "--asset", "005930"])
         with redirect_stdout(out): self.assertEqual(args.func(args), 0)
         self.assertIn("MODEL_ESTIMATE", out.getvalue())
         self.assertIn("7.50%", out.getvalue())
 
     def test_different_context_and_currency_are_rejected(self):
-        bad = deepcopy(self.spec); bad["inputs"]["currency"] = "KRW"
+        bad = deepcopy(self.spec); bad["inputs"]["currency"] = "USD"
         with self.assertRaises(AssumptionError): create_analysis(bad, self.context)
         report = create_analysis(self.spec, self.context)
-        other = deepcopy(self.context); other["request"]["price"] = 101
+        other = deepcopy(self.context); other["request"]["price"] = 200001.0
         other["context_id"] = context_id_for(other)
-        with self.assertRaises(AssumptionError): load_analysis("TSLA", report["analysis_id"], other)
+        with self.assertRaises(AssumptionError): load_analysis("005930", report["analysis_id"], other)
 
     def test_bare_price_data_does_not_support_earnings_estimates(self):
         ctx = deepcopy(self.context)
-        ctx["evidence_index"] = [{**ctx["evidence_index"][1], "source_id": "PRICE:TSLA", "kind": "MARKET_DATA"}]
+        ctx["evidence_index"] = [{**ctx["evidence_index"][1], "source_id": "PRICE:005930", "kind": "MARKET_DATA"}]
         ctx["context_id"] = context_id_for(ctx)
-        spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = ["PRICE:TSLA"]
+        spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = ["PRICE:005930"]
         with self.assertRaisesRegex(AssumptionError, "재무 가정"):
             create_analysis(spec, ctx)
 
@@ -409,9 +409,9 @@ class TestAssumptionPersistence(unittest.TestCase):
         report = create_analysis(self.spec, self.context)
         report["outputs"]["baseline"]["expected_return_pct"] += 1
         report["analysis_id"] = analysis_id(report)
-        write_json(report_path("TSLA", report["analysis_id"]), report)
+        write_json(report_path("005930", report["analysis_id"]), report)
         with self.assertRaisesRegex(AssumptionError, "재계산"):
-            load_analysis("TSLA", report["analysis_id"], self.context)
+            load_analysis("005930", report["analysis_id"], self.context)
 
     def test_a_report_sealed_before_the_currency_note_still_loads(self):
         """`currency_basis` 는 나중에 붙은 설명 필드다.
@@ -422,7 +422,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         """
         ctx = deepcopy(self.context)
         ctx["context"] = {**(ctx.get("context") or {}), "investor_policy": {
-            "base_currency": "KRW", "objective": {"target_annual_return_pct": 10}}}
+            "base_currency": "USD", "objective": {"target_annual_return_pct": 10}}}
         ctx["context_id"] = context_id_for(ctx)
         spec = deepcopy(self.spec); spec["comparison"] = {"basis": "POLICY_TARGET"}
         report = create_analysis(spec, ctx)
@@ -430,30 +430,30 @@ class TestAssumptionPersistence(unittest.TestCase):
         legacy = deepcopy(report)
         del legacy["comparison"]["currency_basis"]
         legacy["analysis_id"] = analysis_id(legacy)
-        write_json(report_path("TSLA", legacy["analysis_id"]), legacy)
+        write_json(report_path("005930", legacy["analysis_id"]), legacy)
         self.assertEqual(
-            load_analysis("TSLA", legacy["analysis_id"], ctx)["analysis_id"],
+            load_analysis("005930", legacy["analysis_id"], ctx)["analysis_id"],
             legacy["analysis_id"])
         legacy["comparison"]["total_return_pct"] += 1
         legacy["analysis_id"] = analysis_id(legacy)
-        write_json(report_path("TSLA", legacy["analysis_id"]), legacy)
+        write_json(report_path("005930", legacy["analysis_id"]), legacy)
         with self.assertRaisesRegex(AssumptionError, "재계산"):
-            load_analysis("TSLA", legacy["analysis_id"], ctx)
+            load_analysis("005930", legacy["analysis_id"], ctx)
 
     def test_missing_or_modified_evidence_is_rejected(self):
         report = create_analysis(self.spec, self.context)
         source = self.root / report["evidence_index"][0]["path"]
-        source.write_text('{}')
-        with self.assertRaises(AssumptionError): load_analysis("TSLA", report["analysis_id"], self.context)
+        source.write_text('{}', encoding='utf-8')
+        with self.assertRaises(AssumptionError): load_analysis("005930", report["analysis_id"], self.context)
 
     def test_report_cannot_redefine_a_context_source(self):
         report = create_analysis(self.spec, self.context)
-        fake = self.root / "wrong.json"; fake.write_text('{}')
+        fake = self.root / "wrong.json"; fake.write_text('{}', encoding='utf-8')
         report["evidence_index"][0].update(path="wrong.json", content_sha256=content_hash(fake))
         report["analysis_id"] = analysis_id(report)
-        write_json(report_path("TSLA", report["analysis_id"]), report)
+        write_json(report_path("005930", report["analysis_id"]), report)
         with self.assertRaisesRegex(AssumptionError, "재정의"):
-            load_analysis("TSLA", report["analysis_id"], self.context)
+            load_analysis("005930", report["analysis_id"], self.context)
 
     def extra_source(self, fetched_at):
         """packet 에 없던 보존 웹 원문 하나. → (근거 ID, documents_for 패치)"""
@@ -488,14 +488,14 @@ class TestAssumptionPersistence(unittest.TestCase):
         spec = deepcopy(self.spec); spec["bases"][0]["evidence_refs"] = [identifier]
         with catalog:
             report = create_analysis(spec, self.context)
-        self.assertEqual(load_analysis("TSLA", report["analysis_id"], self.context), report)
+        self.assertEqual(load_analysis("005930", report["analysis_id"], self.context), report)
         self.assertEqual(validate_decision(self.decision(report), context=self.context), [])
         # 봉인된 보고서의 시각을 원문 회수보다 앞으로 옮기면 다시 읽을 때 걸린다.
         backdated = deepcopy(report); backdated["created_at"] = "2025-12-31T00:00:00+00:00"
         backdated["analysis_id"] = analysis_id(backdated)
-        write_json(report_path("TSLA", backdated["analysis_id"]), backdated)
+        write_json(report_path("005930", backdated["analysis_id"]), backdated)
         with self.assertRaisesRegex(AssumptionError, "그때 없던 자료"):
-            load_analysis("TSLA", backdated["analysis_id"], self.context)
+            load_analysis("005930", backdated["analysis_id"], self.context)
 
     def test_extra_evidence_without_a_readable_fetch_time_is_refused(self):
         identifier, catalog = self.extra_source("언젠가")

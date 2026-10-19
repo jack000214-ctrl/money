@@ -388,7 +388,7 @@ def main() -> int:
         )
         return 1
     data = load(path)
-    result = {"asset_id": data.get("asset_id"), "source_file": str(path.resolve().relative_to(ROOT))
+    result = {"asset_id": data.get("asset_id"), "source_file": path.resolve().relative_to(ROOT).as_posix()
               if path.resolve().is_relative_to(ROOT) else str(path),
               **summarize(data, top=len(data.get("holdings") or [])),
               "_not_a_judgment": NOT_A_JUDGMENT}

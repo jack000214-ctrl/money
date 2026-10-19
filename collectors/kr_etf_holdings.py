@@ -305,7 +305,7 @@ def _snapshot(url: str, *, asset_id: str, label: str, note: str) -> tuple[dict[s
     object_path, digest = web.save_snapshot(payload, label=label)
     web.record_index(
         asset_id, label=label, digest=digest,
-        locator=str(object_path.relative_to(ROOT)), payload=payload, note=note,
+        locator=object_path.relative_to(ROOT).as_posix(), payload=payload, note=note,
     )
     return payload, f"WEBSNAP:{digest[:12]}"
 
@@ -377,7 +377,7 @@ def collect(asset_id: str, *, today: dt.date | None = None) -> dict[str, Any]:
         "nav_currency": asset["currency"],
         "total_fee_pct": facts["total_fee_pct"],
         "hedge_statement": facts["hedge_statement"],
-        "holdings_path": str(path.relative_to(ROOT)),
+        "holdings_path": path.relative_to(ROOT).as_posix(),
         "holdings_count": len(holdings),
         "excluded_rows": [
             {

@@ -17,7 +17,10 @@ from cio.memory import (
     _counterfactual,
     evaluate_assessment,
 )
-from test_cio_core import valid_context, valid_decision
+from test_cio_core import (
+    small_price_context as valid_context,
+    small_price_decision as valid_decision,
+)
 
 
 def _row(date, close, *, low, high, adjusted=None, factor=1.0):

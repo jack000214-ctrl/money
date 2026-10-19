@@ -486,10 +486,21 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
 
     price_safe = safe_name(price_symbol)
     price_info = get_price_info(price_symbol)
-    current_price = price_info.get("last_close") or (0 if currency == "USD" else 0)
+    last_close = price_info.get("last_close")
+    current_price = float(last_close) if last_close is not None else 0.0
 
     # 기존 설정 유지 또는 신규 생성
     existing_cfg = tickers_cfg.get(ticker, {})
+    existing_chart_curr = existing_cfg.get("chartCurrent", 0.0)
+    if existing_chart_curr == 100.0:
+        existing_chart_curr = 0.0
+    chart_current = current_price if current_price > 0 else float(existing_chart_curr or 0.0)
+
+    existing_chart_entry = existing_cfg.get("chartEntry", 0.0)
+    if existing_chart_entry == 90.0:
+        existing_chart_entry = 0.0
+    chart_entry = (chart_current * 0.9) if chart_current > 0 else float(existing_chart_entry or 0.0)
+
     new_cfg = {
         "tickerLabel": f"{ticker} · {exchange}",
         "name": name,
@@ -498,15 +509,15 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
         "market": market,
         "riskClass": asset_type,
         "currency": currency,
-        "priceKrw": int(current_price) if currency == "KRW" else int(current_price * 1350),
-        "priceAsOf": now_iso,
-        "priceNote": f"{today_str} 기준",
+        "priceKrw": int(chart_current) if currency == "KRW" else int(chart_current * 1350),
+        "priceAsOf": now_iso if chart_current > 0 else "",
+        "priceNote": f"{today_str} 기준" if chart_current > 0 else "미수집",
         "asOf": today_str,
         "fundamentals": existing_cfg.get("fundamentals", f"knowledge/fundamentals/{ticker}-{today_str}.json"),
         "calculation": existing_cfg.get("calculation", ""),
         "prices": f"knowledge/prices/{price_safe}.csv",
-        "chartCurrent": current_price or 100.0,
-        "chartEntry": existing_cfg.get("chartEntry", (current_price * 0.9) if current_price else 90.0),
+        "chartCurrent": chart_current,
+        "chartEntry": chart_entry,
         "chartEntryLabel": existing_cfg.get("chartEntryLabel", "강세 시나리오 기준"),
     }
     tickers_cfg[ticker] = new_cfg
@@ -579,11 +590,28 @@ def collect_price(ticker: str, range_str: str = "5y") -> dict[str, Any]:
         bench_logs.append(f"[{bench}] {b_out.strip()}")
 
     success = (code == 0)
+    price_info = get_price_info(price_symbol)
+
+    # 시세 수집 성공 시 tickers.json 실시간 동기화
+    if success and price_info.get("last_close"):
+        last_close = float(price_info["last_close"])
+        tickers_cfg = _load_json_file(TICKERS_FILE)
+        if ticker in tickers_cfg:
+            cfg = tickers_cfg[ticker]
+            curr = asset.get("currency", cfg.get("currency", "KRW"))
+            cfg["priceKrw"] = int(last_close) if curr == "KRW" else int(last_close * 1350)
+            cfg["chartCurrent"] = last_close
+            if not cfg.get("chartEntry") or cfg.get("chartEntry") == 90.0 or cfg.get("chartEntry") == 0.0:
+                cfg["chartEntry"] = round(last_close * 0.9, 2)
+            cfg["priceAsOf"] = datetime.now(timezone.utc).astimezone().isoformat()
+            cfg["priceNote"] = f"{date.today().isoformat()} 기준"
+            _save_json_file(TICKERS_FILE, tickers_cfg)
+
     return {
         "success": success,
         "returncode": code,
         "output": output + ("\n" + "\n".join(bench_logs) if bench_logs else ""),
-        "price_info": get_price_info(price_symbol),
+        "price_info": price_info,
     }
 
 
@@ -636,7 +664,7 @@ def collect_fundamentals(ticker: str) -> dict[str, Any]:
         latest_fund = Path(fund_candidates[-1])
         tickers_cfg = _load_json_file(TICKERS_FILE)
         if ticker in tickers_cfg:
-            tickers_cfg[ticker]["fundamentals"] = str(latest_fund.relative_to(ROOT)).replace("\\", "/")
+            tickers_cfg[ticker]["fundamentals"] = latest_fund.relative_to(ROOT).as_posix().replace("\\", "/")
             _save_json_file(TICKERS_FILE, tickers_cfg)
 
     return {
@@ -908,8 +936,8 @@ def _build_etf_report(ticker: str, cfg: dict[str, Any], select_for_dashboard: bo
         str(ROOT / "dashboard" / "scripts" / "build_price_chart.py"),
         "--input", str(prices_path),
         "--output", str(chart_out),
-        "--current", str(cfg.get("chartCurrent", 100)),
-        "--entry-ceiling", str(cfg.get("chartEntry", 90)),
+        "--current", str(cfg.get("chartCurrent", 0)),
+        "--entry-ceiling", str(cfg.get("chartEntry", 0)),
         "--entry-label", str(cfg.get("chartEntryLabel", "기준선")),
         "--currency", str(cfg.get("currency", "KRW")),
         "--lookback-days", "365",
@@ -930,8 +958,8 @@ def _build_etf_report(ticker: str, cfg: dict[str, Any], select_for_dashboard: bo
 
     # 가격 데이터가 없거나 차트 빌드가 실패한 경우 최소 유효 차트 JSON 생성
     if not chart_built:
-        price_current = float(cfg.get("chartCurrent") or cfg.get("priceKrw") or 100)
-        price_entry = float(cfg.get("chartEntry") or price_current * 0.9)
+        price_current = float(cfg.get("chartCurrent") or cfg.get("priceKrw") or 0.0)
+        price_entry = float(cfg.get("chartEntry") or (price_current * 0.9 if price_current > 0 else 0.0))
         currency_fmt = cfg.get("currency", "KRW")
         fmt = (lambda v: f"₩{v:,.0f}") if currency_fmt == "KRW" else (lambda v: f"${v:,.2f}")
         dummy_chart = {
@@ -1198,8 +1226,8 @@ def build_report(ticker: str, select_for_dashboard: bool = True) -> dict[str, An
         str(ROOT / "dashboard" / "scripts" / "build_price_chart.py"),
         "--input", str(prices_path),
         "--output", str(chart_out),
-        "--current", str(cfg.get("chartCurrent", 100)),
-        "--entry-ceiling", str(cfg.get("chartEntry", 90)),
+        "--current", str(cfg.get("chartCurrent", 0)),
+        "--entry-ceiling", str(cfg.get("chartEntry", 0)),
         "--entry-label", str(cfg.get("chartEntryLabel", "강세 시나리오 기준")),
         "--currency", str(cfg.get("currency", "KRW")),
         "--lookback-days", "365",
@@ -1262,7 +1290,17 @@ def build_report(ticker: str, select_for_dashboard: bool = True) -> dict[str, An
     # 일치하는 calculation이 없으면 자동 생성
     auto_fail_reason = ""
     if calc_path is None:
-        price_val = float(cfg.get("chartCurrent") or cfg.get("priceKrw") or 100.0)
+        price_val = float(cfg.get("chartCurrent") or cfg.get("priceKrw") or 0.0)
+        if price_val <= 0:
+            p_info = get_price_info(cfg.get("price_symbol", ticker))
+            if p_info.get("last_close"):
+                price_val = float(p_info["last_close"])
+        if price_val <= 0:
+            return {
+                "success": False,
+                "error": f"시세 데이터가 없어 DCF 계산을 생성할 수 없습니다. 1단계에서 시세를 먼저 수집해주세요.",
+                "output": "\n".join(logs) + f"\n[Report Build] 실패: {ticker}의 시세가 0이거나 미수집 상태입니다.",
+            }
         calc_path, auto_fail_reason = _auto_generate_calculation(ticker, fund_path, price_val)
 
     if calc_path is None or not calc_path.is_file():
@@ -1286,8 +1324,8 @@ def build_report(ticker: str, select_for_dashboard: bool = True) -> dict[str, An
     # tickers.json 최신 경로로 동기화
     tickers_cfg = _load_json_file(TICKERS_FILE)
     if ticker in tickers_cfg:
-        tickers_cfg[ticker]["fundamentals"] = str(fund_path.relative_to(ROOT)).replace("\\", "/")
-        tickers_cfg[ticker]["calculation"] = str(calc_path.relative_to(ROOT)).replace("\\", "/")
+        tickers_cfg[ticker]["fundamentals"] = fund_path.relative_to(ROOT).as_posix().replace("\\", "/")
+        tickers_cfg[ticker]["calculation"] = calc_path.relative_to(ROOT).as_posix().replace("\\", "/")
         _save_json_file(TICKERS_FILE, tickers_cfg)
 
     report_cmd = [

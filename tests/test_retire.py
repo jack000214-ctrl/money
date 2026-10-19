@@ -57,7 +57,7 @@ class TempKnowledge(unittest.TestCase):
 class TestRetiredSummary(TempKnowledge):
     def test_empty_when_nothing_retired(self):
         self.assertEqual(
-            retire_module.retired_summary("214450"), {"count": 0, "batches": []}
+            retire_module.retired_summary("005930"), {"count": 0, "batches": []}
         )
 
     def test_summary_carries_no_citable_content(self):
@@ -67,7 +67,7 @@ class TestRetiredSummary(TempKnowledge):
         폐기는 지켜지지 않는다.
         """
         write(
-            self.knowledge / "retired" / "214450" / "CIO-a.json",
+            self.knowledge / "retired" / "005930" / "CIO-a.json",
             {
                 "assessment_id": "CIO-a",
                 "created_at": "2026-07-29T10:00:00+09:00",
@@ -81,7 +81,7 @@ class TestRetiredSummary(TempKnowledge):
                 },
             },
         )
-        summary = retire_module.retired_summary("214450")
+        summary = retire_module.retired_summary("005930")
         self.assertEqual(summary["count"], 1)
         blob = json.dumps(summary, ensure_ascii=False)
         for leaked in ("WAIT", "305000", "인용되면 안 되는 논지"):
@@ -90,7 +90,7 @@ class TestRetiredSummary(TempKnowledge):
     def test_batches_group_by_date_and_reason(self):
         for index in range(3):
             write(
-                self.knowledge / "retired" / "214450" / f"CIO-{index}.json",
+                self.knowledge / "retired" / "005930" / f"CIO-{index}.json",
                 {
                     "assessment_id": f"CIO-{index}",
                     "created_at": f"2026-07-2{index}T10:00:00+09:00",
@@ -101,23 +101,23 @@ class TestRetiredSummary(TempKnowledge):
                     },
                 },
             )
-        summary = retire_module.retired_summary("214450")
+        summary = retire_module.retired_summary("005930")
         self.assertEqual(summary["count"], 3)
         self.assertEqual(len(summary["batches"]), 1)
         self.assertEqual(summary["batches"][0]["count"], 3)
 
     def test_file_without_retirement_marker_is_not_counted(self):
         write(
-            self.knowledge / "retired" / "214450" / "CIO-a.json",
+            self.knowledge / "retired" / "005930" / "CIO-a.json",
             {"assessment_id": "CIO-a"},
         )
-        self.assertEqual(retire_module.retired_summary("214450")["count"], 0)
+        self.assertEqual(retire_module.retired_summary("005930")["count"], 0)
 
 
 class TestRetireRequiresReason(TempKnowledge):
     def test_blank_reason_is_refused(self):
         with self.assertRaises(retire_module.RetireError):
-            retire_module.retire("214450", reason="   ")
+            retire_module.retire("005930", reason="   ")
 
 
 class TestRetireOneOfMany(TempKnowledge):
@@ -134,11 +134,11 @@ class TestRetireOneOfMany(TempKnowledge):
         original_root = retire_module.ROOT
         retire_module.ROOT = Path(self.tmp.name)
         self.addCleanup(setattr, retire_module, "ROOT", original_root)
-        self.add_assessment("214450", "CIO-old0000000000000000")
-        self.add_assessment("214450", "CIO-new0000000000000000")
+        self.add_assessment("005930", "CIO-old0000000000000000")
+        self.add_assessment("005930", "CIO-new0000000000000000")
 
     def remaining(self):
-        state = retire_module.survey("214450")
+        state = retire_module.survey("005930")
         return sorted(
             row["assessment_id"]
             for row in state["live"] + state["contract_failing"]
@@ -146,7 +146,7 @@ class TestRetireOneOfMany(TempKnowledge):
 
     def test_targeting_one_leaves_the_other_alone(self):
         result = retire_module.retire(
-            "214450",
+            "005930",
             reason="새 판단으로 대체됨",
             assessment_id="CIO-old0000000000000000",
             confirm=True,
@@ -159,12 +159,12 @@ class TestRetireOneOfMany(TempKnowledge):
 
     def test_without_an_id_both_would_go(self):
         """지목이 없으면 둘 다 대상이다 — 그래서 지목이 필요하다."""
-        result = retire_module.retire("214450", reason="확인만")
+        result = retire_module.retire("005930", reason="확인만")
         self.assertEqual(len(result["would_retire"]), 2)
 
     def test_dry_run_still_shows_only_that_one(self):
         result = retire_module.retire(
-            "214450", reason="확인만", assessment_id="CIO-old0000000000000000"
+            "005930", reason="확인만", assessment_id="CIO-old0000000000000000"
         )
         self.assertFalse(result["confirmed"])
         self.assertEqual(
@@ -176,22 +176,22 @@ class TestRetireOneOfMany(TempKnowledge):
     def test_unknown_id_is_refused_rather_than_retiring_everything(self):
         with self.assertRaises(retire_module.RetireError):
             retire_module.retire(
-                "214450", reason="오타", assessment_id="CIO-typo", confirm=True
+                "005930", reason="오타", assessment_id="CIO-typo", confirm=True
             )
         self.assertEqual(len(self.remaining()), 2)
 
 
 class TestMemoryDigest(TempKnowledge):
     def test_no_assessments_says_zero_not_silence(self):
-        digest = context_module._memory_digest("214450")
+        digest = context_module._memory_digest("005930")
         self.assertEqual(digest["live_count"], 0)
         self.assertEqual(digest["state"], "NO_LIVE_JUDGMENT")
         self.assertIn("처음부터 판단한다", digest["_directive"])
 
     def test_contract_failure_is_reported_without_citable_values(self):
         """계약 미달은 사고다. 사고를 숨기지도, 인용 가능하게 두지도 않는다."""
-        self.add_assessment("214450", "CIO-dead")
-        digest = context_module._memory_digest("214450")
+        self.add_assessment("005930", "CIO-dead")
+        digest = context_module._memory_digest("005930")
         self.assertEqual(digest["live_count"], 0)
         self.assertEqual(digest["not_carried"]["count"], 1)
         self.assertEqual(
@@ -205,7 +205,7 @@ class TestMemoryDigest(TempKnowledge):
 
     def test_retired_batch_appears_as_history(self):
         write(
-            self.knowledge / "retired" / "214450" / "CIO-a.json",
+            self.knowledge / "retired" / "005930" / "CIO-a.json",
             {
                 "assessment_id": "CIO-a",
                 "created_at": "2026-07-29T10:00:00+09:00",
@@ -216,7 +216,7 @@ class TestMemoryDigest(TempKnowledge):
                 },
             },
         )
-        digest = context_module._memory_digest("214450")
+        digest = context_module._memory_digest("005930")
         self.assertEqual(digest["retired"]["count"], 1)
         self.assertIn(
             "구버전", digest["retired"]["batches"][0]["reason"]
@@ -228,7 +228,7 @@ class TestMemoryDigest(TempKnowledge):
         # '인용하지 않는다'는 폐기의 뜻과 달리 인용할 수 있는 가격을 실어 보냈다.
         reason = "2026-08-10 CIO-b 로 대체됨. " + "이 판단의 TRIM 30주 지정가 405,000원은 집행됐다. " * 20
         write(
-            self.knowledge / "retired" / "214450" / "CIO-b.json",
+            self.knowledge / "retired" / "005930" / "CIO-b.json",
             {
                 "assessment_id": "CIO-b",
                 "created_at": "2026-08-09T10:00:00+09:00",
@@ -239,12 +239,12 @@ class TestMemoryDigest(TempKnowledge):
                 },
             },
         )
-        packet_reason = context_module._memory_digest("214450")["retired"]["batches"][0]["reason"]
+        packet_reason = context_module._memory_digest("005930")["retired"]["batches"][0]["reason"]
         self.assertTrue(packet_reason.startswith("2026-08-10 CIO-b 로 대체됨"))
         self.assertLess(len(packet_reason), 200)
         self.assertIn("cio retire", packet_reason)
         # 사람이 보는 화면에는 전문이 그대로 남는다.
-        self.assertEqual(retire_module.retired_summary("214450")["batches"][0]["reason"], reason)
+        self.assertEqual(retire_module.retired_summary("005930")["batches"][0]["reason"], reason)
 
 
 if __name__ == "__main__":

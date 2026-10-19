@@ -14,7 +14,7 @@ from test_cio_core import valid_context, valid_decision
 
 def exit_plan():
     return {
-        "currency": "USD", "reference_date": "2026-01-01",
+        "currency": "KRW", "reference_date": "2026-01-01",
         "reference_basis": "질문 시점 보통주 1주 기준",
         "stages": [
             {"stage_id": "first", "name": "첫 매도", "quantity": 10.004156,
@@ -137,7 +137,7 @@ class TestExitPlanObservations(unittest.TestCase):
         context = valid_context()
         with tempfile.TemporaryDirectory() as tmp, \
              patch("cio.memory.KNOWLEDGE_DIR", Path(tmp)), \
-             patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "TSLA", "price_symbol": "TSLA", "benchmarks": []}), \
+             patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "005930", "price_symbol": "005930", "benchmarks": []}), \
              patch("cio.memory.find_context", return_value=(context, None)), \
              patch("cio.memory._price_session", return_value=None), \
              patch("cio.memory._fixed_horizon_returns", return_value={}):
@@ -164,8 +164,8 @@ class TestExitPlanObservations(unittest.TestCase):
             {"date": "2026-09-25", "high": 10.0, "low": 9.5, "close": 9.8,
              "adjusted_close": 9.8, "has_adjusted_close": True, "split_adjustment_factor": 1.0},
         ]
-        with patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "TSLA",
-                                                      "price_symbol": "TSLA", "benchmarks": []}), \
+        with patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "005930",
+                                                      "price_symbol": "005930", "benchmarks": []}), \
              patch("cio.memory.find_context", return_value=(context, None)), \
              patch("cio.memory._price_session", return_value=None), \
              patch("cio.memory._fixed_horizon_returns", return_value={}):
@@ -180,7 +180,7 @@ class TestExitPlanObservations(unittest.TestCase):
         assessment["exit_plan"] = exit_plan()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            directory = root / "assessments" / "TSLA"
+            directory = root / "assessments" / "005930"
             directory.mkdir(parents=True)
             (directory / ("CIO-" + "2" * 20 + ".json")).write_text(json.dumps({
                 "assessment_id": "CIO-" + "2" * 20,
@@ -189,7 +189,7 @@ class TestExitPlanObservations(unittest.TestCase):
                                       "stage_id": "first", "state": "SATISFIED"}],
             }), encoding="utf-8")
             with patch("cio.memory.KNOWLEDGE_DIR", root), \
-                 patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "TSLA", "price_symbol": "TSLA", "benchmarks": []}), \
+                 patch("cio.memory.get_asset", return_value={"market": "US", "asset_id": "005930", "price_symbol": "005930", "benchmarks": []}), \
                  patch("cio.memory.find_context", return_value=(valid_context(), None)), \
                  patch("cio.memory._price_session", return_value=None), \
                  patch("cio.memory._fixed_horizon_returns", return_value={}), \
@@ -212,13 +212,13 @@ class TestExitPlanReport(unittest.TestCase):
                       "price": {"return_to_end_pct": 0},
                       "exit_plan": _exit_plan_observations({"assessment_id": "CIO-old", "exit_plan": exit_plan()},
                                                             bars(), start_factor=0.5, decision_date="2026-01-01")}
-        with patch("cio.report.get_asset", return_value={"asset_id": "TSLA", "name": "Tesla"}), \
+        with patch("cio.report.get_asset", return_value={"asset_id": "005930", "name": "Tesla"}), \
              patch("cio.report._find_evaluation", return_value=evaluation), \
              patch("cio.decision.find_context", return_value=(context, None)):
             output = format_assessment(decision, status="LIVE", warnings=[])
         self.assertIn("조건부 미래 매도 계획", output)
-        self.assertIn("first (첫 매도): 10.004156주 · 지정가 10.25 USD", output)
-        self.assertIn("second (다음 매도): 5주 · 지정가 11.00 USD", output)
+        self.assertIn("first (첫 매도): 10.004156주 · 지정가 10.25 KRW", output)
+        self.assertIn("second (다음 매도): 5주 · 지정가 11 KRW", output)
         self.assertIn("실제 집행 UNKNOWN", output)
         self.assertIn("수익률은 산출하지 않았다", output)
 
@@ -236,7 +236,7 @@ class TestExitPlanReport(unittest.TestCase):
                                                        "fill": {"date": "2026-01-03"},
                                                        "return_to_end_pct": 10.0}},
         }
-        with patch("cio.report.get_asset", return_value={"asset_id": "TSLA", "name": "Tesla"}), \
+        with patch("cio.report.get_asset", return_value={"asset_id": "005930", "name": "Tesla"}), \
              patch("cio.report._find_evaluation", return_value=evaluation), \
              patch("cio.decision.find_context", return_value=(context, None)):
             output = format_assessment(decision, status="LIVE", warnings=[])
@@ -248,7 +248,7 @@ class TestExitPlanReport(unittest.TestCase):
         assessment_id = "CIO-" + "1" * 20
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            directory = root / "assessments" / "TSLA"
+            directory = root / "assessments" / "005930"
             directory.mkdir(parents=True)
             (directory / f"{assessment_id}.json").write_text(json.dumps({
                 "assessment_id": assessment_id, "created_at": "2026-01-01T12:00:00-05:00",
@@ -259,9 +259,9 @@ class TestExitPlanReport(unittest.TestCase):
                 "stages": [{"stage_id": "first", "price_touch_date": "2026-01-03",
                             "reviewed_price_touch_date": None}]}}
             with patch("cio.report.KNOWLEDGE_DIR", root), \
-                 patch("cio.report.get_asset", return_value={"asset_id": "TSLA", "name": "Tesla"}), \
+                 patch("cio.report.get_asset", return_value={"asset_id": "005930", "name": "Tesla"}), \
                  patch("cio.report._find_evaluation", return_value=evaluation):
-                report = evaluations_for("TSLA")
+                report = evaluations_for("005930")
         row = report["rows"][0]["exit_plan"]
         self.assertEqual(row["stages"][0]["quantity"], 10.004156)
         self.assertEqual(row["stages"][0]["limit_price"], 10.25)
@@ -273,15 +273,15 @@ class TestExitPlanReport(unittest.TestCase):
                "source": "LIVE", "asked_price": 9.95, "verdict": "WAIT", "action": "HOLD",
                "return_to_latest_pct": None, "triggered": [],
                "price_plan": {"preferred_entry": None, "stop_price": None, "scale_out_start": None},
-               "exit_plan": {"currency": "USD", "actual_execution": "UNKNOWN", "stages": [
+               "exit_plan": {"currency": "KRW", "actual_execution": "UNKNOWN", "stages": [
                    {"stage_id": "first", "name": "첫 매도", "quantity": 10.004156,
                     "limit_price": 10.25, "price_touch_date": "2026-01-03",
                     "reviewed_price_touch_date": None}]}}
-        report = {"asset_id": "TSLA", "name": "Tesla", "assessment_count": 1,
+        report = {"asset_id": "005930", "name": "Tesla", "assessment_count": 1,
                   "scored_count": 1, "unscored_count": 0, "rows": [row]}
         with patch("cio.report.evaluations_for", return_value=report):
-            output = format_evaluations("TSLA", with_plan=True)
-        self.assertIn("10.004156주 @ 10.25 USD", output)
+            output = format_evaluations("005930", with_plan=True)
+        self.assertIn("10.004156주 @ 10.25 KRW", output)
         self.assertIn("가격 2026-01-03", output)
         self.assertIn("실제 집행 미확인", output)
 
@@ -293,10 +293,10 @@ class TestExitPlanReport(unittest.TestCase):
                  "return_to_latest_pct": -33.6, "triggered": []}
                 for index, (verdict, action) in enumerate(
                     (("WAIT", "HOLD"), ("INSUFFICIENT", "UNDETERMINED")))]
-        report = {"asset_id": "TSLA", "name": "Tesla", "assessment_count": 2,
+        report = {"asset_id": "005930", "name": "Tesla", "assessment_count": 2,
                   "scored_count": 2, "unscored_count": 0, "rows": rows}
         with patch("cio.report.evaluations_for", return_value=report):
-            lines = format_evaluations("TSLA").splitlines()
+            lines = format_evaluations("005930").splitlines()
         short, long = (next(line for line in lines if text in line)
                        for text in ("WAIT/HOLD", "INSUFFICIENT/UNDETERMINED"))
         self.assertIn("INSUFFICIENT/UNDETERMINED  -33.6%", long)

@@ -133,7 +133,7 @@ def make_report(asset_id, index, row, raw=None, raw_path=None):
     return {"schema_version": SCHEMA, "asset_id": asset_id,
             "created_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "filing": row, "corp_code": index.get("corp_code"),
-            "raw_path": str(raw_path.relative_to(ROOT)) if raw_path else None,
+            "raw_path": raw_path.relative_to(ROOT).as_posix() if raw_path else None,
             "raw_sha256": content_hash(raw_path) if raw_path else None, **observations}
 
 

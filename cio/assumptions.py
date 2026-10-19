@@ -85,7 +85,7 @@ def evidence_for(spec, context):
         # Use the existing content-addressed evidence store (same bytes, no cleanup).
         from cio.context import _snapshot_evidence
         target = _snapshot_evidence(path, digest)
-        evidence.append({"source_id": ref, "path": str(target.relative_to(ROOT)),
+        evidence.append({"source_id": ref, "path": target.relative_to(ROOT).as_posix(),
                          "content_sha256": digest, "kind": row.get("kind")})
     return evidence
 

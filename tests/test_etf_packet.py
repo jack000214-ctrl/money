@@ -399,16 +399,17 @@ class TestCashGapNeedsAnAmount(unittest.TestCase):
     """예산이 없으면 현금을 넘고 말고가 없다."""
 
     def gaps(self, proposed_trade, *, amount):
-        price = {"symbol": "TSLA", "currency": "USD", "as_of": "2026-07-27",
-                 "close": 99.0, "returns_pct": {"1m": 1.0, "3m": 2.0, "12m": 3.0}}
-        source = {"source_id": "PRICE:TSLA", "kind": "MARKET_DATA",
+        price = {"symbol": "0167A0", "currency": "USD", "as_of": "2026-07-27",
+                 "close": 99.0, "returns_pct": {"1m": 1.0, "3m": 2.0, "12m": 3.0},
+                 "returns_basis": "ADJUSTED_CLOSE"}
+        source = {"source_id": "PRICE:0167A0", "kind": "MARKET_DATA",
                   "path": None, "data_as_of": "2026-07-27"}
         fundamentals = ({"fundamentals_id": "FUND-x", "period_end": "2026-06-30"},
-                        {"source_id": "FUNDAMENTALS:TSLA", "kind": "FILING_DERIVED",
+                        {"source_id": "FUNDAMENTALS:0167A0", "kind": "FILING_DERIVED",
                          "path": None, "data_as_of": "2026-06-30"})
         filings = ({"collected_at": "2026-07-28T00:00:00+00:00",
                     "latest": [{"form": "10-Q"}]},
-                   {"source_id": "FILINGS:TSLA", "kind": "REGULATOR_FILING_INDEX",
+                   {"source_id": "FILINGS:0167A0", "kind": "REGULATOR_FILING_INDEX",
                     "path": None, "data_as_of": "2026-07-28T00:00:00+00:00"})
         portfolio = {"available": True, "existing_position": {"held": False},
                      "proposed_trade": proposed_trade}
@@ -425,10 +426,10 @@ class TestCashGapNeedsAnAmount(unittest.TestCase):
             patch("cio.context._portfolio_summary", return_value=(portfolio, None)),
             patch("cio.context._attach_position_math", return_value=None),
             patch("cio.context._memory_digest", return_value=[]),
-            patch("cio.context.inspect_plan", return_value=[FreshTask("price:TSLA")]),
+            patch("cio.context.inspect_plan", return_value=[FreshTask("price:0167A0")]),
         ):
             packet, _ = context.build_context(
-                "TSLA", price=100.0, amount=amount, amount_currency="KRW", save=False)
+                "0167A0", price=100.0, amount=amount, amount_currency="KRW", save=False)
         return [gap for gap in packet["validation"]["optional_gaps"]
                 if gap["task"] == "portfolio:cash"]
 

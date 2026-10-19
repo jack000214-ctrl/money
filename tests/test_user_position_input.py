@@ -1,9 +1,13 @@
 """An explicit holding must survive prepare without rewriting account history."""
 
+import sys
 import unittest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import helpers  # noqa: F401
 from cio.assets import get_asset
@@ -91,9 +95,10 @@ class TestUserPosition(unittest.TestCase):
                 self.packet(**{field: float("nan")})
 
     def test_missing_fx_is_not_a_krw_usd_conversion(self):
+        mock_us_asset = {"asset_id": "MOCK_US", "name": "Mock US", "currency": "USD", "market": "US"}
         with patch("cio.context._fx_rate", return_value=(None, None)):
             portfolio = _user_position_summary(
-                get_asset("TSLA"), quantity=2.5, average_cost=100, price=200,
+                mock_us_asset, quantity=2.5, average_cost=100, price=200,
                 review_quantity=1, target_quantity=None, local_portfolio={},
             )
         position = portfolio["existing_position"]
@@ -103,8 +108,11 @@ class TestUserPosition(unittest.TestCase):
         self.assertIsNone(portfolio["proposed_trade"]["estimated_proceeds_krw"])
 
     def test_explicit_average_cost_currency_reaches_saved_request(self):
-        with patch("cio.context._fx_rate", return_value=(1400, "2026-09-18")):
-            packet = self.packet(asset_id="RXRX", held_quantity=100,
+        mock_us_asset = {"asset_id": "MOCK_US", "name": "Mock US", "currency": "USD", "market": "US", "asset_type": "STOCK", "price_symbol": "MOCK_US", "benchmarks": [], "optional_collectors": [], "valuation_family": ["DCF"], "analysis_lens": "QUALITY_GROWTH"}
+        with patch("cio.context._fx_rate", return_value=(1400, "2026-09-18")), \
+                patch("cio.assets.get_asset", return_value=mock_us_asset), \
+                patch("cio.context.get_asset", return_value=mock_us_asset):
+            packet = self.packet(asset_id="MOCK_US", held_quantity=100,
                                  average_cost=6000, average_cost_currency="KRW",
                                  price_value=5)
         request = packet["request"]["position_input"]
@@ -121,9 +129,10 @@ class TestUserPosition(unittest.TestCase):
         self.assertIsNone(packet["context"]["portfolio"]["proposed_trade"]["review_quantity"])
 
     def test_different_cost_currencies_cannot_match(self):
+        mock_us_asset = {"asset_id": "MOCK_US", "name": "Mock US", "currency": "USD", "market": "US"}
         with patch("cio.context._fx_rate", return_value=(1400, "2026-09-18")):
             portfolio = _user_position_summary(
-                get_asset("RXRX"), quantity=100, average_cost=5,
+                mock_us_asset, quantity=100, average_cost=5,
                 average_cost_currency="KRW", price=5,
                 review_quantity=None, target_quantity=None,
                 local_portfolio={"available": True, "existing_position": {
@@ -141,7 +150,7 @@ class TestUserPosition(unittest.TestCase):
 
     def test_cli_passes_explicit_cost_currency(self):
         args = build_parser().parse_args([
-            "prepare", "RXRX", "--price", "5", "--intent", "HOLD_REVIEW",
+            "prepare", "005930", "--price", "50000", "--intent", "HOLD_REVIEW",
             "--held-quantity", "100", "--average-cost", "6000",
             "--average-cost-currency", "KRW", "--no-save", "--json",
         ])
@@ -191,9 +200,10 @@ class TestCurrencyBasis(unittest.TestCase):
             path.parent.mkdir()
             path.write_text("# 기준일 2026-09-18\nasset_id,risk_class,value_krw,quantity,pnl_krw\n"
                             "RXRX,STOCK,70000,10,10000\n", encoding="utf-8")
+            mock_rxrx = {"asset_id": "RXRX", "market": "US", "asset_type": "STOCK", "currency": "USD"}
             with patch("cio.context.KNOWLEDGE_DIR", root), patch("cio.context.ROOT", root), \
                     patch("cio.context._fx_rate", return_value=(1400, "2026-09-18")):
-                portfolio, _ = _portfolio_summary(get_asset("RXRX"), amount=None,
+                portfolio, _ = _portfolio_summary(mock_rxrx, amount=None,
                                                    amount_currency="KRW", price=5, intent="HOLD_REVIEW")
         position = portfolio["existing_position"]
         self.assertEqual(position["average_cost"], 6000)

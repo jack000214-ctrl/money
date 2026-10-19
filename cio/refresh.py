@@ -1677,7 +1677,7 @@ def inspect_task(task: RefreshTask, *, now: dt.datetime | None = None) -> Refres
         matches,
         key=lambda item: (_data_as_of(item) or "", item.stat().st_mtime),
     )
-    task.resolved_path = str(path.relative_to(ROOT))
+    task.resolved_path = path.relative_to(ROOT).as_posix()
     task.data_as_of = _data_as_of(path)
     freshness_time = None
     if task.capability == "ETF_HOLDINGS":
@@ -1771,7 +1771,7 @@ def _changed_inputs(artifact: Path, dependencies: list[Path]) -> list[str] | Non
     for dependency in dependencies:
         if dependency.resolve() not in known:
             try:
-                changed.append(str(dependency.resolve().relative_to(ROOT.resolve())))
+                changed.append(dependency.resolve().relative_to(ROOT.resolve()).as_posix())
             except ValueError:
                 changed.append(str(dependency))
     return changed
@@ -1981,7 +1981,7 @@ def run_refresh(
                 "task": task.name,
                 "status": status,
                 "returncode": completed.returncode,
-                "log": str(log_path.relative_to(ROOT)),
+                "log": log_path.relative_to(ROOT).as_posix(),
                 "artifact_state": verified.state,
             }
         )

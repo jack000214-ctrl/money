@@ -153,7 +153,7 @@ def _describe(digest: str, source: str, path: Path) -> dict[str, Any] | None:
         return None
     entry = {
         "digest": digest,
-        "locator": str(path.relative_to(ROOT)),
+        "locator": path.relative_to(ROOT).as_posix(),
         "fetched_at": document.get("fetched_at"),
         "text_chars": len(text),
         "parts": parts,
@@ -767,7 +767,7 @@ def preserved_originals(source_id: str) -> list[dict[str, Any]]:
             if directory is not None and directory.exists():
                 for path in directory.glob(f"{prefix}*.json"):
                     try:
-                        locators.add(str(path.relative_to(ROOT)))
+                        locators.add(path.relative_to(ROOT).as_posix())
                     except ValueError:
                         locators.add(str(path))
     originals = []

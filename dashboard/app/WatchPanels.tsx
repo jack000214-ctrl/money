@@ -79,6 +79,7 @@ const TYPE_LABELS: Record<string, string> = {
   POLICY_BREACH: "정책 한도",
   STALE_ASSESSMENT: "판단 재검토",
   EARNINGS_NEAR: "실적 임박",
+  MISSING_COST: "평단 미입력",
 };
 
 const CHANNEL_LABELS: Record<string, string> = {

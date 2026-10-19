@@ -205,5 +205,31 @@ class TestDedup(unittest.TestCase):
         self.assertIn("005930|CIO-x|stop_price", kept)
 
 
+class TestMissingCost(unittest.TestCase):
+    def test_held_quantity_without_cost_is_reported(self):
+        found = wr.missing_cost_conditions(HOLDINGS, {"A": 50000.0}, NOW)
+        self.assertEqual(list(found), ["REV|AVGCOST|B"])
+        event = found["REV|AVGCOST|B"]
+        self.assertEqual(event["type"], "MISSING_COST")
+        self.assertEqual(event["qty"], 100.0)
+
+    def test_all_costs_present_reports_nothing(self):
+        self.assertEqual(
+            wr.missing_cost_conditions(HOLDINGS, {"A": 1.0, "B": 2.0}, NOW), {}
+        )
+
+    def test_zero_quantity_is_not_reported(self):
+        holdings = [{"ticker": "A", "name": "에이", "qty": 0.0}]
+        self.assertEqual(wr.missing_cost_conditions(holdings, {}, NOW), {})
+
+    def test_event_text_says_what_is_missing(self):
+        from cio import watch_notify
+
+        event = wr.missing_cost_conditions(HOLDINGS, {}, NOW)["REV|AVGCOST|A"]
+        text = watch_notify.format_event(event)
+        self.assertIn("평단", text["body"])
+        self.assertIn("평단 미입력", text["title"])
+
+
 if __name__ == "__main__":
     unittest.main()

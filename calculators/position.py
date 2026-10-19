@@ -167,7 +167,7 @@ def _display(path: Path) -> str:
     표시 문자열을 만들다가 계산이 죽는 것은 어떤 경우에도 옳지 않다.
     """
     try:
-        return str(path.relative_to(ROOT))
+        return path.relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
 

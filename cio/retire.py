@@ -87,7 +87,7 @@ def survey(asset_id: str) -> dict[str, Any]:
             "assessment_id": data.get("assessment_id") or path.stem,
             "created_at": data.get("created_at"),
             "verdict": data.get("verdict"),
-            "path": str(path.relative_to(ROOT)),
+            "path": path.relative_to(ROOT).as_posix(),
             "reason": reason,
         }
         (live if state == "LIVE" else failing).append(row)
@@ -234,7 +234,7 @@ def retire(
                 "assessment_id": row["assessment_id"],
                 "created_at": row.get("created_at"),
                 "class": marker_class,
-                "to": str(destination.relative_to(ROOT)),
+                "to": destination.relative_to(ROOT).as_posix(),
             }
         )
     after = survey(asset_id)

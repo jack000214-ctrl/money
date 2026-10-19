@@ -28,6 +28,7 @@ from typing import Any
 POLICY_BREACH = "POLICY_BREACH"
 STALE_ASSESSMENT = "STALE_ASSESSMENT"
 EARNINGS_NEAR = "EARNINGS_NEAR"
+MISSING_COST = "MISSING_COST"
 PREFIX = "REV|"
 
 BASIS = "보유 종목 단위 장중 평가액 근사(ETF 관통 미반영, 평가액 = 수량 × 현재가)"
@@ -126,7 +127,7 @@ def policy_conditions(
             if cost is None:
                 not_monitored.append(
                     {"item": f"risk.max_loss_per_position_krw:{ticker}",
-                     "reason": "거래 원장 평단이 없어 평가손실을 계산할 수 없다"}
+                     "reason": "직접 입력한 평단이 없어 평가손실을 계산할 수 없다"}
                 )
                 continue
             loss = (cost - float(quotes[ticker]["price"])) * holding["qty"]
@@ -136,10 +137,35 @@ def policy_conditions(
                     "limit": {"name": "max_loss_per_position_krw", "value": max_loss, "unit": "KRW"},
                     "measured": {"value": round(loss), "unit": "KRW"},
                     "average_cost": cost,
-                    "basis": "거래 원장 이동평균 평단 대비 평가손실(수수료·세금 제외)",
+                    "basis": "직접 입력한 평단 대비 평가손실(수수료·세금 제외)",
                     "detected_at": now_iso,
                 }
     return {"conditions": conditions, "not_monitored": not_monitored, "evaluated": True}
+
+
+def missing_cost_conditions(
+    holdings: list[dict[str, Any]],
+    average_costs: dict[str, float],
+    now_iso: str,
+) -> dict[str, dict[str, Any]]:
+    """보유 수량이 0 이 아닌데 평단이 입력되지 않은 종목.
+
+    임계값이 필요 없는 사실이다. 평단이 비어 있으면 손익과 손실 한도를 계산할 수
+    없다는 것만 알린다.
+    """
+    conditions: dict[str, dict[str, Any]] = {}
+    for holding in holdings:
+        qty = _num(holding.get("qty"))
+        if not qty or qty <= 0:
+            continue
+        ticker = holding["ticker"]
+        if average_costs.get(ticker) is not None:
+            continue
+        conditions[f"{PREFIX}AVGCOST|{ticker}"] = {
+            "type": MISSING_COST, "ticker": ticker, "name": holding["name"],
+            "qty": qty, "detected_at": now_iso,
+        }
+    return conditions
 
 
 def staleness_conditions(

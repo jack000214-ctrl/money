@@ -85,7 +85,7 @@ def source_row(symbol: str, mode: str, points: list[tuple[str, float]],
     if mode == "LOCAL_SNAPSHOT" and fingerprint:
         path = PRICE_DIR / f"{safe_name(symbol)}.csv"
         try:
-            row["path"] = str(path.relative_to(ROOT))
+            row["path"] = path.relative_to(ROOT).as_posix()
         except ValueError:
             row["path"] = str(path)
         row["content_sha256"] = fingerprint

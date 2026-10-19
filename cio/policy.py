@@ -83,6 +83,14 @@ STOP_STYLES = {
     "NONE",
 }
 
+# 대시보드 '투자 정책' 탭이 저장하는 선택 항목. FIELDS 와 달리 없어도 되고
+# null 의 의미를 따지지 않는다 — 한도가 아니라 현재 자산 규모와 배분 목표다.
+OPTIONAL_NUMBER_KEYS = ("total_assets_krw", "cash_krw")
+OPTIONAL_SECTIONS: dict[str, set[str]] = {
+    "allocation": {"safe_asset_target_pct", "risk_asset_target_pct"},
+    "rebalance": {"tolerance_pct"},
+}
+
 STRUCTURAL_KEYS = {
     "schema_version",
     "policy_version",
@@ -91,6 +99,8 @@ STRUCTURAL_KEYS = {
     "default_alternatives",
     "intentionally_unset",
     "_role",
+    *OPTIONAL_NUMBER_KEYS,
+    *OPTIONAL_SECTIONS,
 }
 
 GROUPS = sorted({path.split(".", 1)[0] for path in FIELDS})
@@ -183,6 +193,26 @@ def validate_policy(data: dict[str, Any]) -> list[str]:
         value = _get(data, path)
         if value is not None and _finite(value) and value > 100:
             errors.append(f"{path}: 100을 넘을 수 없다")
+
+    for key in OPTIONAL_NUMBER_KEYS:
+        value = data.get(key)
+        if value is not None and (not _finite(value) or value < 0):
+            errors.append(f"{key}: 0 이상의 유한한 숫자 또는 null이어야 한다")
+    for key, allowed in OPTIONAL_SECTIONS.items():
+        section = data.get(key)
+        if section is None:
+            continue
+        if not isinstance(section, dict):
+            errors.append(f"{key}: 객체가 필요하다")
+            continue
+        unknown = sorted(set(section) - allowed)
+        if unknown:
+            errors.append(f"{key}: 알 수 없는 필드 {', '.join(unknown)}")
+        for leaf, value in section.items():
+            if leaf in allowed and value is not None and (
+                not _finite(value) or not 0 <= value <= 100
+            ):
+                errors.append(f"{key}.{leaf}: 0~100 사이 숫자 또는 null이어야 한다")
 
     denominator = data.get("denominator")
     if not isinstance(denominator, dict):

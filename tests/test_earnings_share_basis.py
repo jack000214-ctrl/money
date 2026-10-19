@@ -9,19 +9,19 @@ from test_assumption_analysis import spec_fixture
 class EarningsShareBasis(unittest.TestCase):
     def fixture(self):
         s=spec_fixture()
-        s['bases'][0]['evidence_refs'].append('CAPITAL:TSLA')
-        s['earnings_basis']={'shares':100,'basis':'POST_CASH_ELIGIBLE','source_id':'CAPITAL:TSLA',
-                             'net_income':{'bear':1000,'base':1500,'bull':2000},'price_unit_multiplier':1,'price_basis':'PRE_BONUS',
+        s['bases'][0]['evidence_refs'].append('CAPITAL:005930')
+        s['earnings_basis']={'shares':100,'basis':'POST_CASH_ELIGIBLE','source_id':'CAPITAL:005930',
+                             'net_income':{'bear':2000000,'base':3000000,'bull':4000000},'price_unit_multiplier':1,'price_basis':'PRE_BONUS',
                              'rationale':'이익은 모델 전망이며 공시의 예정 분모를 선택했다'}
-        c={'context':{'capital_changes':{'source_id':'CAPITAL:TSLA','share_bases':{'POST_CASH_ELIGIBLE':100},'events':[{'kind':'BONUS','share_multiplier':2}]}},'model_contract':{'earnings_basis_required':True}}
+        c={'context':{'capital_changes':{'source_id':'CAPITAL:005930','share_bases':{'POST_CASH_ELIGIBLE':100},'events':[{'kind':'BONUS','share_multiplier':2}]}},'model_contract':{'earnings_basis_required':True}}
         return s,c
 
     def test_matching_profit_division_and_declared_share_basis(self):
         s,c=self.fixture();validate_earnings_basis(s,c)
         for mutate in [lambda s:s['earnings_basis'].update(shares=80),
-                       lambda s:s['inputs']['scenarios']['base'].update(eps=16),
+                       lambda s:s['inputs']['scenarios']['base'].update(eps=32000),
                        lambda s:s['earnings_basis'].update(price_unit_multiplier=3),
-                       lambda s:s['bases'][0]['evidence_refs'].remove('CAPITAL:TSLA')]:
+                       lambda s:s['bases'][0]['evidence_refs'].remove('CAPITAL:005930')]:
             bad=deepcopy(s);mutate(bad)
             with self.assertRaises(AssumptionError):validate_earnings_basis(bad,c)
 
