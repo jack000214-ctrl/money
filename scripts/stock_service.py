@@ -326,6 +326,7 @@ def list_assets() -> list[dict[str, Any]]:
             "industry": asset.get("industry", ""),
             "analysis_lens": asset.get("analysis_lens", "QUALITY_GROWTH"),
             "qty": ticker_cfg.get("qty", 0),
+            "avg_cost_krw": ticker_cfg.get("avg_cost_krw", 0),
             "price_krw": ticker_cfg.get("priceKrw", 0),
             "price_info": price_info,
             "has_fundamentals": has_fundamentals,
@@ -361,6 +362,66 @@ def get_asset(ticker: str) -> dict[str, Any] | None:
     }
 
 
+def _update_holdings_csv(ticker: str, name: str, market: str, asset_type: str,
+                          qty: int, avg_cost_krw: int) -> None:
+    """knowledge/portfolio/holdings.csv 에서 해당 종목의 행을 추가 또는 갱신한다."""
+    holdings_path = KNOWLEDGE_DIR / "portfolio" / "holdings.csv"
+    holdings_path.parent.mkdir(parents=True, exist_ok=True)
+
+    FIELDNAMES = ["asset_id", "name", "market", "asset_type", "risk_class",
+                  "value_krw", "fx_exposure", "sector", "quantity", "avg_cost_krw", "pnl_krw", "note"]
+
+    # 기존 행 읽기
+    rows: list[dict] = []
+    if holdings_path.exists():
+        with holdings_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get("asset_id") != ticker:
+                    rows.append(row)
+
+    # CASH 행이 없으면 기본값 추가 (첫 종목 등록 시)
+    has_cash = any(r.get("risk_class") == "CASH" for r in rows)
+
+    # 이 종목 행 생성 (qty=0 이면 보유 없음이므로 행 자체를 넣지 않는다)
+    if qty > 0:
+        rows.append({
+            "asset_id": ticker,
+            "name": name,
+            "market": market,
+            "asset_type": asset_type,
+            "risk_class": asset_type,
+            "value_krw": "",
+            "fx_exposure": "USD" if market == "US" else "",
+            "sector": "",
+            "quantity": qty,
+            "avg_cost_krw": avg_cost_krw if avg_cost_krw > 0 else "",
+            "pnl_krw": "",
+            "note": "",
+        })
+
+    if not has_cash and not holdings_path.exists():
+        rows.append({
+            "asset_id": "CASH_KRW",
+            "name": "원화 예수금",
+            "market": "KR",
+            "asset_type": "CASH",
+            "risk_class": "CASH",
+            "value_krw": "0",
+            "fx_exposure": "KRW",
+            "sector": "",
+            "quantity": "",
+            "avg_cost_krw": "",
+            "pnl_krw": "",
+            "note": "",
+        })
+
+    with holdings_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def save_asset(data: dict[str, Any]) -> dict[str, Any]:
     """종목 등록 또는 수정."""
     ticker = data.get("ticker", "").strip()
@@ -380,6 +441,7 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
     benchmarks = data.get("benchmarks", ["^KS11" if market == "KR" else "^GSPC"])
     optional_collectors = data.get("optional_collectors", [])
     qty = int(data.get("qty", 0))
+    avg_cost_krw = int(data.get("avg_cost_krw", 0))
 
     # 1. assets.json 업데이트
     registry = _load_json_file(ASSETS_FILE)
@@ -432,6 +494,7 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
         "tickerLabel": f"{ticker} · {exchange}",
         "name": name,
         "qty": qty,
+        "avg_cost_krw": avg_cost_krw,
         "market": market,
         "riskClass": asset_type,
         "currency": currency,
@@ -448,6 +511,9 @@ def save_asset(data: dict[str, Any]) -> dict[str, Any]:
     }
     tickers_cfg[ticker] = new_cfg
     _save_json_file(TICKERS_FILE, tickers_cfg)
+
+    # holdings.csv 업데이트 (보유수량·평단가 반영)
+    _update_holdings_csv(ticker, name, market, asset_type, qty, avg_cost_krw)
 
     # 기본 narrative 파일 보장
     _ensure_narrative(ticker, name)

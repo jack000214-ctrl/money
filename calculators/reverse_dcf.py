@@ -489,7 +489,7 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def shared(sp):
-        sp.add_argument("--instrument", required=True, help="종목 ID (TSLA / 214450)")
+        sp.add_argument("--instrument", required=True, help="종목 ID (005930 / 000660)")
         sp.add_argument("--price", type=float, required=True, help="주당 현재가")
         # FCF·순부채는 스냅샷에 고정하고, 주식수의 기준은 별도로 확인한다.
         sp.add_argument("--fundamentals",

@@ -3444,20 +3444,29 @@ def _portfolio_summary(
         _as_float(held.get("value_krw")) or 0.0 if held else 0.0
     )
     # 보유 현황은 검토 가격 기준으로 다시 계산한다. CSV 의 value_krw 는 스냅샷
-    # 시점 값이라 오늘 비중을 그대로 쓰면 틀린다. 평단은 원가(평가액 - 평가손익)를
-    # 수량으로 나눠 복원한다 — 매도 판단에는 평단과 현재 비중이 반드시 필요하다.
+    # 시점 값이라 오늘 비중을 그대로 쓰면 틀린다.
+    # 평단 결정 우선순위:
+    #   1) avg_cost_krw 직접 입력 — 사용자가 증권사 HTS에서 확인한 평단을 직접 기입
+    #   2) pnl_krw 역산 — 평가액에서 평가손익을 빼서 취득원가를 복원
+    # 두 방법 모두 없으면 average_cost = None (모델에 평단 미제공)
     held_quantity = _as_float(held.get("quantity")) if held else None
+    held_avg_cost_krw = _as_float(held.get("avg_cost_krw")) if held else None
     held_pnl_krw = _as_float(held.get("pnl_krw")) if held else None
-    cost_basis_krw = (
-        existing - held_pnl_krw if held_pnl_krw is not None else None
-    )
-    average_cost = (
-        cost_basis_krw / held_quantity
-        if cost_basis_krw is not None
-        and held_quantity
-        and held_quantity > 0
-        else None
-    )
+    if held_avg_cost_krw is not None and held_quantity and held_quantity > 0:
+        # 직접 입력 평단 사용
+        average_cost = held_avg_cost_krw
+        cost_basis_krw = held_avg_cost_krw * held_quantity
+    else:
+        cost_basis_krw = (
+            existing - held_pnl_krw if held_pnl_krw is not None else None
+        )
+        average_cost = (
+            cost_basis_krw / held_quantity
+            if cost_basis_krw is not None
+            and held_quantity
+            and held_quantity > 0
+            else None
+        )
     # The snapshot only supplies a KRW acquisition basis. Dividing it by today's
     # FX rate would invent a historical USD average cost.
     value_at_review_krw = None
@@ -5340,6 +5349,12 @@ def build_context(
         if existing_position.get("held") and not existing_position.get("quantity"):
             position_problems.append(
                 "원장에 보유는 있는데 수량이 없다. 수량 대조를 할 수 없다"
+            )
+        if existing_position.get("held") and existing_position.get("average_cost") is None:
+            position_problems.append(
+                "원장에 평단가(avg_cost_krw)가 없다. "
+                "holdings.csv에 avg_cost_krw 컬럼을 추가하거나 "
+                "pnl_krw(평가손익)를 입력하면 투자원금·손익률을 계산할 수 있다"
             )
         if family == "EXISTING_POSITION" and not existing_position.get("held"):
             position_problems.append(

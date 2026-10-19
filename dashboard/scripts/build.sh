@@ -8,31 +8,19 @@
 # 라우팅으로 여러 종목을 동시에 보여줄지, 앱으로 갈지, 배치로 돌릴지는
 # 아직 정하지 않았다. 그 결정과 무관하게 이 구조는 유지된다.
 #
-#   ./scripts/build.sh TSLA      # TSLA 리포트 생성 후 화면에 올림
 #   ./scripts/build.sh 005930    # 삼성전자
 #   ./scripts/build.sh 005930 --no-select   # 생성만, 화면은 그대로
 
 set -e
 cd "$(dirname "$0")/.."
 if [[ -z "$1" ]]; then
-  echo "사용: ./scripts/build.sh <TSLA|005930> [--no-select]" >&2
+  echo "사용: ./scripts/build.sh <005930|000660|...> [--no-select]" >&2
   exit 1
 fi
 ASSET="$1"
 ROOT=..
 
 case "$ASSET" in
-TSLA)
-  TICKER_LABEL="TSLA · NASDAQ"; NAME="Tesla"; QTY=10
-  MARKET=US; RISK=STOCK; CURRENCY=USD
-  PRICE_KRW=433546; PRICE_AS_OF="2026-07-27T09:00:00+09:00"
-  PRICE_NOTE="2026-07-24 종가 기준"; AS_OF="2026-07-27"
-  ANALYSIS=$ROOT/knowledge/research/analysis-tsla-20260727.json
-  FUNDAMENTALS=$ROOT/knowledge/fundamentals/TSLA-2026-06-30.json
-  PRICES=$ROOT/knowledge/prices/TSLA.csv
-  CHART_CURRENT=313.03; CHART_ENTRY=282.46
-  CHART_ENTRY_LABEL="강세 시나리오 단독 기준 (매수 트리거 아님)"
-  ;;
 005930)
   TICKER_LABEL="005930 · KOSPI"; NAME="삼성전자"; QTY=13
   MARKET=KR; RISK=STOCK; CURRENCY=KRW

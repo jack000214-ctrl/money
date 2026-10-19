@@ -17,7 +17,6 @@
 
 ```bash
 ./scripts/build.sh 005930    # 삼성전자 리포트 생성 후 화면에 올림
-./scripts/build.sh TSLA      # 테슬라
 ./scripts/build.sh 005930 --no-select   # 생성만, 화면 선택은 유지
 npm run dev
 ```

@@ -10,8 +10,8 @@
 들고 있어서, 실적 발표(2.02)와 정기보고서와 내부자 신고를 구분할 수 있다.
 
 사용:
-    python -m collectors.us_events TSLA --symbol TSLA
     python -m collectors.us_events IBM --symbol IBM --benchmark ^GSPC
+    python -m collectors.us_events SCHD --symbol SCHD
 """
 from __future__ import annotations
 

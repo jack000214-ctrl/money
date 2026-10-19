@@ -34,6 +34,7 @@ interface AssetSummary {
   industry?: string;
   analysis_lens?: string;
   qty: number;
+  avg_cost_krw: number;
   price_krw: number;
   price_info: {
     exists: boolean;
@@ -679,6 +680,7 @@ export function StockControlPanel({
     industry: "일반",
     analysis_lens: "QUALITY_GROWTH",
     qty: 0,
+    avg_cost_krw: 0,
   });
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1061,6 +1063,7 @@ export function StockControlPanel({
       industry: item.market === "KR" ? "국내 주식" : "해외 주식",
       analysis_lens: "QUALITY_GROWTH",
       qty: 0,
+      avg_cost_krw: 0,
     });
     setEditingTicker(item.registered ? item.ticker : null);
     setShowForm(true);
@@ -1378,7 +1381,7 @@ export function StockControlPanel({
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
-                    placeholder="종목명 또는 티커 검색 (예: 삼성전자, 005930, 카카오, 테슬라, TSLA, AAPL, SCHD)..."
+                    placeholder="종목명 또는 티커 검색 (예: 삼성전자, 005930, SK하이닉스, 000660, SCHD, AAPL)..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     style={{
@@ -1573,16 +1576,31 @@ export function StockControlPanel({
                     style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
                   />
                 </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                    보유 수량
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.qty}
-                    onChange={(e) => setFormData({ ...formData, qty: Number(e.target.value) })}
-                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
-                  />
+                {/* 보유 수량 + 매수 평단가 — 한 줄(2-column 그리드 전체 폭) */}
+                <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                      보유 수량
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.qty}
+                      onChange={(e) => setFormData({ ...formData, qty: Number(e.target.value) })}
+                      style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                      매수 평단가 (원)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.avg_cost_krw}
+                      placeholder="미입력 시 손익 계산 불가"
+                      onChange={(e) => setFormData({ ...formData, avg_cost_krw: Number(e.target.value) })}
+                      style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1893,6 +1911,7 @@ export function StockControlPanel({
                   industry: "일반",
                   analysis_lens: "QUALITY_GROWTH",
                   qty: 0,
+                  avg_cost_krw: 0,
                 });
                 setEditingTicker(null);
                 setShowForm(true);
@@ -1922,7 +1941,7 @@ export function StockControlPanel({
               }}>
                 <input
                   type="text"
-                  placeholder="종목 검색 및 추가 (예: 삼성전자, 005930, LG전자, 테슬라, TSLA, 엔비디아, NVDA, SCHD)..."
+                  placeholder="종목 검색 및 추가 (예: 삼성전자, 005930, LG전자, 066570, SK하이닉스, 000660, SCHD)..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   style={{
@@ -2202,6 +2221,7 @@ export function StockControlPanel({
                                   industry: asset.industry || "일반",
                                   analysis_lens: asset.analysis_lens || "QUALITY_GROWTH",
                                   qty: asset.qty,
+                                  avg_cost_krw: asset.avg_cost_krw || 0,
                                 });
                                 setEditingTicker(asset.ticker);
                                 setShowForm(true);

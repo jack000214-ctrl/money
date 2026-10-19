@@ -782,8 +782,8 @@ def build(args) -> dict:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="엔진 산출물 → 화면용 판정 리포트")
-    # 기본값을 TSLA 로 두면 인자를 빠뜨렸을 때 다른 종목 리포트에 TSLA 가
-    # 섞인다. 전부 필수로 받는다.
+    # 기본값을 특정 종목으로 두면 인자를 빠뜨렸을 때 다른 종목 리포트에
+    # 그 종목 정보가 섞인다. 전부 필수로 받는다.
     p.add_argument("--ticker", required=True, help="엔진에 넘길 asset_id")
     p.add_argument("--ticker-label", required=True, help="화면 표시용 (예: 005930 · KOSPI)")
     p.add_argument("--name", required=True)

@@ -222,6 +222,48 @@
       "optional_collectors": [],
       "filing_source": "DART",
       "filing_profile": "DART_KIFRS"
+    },
+    "087010": {
+      "name": "펩트론",
+      "market": "KR",
+      "exchange": "KOSDAQ",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "087010.KQ",
+      "sector_code": "TECH_SERVICES",
+      "industry": "국내 주식",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "454910": {
+      "name": "두산로보틱스",
+      "market": "KR",
+      "exchange": "KOSPI",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "454910.KS",
+      "sector_code": "TECH_SERVICES",
+      "industry": "국내 주식",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
     }
   }
 }
