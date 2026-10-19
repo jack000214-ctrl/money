@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UnreadBadge, WatchEventsTab, WatchSettingsTab, useWatchUnread } from "./WatchPanels";
 
 const API_BASE = "http://127.0.0.1:3001";
 
@@ -557,7 +558,8 @@ export function StockControlPanel({
 }) {
   // 메인 뷰 모드: "stocks" (종목 관리/수집 메인 화면) vs "report" (리포트 상세 화면)
   const [viewMode, setViewMode] = useState<"stocks" | "report">("stocks");
-  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto" | "forecast" | "longterm" | "portfolio">("auto");
+  const [activeTab, setActiveTab] = useState<"list" | "collect" | "auto" | "forecast" | "longterm" | "portfolio" | "watch" | "settings">("auto");
+  const [watchUnread, setWatchUnread] = useWatchUnread();
 
   // 타입 정의
   interface LongtermResult {
@@ -1502,6 +1504,39 @@ export function StockControlPanel({
               >
                 6. 포트폴리오 추천 💼
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("watch")}
+                style={{
+                  background: activeTab === "watch" ? "#1e293b" : "transparent",
+                  color: activeTab === "watch" ? "#38bdf8" : "#94a3b8",
+                  border: activeTab === "watch" ? "1px solid #334155" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                7. 감시 알림
+                <UnreadBadge count={watchUnread} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("settings")}
+                style={{
+                  background: activeTab === "settings" ? "#1e293b" : "transparent",
+                  color: activeTab === "settings" ? "#38bdf8" : "#94a3b8",
+                  border: activeTab === "settings" ? "1px solid #334155" : "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                8. 설정
+              </button>
             </div>
 
             <button
@@ -2050,7 +2085,7 @@ export function StockControlPanel({
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
-                      padding: "14px",
+                      padding: "10px",
                       cursor: collectingStep ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
@@ -2070,7 +2105,7 @@ export function StockControlPanel({
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
-                      padding: "14px",
+                      padding: "10px",
                       cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
@@ -2090,7 +2125,7 @@ export function StockControlPanel({
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
-                      padding: "14px",
+                      padding: "10px",
                       cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
@@ -2110,7 +2145,7 @@ export function StockControlPanel({
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
-                      padding: "14px",
+                      padding: "10px",
                       cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
@@ -2130,7 +2165,7 @@ export function StockControlPanel({
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
-                      padding: "14px",
+                      padding: "10px",
                       cursor: (collectingStep || assets.find((a) => a.ticker === selectedCollectTicker)?.trading_halted) ? "not-allowed" : "pointer",
                       textAlign: "left",
                     }}
@@ -3179,6 +3214,12 @@ export function StockControlPanel({
               )}
             </div>
           )}
+
+          {/* 탭 7: 감시 알림 */}
+          {activeTab === "watch" && <WatchEventsTab onUnreadChange={setWatchUnread} />}
+
+          {/* 탭 8: 설정 (이메일 발송 · 배치 시간) */}
+          {activeTab === "settings" && <WatchSettingsTab />}
         </div>
       )}
 

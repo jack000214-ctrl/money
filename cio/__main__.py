@@ -401,6 +401,36 @@ def cmd_score(args) -> int:
     return 0 if not report["skipped"] else 3
 
 
+def cmd_watch(args) -> int:
+    # 감시 모듈은 시세·SMTP 의존을 끌어오므로 이 명령을 쓸 때만 불러온다.
+    from cio import watch_queue, watch_runner
+
+    # start.ps1 이 로그 파일로 돌릴 때 cp949 에서 한글이 죽지 않게 한다.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    action = args.watch_command
+    if action == "run":
+        if args.once:
+            cycle = watch_runner.run_cycle()
+            watch_runner.maybe_send_briefing()
+            print(json.dumps(cycle, ensure_ascii=False, indent=2))
+            return 2 if cycle.get("result") == watch_runner.ERROR else 0
+        print("감시 루프를 시작한다. 중단은 Ctrl+C.")
+        try:
+            watch_runner.run_loop()
+        except KeyboardInterrupt:
+            print("감시 루프를 중단했다.")
+        return 0
+    if action == "status":
+        print(json.dumps(watch_runner.status(), ensure_ascii=False, indent=2))
+        return 0
+    if action == "queue":
+        print(watch_queue.format_queue(watch_queue.list_items()))
+        return 0
+    return 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m cio",
@@ -645,6 +675,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="특정 판단 (기본: 살아 있는 것 중 최신)",
     )
     show.set_defaults(func=cmd_show)
+
+    watch = sub.add_parser(
+        "watch",
+        help="보유 종목 감시 배치 (문턱 접촉·한도·노후화·실적을 사실로만 알린다)",
+    )
+    watch.set_defaults(func=cmd_watch)
+    watch_sub = watch.add_subparsers(dest="watch_command", required=True)
+    watch_run = watch_sub.add_parser("run", help="감시 루프 실행 (--once 면 1회만)")
+    watch_run.add_argument("--once", action="store_true", help="사이클 1회와 브리핑 점검만 하고 끝낸다")
+    watch_sub.add_parser("status", help="게이트·마지막 사이클·감시 안 하는 항목")
+    watch_sub.add_parser("queue", help="재질문 대기열")
     return parser
 
 

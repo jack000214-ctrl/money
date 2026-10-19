@@ -19,6 +19,10 @@ data/
 # 소속·목표수익·최대손실 등 민감 업무정보 포함
 config/investor-policy.json
 
+# ── 감시 배치 설정 (수신자 이메일 주소·SMTP 계정 포함) ───────────────────────
+# 템플릿은 config/templates/watch.json. 비밀번호는 .env 의 SMTP_PASSWORD 에만 둔다
+config/watch.json
+
 # ── 개인 포트폴리오 (수량·체결금액·수익 내세) ───────────────────────────────
 knowledge/portfolio/holdings.csv
 knowledge/portfolio/trades/

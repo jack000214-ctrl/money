@@ -3,7 +3,8 @@
 # 1. Check & auto-update today's market prices
 # 2. Start Backend API Server (Port 3001)
 # 3. Start Dashboard Web Server (Port 3000)
-# 4. Open Default Web Browser (http://localhost:3000)
+# 4. Start Watch Loop (python -m cio watch run)
+# 5. Open Default Web Browser (http://localhost:3000)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -39,12 +40,21 @@ $env:PYTHONPATH = $RootDir
 & $PyBin -c "from scripts.stock_service import ensure_initial_report; ensure_initial_report()" 2>$null
 
 # 3. Start Backend API Server
-Write-Host "[2/3] Starting Backend REST API Server (http://127.0.0.1:3001)..." -ForegroundColor Yellow
+Write-Host "[2/4] Starting Backend REST API Server (http://127.0.0.1:3001)..." -ForegroundColor Yellow
 $ApiProcess = Start-Process -FilePath $PyBin -ArgumentList @("-m", "scripts.api_server", "--port", "3001") -WorkingDirectory $RootDir -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 800
 
-# 3. Open Browser in Full Size & Run Dashboard
-Write-Host "[3/3] Starting Web Dashboard (http://localhost:3000)..." -ForegroundColor Green
+# 3. Start Watch Loop (holdings price watch + alerts; failure must not block the dashboard)
+Write-Host "[3/4] Starting Watch Loop (python -m cio watch run)..." -ForegroundColor Yellow
+$WatchProcess = $null
+try {
+    $WatchProcess = Start-Process -FilePath $PyBin -ArgumentList @("-m", "cio", "watch", "run") -WorkingDirectory $RootDir -PassThru -NoNewWindow
+} catch {
+    Write-Host "Watch loop failed to start; dashboard will continue without it." -ForegroundColor Red
+}
+
+# 4. Open Browser in Full Size & Run Dashboard
+Write-Host "[4/4] Starting Web Dashboard (http://localhost:3000)..." -ForegroundColor Green
 Write-Host "Waiting for Dashboard server to be ready before opening browser..." -ForegroundColor Cyan
 Write-Host "Press Ctrl+C to stop servers." -ForegroundColor Gray
 Write-Host ""
@@ -92,6 +102,9 @@ try {
     npm run dev
 } finally {
     Write-Host "Shutting down servers..." -ForegroundColor Yellow
+    if ($WatchProcess -and -not $WatchProcess.HasExited) {
+        Stop-Process -Id $WatchProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     if ($ApiProcess -and -not $ApiProcess.HasExited) {
         Stop-Process -Id $ApiProcess.Id -Force -ErrorAction SilentlyContinue
     }

@@ -70,6 +70,18 @@ PER·DCF 등의 계산을 재사용하며, 관행에서 가져온 값은 모델�
 | `schemas/cio-decision.schema.json` | 모든 모델이 따라야 하는 공통 출력 계약 |
 | `cio/decision.py` | 모델 출력의 참조·산술·가격 관계를 검증하고 지문 ID 생성 |
 | `cio/memory.py` | 유효 판단, 실패 출력, 사후 평가를 분리해 보존 |
+| `cio/watch_runner.py`, `cio/watch_config.py` | 보유 종목 감시 루프(`python -m cio watch run`)와 `config/watch.json` 설정·장 시간 게이트 |
+| `collectors/quote.py` | 장중 현재가를 일봉 저장소와 분리된 `knowledge/watch/quotes.json`에 저장 |
+| `cio/watch_triggers.py`, `cio/watch_review.py` | 저장된 판단의 가격 문턱·정책 한도·판단 노후화·실적 임박을 부등호·날짜로 대조해 이벤트 생성 |
+| `cio/watch_notify.py`, `cio/watch_queue.py`, `cio/watch_briefing.py` | 사실 진술 알림(콘솔·파일·대시보드·이메일), 재질문 패킷 준비 대기열, 일일 브리핑 |
+| `cio/watch_api.py` | `/api/watch/*` 핸들러(`scripts/api_server.py`가 위임). 이벤트·설정·시험 메일 |
+
+### 감시 배치의 경계
+
+PC는 문턱 접촉만 알리며 판단하지 않는다. 알림은 "문턱 X에 현재가 Y가 닿았다. 판단
+CIO-…이 약속한 행동은 Z다" 형태의 사실 진술이고, 매수·매도 표현은 테스트로 금지돼 있다.
+문턱이 켜지면 재질문 패킷만 준비하며 새 verdict는 모델이 낸다. 감시 루프는 단독
+프로세스라 API 서버가 꺼져도 알림이 나가고, 주문 실행과 증권사 자격증명은 다루지 않는다.
 
 ## 한 번의 판단 흐름
 

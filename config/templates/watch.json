@@ -1,0 +1,33 @@
+{
+  "schema_version": "watch-config/1.0.0",
+  "_role": "보유 종목 감시 배치 설정. 주기를 60에서 10으로 바꾸려면 interval_minutes 한 줄만 고친다. review 의 null 은 '제한 없음'이 아니라 '아직 정하지 않음'이며, 정하지 않은 항목은 감시하지 않는다(프로그램이 기본값을 채우지 않는다). SMTP 비밀번호는 이 파일이 아니라 .env 의 SMTP_PASSWORD 에만 둔다.",
+  "timezone": "Asia/Seoul",
+  "window": {
+    "start": "08:00",
+    "end": "20:00"
+  },
+  "interval_minutes": 60,
+  "markets": ["KR"],
+  "channels": {
+    "console": true,
+    "file": true,
+    "dashboard": true,
+    "email": false
+  },
+  "email": {
+    "smtp_host": "",
+    "smtp_port": 587,
+    "smtp_user": "",
+    "smtp_from": "",
+    "recipients": []
+  },
+  "review": {
+    "stale_after_days": null,
+    "price_drift_pct": null,
+    "earnings_within_business_days": null
+  },
+  "briefing": {
+    "enabled": true,
+    "time": "08:30"
+  }
+}

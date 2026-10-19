@@ -49,6 +49,7 @@ from scripts.forecast_engine import (
     save_interpretation,
 )
 from calculators.portfolio_math import get_portfolio_status
+from cio import watch_api
 from cio.llm_interface import LLMInterface
 
 
@@ -81,6 +82,11 @@ class APIServerHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
         query = parse_qs(parsed.query)
+
+        watch_response = watch_api.route("GET", path, query, {})
+        if watch_response is not None:
+            self._send_json(watch_response[1], status=watch_response[0])
+            return
 
         # 포트폴리오 상태 조회
         if path == "/api/portfolio/status":
@@ -194,6 +200,11 @@ class APIServerHandler(BaseHTTPRequestHandler):
             body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
         except Exception:
             body = {}
+
+        watch_response = watch_api.route("POST", path, parse_qs(parsed.query), body)
+        if watch_response is not None:
+            self._send_json(watch_response[1], status=watch_response[0])
+            return
 
         # 투자자 정책 저장
         if path == "/api/portfolio/policy":
@@ -397,6 +408,11 @@ class APIServerHandler(BaseHTTPRequestHandler):
             body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
         except Exception:
             body = {}
+
+        watch_response = watch_api.route("PUT", path, parse_qs(parsed.query), body)
+        if watch_response is not None:
+            self._send_json(watch_response[1], status=watch_response[0])
+            return
 
         if path.startswith("/api/assets/"):
             ticker = path.split("/api/assets/")[1]

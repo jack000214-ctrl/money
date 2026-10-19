@@ -1,7 +1,15 @@
 # 보유 종목 감시 배치 설계
 
-> **상태: 설계 검토 중 — 미구현.** 이 문서의 어떤 항목도 아직 코드에 없다.
+> **상태: 구현됨.** 아래 "미결 사항"은 모두 결정됐고 결과는 해당 절에 기록했다.
 > 구현 단위로 쪼갠 작업 계획은 저장소 루트의 [`watch-batch-plan.md`](../watch-batch-plan.md)에 있다.
+>
+> 설정·장 시간 게이트(`cio/watch_config.py`), 장중 시세(`collectors/quote.py`), 트리거·한도·노후화·실적
+> 대조(`cio/watch_triggers.py`, `cio/watch_review.py`), 알림(`cio/watch_notify.py`), 재질문 큐
+> (`cio/watch_queue.py`), 일일 브리핑(`cio/watch_briefing.py`), 러너와 `watch` CLI(`cio/watch_runner.py`),
+> API(`cio/watch_api.py`), 대시보드 7·8번 탭(`dashboard/app/WatchPanels.tsx`), `start.ps1` 연동.
+>
+> 설계 이후 추가: 대시보드 "설정" 탭에서 이메일 발송(SMTP 호스트·포트·계정·발신자·수신자)과 배치 시간을
+> 편집한다. SMTP 비밀번호는 `.env`의 `SMTP_PASSWORD`에만 두고 화면·API는 "설정됨/없음"만 다룬다.
 
 ## 목적
 
@@ -170,15 +178,15 @@ README의 정책 원칙과 같다. 노후화 임계값(경과 일수, 가격 괴
 
 `knowledge/`는 `.gitignore` 대상 데이터다. 경로는 `cio/paths.py` 상수를 통해 접근한다.
 
-## 미결 사항 (구현 전에 결정해야 한다)
+## 결정 기록 (구현 전 미결 사항에 대한 답)
 
-1. **08:00~09:00, 15:30~20:00 가격 출처.** 한국 정규장은 09:00~15:30이다. 앞뒤 시간대에 현재가를 줄 출처가 있는지 **확인하지 못했다.** Yahoo의 `regularMarketPrice`는 정규장 가격만 줄 가능성이 있다. 실측 후 정한다. 못 받으면 해당 시간대는 "마지막 정규장 가격"임을 `quotes.json`에 명시하고, 그 가격으로 문턱을 대조해도 되는지 사용자가 결정한다. 이 시간대에 앞뒤 시간외 시장이 열려 있는지도 별도로 확인이 필요하다.
-2. **평일 휴장일.** 우선 주말만 건너뛴다. 평일 휴장은 시세 날짜가 갱신되지 않는 것으로 감지할지, 휴장 캘린더를 둘지 정해야 한다.
-3. **정책 한도 대조의 입력.** `get_portfolio_status()`는 `tickers.json`의 `priceKrw`를 쓴다. 장중 현재가를 반영하려면 입력을 `quotes.json` 가격으로 바꿔야 하는지, 그 경우 `cio/policy.py`의 `breach_now` 산술을 그대로 재사용할 수 있는지 확인이 필요하다.
-4. **감시 루프의 실행 형태.** `api_server.py` 안의 백그라운드 스레드로 둘지, 단독 프로세스(`python -m cio watch run`)로 둘지. 단독 프로세스는 API 서버가 꺼져도 알림이 가고, `start.ps1`에서 함께 기동할 수 있다. 스레드는 프로세스가 하나로 줄지만 API 서버 재시작에 영향을 받는다.
-5. **10분 주기 전환 시 부하.** 보유 종목 수 × 외부 호출 횟수와 사이클 소요 시간을 측정해 주기를 줄여도 사이클이 겹치지 않는지 확인한다.
-6. **재질문 패킷의 자동 생성 범위.** 모든 문턱에서 만들지, 사용자가 지정한 문턱 유형만 만들지.
-7. **휴장 중 시세 오염.** 장 시작 직후 첫 사이클에서 전일 종가를 현재가로 읽어 문턱을 잘못 대조하지 않도록, `quotes.json`에 시세 시각을 기록하고 오래된 시세는 대조에서 제외할지 정한다.
+1. **08:00~09:00, 15:30~20:00 가격 출처.** 실측 결과 Yahoo는 한국 종목에 `preMarketPrice`/`postMarketPrice`를 주지 않는다. 이 시간대는 정규장 마지막 가격을 쓰고 시세 행에 `price_kind = LAST_REGULAR`로 명시한다.
+2. **평일 휴장일.** 휴장 캘린더를 두지 않는다. 시세 시각이 오늘이 아니면 `comparable = false`로 표시해 문턱 대조에서 제외한다(주말은 게이트가 건너뛴다).
+3. **정책 한도 대조의 입력.** `quotes.json` 가격으로 보유 종목 단위 평가액을 다시 계산한다. ETF 관통(look-through)은 반영하지 않으며 이벤트에 `basis`를 표기한다.
+4. **감시 루프의 실행 형태.** 단독 프로세스 `python -m cio watch run`. API 서버는 읽기·설정만 맡고, `start.ps1`이 함께 기동·종료한다.
+5. **10분 주기 전환 시 부하.** 사이클은 잠금 파일(`runner.lock`)로 겹치지 않으며 앞 사이클이 길면 다음 사이클은 `SKIPPED/BUSY`로 건너뛴다. 보유 종목 수만큼 시세를 조회하므로, 주기를 줄일 때는 `watch status`의 마지막 사이클 결과로 소요를 확인한다.
+6. **재질문 패킷의 자동 생성 범위.** `PRICE_TRIGGER` 이벤트에만 만든다. 정책 한도·노후화·실적 이벤트는 패킷을 만들지 않는다.
+7. **휴장 중 시세 오염.** 2번과 같다. 시세 시각이 오늘이 아닌 시세는 대조하지 않는다.
 
 ## 하지 않는 것
 
@@ -190,8 +198,8 @@ README의 정책 원칙과 같다. 노후화 임계값(경과 일수, 가격 괴
 - 비어 있는 임계값을 기본값으로 채우는 것
 - 일봉 CSV·`session_state` 계약 변경
 
-## 구현 시 영향을 받는 기존 파일
+## 구현에서 영향을 받은 기존 파일
 
-- 신규: `cio/` 아래 감시 모듈, `collectors/` 아래 장중 시세 조회, `config/templates/watch.json`, `tests/test_watch_*.py`
-- 수정: `cio/__main__.py`(`watch` 하위 명령), `cio/paths.py`, `scripts/api_server.py`(GET 엔드포인트), `start.ps1`, `.env.example`, `README.md`, `docs/architecture.md`, 대시보드(`StockControlPanel.tsx` 등 배지)
+- 신규: `cio/` 아래 감시 모듈, `collectors/quote.py`, `config/templates/watch.json`, `dashboard/app/WatchPanels.tsx`, `tests/test_watch_*.py`
+- 수정: `cio/__main__.py`(`watch` 하위 명령), `cio/paths.py`, `scripts/api_server.py`(`/api/watch/*` 위임), `start.ps1`, `.env.example`, `.gitignore`(`config/watch.json`), `README.md`, `docs/architecture.md`, 대시보드(`StockControlPanel.tsx` 탭 연결)
 - 대시보드 변경 시 AGENTS.md 규칙: `StockControlPanel.tsx`는 순수 inline style이고, 판정색(`--halt`/`--hold`/`--approved`)과 시세색(`--rise`/`--fall`)을 섞지 않는다.
