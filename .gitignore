@@ -13,36 +13,36 @@ __pycache__/
 # data/ 에는 원문(raw)·로그·캐시와 잠단 초안이 있다
 # 비껴가 보유 수량·잠단에 긴 파일 커밋되지 않게(data/pharmaresearch-*)
 # 폴더를 막는다
-# knowledge/
-# data/
+knowledge/
+data/
 data/log/
 
 # ── 개인 투자 정책 ───────────────────────────────────────────────────────────
 # 소속·목표수익·최대손실 등 민감 업무정보 포함
-# config/investor-policy.json
+ config/investor-policy.json
 
 # ── 감시 배치 설정 (수신자 이메일 주소·SMTP 계정 포함) ───────────────────────
 # 템플릿은 config/templates/watch.json. 비밀번호는 .env 의 SMTP_PASSWORD 에만 둔다
-# config/watch.json
+ config/watch.json
 
 # ── 개인 포트폴리오 (수량·체결금액·수익 내세) ───────────────────────────────
-# knowledge/portfolio/holdings.csv
-# knowledge/portfolio/trades/
-# knowledge/portfolio/decisions/
-# knowledge/portfolio/ips.json
+ knowledge/portfolio/holdings.csv
+ knowledge/portfolio/trades/
+ knowledge/portfolio/decisions/
+ knowledge/portfolio/ips.json
 
 # ── CIO 세션 컨텍스트 및 판단 기록 ──────────────────────────────────────────
 # 잠단 시점의 정책 지문·포트폴리오 스냅샷 포함
-# knowledge/contexts/
-# knowledge/assumptions/
-# knowledge/assessments/
-# knowledge/evaluations/
-# knowledge/evidence/
-# knowledge/quarantine/
-# knowledge/retired/
+ knowledge/contexts/
+ knowledge/assumptions/
+ knowledge/assessments/
+ knowledge/evaluations/
+ knowledge/evidence/
+ knowledge/quarantine/
+ knowledge/retired/
 
 # ── 자산보고서 생성물 (총자산·평가액·수익 포함) ─────────────────────────────
-# dashboard/data/
+ dashboard/data/
 
 # ── 증권사 거래 명세 (계좌번호·성명·체결내역) ──────────────────────────────
 거래내역서.pdf
