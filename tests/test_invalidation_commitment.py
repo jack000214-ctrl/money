@@ -314,6 +314,7 @@ class TestPaceIsMeasured(unittest.TestCase):
 
     def test_a_fast_gain_is_visible_even_when_no_threshold_is_touched(self):
         pace = self._pace()
+        assert pace is not None
         self.assertEqual(pace["elapsed_days"], 4)
         self.assertAlmostEqual(pace["return_since_decision_pct"], 12.2426, places=3)
         # 24개월치 승리 문턱의 절반 가까이를 나흘에 받았다.
@@ -323,12 +324,14 @@ class TestPaceIsMeasured(unittest.TestCase):
     def test_it_is_measured_against_the_users_own_objective(self):
         """앵커는 모델 자기 출력이 아니라 사용자가 정한 연 목표수익률이다."""
         pace = self._pace()
+        assert pace is not None
         self.assertAlmostEqual(pace["objective_annual_return_pct"], 12)
         self.assertGreater(pace["realized_over_objective_x"], 50)
         self.assertEqual(pace["objective_comparison_state"], "COMPARABLE")
 
     def test_usd_stock_is_not_compared_with_krw_policy_objective(self):
         pace = self._pace(return_currency="USD", objective_currency="KRW")
+        assert pace is not None
         self.assertGreater(pace["return_since_decision_pct"], 0)
         self.assertGreater(pace["objective_return_to_date_pct"], 0)
         self.assertIsNone(pace["realized_over_objective_x"])
@@ -337,22 +340,25 @@ class TestPaceIsMeasured(unittest.TestCase):
 
     def test_usd_stock_can_be_compared_with_usd_policy_objective(self):
         pace = self._pace(return_currency="USD", objective_currency="USD")
+        assert pace is not None
         self.assertEqual(pace["objective_comparison_state"], "COMPARABLE")
         self.assertGreater(pace["realized_over_objective_x"], 50)
 
     def test_annualising_is_not_used(self):
         """이틀 +10% 를 연율화하면 천문학적 숫자가 나와 아무 의미가 없다."""
-        self.assertNotIn("annualized_return_pct", self._pace())
+        self.assertNotIn("annualized_return_pct", self._pace())  # pyright: ignore[reportArgumentType]
 
     def test_same_day_question_has_no_pace(self):
         """경과 0일이면 속도라는 개념이 성립하지 않는다."""
         pace = self._pace(close_date="2026-08-01")
+        assert pace is not None
         self.assertEqual(pace["elapsed_days"], 0)
         self.assertIsNone(pace["pace_progress_over_elapsed_x"])
         self.assertIsNone(pace["realized_over_objective_x"])
 
     def test_a_loss_reads_as_behind_schedule(self):
         pace = self._pace(latest_close=39000.0)
+        assert pace is not None
         self.assertLess(pace["return_since_decision_pct"], 0)
         self.assertLess(pace["pace_progress_over_elapsed_x"], 0)
 
@@ -364,6 +370,7 @@ class TestPaceIsMeasured(unittest.TestCase):
         """
         pace = self._pace(latest_close=24525.0, split_factor=0.5)
         # 43,700 은 분할 후 21,850 이고 종가는 24,525 다 → +12.24%.
+        assert pace is not None
         self.assertAlmostEqual(
             pace["return_since_decision_pct"], 12.2426, places=3
         )
@@ -371,8 +378,8 @@ class TestPaceIsMeasured(unittest.TestCase):
         self.assertEqual(pace["split_adjustment"]["compared_price"], 21850.0)
 
     def test_no_split_adds_nothing(self):
-        self.assertNotIn("split_adjustment", self._pace())
-        self.assertNotIn("split_adjustment", self._pace(split_factor=1.0))
+        self.assertNotIn("split_adjustment", self._pace())  # pyright: ignore[reportArgumentType]
+        self.assertNotIn("split_adjustment", self._pace(split_factor=1.0))  # pyright: ignore[reportArgumentType]
 
     def test_missing_inputs_yield_nothing_rather_than_a_guess(self):
         self.assertIsNone(self._pace(asked_price=None))
@@ -383,8 +390,8 @@ class TestPaceIsMeasured(unittest.TestCase):
     def test_it_does_not_tell_anyone_to_sell(self):
         """PC 는 몇 배부터 무엇을 하라는 문턱을 갖고 있지 않다."""
         pace = self._pace()
-        self.assertIn("_not_a_judgment", pace)
-        for key in pace:
+        self.assertIn("_not_a_judgment", pace)  # pyright: ignore[reportArgumentType]
+        for key in pace:  # pyright: ignore[reportOptionalIterable]
             self.assertNotIn("should", key)
             self.assertNotIn("action", key)
 

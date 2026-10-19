@@ -30,6 +30,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -64,7 +65,7 @@ KO_DATE = re.compile(r"(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일")
 PROVISIONAL_MARK = "공시예정일은 당사의 사정에 따라 변경될 수 있습니다"
 
 
-def fail(msg: str) -> None:
+def fail(msg: str) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -155,7 +156,7 @@ def _median(values: list[float]) -> float | None:
     return (ordered[middle - 1] + ordered[middle]) / 2
 
 
-def periodic_lag(filings: list[dict]) -> dict[str, object]:
+def periodic_lag(filings: list[dict]) -> dict[str, Any]:
     """과거 (잠정실적 → 그 다음 정기보고서) 간격을 부류별로 관측한다.
 
     정기보고서 제출일은 공시되지 않는다. 유일하게 쓸 수 있는 규칙성은 이

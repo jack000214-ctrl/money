@@ -25,7 +25,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from calculators.contracts import ContractError, load_json, load_raw_snapshot
 from cio.paths import KNOWLEDGE_DIR, ROOT
@@ -56,7 +56,7 @@ CELL_RE = re.compile(r"<T[DHE]\b.*?</T[DHE]>", re.IGNORECASE | re.DOTALL)
 TAG_RE = re.compile(r"<[^>]+>")
 
 
-def fail(message: str):
+def fail(message: str) -> NoReturn:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(2)
 

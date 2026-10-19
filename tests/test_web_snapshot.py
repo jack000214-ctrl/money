@@ -26,13 +26,13 @@ class TestShellPageWarning(unittest.TestCase):
             {"body": DART_VIEWER, "final_url": "https://dart.fss.or.kr/dsaf001/main.do"}
         )
         self.assertIsNotNone(warning)
-        self.assertIn("인용하면 안 된다", warning)
+        self.assertIn("인용하면 안 된다", warning)  # pyright: ignore[reportArgumentType]
 
     def test_dart_shell_points_at_the_real_path(self):
         warning = shell_page_warning(
             {"body": DART_VIEWER, "final_url": "https://dart.fss.or.kr/dsaf001/main.do"}
         )
-        self.assertIn("collectors.dart document", warning)
+        self.assertIn("collectors.dart document", warning)  # pyright: ignore[reportArgumentType]
 
     def test_article_with_an_ad_iframe_is_still_real_content(self):
         # 광고 iframe 하나 때문에 본문이 있는 기사를 껍데기로 판정하면

@@ -274,8 +274,9 @@ def summarize(data: dict[str, Any], *, top: int = PACKET_HOLDINGS) -> dict[str, 
             "margin": figures.get("profit_margin_pct"),
         })
     price_dates = sorted({
-        (item.get("price") or {}).get("as_of")
-        for item in holdings if (item.get("price") or {}).get("as_of")
+        as_of
+        for item in holdings
+        if (as_of := (item.get("price") or {}).get("as_of"))
     })
     return {
         "collected_at": data.get("collected_at"),

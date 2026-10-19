@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import type { DecisionReport, Signal } from "../lib/decision-report";
 
 type FinancialTabsProps = Pick<

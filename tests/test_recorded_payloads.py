@@ -179,7 +179,8 @@ class TestQuarterlySeriesFromRecordedData(RecordedCase):
                     f"{row['label'][:2]}{int(row['label'][2:]) - 1}")
                 with self.subTest(f"{corp} {row['label']}"):
                     self.assertIsNotNone(prior)
-                    self.assertGreater(prior[0], 0)
+                    assert prior is not None
+                    self.assertGreater(prior[0], 0)  # pyright: ignore[reportArgumentType, reportCallIssue]
 
 
 class TestIncomeIdentityOnStoredSnapshots(unittest.TestCase):

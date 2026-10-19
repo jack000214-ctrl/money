@@ -160,5 +160,23 @@
     "chartCurrent": 3530.0,
     "chartEntry": 90.0,
     "chartEntryLabel": "강세 시나리오 기준"
+  },
+  "028300": {
+    "tickerLabel": "028300 · KOSDAQ",
+    "name": "HLB",
+    "qty": 0,
+    "market": "KR",
+    "riskClass": "STOCK",
+    "currency": "KRW",
+    "priceKrw": 0,
+    "priceAsOf": "2026-10-19T14:00:12.169766+09:00",
+    "priceNote": "2026-10-19 기준",
+    "asOf": "2026-10-19",
+    "fundamentals": "knowledge/fundamentals/028300-2026-06-30.json",
+    "calculation": "knowledge/calculations/CALC-3097e1fb22cc6958b413.json",
+    "prices": "knowledge/prices/028300_KQ.csv",
+    "chartCurrent": 100.0,
+    "chartEntry": 90.0,
+    "chartEntryLabel": "강세 시나리오 기준"
   }
 }

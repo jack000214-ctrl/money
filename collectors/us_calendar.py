@@ -54,7 +54,7 @@ def _quarter_end_after(period_end: dt.date) -> dt.date:
     return dt.date(year, month, last)
 
 
-def filing_lag(filings: list[dict]) -> dict[str, object]:
+def filing_lag(filings: list[dict]) -> dict[str, dict | int | list | str | None]:
     """과거 (결산기말 → 제출) 간격을 부류별로 관측한다."""
     observations = []
     seen = set()
@@ -115,9 +115,10 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
     lag = filing_lag(filings)
 
     reported = [
-        _date(row.get("report_date"))
-        for row in filings
-        if row.get("form") in PERIODIC_CLASS and _date(row.get("report_date"))
+        d for row in filings
+        if row.get("form") in PERIODIC_CLASS
+        for d in (_date(row.get("report_date")),)
+        if d is not None
     ]
     latest_reported = max(reported) if reported else None
     expected_date = None
@@ -127,8 +128,10 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
     missing_reason = None
     if latest_reported:
         annual_ends = sorted(
-            _date(row["report_date"]) for row in filings
-            if row.get("form") == "10-K" and _date(row.get("report_date"))
+            d for row in filings
+            if row.get("form") == "10-K"
+            for d in (_date(row.get("report_date")),)
+            if d is not None
         )
         month_end = (latest_reported + dt.timedelta(days=1)).month != latest_reported.month
         annual_month_end = bool(annual_ends) and (
@@ -143,7 +146,8 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
             report_class = (
                 "ANNUAL" if next_period_end.month == annual_ends[-1].month else "INTERIM"
             )
-            median_lag = (lag["median_lag_days_by_class"] or {}).get(report_class)
+            median_lag_by_class = lag["median_lag_days_by_class"]
+            median_lag = (median_lag_by_class or {}).get(report_class) if isinstance(median_lag_by_class, dict) else None
             if median_lag is not None:
                 expected_date = (
                     next_period_end + dt.timedelta(days=round(float(median_lag)))
@@ -176,8 +180,9 @@ def build(ticker: str, today: dt.date | None = None) -> dict:
                     f"과거 {report_class} 보고서의 (결산기말 → 제출) 간격 "
                     f"중앙값 {median_lag}일"
                 ),
-                "sample_size": (lag["sample_size_by_class"] or {}).get(
-                    report_class
+                "sample_size": (
+                    lag["sample_size_by_class"].get(report_class)  # type: ignore[union-attr]
+                    if isinstance(lag["sample_size_by_class"], dict) else None
                 ),
                 "business_days_remaining": business_days_until(
                     expected_date, today

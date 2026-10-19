@@ -42,6 +42,7 @@ def plan(asset, root=None):
 class TestAssetBackfillTask(unittest.TestCase):
     def test_a_korean_stock_fills_its_own_series_from_its_own_market(self):
         task = _asset_backfill_task(STOCK)
+        assert task is not None and task.command is not None
         self.assertEqual(task.name, "price_backfill:214450.KQ")
         self.assertEqual(task.artifact, "knowledge/prices/_backfill/214450_KQ.json")
         self.assertEqual(task.command[-4:], ["backfill-stock", "214450", "--market", "KOSDAQ"])
@@ -49,10 +50,14 @@ class TestAssetBackfillTask(unittest.TestCase):
     def test_an_etf_uses_the_etf_service_even_when_listed_on_kospi(self):
         etf = {**STOCK, "asset_id": "0053L0", "asset_type": "ETF",
                "exchange": "KOSPI", "price_symbol": "0053L0.KS"}
-        self.assertEqual(_asset_backfill_task(etf).command[-2:], ["--market", "ETF"])
+        task = _asset_backfill_task(etf)
+        assert task is not None and task.command is not None
+        self.assertEqual(task.command[-2:], ["--market", "ETF"])
 
     def test_it_never_blocks_a_judgment(self):
-        self.assertFalse(_asset_backfill_task(STOCK).required)
+        task = _asset_backfill_task(STOCK)
+        assert task is not None
+        self.assertFalse(task.required)
 
     def test_a_us_asset_has_no_exchange_backfill(self):
         self.assertIsNone(_asset_backfill_task(US_STOCK))

@@ -98,10 +98,18 @@ def _number(text, attrs):
     elif fmt == "numwordsen":
         # SEC's English-number transform is broader; unsupported phrases stay
         # unresolved. These exact words cover reported segment counts.
-        words = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split()
-        if raw.lower() not in words:
+        words = {
+            w: Decimal(i)
+            for i, w in enumerate(
+                "zero one two three four five six seven eight nine ten "
+                "eleven twelve thirteen fourteen fifteen sixteen seventeen "
+                "eighteen nineteen twenty".split()
+            )
+        }
+        word = raw.lower()
+        if word not in words:
             raise ValueError("unsupported English numeric phrase")
-        value = Decimal(words.index(raw.lower()))
+        value = words[word]
     else:
         if fmt in {"num-comma-decimal", "numcommadecimal"}:
             raw = raw.replace(".", "").replace(",", ".")

@@ -54,15 +54,15 @@ class TestBridgeBinding(unittest.TestCase):
     decision = persistence.TestAssumptionPersistence.decision
     def test_bridge_is_bound_to_decision_and_cannot_be_bypassed(self):
         spec = bridge_spec()
-        report = create_analysis(spec, self.context)
+        report = create_analysis(spec, self.context)  # pyright: ignore[reportAttributeAccessIssue]
         decision = self.decision(report)
         decision['method']['valuation_family'] = 'EQUITY_BRIDGE'
-        self.assertEqual(validate_review(decision, self.context), [])
+        self.assertEqual(validate_review(decision, self.context), [])  # pyright: ignore[reportAttributeAccessIssue]
         decision['method']['valuation_family'] = 'DCF'
-        self.assertTrue(validate_review(decision, self.context))
+        self.assertTrue(validate_review(decision, self.context))  # pyright: ignore[reportAttributeAccessIssue]
         decision['method']['valuation_family'] = 'EQUITY_BRIDGE'
         decision['assumption_review'].update(status='UNSUPPORTED_METHOD', analysis_id=None, responses=[])
-        self.assertTrue(validate_review(decision, self.context))
+        self.assertTrue(validate_review(decision, self.context))  # pyright: ignore[reportAttributeAccessIssue]
 
 
 if __name__ == '__main__':

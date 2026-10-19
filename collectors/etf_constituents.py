@@ -372,9 +372,9 @@ def collect(asset_id: str, *, with_valuation: bool = True,
 
     quote = asset["currency"]
     currencies = sorted({
-        (item["price"] or {}).get("currency")
+        code
         for item in holdings
-        if (item["price"] or {}).get("currency")
+        if (code := (item["price"] or {}).get("currency"))
     })
     per_usd: dict[str, list[tuple[str, float]] | None] = {"USD": None}
     for currency in sorted({quote, *currencies}):

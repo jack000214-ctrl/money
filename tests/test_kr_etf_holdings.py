@@ -270,7 +270,7 @@ class TestHoldingsFreshness(unittest.TestCase):
             "# retrieved_at 2026-10-09T00:00:00+00:00 / source MIRAE_TIGER\n"
             + self.HEADER + "0053L0,2432.HK,Dobot,10,HK,,2026-09-01\n")
         error = refresh._artifact_contract_error(self.task(), path)
-        self.assertIn("뒤처졌다", error)
+        self.assertIn("뒤처졌다", error)  # pyright: ignore[reportArgumentType]
 
     def test_a_long_holiday_is_not_mistaken_for_a_stale_issuer(self):
         path = self.write(

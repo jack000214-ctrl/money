@@ -173,6 +173,7 @@ class TestReportingLag(unittest.TestCase):
                 ]
             ),
         )
+        assert lag is not None
         self.assertEqual(len(lag["disclosures_after_local_period"]), 1)
         self.assertFalse(lag["newer_periodic_report_filed"])
 
@@ -190,6 +191,7 @@ class TestReportingLag(unittest.TestCase):
                 ]
             ),
         )
+        assert lag is not None
         self.assertTrue(lag["newer_periodic_report_filed"])
 
     def test_older_disclosures_are_not_counted(self):
@@ -208,6 +210,7 @@ class TestReportingLag(unittest.TestCase):
                 ],
             ),
         )
+        assert lag is not None
         self.assertFalse(lag["newer_periodic_report_filed"])
         self.assertEqual(lag["disclosures_after_local_period"], [])
 
@@ -230,6 +233,7 @@ class TestReportingLag(unittest.TestCase):
                 ]
             ),
         )
+        assert lag is not None
         self.assertEqual(lag["disclosures_after_local_period"], [])
 
     def test_no_filings_means_no_claim(self):

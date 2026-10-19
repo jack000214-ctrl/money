@@ -45,9 +45,9 @@ def run(argv):
 class TestParserWiring(unittest.TestCase):
     def test_every_subcommand_reaches_a_handler(self):
         """set_defaults(func=...) 를 빠뜨리면 그 명령은 호출 즉시 죽는다."""
-        subcommands = cli.build_parser()._subparsers._group_actions[0].choices
+        subcommands = cli.build_parser()._subparsers._group_actions[0].choices  # pyright: ignore[reportOptionalMemberAccess]
         self.assertTrue(subcommands)
-        for name, subparser in subcommands.items():
+        for name, subparser in subcommands.items():  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             with self.subTest(name):
                 self.assertTrue(
                     callable(subparser.get_default("func")),
@@ -69,7 +69,7 @@ class TestParserWiring(unittest.TestCase):
         """INTENTS 에 갈래를 더하고 CLI 를 안 고치면 그 갈래를 물을 수 없다."""
         parser = cli.build_parser()
         action = next(
-            a for a in parser._subparsers._group_actions[0]
+            a for a in parser._subparsers._group_actions[0]  # pyright: ignore[reportIndexIssue, reportOptionalMemberAccess, reportOptionalSubscript]
             .choices["prepare"]._actions
             if a.dest == "intent"
         )

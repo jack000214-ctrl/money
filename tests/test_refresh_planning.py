@@ -91,7 +91,7 @@ class TestRunRefreshOutcomes(unittest.TestCase):
                     artifact="knowledge/prices/000660.csv",
                     max_age_hours=24, command=["true"], required=True)
         base.update(overrides)
-        return RefreshTask(**base)
+        return RefreshTask(**base)  # pyright: ignore[reportArgumentType]
 
     def execute(self, planned, *, states, returncode=0, force=False):
         """`inspect_task` 가 돌려줄 상태를 순서대로 준다.
@@ -201,35 +201,35 @@ class TestDartFilingIndexContract(unittest.TestCase):
 
     def test_a_malformed_corp_code_is_refused(self):
         """DART 고유번호는 8자리다. 종목코드와 헷갈리면 남의 공시를 받는다."""
-        self.assertIn("고유번호", self.check(corp_code="000660"))
-        self.assertIn("고유번호", self.check(corp_code=None))
+        self.assertIn("고유번호", self.check(corp_code="000660"))  # pyright: ignore[reportArgumentType]
+        self.assertIn("고유번호", self.check(corp_code=None))  # pyright: ignore[reportArgumentType]
 
     def test_a_missing_since_date_is_refused(self):
         """조회 시작일이 없으면 색인이 무엇을 덮는지 알 수 없다."""
-        self.assertIn("조회 시작일", self.check(since=None))
-        self.assertIn("조회 시작일", self.check(since="2025-01-01"))
+        self.assertIn("조회 시작일", self.check(since=None))  # pyright: ignore[reportArgumentType]
+        self.assertIn("조회 시작일", self.check(since="2025-01-01"))  # pyright: ignore[reportArgumentType]
 
     def test_a_different_filing_type_filter_is_refused(self):
         """필터가 다르면 같은 이름의 색인이 다른 범위를 덮는다."""
         self.assertIn("공시유형 필터",
-                      self.check(pblntf_types=["A"]))
+                      self.check(pblntf_types=["A"]))  # pyright: ignore[reportArgumentType]
 
     def test_a_raw_source_count_mismatch_is_refused(self):
         self.assertIn("원문 목록이 공시유형 수와 다르다",
-                      self.check(raw_sources=[{"pblntf_ty": "A"}]))
+                      self.check(raw_sources=[{"pblntf_ty": "A"}]))  # pyright: ignore[reportArgumentType]
 
     def test_a_raw_source_order_mismatch_is_refused(self):
         """순서가 다르면 어느 원문이 어느 유형인지 대응이 깨진다."""
         reversed_sources = [{"pblntf_ty": code, "empty": True}
                             for code in reversed(self.TYPES)]
         self.assertIn("공시유형 순서와 다르다",
-                      self.check(raw_sources=reversed_sources))
+                      self.check(raw_sources=reversed_sources))  # pyright: ignore[reportArgumentType]
 
     def test_a_malformed_digest_is_refused(self):
         sources = [{"pblntf_ty": code, "empty": True} for code in self.TYPES]
         sources[0] = {"pblntf_ty": self.TYPES[0],
                       "raw_payload_sha256": "짧은지문"}
-        self.assertIn("원문 지문 형식", self.check(raw_sources=sources))
+        self.assertIn("원문 지문 형식", self.check(raw_sources=sources))  # pyright: ignore[reportArgumentType]
 
     def test_a_missing_raw_file_is_refused(self):
         """지문만 있고 원문이 없으면 색인을 재현할 수 없다."""
@@ -239,15 +239,15 @@ class TestDartFilingIndexContract(unittest.TestCase):
                       "raw_locator": "data/raw/dart/objects/" + "0" * 64
                                      + ".json"}
         self.assertIn("원문 위치가 유효하지 않다",
-                      self.check(raw_sources=sources))
+                      self.check(raw_sources=sources))  # pyright: ignore[reportArgumentType]
 
     def test_an_empty_filing_list_is_refused(self):
-        self.assertIn("제출 문서 수가 유효하지 않다", self.check(filings=[]))
+        self.assertIn("제출 문서 수가 유효하지 않다", self.check(filings=[]))  # pyright: ignore[reportArgumentType]
 
     def test_an_oversized_filing_list_is_refused(self):
         """상한을 넘은 색인은 수집 계약과 다른 방법으로 만들어진 것이다."""
         self.assertIn("제출 문서 수가 유효하지 않다",
-                      self.check(filings=[{"form": "OTHER"}] * 200))
+                      self.check(filings=[{"form": "OTHER"}] * 200))  # pyright: ignore[reportArgumentType]
 
     def test_an_index_that_matches_the_empty_sources_is_checked_further(self):
         """원문이 전부 비었으면 색인도 비어 있어야 한다."""
@@ -315,7 +315,7 @@ class TestDatedArtifactsAreChosenByOneRule(unittest.TestCase):
         with patch.object(refresh, "ROOT", self.root):
             inspected = inspect_task(task)
         self.assertEqual(inspected.state, "STALE")
-        self.assertIn("holdings-<기준일>.csv", inspected.reason)
+        self.assertIn("holdings-<기준일>.csv", inspected.reason)  # pyright: ignore[reportArgumentType]
 
 
 if __name__ == "__main__":

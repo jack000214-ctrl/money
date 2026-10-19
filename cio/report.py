@@ -382,8 +382,8 @@ def format_assessment(
             if committed or taken:
                 mark = " ※ 약속 파기" if committed and taken and committed != taken else ""
                 lines.append(
-                    f"     약속 {INVALIDATION_ACTION_LABELS.get(committed, committed or '—')}"
-                    f" → 이번 {INVALIDATION_ACTION_LABELS.get(taken, taken or '—')}{mark}"
+                    f"     약속 {INVALIDATION_ACTION_LABELS.get(committed or '', committed or '—')}"
+                    f" → 이번 {INVALIDATION_ACTION_LABELS.get(taken or '', taken or '—')}{mark}"
                 )
             if row.get("override_reason"):
                 lines.extend(_wrap(f"파기 사유: {row['override_reason']}", indent="     "))

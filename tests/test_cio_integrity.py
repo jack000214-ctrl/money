@@ -355,6 +355,7 @@ class TestRoutingContracts(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        assert summary is not None
         self.assertTrue(summary.get("contract_errors"))
 
     def test_debt_composition_reaches_the_model(self):
@@ -378,6 +379,7 @@ class TestRoutingContracts(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        assert summary is not None
         self.assertEqual(summary["debt_by_category"]["LEASE"], 2721.0)
         self.assertIn("LEASE", summary["debt_by_category"]["_role"])
 
@@ -395,6 +397,7 @@ class TestRoutingContracts(unittest.TestCase):
             path.write_text(json.dumps(data), encoding="utf-8")
             with patch("cio.refresh.ROOT", Path(tmp)):
                 error = _artifact_contract_error(task, path)
+        assert error is not None
         self.assertIn("내용 주소형 원문", error)
 
     def test_each_registered_industry_lens_has_specific_research(self):
@@ -432,6 +435,7 @@ class TestRoutingContracts(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        assert summary is not None
         flag = summary["short_term_investments_basis"]
         self.assertEqual(flag["basis"], "STALE_EXCLUDED")
         self.assertIn("과대계상", flag["_warning"])
@@ -451,6 +455,7 @@ class TestRoutingContracts(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _latest_fundamentals(get_asset("TSLA"))
+        assert summary is not None
         self.assertNotIn("short_term_investments_basis", summary)
 
     def test_us_packet_declares_what_it_does_not_have(self):
@@ -710,9 +715,9 @@ class TestDerivedPacketFreshness(unittest.TestCase):
         error = self.check(
             self.packet("000660", "2025-09-30", "2025-12-31"), ["2026-03-31"]
         )
-        self.assertIn("재료보다 낡았다", error)
-        self.assertIn("2025-12-31", error)
-        self.assertIn("2026-03-31", error)
+        self.assertIn("재료보다 낡았다", error)  # pyright: ignore[reportArgumentType]
+        self.assertIn("2025-12-31", error)  # pyright: ignore[reportArgumentType]
+        self.assertIn("2026-03-31", error)  # pyright: ignore[reportArgumentType]
 
     def test_a_packet_level_with_its_source_passes(self):
         self.assertIsNone(self.check(
@@ -744,12 +749,12 @@ class TestDerivedPacketFreshness(unittest.TestCase):
 
     def test_an_empty_series_is_a_defect_not_a_pass(self):
         self.assertIn("TTM 시계열이 없다",
-                      self.check({"instrument_id": "000660",
+                      self.check({"instrument_id": "000660",  # pyright: ignore[reportArgumentType]
                                   "ttm_series": []}, ["2026-03-31"]))
 
     def test_a_packet_for_the_wrong_asset_is_refused(self):
         self.assertIn("instrument_id",
-                      self.check(self.packet("005930", "2026-03-31"),
+                      self.check(self.packet("005930", "2026-03-31"),  # pyright: ignore[reportArgumentType]
                                  ["2026-03-31"]))
 
     def test_the_series_order_is_not_trusted(self):
@@ -791,6 +796,8 @@ class TestMemoryDigest(unittest.TestCase):
                 )
                 latest_assessment = assessment
                 latest_context = context
+            assert latest_assessment is not None
+            assert latest_context is not None
             evaluation = {
                 "schema_version": "cio-evaluation/1.0.0",
                 "evaluation_id": None,

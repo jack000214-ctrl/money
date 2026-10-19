@@ -74,15 +74,18 @@ class TestFxBlock(unittest.TestCase):
 
     def test_the_quarter_after_the_earnings_table_is_marked_unreported(self):
         block, source = self._block()
+        assert block is not None
         flags = {row["end"]: row["reported"] for row in block["quarters"]}
         self.assertEqual(flags, {
             "2026-03-31": True, "2026-06-30": True, "2026-09-30": False})
+        assert block["latest_vs_last_reported_quarter"] is not None
         self.assertEqual(block["latest_vs_last_reported_quarter"]["end"], "2026-06-30")
         self.assertEqual(block["as_of"], "2026-10-13")
         self.assertEqual(source["source_id"], "PRICE:KRW=X")
 
     def test_the_block_says_what_it_does_not_contain(self):
         block, _ = self._block()
+        assert block is not None
         self.assertIn("환위험", block["_role"])
         self.assertIn("reported:false", block["_role"])
 
@@ -99,6 +102,8 @@ class TestFxBlock(unittest.TestCase):
 
     def test_export_share_travels_with_the_table(self):
         block, _ = self._block()
+        assert block is not None
+        assert block["export_share"] is not None
         self.assertEqual(block["export_share"]["period"], "2026Q2")
         self.assertEqual(block["export_share"]["pct"], round(750 / 1550 * 100, 1))
         self.assertEqual(block["export_share"]["year_ago_pct"], round(430 / 1140 * 100, 1))
@@ -126,6 +131,7 @@ class TestExportShare(unittest.TestCase):
     def test_a_missing_year_ago_quarter_leaves_that_field_empty(self):
         latest_only = {**PRODUCT_SALES, "quarters": PRODUCT_SALES["quarters"][-1:]}
         share = _export_share(latest_only)
+        assert share is not None
         self.assertEqual(share["pct"], round(750 / 1550 * 100, 1))
         self.assertIsNone(share["year_ago_pct"])
 

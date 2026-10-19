@@ -22,9 +22,9 @@ def comparison(spec, context):
             raise AssumptionError("POLICY_TARGET의 값은 packet에서만 읽는다")
         policy = (context.get("context") or {}).get("investor_policy") or {}
         annual = (policy.get("objective") or {}).get("target_annual_return_pct")
-        number(annual, "packet의 연 목표수익률", low=-99.999)
+        annual = number(annual, "packet의 연 목표수익률", low=-99.999)
         months = spec["inputs"]["horizon_months"]
-        number(months, "horizon_months", low=1, high=120)
+        months = number(months, "horizon_months", low=1, high=120)
         try:
             total = ((1 + annual / 100) ** (months / 12) - 1) * 100
         except OverflowError as exc:

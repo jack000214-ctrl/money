@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from calculators.contracts import load_json
 from cio.paths import ROOT
@@ -104,7 +104,7 @@ def _get(data: dict[str, Any], path: str) -> Any:
     return section.get(leaf)
 
 
-def _finite(value: Any) -> bool:
+def _finite(value: Any) -> TypeGuard[int | float]:
     return (
         not isinstance(value, bool)
         and isinstance(value, (int, float))
@@ -408,7 +408,7 @@ def policy_for_context(
         exposure_after = None
     elif not position.get("held"):
         exposure_after = deployed
-    elif _finite(exposure_now):
+    elif _finite(exposure_now) and _finite(deployed):
         exposure_after = exposure_now + deployed
     else:
         # 보유 중인데 검토 가격 기준 평가액을 못 냈다(환율 누락 등). 0으로

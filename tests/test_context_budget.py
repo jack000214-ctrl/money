@@ -53,7 +53,7 @@ def packet(*, filler=0, ladder=True, requests=1, carried_forward=None):
         live.append({
             "assessment_id": "CIO-latest",
             "verdict": "BUY_NOW",
-            "carried_forward": carried_forward or carried(),
+            "carried_forward": carried_forward or carried(),  # pyright: ignore[reportArgumentType]
         })
     return {
         "validation": {"optional_gaps": []},
@@ -118,7 +118,7 @@ class TestTrimmingOrder(unittest.TestCase):
         """추가 수량별 평단은 CLI 로 다시 낼 수 있는 편의값이다."""
         result = self.trim(0)
         self.assertIsNone(result["context"]["portfolio"]["add_ladder"])
-        self.assertEqual(gap_of(result)["trimmed"], ["portfolio.add_ladder"])
+        self.assertEqual(gap_of(result)["trimmed"], ["portfolio.add_ladder"])  # pyright: ignore[reportOptionalSubscript]
 
     def test_the_narrative_goes_before_the_thresholds(self):
         """지난번 논지의 문장은 원문을 열면 되지만 가격 문턱은 지금 대조한다."""
@@ -152,6 +152,7 @@ class TestTrimmingOrder(unittest.TestCase):
     def test_what_was_trimmed_is_recorded(self):
         result = self.trim(800)
         gap = gap_of(result)
+        assert gap is not None
         self.assertIn("prior_assessments.carried_forward.thesis",
                       gap["trimmed"])
         self.assertIn("knowledge/assessments/", gap["reason"])

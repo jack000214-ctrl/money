@@ -161,6 +161,7 @@ class TestAssumptionPersistence(unittest.TestCase):
         path = record_decision_file(draft)
         self.assertTrue(path.is_file())
         summary = carried_review(d)
+        assert summary is not None
         self.assertEqual(summary["analysis_id"], report["analysis_id"])
         self.assertAlmostEqual(summary["boundaries"][0]["required_value"], 19 / 3)
         # A return below the comparison does NOT force the model to sell.

@@ -111,7 +111,7 @@ def sample() -> FakeStatement:
     fake.dollar("2026.02.12", "구매", -1, label="테스트 배당 ETF", isin="US0000000001",
                 wrap=True, qty=20, amount="200.00", price="10.00", fee="0.20", fx="1410")
     fake.dollar("2026.02.15", "출석체크이벤트입고", 0, label="알파", isin="US0000000002",
-                qty="0.0001", price="355.87", fx="1405")
+                qty="0.0001", price="355.87", fx="1405")  # pyright: ignore[reportArgumentType]
     fake.dollar("2026.03.01", "외화증권배당금입금", 1, label="테스트 배당 ETF",
                 isin="US0000000001", wrap=True, qty=20, amount="2.00", tax="0.35")
     fake.dollar("2026.03.10", "판매", 1, label="테스트 배당 ETF", isin="US0000000001",

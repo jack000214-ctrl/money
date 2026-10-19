@@ -330,7 +330,7 @@ def resolve_price_reference(
             "detail": f"보유 평가금액 {value:,.0f} ÷ 보유수량 {quantity:g}",
         }
 
-    snapshot = _read_price_snapshot(target["asset_id"], target["market"], price_dir)
+    snapshot = _read_price_snapshot(target["asset_id"], target["market"], Path(price_dir))
     if snapshot is None:
         return {
             "source": "NONE",
@@ -590,6 +590,7 @@ def evaluate_trade(
             _issue(issues, "BLOCKED", "PRICE_TIMESTAMP_INVALID", message)
 
     if approved_ips:
+        assert ips is not None
         max_holdings_days = ips["data_freshness"]["holdings_max_age_days"]
         holdings_date = holdings_meta.get("as_of")
         if not holdings_date:
@@ -668,6 +669,7 @@ def evaluate_trade(
         target, base_currency, price_dir=price_dir,
         holdings_as_of=holdings_meta.get("as_of"))
     if approved_ips and price_reference["price_krw"] and price_reference["as_of"]:
+        assert ips is not None
         max_reference_age = ips["data_quality"]["price_reference_max_age_days"]
         try:
             reference_age_days = (
@@ -686,6 +688,7 @@ def evaluate_trade(
     if price_valid and price_reference["price_krw"]:
         deviation_pct = abs(price / price_reference["price_krw"] - 1) * 100
         if approved_ips:
+            assert ips is not None
             max_deviation = ips["data_quality"]["price_max_deviation_pct"]
             if deviation_pct > max_deviation + 1e-9:
                 _issue(issues, "BLOCKED", "PRICE_DEVIATION",
@@ -707,7 +710,8 @@ def evaluate_trade(
         "input_price_krw": price if price_valid else None,
         "deviation_pct": deviation_pct,
         "max_deviation_pct": (
-            ips["data_quality"]["price_max_deviation_pct"] if approved_ips else None
+            ips["data_quality"]["price_max_deviation_pct"]  # type: ignore[index]
+            if approved_ips else None
         ),
         "override_reason": price_unverified_reason,
     }
@@ -758,6 +762,7 @@ def evaluate_trade(
 
     risk_class = resolve_risk_class(target)
     if approved_ips:
+        assert ips is not None
         position_limits = ips["position_limits"]
         class_limit = (position_limits.get("by_risk_class") or {}).get(risk_class)
         total_pct = after_weights["total_assets"]["position_pct"]
@@ -819,6 +824,7 @@ def evaluate_trade(
     after_concentration = portfolio_concentration(after_rows, after_denoms["total_assets"])
 
     if approved_ips and before_concentration and after_concentration:
+        assert ips is not None
         _check_portfolio_limits(
             issues, ips["portfolio_limits"], before_concentration, after_concentration)
 
@@ -848,7 +854,9 @@ def evaluate_trade(
 
         # 밸류에이션 가정이 승인 범위 안인지, 입력이 원문에서 왔는지.
         # 위험등급을 알아야 할인율 범위를 고를 수 있어 여기서 검사한다.
+        calculation: dict[str, Any] | None = None
         if approved_ips and calculations_dir is not None:
+            assert ips is not None
             calculation = _check_valuation_policy(
                 issues, ips, analysis, calculations_dir, risk_class)
             if calculation is not None:
@@ -860,6 +868,7 @@ def evaluate_trade(
                 }
 
         if approved_ips:
+            assert ips is not None
             policy = ips["decision_policy"]
             required = policy["required_expected_return_pct"]
             measure = policy["return_measure"]
@@ -940,9 +949,9 @@ def evaluate_trade(
 
             # 하방 예산 — 약세 시나리오가 실현될 때 이 포지션 하나가 총자산에
             # 입히는 손실. base 만 보면 하방 -50%와 -5%가 똑같이 통과한다.
-            bear_budget = policy["max_bear_loss_contribution_pct"]
+            bear_budget = float(policy["max_bear_loss_contribution_pct"])
             after_total = after_denoms["total_assets"]
-            if bear_return < 0 and after_total > 0:
+            if bear_return is not None and bear_return < 0 and after_total > 0:
                 bear_loss_pct = after_position * (-bear_return / 100.0) / after_total * 100.0
                 decision_basis["bear_loss_contribution_pct"] = bear_loss_pct
                 if bear_loss_pct > bear_budget + 1e-9:
@@ -984,24 +993,28 @@ def evaluate_trade(
                     sell_drivers.append("기대수익 하한 미달")
                 # 하방 예산을 넘긴 포지션을 줄이는 것은 그 자체로 매도 근거다.
                 before_total = before_denoms["total_assets"]
-                if bear_return < 0 and before_total > 0:
+                if bear_return is not None and bear_return < 0 and before_total > 0:
                     before_bear_loss = (
-                        target["value_krw"] * (-bear_return / 100.0)
+                        target["value_krw"] * (-float(bear_return) / 100.0)
                         / before_total * 100.0
                     )
                     if before_bear_loss > bear_budget + 1e-9:
                         sell_drivers.append("하방 예산 초과 축소")
+                assert ips is not None
                 denominator_limits = _denominator_limits(ips, risk_class)
-                if any(
-                    limit is not None
-                    and before_weights[key]["position_pct"] is not None
-                    and before_weights[key]["position_pct"] > limit
-                    and (
-                        after_weights[key]["position_pct"] is None
-                        or after_weights[key]["position_pct"] < before_weights[key]["position_pct"]
-                    )
-                    for key, limit in denominator_limits.items()
-                ):
+                concentration_reduced = False
+                for key, limit in denominator_limits.items():
+                    before_pct = before_weights[key]["position_pct"]
+                    after_pct = after_weights[key]["position_pct"]
+                    if (
+                        limit is not None
+                        and before_pct is not None
+                        and before_pct > limit
+                        and (after_pct is None or after_pct < before_pct)
+                    ):
+                        concentration_reduced = True
+                        break
+                if concentration_reduced:
                     sell_drivers.append("집중도 축소")
                 if best_alternative and (
                     best_alternative["expected_return_pct"] - position_return >= advantage

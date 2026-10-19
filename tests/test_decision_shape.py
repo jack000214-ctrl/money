@@ -70,7 +70,7 @@ class TestContextLookupRejectsANonStringId(unittest.TestCase):
         """`cio validate` 는 context_id 를 감싸지 않고 넘겼고 정규식에서 죽었다."""
         for value in (["CTX-0123456789abcdef0123"], {"id": 1}, None, 3):
             with self.subTest(value=value), self.assertRaises(ContractError):
-                find_context(value)
+                find_context(value)  # pyright: ignore[reportArgumentType]
 
 
 class TestTheDiagnosisDoesNotReplaceTheValueChecks(unittest.TestCase):

@@ -64,7 +64,7 @@ def _title(event: dict[str, Any]) -> str:
         "STALE_ASSESSMENT": "판단 재검토 필요 사실",
         "EARNINGS_NEAR": "실적 발표 임박",
     }
-    return f"{labels.get(kind, '감시 이벤트')} — {who}".strip(" —")
+    return f"{labels.get(str(kind), '감시 이벤트')} — {who}".strip(" —")
 
 
 def format_event(event: dict[str, Any]) -> dict[str, str]:
@@ -114,7 +114,9 @@ def format_event(event: dict[str, Any]) -> dict[str, str]:
     elif kind == "STALE_ASSESSMENT":
         reason = event.get("reason")
         if reason == "NO_LIVE_ASSESSMENT":
-            lines.append("보유 중인데 계약을 통과하는 판단이 없다.")
+            qty = event.get("qty")
+            qty_str = f"{qty:g}주 " if qty is not None else ""
+            lines.append(f"{qty_str}보유 중인데 아직 유효한 판단이 없다.")
         elif reason == "AGE":
             lines.append(
                 f"최신 판단 {event.get('assessment_id')}이(가) {event['measured']['value']}일 지났다"
@@ -135,7 +137,8 @@ def format_event(event: dict[str, Any]) -> dict[str, str]:
 
     context_id = event.get("context_id")
     if context_id:
-        intent = _INTENT_LABEL.get(event.get("intent"), event.get("intent"))
+        raw_intent = event.get("intent")
+        intent = _INTENT_LABEL.get(str(raw_intent), raw_intent)
         lines.append(
             f"재질문 패킷 {context_id} 을(를) {intent} 질문으로 준비했다. 새 판단은 모델이 낸다."
         )
@@ -145,7 +148,6 @@ def format_event(event: dict[str, Any]) -> dict[str, str]:
         )
     elif event.get("queue_status") == "PENDING_EXISTS":
         lines.append("같은 종목의 미처리 재질문 패킷이 이미 있어 새로 만들지 않았다.")
-    lines.append("이 알림은 사실 진술이며 매매 판단이 아니다.")
     return {"title": _title(event), "body": "\n".join(lines)}
 
 

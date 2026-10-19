@@ -98,6 +98,7 @@ def latest_instant(points):
 
 def price(ticker):
     d = get_json(CHART.format(s=ticker), {"User-Agent": "Mozilla/5.0"}, timeout=25)
+    assert d is not None  # tolerate_404 를 쓰지 않으므로 404 는 예외로 올라온다
     m = d["chart"]["result"][0]["meta"]
     return m.get("regularMarketPrice"), m.get("currency")
 

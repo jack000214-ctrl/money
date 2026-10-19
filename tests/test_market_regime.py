@@ -121,6 +121,7 @@ class TestAChangedInputMakesTheStoredRegimeStale(unittest.TestCase):
                              "2026-10-09": 130, "2026-10-12": 100})
         task = self.inspect()
         self.assertEqual(task.state, "STALE")
+        assert task.reason is not None
         self.assertIn("knowledge/prices/KS11.csv", task.reason)
         self.assertIn("내용", task.reason)
         after = self.compute()["by_market"]["KR"]
@@ -138,6 +139,7 @@ class TestAChangedInputMakesTheStoredRegimeStale(unittest.TestCase):
         self.write("^KQ11", {"2026-10-07": 100, "2026-10-12": 70})
         task = self.inspect()
         self.assertEqual(task.state, "STALE")
+        assert task.reason is not None
         self.assertIn("knowledge/prices/KQ11.csv", task.reason)
 
     def test_an_artifact_with_no_fingerprints_cannot_be_called_fresh(self):
@@ -148,6 +150,7 @@ class TestAChangedInputMakesTheStoredRegimeStale(unittest.TestCase):
             json.dumps(snapshot), encoding="utf-8")
         task = self.inspect()
         self.assertEqual(task.state, "STALE")
+        assert task.reason is not None
         self.assertIn("입력 지문", task.reason)
 
 

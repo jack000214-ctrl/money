@@ -48,6 +48,7 @@ class TestQuarterBoundaries(unittest.TestCase):
 
     def test_average_uses_only_bars_inside_the_quarter(self):
         table = quarter_table(SERIES, ENDS, reported_through="2026-06-30")
+        assert table is not None
         second = next(row for row in table["quarters"] if row["end"] == "2026-06-30")
         # 64개 봉이 1,500 이고 기말 하루가 1,548 이다. 7월 1일의 1,420 은 들어가면 안 된다.
         self.assertEqual(second["bars"], 65)
@@ -58,6 +59,7 @@ class TestQuarterBoundaries(unittest.TestCase):
 class TestChanges(unittest.TestCase):
     def setUp(self):
         self.table = quarter_table(SERIES, ENDS, reported_through="2026-06-30")
+        assert self.table is not None
         self.rows = {row["end"]: row for row in self.table["quarters"]}
 
     def test_quarter_over_quarter_is_reported_for_both_average_and_period_end(self):
@@ -81,7 +83,8 @@ class TestChanges(unittest.TestCase):
 
     def test_rows_that_are_not_adjacent_do_not_get_a_qoq(self):
         table = quarter_table(SERIES, ["2026-03-31", "2026-09-30"],
-                              reported_through="2026-03-31")
+                               reported_through="2026-03-31")
+        assert table is not None
         third = next(row for row in table["quarters"] if row["end"] == "2026-09-30")
         self.assertNotIn("average_qoq_pct", third)
 
@@ -89,13 +92,16 @@ class TestChanges(unittest.TestCase):
 class TestReportedFlag(unittest.TestCase):
     def test_a_quarter_that_ended_after_coverage_is_marked_unreported(self):
         table = quarter_table(SERIES, ENDS, reported_through="2026-06-30")
+        assert table is not None
         flags = {row["end"]: row["reported"] for row in table["quarters"]}
         self.assertEqual(flags, {
             "2026-03-31": True, "2026-06-30": True, "2026-09-30": False})
 
     def test_latest_is_compared_with_the_last_reported_quarter(self):
         table = quarter_table(SERIES, ENDS, reported_through="2026-06-30")
+        assert table is not None
         versus = table["latest_vs_last_reported_quarter"]
+        assert versus is not None
         second = next(row for row in table["quarters"] if row["end"] == "2026-06-30")
         self.assertEqual(versus["end"], "2026-06-30")
         self.assertEqual(
@@ -105,6 +111,7 @@ class TestReportedFlag(unittest.TestCase):
 
     def test_without_a_coverage_date_nothing_is_called_reported(self):
         table = quarter_table(SERIES, ENDS, reported_through=None)
+        assert table is not None
         self.assertTrue(all("reported" not in row for row in table["quarters"]))
         self.assertIsNone(table["latest_vs_last_reported_quarter"])
 
@@ -112,11 +119,13 @@ class TestReportedFlag(unittest.TestCase):
 class TestWhatIsNotComputed(unittest.TestCase):
     def test_a_quarter_still_in_progress_is_left_out(self):
         table = quarter_table(SERIES, [*ENDS, "2026-12-31"], reported_through="2026-06-30")
+        assert table is not None
         self.assertNotIn("2026-12-31", [row["end"] for row in table["quarters"]])
 
     def test_a_quarter_with_too_few_bars_is_left_out_not_approximated(self):
         thin = [row for row in SERIES if not "2026-04-15" <= row[0] <= "2026-06-20"]
         table = quarter_table(thin, ENDS, reported_through="2026-06-30")
+        assert table is not None
         ends = [row["end"] for row in table["quarters"]]
         self.assertNotIn("2026-06-30", ends)
         third = next(row for row in table["quarters"] if row["end"] == "2026-09-30")

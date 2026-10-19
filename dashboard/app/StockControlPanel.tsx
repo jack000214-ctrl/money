@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { UnreadBadge, WatchEventsTab, WatchSettingsTab, useWatchUnread } from "./WatchPanels";
+import { InvestorPolicyTab, UnreadBadge, WatchEventsTab, WatchSettingsTab, useWatchUnread } from "./WatchPanels";
 
 const API_BASE = "http://127.0.0.1:3001";
 
@@ -987,24 +987,33 @@ export function StockControlPanel({
           const data2 = await res2.json();
           setAutoStatus(data2);
 
-          // 업데이트할 종목이 있으면 화면 블로킹 없이 백그라운드 자동 갱신
-          if (data2.stale_candidates && data2.stale_candidates.length > 0) {
-            setAutoUpdating(true);
-            try {
-              const updateRes = await fetch(`${API_BASE}/api/auto-update`, { method: "POST" });
-              if (updateRes.ok && !ignore) {
-                // 업데이트 완료 후 종목 목록 및 상태 자동 새로고침
-                await fetchAssets();
-                const refreshedStatus = await fetch(`${API_BASE}/api/auto-update-status`);
-                if (refreshedStatus.ok && !ignore) {
-                  setAutoStatus(await refreshedStatus.json());
-                }
-              }
-            } catch {
-              // ignore
-            } finally {
-              if (!ignore) setAutoUpdating(false);
+          // 이미 실행 중이거나 stale 종목이 있으면 트리거
+          const shouldStart = data2.stale_candidates && data2.stale_candidates.length > 0 && !data2.running;
+          if (shouldStart || data2.running) {
+            if (!ignore) setAutoUpdating(true);
+            if (shouldStart) {
+              try {
+                await fetch(`${API_BASE}/api/auto-update`, { method: "POST" });
+              } catch { /* ignore */ }
             }
+            // 완료될 때까지 폴링
+            const poll = async () => {
+              if (ignore) return;
+              try {
+                const s = await fetch(`${API_BASE}/api/auto-update-status`);
+                if (s.ok && !ignore) {
+                  const sd = await s.json();
+                  setAutoStatus(sd);
+                  if (sd.running) {
+                    setTimeout(poll, 3000);
+                  } else {
+                    await fetchAssets();
+                    if (!ignore) setAutoUpdating(false);
+                  }
+                }
+              } catch { if (!ignore) setAutoUpdating(false); }
+            };
+            setTimeout(poll, 3000);
           }
         }
       } catch {
@@ -1053,7 +1062,7 @@ export function StockControlPanel({
       analysis_lens: "QUALITY_GROWTH",
       qty: 0,
     });
-    setEditingTicker(item.ticker);
+    setEditingTicker(item.registered ? item.ticker : null);
     setShowForm(true);
     setSearchResults([]);
     setSearchQuery("");
@@ -1171,16 +1180,36 @@ export function StockControlPanel({
     try {
       setCollectingStep("오늘 시세 자동 업데이트");
       appendAutoLog("▶ 오늘 시세 자동 업데이트 검사 및 수집 시작...");
-      const res = await fetch(`${API_BASE}/api/auto-update`, {
-        method: "POST",
-      });
+      const res = await fetch(`${API_BASE}/api/auto-update`, { method: "POST" });
       const data = await res.json();
-      if (data.logs) {
-        data.logs.forEach((l: string) => appendAutoLog(l));
+      if (!data.started && data.reason === "already_running") {
+        appendAutoLog("⏳ 이미 업데이트가 진행 중입니다. 완료를 기다립니다...");
       }
-      appendAutoLog(`✓ 자동 업데이트 완료 (대상: ${data.stale_count}개, 성공: ${data.updated_count}개)`);
-      await fetchAssets();
-      await checkAutoStatus();
+      // 폴링으로 완료 감지
+      const poll = async (): Promise<void> => {
+        try {
+          const s = await fetch(`${API_BASE}/api/auto-update-status`);
+          if (s.ok) {
+            const sd = await s.json();
+            setAutoStatus(sd);
+            if (sd.running) {
+              await new Promise((r) => setTimeout(r, 3000));
+              return poll();
+            }
+            // 완료
+            const result = sd.last_result;
+            if (result?.logs) {
+              result.logs.forEach((l: string) => appendAutoLog(l));
+            }
+            appendAutoLog(`✓ 자동 업데이트 완료 (대상: ${result?.stale_count ?? "?"}개, 성공: ${result?.updated_count ?? "?"}개)`);
+            await fetchAssets();
+            await checkAutoStatus();
+          }
+        } catch (err) {
+          appendAutoLog(`✗ 자동 업데이트 오류: ${err}`);
+        }
+      };
+      await poll();
     } catch (err) {
       appendAutoLog(`✗ 자동 업데이트 오류: ${err}`);
     } finally {
@@ -1284,6 +1313,316 @@ export function StockControlPanel({
                 취소
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 종목 등록/수정 모달 팝업 */}
+      {showForm && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowForm(false);
+              setEditingTicker(null);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+        >
+          <div style={{
+            background: "#1e293b",
+            border: "1px solid #3b82f6",
+            borderRadius: "12px",
+            padding: "24px 28px",
+            width: "560px",
+            maxWidth: "100%",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#38bdf8" }}>
+                {editingTicker ? `종목 정보 수정 (${formData.ticker})` : "신규 종목 등록"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingTicker(null);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#94a3b8",
+                  fontSize: "18px",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 신규 등록 시 종목 빠른 검색 */}
+            {!editingTicker && (
+              <div style={{ marginBottom: "18px", position: "relative" }}>
+                <label style={{ display: "block", fontSize: "12px", color: "#38bdf8", fontWeight: 600, marginBottom: "6px" }}>
+                  🔍 종목 검색으로 자동 완성
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    placeholder="종목명 또는 티커 검색 (예: 삼성전자, 005930, 카카오, 테슬라, TSLA, AAPL, SCHD)..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    style={{
+                      width: "100%",
+                      background: "#0f172a",
+                      border: "1px solid #0284c7",
+                      borderRadius: "6px",
+                      padding: "10px 36px 10px 12px",
+                      color: "#fff",
+                      fontSize: "13px",
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                      }}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "8px",
+                        background: "#334155",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                  {searching && (
+                    <span style={{ position: "absolute", right: searchQuery ? "38px" : "12px", top: "10px", fontSize: "12px", color: "#94a3b8" }}>
+                      검색 중...
+                    </span>
+                  )}
+                </div>
+
+                {/* 모달 내 검색 결과 목록 */}
+                {searchResults.length > 0 && (
+                  <div style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    background: "#0f172a",
+                    border: "1px solid #38bdf8",
+                    borderRadius: "6px",
+                    marginTop: "4px",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.7)",
+                  }}>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "6px 12px",
+                      background: "#1e293b",
+                      borderBottom: "1px solid #334155",
+                      fontSize: "11px",
+                      color: "#94a3b8",
+                    }}>
+                      <span>검색 결과 ({searchResults.length}건) — 클릭 시 폼 자동 입력</span>
+                      <button
+                        type="button"
+                        onClick={() => setSearchResults([])}
+                        style={{ background: "transparent", border: "none", color: "#38bdf8", cursor: "pointer", fontSize: "11px" }}
+                      >
+                        닫기 ✕
+                      </button>
+                    </div>
+                    {searchResults.map((item) => (
+                      <div
+                        key={item.ticker}
+                        onClick={() => handleSelectSearchResult(item)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "8px 12px",
+                          borderBottom: "1px solid #1e293b",
+                          cursor: "pointer",
+                          background: "#0f172a",
+                          transition: "background 0.15s ease",
+                        }}
+                      >
+                        <div>
+                          <strong style={{ color: "#38bdf8", fontSize: "13px" }}>{item.name}</strong> ({item.ticker})
+                          <span style={{ marginLeft: "8px", fontSize: "11px", color: "#94a3b8" }}>
+                            {item.market} · {item.exchange} · {item.asset_type}
+                          </span>
+                        </div>
+                        <span style={{
+                          background: item.registered ? "#475569" : "#10b981",
+                          color: "#fff",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}>
+                          {item.registered ? "수정" : "선택"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveAsset}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    티커 (종목코드) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.ticker}
+                    onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
+                    disabled={!!editingTicker}
+                    placeholder="예: 005930, AAPL"
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    종목명 *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="예: 삼성전자, Apple"
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    시장
+                  </label>
+                  <select
+                    value={formData.market}
+                    onChange={(e) => {
+                      const m = e.target.value;
+                      setFormData({
+                        ...formData,
+                        market: m,
+                        exchange: m === "KR" ? "KOSPI" : "NASDAQ",
+                        currency: m === "KR" ? "KRW" : "USD",
+                      });
+                    }}
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  >
+                    <option value="KR">한국 (KR)</option>
+                    <option value="US">미국 (US)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    자산 유형
+                  </label>
+                  <select
+                    value={formData.asset_type}
+                    onChange={(e) => setFormData({ ...formData, asset_type: e.target.value })}
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  >
+                    <option value="STOCK">주식 (STOCK)</option>
+                    <option value="ETF">ETF</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    시세 심볼
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.price_symbol}
+                    placeholder={formData.market === "KR" ? `${formData.ticker || "005930"}.KS` : formData.ticker || "AAPL"}
+                    onChange={(e) => setFormData({ ...formData, price_symbol: e.target.value })}
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                    보유 수량
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.qty}
+                    onChange={(e) => setFormData({ ...formData, qty: Number(e.target.value) })}
+                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px 10px", borderRadius: "6px", fontSize: "13px" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingTicker(null);
+                  }}
+                  style={{
+                    background: "#334155",
+                    color: "#cbd5e1",
+                    border: "none",
+                    padding: "9px 18px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    padding: "9px 20px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                  }}
+                >
+                  저장하기
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1556,7 +1895,7 @@ export function StockControlPanel({
                   qty: 0,
                 });
                 setEditingTicker(null);
-                setShowForm(!showForm);
+                setShowForm(true);
               }}
               style={{
                 background: "#10b981",
@@ -1710,119 +2049,6 @@ export function StockControlPanel({
                 )}
               </div>
 
-              {/* 종목 등록/수정 폼 */}
-              {showForm && (
-                <form onSubmit={handleSaveAsset} style={{
-                  background: "#1e293b",
-                  padding: "20px",
-                  borderRadius: "8px",
-                  marginBottom: "20px",
-                  border: "1px solid #3b82f6",
-                }}>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: "16px", color: "#38bdf8" }}>
-                    {editingTicker ? `종목 정보 수정 (${formData.ticker})` : "신규 종목 등록"}
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        티커 (종목코드) *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.ticker}
-                        onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
-                        disabled={!!editingTicker}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        종목명 *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        시장
-                      </label>
-                      <select
-                        value={formData.market}
-                        onChange={(e) => {
-                          const m = e.target.value;
-                          setFormData({
-                            ...formData,
-                            market: m,
-                            exchange: m === "KR" ? "KOSPI" : "NASDAQ",
-                            currency: m === "KR" ? "KRW" : "USD",
-                          });
-                        }}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      >
-                        <option value="KR">한국 (KR)</option>
-                        <option value="US">미국 (US)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        자산 유형
-                      </label>
-                      <select
-                        value={formData.asset_type}
-                        onChange={(e) => setFormData({ ...formData, asset_type: e.target.value })}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      >
-                        <option value="STOCK">주식 (STOCK)</option>
-                        <option value="ETF">ETF</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        시세 심볼
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.price_symbol}
-                        placeholder={formData.market === "KR" ? `${formData.ticker}.KS` : formData.ticker}
-                        onChange={(e) => setFormData({ ...formData, price_symbol: e.target.value })}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        보유 수량
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.qty}
-                        onChange={(e) => setFormData({ ...formData, qty: Number(e.target.value) })}
-                        style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#fff", padding: "8px", borderRadius: "4px" }}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      style={{ background: "#475569", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer" }}
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="submit"
-                      style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
-                    >
-                      저장하기
-                    </button>
-                  </div>
-                </form>
-              )}
 
               {/* 종목 리스트 테이블 */}
               <div style={{
@@ -3218,8 +3444,15 @@ export function StockControlPanel({
           {/* 탭 7: 감시 알림 */}
           {activeTab === "watch" && <WatchEventsTab onUnreadChange={setWatchUnread} />}
 
-          {/* 탭 8: 설정 (이메일 발송 · 배치 시간) */}
-          {activeTab === "settings" && <WatchSettingsTab />}
+          {/* 탭 8: 설정 (이메일 발송 · 배치 시간 · 투자자 정책) */}
+          {activeTab === "settings" && (
+            <div>
+              <WatchSettingsTab />
+              <div style={{ borderTop: "1px solid #334155", margin: "8px 0 20px 0" }} />
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#f8fafc", marginBottom: "12px" }}>투자자 정책</div>
+              <InvestorPolicyTab />
+            </div>
+          )}
         </div>
       )}
 

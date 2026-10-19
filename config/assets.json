@@ -125,13 +125,19 @@
       "industry": "AI 반도체 테마 ETF",
       "analysis_lens": "ETF_NAV",
       "valuation_family": [
-        "DCF",
         "PEER_MULTIPLE"
       ],
       "benchmarks": [
         "^KS11"
       ],
-      "optional_collectors": []
+      "optional_collectors": [],
+      "etf": {
+        "strategy": "THEMATIC_SEMICONDUCTORS",
+        "holdings_source": "SECONDARY",
+        "distribution_policy": "ACCUMULATING",
+        "derivative_use": false,
+        "leverage": 1.0
+      }
     },
     "000080": {
       "name": "하이트진로",
@@ -182,6 +188,27 @@
       "asset_type": "STOCK",
       "currency": "KRW",
       "price_symbol": "011810.KS",
+      "sector_code": "TECH_SERVICES",
+      "industry": "국내 주식",
+      "analysis_lens": "QUALITY_GROWTH",
+      "valuation_family": [
+        "DCF",
+        "PEER_MULTIPLE"
+      ],
+      "benchmarks": [
+        "^KS11"
+      ],
+      "optional_collectors": [],
+      "filing_source": "DART",
+      "filing_profile": "DART_KIFRS"
+    },
+    "028300": {
+      "name": "HLB",
+      "market": "KR",
+      "exchange": "KOSDAQ",
+      "asset_type": "STOCK",
+      "currency": "KRW",
+      "price_symbol": "028300.KQ",
       "sector_code": "TECH_SERVICES",
       "industry": "국내 주식",
       "analysis_lens": "QUALITY_GROWTH",

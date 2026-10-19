@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -533,6 +533,8 @@ def collect_fundamentals(ticker: str) -> dict[str, Any]:
     asset_type = asset.get("asset_type", "STOCK").upper()
     logs = []
 
+    import time as _time
+
     if asset_type == "ETF":
         # ETF는 DART 공시·재무제표·컨센서스 대상이 아님 — 시세 수집만 유효
         logs.append(f"[재무 수집] {ticker}은 ETF입니다. DART/컨센서스 수집을 건너뜁니다.")
@@ -542,21 +544,25 @@ def collect_fundamentals(ticker: str) -> dict[str, Any]:
         if dart_key:
             current_year = date.today().year
             # 1. DART 재무제표 스냅샷 수집 (fundamentals)
+            _t = _time.time()
             f_code, f_out = execute_python_module("collectors.dart", ["fundamentals", ticker, "--year", str(current_year)])
-            logs.append(f"[DART Fundamentals] {f_out.strip()}")
+            logs.append(f"[DART Fundamentals {_time.time()-_t:.1f}s] {f_out.strip()}")
             # 2. DART 공시 목록 수집 (filings, 최근 1년)
             since_date = (date.today() - timedelta(days=365)).strftime("%Y%m%d")
+            _t = _time.time()
             fl_code, fl_out = execute_python_module("collectors.dart", ["filings", ticker, "--since", since_date])
-            logs.append(f"[DART Filings] {fl_out.strip()}")
+            logs.append(f"[DART Filings {_time.time()-_t:.1f}s] {fl_out.strip()}")
         else:
             logs.append("[DART] DART_API_KEY 미설정으로 DART API 건너뜀")
 
+        _t = _time.time()
         c_code, c_out = execute_python_module("collectors.consensus", [ticker])
-        logs.append(f"[Consensus] {c_out.strip()}")
+        logs.append(f"[Consensus {_time.time()-_t:.1f}s] {c_out.strip()}")
     else:
         # 미국 개별주: EDGAR
+        _t = _time.time()
         code, out = execute_python_module("collectors.edgar", ["fundamentals", ticker])
-        logs.append(f"[SEC EDGAR] {out.strip()}")
+        logs.append(f"[SEC EDGAR {_time.time()-_t:.1f}s] {out.strip()}")
 
     # 수집된 최신 fundamentals를 tickers.json에 반영
     fund_candidates = sorted(glob.glob(str(FUNDAMENTALS_DIR / f"{ticker}-*.json")), key=os.path.getmtime)
@@ -1048,6 +1054,7 @@ def generate_ai_analysis(ticker: str) -> dict[str, Any]:
     consensus_data = _load_json_file(consensus_path)
 
     logs = [f"▶ Bob Shell을 통한 [{name} ({ticker})] AI 투자 판단 생성 시작..."]
+    narrative: dict[str, Any] = {}
 
     # 3. LLMInterface 호출
     try:
@@ -1093,7 +1100,7 @@ def generate_ai_analysis(ticker: str) -> dict[str, Any]:
     return {
         "success": build_res.get("success", True),
         "output": "\n".join(logs),
-        "headline": narrative.get("decision", {}).get("headline") if "narrative" in locals() else "",
+        "headline": narrative.get("decision", {}).get("headline", ""),
     }
 
 

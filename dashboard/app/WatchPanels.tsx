@@ -807,3 +807,318 @@ export function WatchSettingsTab() {
     </div>
   );
 }
+
+// ── 투자자 정책 편집 ───────────────────────────────────────────────────────
+
+interface PolicyRisk {
+  stop_style: string | null;
+  max_loss_per_position_krw: number | null;
+  max_portfolio_drawdown_pct: number | null;
+}
+interface PolicyConcentration {
+  max_single_position_pct_of_total: number | null;
+  max_sector_pct_of_total: number | null;
+}
+interface PolicyObjective {
+  primary_goal: string | null;
+  target_annual_return_pct: number | null;
+}
+interface PolicyHorizon {
+  typical_holding_months: number | null;
+  liquidity_need_within_months: number | null;
+}
+interface PolicyLiquidity {
+  min_cash_krw: number | null;
+  monthly_net_income_krw: number | null;
+}
+interface PolicyInstruments {
+  leverage_allowed: boolean | null;
+  derivative_etf_allowed: boolean | null;
+  notes: string | null;
+}
+interface InvestorPolicy {
+  objective: PolicyObjective;
+  horizon: PolicyHorizon;
+  risk: PolicyRisk;
+  concentration: PolicyConcentration;
+  liquidity: PolicyLiquidity;
+  instruments: PolicyInstruments;
+}
+
+const STOP_STYLE_OPTIONS = [
+  { value: "", label: "정하지 않음" },
+  { value: "PRICE", label: "PRICE — 가격 기반" },
+  { value: "THESIS", label: "THESIS — 논거 훼손 기반" },
+  { value: "BOTH", label: "BOTH — 둘 다" },
+  { value: "NONE", label: "NONE — 손절 없음" },
+];
+
+function numToStr(v: number | null): string {
+  return v === null || v === undefined ? "" : String(v);
+}
+function strToNum(s: string): number | null {
+  const t = s.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+function boolToStr(v: boolean | null): string {
+  if (v === true) return "true";
+  if (v === false) return "false";
+  return "";
+}
+function strToBool(s: string): boolean | null {
+  if (s === "true") return true;
+  if (s === "false") return false;
+  return null;
+}
+
+export function InvestorPolicyTab() {
+  const [policy, setPolicy] = useState<InvestorPolicy | null>(null);
+  const [exists, setExists] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveErrors, setSaveErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/watch/investor-policy`);
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        if (ignore) return;
+        setExists(Boolean(data.exists));
+        if (data.policy) setPolicy(data.policy as InvestorPolicy);
+        setLoadError("");
+      } catch {
+        if (!ignore) setLoadError("API 서버에 연결하지 못했습니다.");
+      }
+    };
+    load();
+    return () => { ignore = true; };
+  }, []);
+
+  const save = async () => {
+    if (!policy) return;
+    setSaving(true);
+    setSaveMessage("");
+    setSaveErrors([]);
+    try {
+      const res = await fetch(`${API_BASE}/api/watch/investor-policy`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policy),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveErrors(data.errors ?? [data.error ?? "저장하지 못했습니다."]);
+        return;
+      }
+      if (data.policy) setPolicy(data.policy as InvestorPolicy);
+      setExists(true);
+      setSaveMessage("저장했습니다.");
+    } catch {
+      setSaveErrors(["API 서버에 연결하지 못했습니다."]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const upd = (patch: Partial<InvestorPolicy>) =>
+    setPolicy((prev) => (prev ? { ...prev, ...patch } : prev));
+
+  if (loadError) {
+    return <div style={{ ...card, borderColor: "#ef4444", color: "#fca5a5" }}>{loadError}</div>;
+  }
+  if (!policy) {
+    return <div style={card}><span style={{ color: "#94a3b8", fontSize: "13px" }}>불러오는 중...</span></div>;
+  }
+
+  const noteStyle: CSSProperties = { fontSize: "11px", color: "#64748b", marginTop: "2px" };
+  const row3: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "12px" };
+  const row2: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "12px" };
+
+  return (
+    <div>
+      {!exists && (
+        <div style={{ ...card, borderColor: "#fcd34d", color: "#fcd34d", fontSize: "13px" }}>
+          investor-policy.json 파일이 없습니다. 값을 입력하고 저장하면 생성됩니다.
+        </div>
+      )}
+
+      {/* 투자 목표 */}
+      <div style={card}>
+        <h3 style={sectionTitle}>투자 목표 &amp; 투자 기간</h3>
+        <div style={row2}>
+          <label style={labelStyle}>
+            목표 (primary_goal)
+            <input
+              style={inputStyle}
+              placeholder="예: 장기 자본 증식"
+              value={policy.objective?.primary_goal ?? ""}
+              onChange={(e) => upd({ objective: { ...policy.objective, primary_goal: e.target.value || null } })}
+            />
+          </label>
+          <label style={labelStyle}>
+            연 수익률 목표 (%)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.objective?.target_annual_return_pct ?? null)}
+              onChange={(e) => upd({ objective: { ...policy.objective, target_annual_return_pct: strToNum(e.target.value) } })}
+            />
+          </label>
+        </div>
+        <div style={row2}>
+          <label style={labelStyle}>
+            보유 기간 (개월, typical_holding_months)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.horizon?.typical_holding_months ?? null)}
+              onChange={(e) => upd({ horizon: { ...policy.horizon, typical_holding_months: strToNum(e.target.value) } })}
+            />
+          </label>
+          <label style={labelStyle}>
+            유동성 필요 시점 (개월, liquidity_need_within_months)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.horizon?.liquidity_need_within_months ?? null)}
+              onChange={(e) => upd({ horizon: { ...policy.horizon, liquidity_need_within_months: strToNum(e.target.value) } })}
+            />
+            <span style={noteStyle}>이 기간 이내에 목돈이 필요하면 매도 제약에 반영됨</span>
+          </label>
+        </div>
+      </div>
+
+      {/* 리스크 한도 */}
+      <div style={card}>
+        <h3 style={sectionTitle}>리스크 한도</h3>
+        <div style={row3}>
+          <label style={labelStyle}>
+            손절 방식 (stop_style)
+            <select
+              style={{ ...inputStyle, width: "100%" }}
+              value={policy.risk?.stop_style ?? ""}
+              onChange={(e) => upd({ risk: { ...policy.risk, stop_style: e.target.value || null } })}
+            >
+              {STOP_STYLE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label style={labelStyle}>
+            종목당 최대 손실 (원, max_loss_per_position_krw)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.risk?.max_loss_per_position_krw ?? null)}
+              onChange={(e) => upd({ risk: { ...policy.risk, max_loss_per_position_krw: strToNum(e.target.value) } })}
+            />
+            <span style={noteStyle}>감시 사이클에서 평가손실이 이 값을 넘으면 알림</span>
+          </label>
+          <label style={labelStyle}>
+            포트폴리오 최대 낙폭 (%, max_portfolio_drawdown_pct)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.risk?.max_portfolio_drawdown_pct ?? null)}
+              onChange={(e) => upd({ risk: { ...policy.risk, max_portfolio_drawdown_pct: strToNum(e.target.value) } })}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* 집중도 한도 */}
+      <div style={card}>
+        <h3 style={sectionTitle}>집중도 한도</h3>
+        <div style={row2}>
+          <label style={labelStyle}>
+            단일 종목 비중 상한 (%, max_single_position_pct_of_total)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.concentration?.max_single_position_pct_of_total ?? null)}
+              onChange={(e) => upd({ concentration: { ...policy.concentration, max_single_position_pct_of_total: strToNum(e.target.value) } })}
+            />
+            <span style={noteStyle}>감시 사이클에서 현재가 기준 비중이 이 값을 넘으면 알림</span>
+          </label>
+          <label style={labelStyle}>
+            단일 섹터 비중 상한 (%, max_sector_pct_of_total)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.concentration?.max_sector_pct_of_total ?? null)}
+              onChange={(e) => upd({ concentration: { ...policy.concentration, max_sector_pct_of_total: strToNum(e.target.value) } })}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* 유동성 */}
+      <div style={card}>
+        <h3 style={sectionTitle}>유동성 &amp; 허용 상품</h3>
+        <div style={row2}>
+          <label style={labelStyle}>
+            최소 보유 현금 (원, min_cash_krw)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.liquidity?.min_cash_krw ?? null)}
+              onChange={(e) => upd({ liquidity: { ...policy.liquidity, min_cash_krw: strToNum(e.target.value) } })}
+            />
+          </label>
+          <label style={labelStyle}>
+            월 순수입 (원, monthly_net_income_krw)
+            <input
+              style={inputStyle}
+              placeholder="null = 정하지 않음"
+              value={numToStr(policy.liquidity?.monthly_net_income_krw ?? null)}
+              onChange={(e) => upd({ liquidity: { ...policy.liquidity, monthly_net_income_krw: strToNum(e.target.value) } })}
+            />
+          </label>
+        </div>
+        <div style={row2}>
+          <label style={labelStyle}>
+            레버리지 허용 (leverage_allowed)
+            <select
+              style={{ ...inputStyle, width: "100%" }}
+              value={boolToStr(policy.instruments?.leverage_allowed ?? null)}
+              onChange={(e) => upd({ instruments: { ...policy.instruments, leverage_allowed: strToBool(e.target.value) } })}
+            >
+              <option value="">정하지 않음</option>
+              <option value="true">허용</option>
+              <option value="false">불허</option>
+            </select>
+          </label>
+          <label style={labelStyle}>
+            파생 ETF 허용 (derivative_etf_allowed)
+            <select
+              style={{ ...inputStyle, width: "100%" }}
+              value={boolToStr(policy.instruments?.derivative_etf_allowed ?? null)}
+              onChange={(e) => upd({ instruments: { ...policy.instruments, derivative_etf_allowed: strToBool(e.target.value) } })}
+            >
+              <option value="">정하지 않음</option>
+              <option value="true">허용</option>
+              <option value="false">불허</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {saveErrors.length > 0 && (
+        <div style={{ ...card, borderColor: "#ef4444", color: "#fca5a5", fontSize: "13px" }}>
+          {saveErrors.map((msg) => <div key={msg}>{msg}</div>)}
+        </div>
+      )}
+      {saveMessage && <div style={{ ...card, color: "#86efac", fontSize: "13px" }}>{saveMessage}</div>}
+
+      <button type="button" style={primaryButton} onClick={save} disabled={saving}>
+        {saving ? "저장 중..." : "정책 저장"}
+      </button>
+    </div>
+  );
+}

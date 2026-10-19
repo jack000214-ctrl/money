@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +53,21 @@ from scripts.forecast_engine import (
 from calculators.portfolio_math import get_portfolio_status
 from cio import watch_api
 from cio.llm_interface import LLMInterface
+
+# ── 자동 업데이트 백그라운드 상태 ──────────────────────────────────────────
+_auto_update_lock = threading.Lock()
+_auto_update_state: dict[str, Any] = {"running": False, "result": None}
+
+
+def _run_auto_update_bg() -> None:
+    """백그라운드 스레드에서 시세 자동 업데이트를 실행한다."""
+    try:
+        result = check_and_update_prices()
+    except Exception as exc:
+        result = {"success": False, "error": str(exc), "logs": [str(exc)]}
+    with _auto_update_lock:
+        _auto_update_state["running"] = False
+        _auto_update_state["result"] = result
 
 
 class APIServerHandler(BaseHTTPRequestHandler):
@@ -177,9 +194,14 @@ class APIServerHandler(BaseHTTPRequestHandler):
                 or a.get("price_info", {}).get("last_date") != _target_str
                 or a.get("price_info", {}).get("session") == "UNSETTLED"
             ]
+            with _auto_update_lock:
+                running = _auto_update_state["running"]
+                last_result = _auto_update_state["result"]
             self._send_json({
                 "total": len(assets),
                 "stale_candidates": [a["ticker"] for a in stale],
+                "running": running,
+                "last_result": last_result,
             })
             return
 
@@ -324,17 +346,28 @@ class APIServerHandler(BaseHTTPRequestHandler):
             ticker = body.get("ticker", "")
             logs = []
 
+            def _ts() -> str:
+                return time.strftime("%H:%M:%S")
+
+            t0 = time.time()
             p_res = collect_price(ticker)
-            logs.append(f"1. 시세 수집: {'성공' if p_res.get('success') else '실패'}\n{p_res.get('output', '')}")
+            elapsed = time.time() - t0
+            logs.append(f"1. 시세 수집: {'성공' if p_res.get('success') else '실패'} [{elapsed:.1f}s]\n{p_res.get('output', '')}")
 
+            t0 = time.time()
             f_res = collect_fundamentals(ticker)
-            logs.append(f"2. 재무/공시 수집:\n{f_res.get('output', '')}")
+            elapsed = time.time() - t0
+            logs.append(f"2. 재무/공시 수집: [{elapsed:.1f}s]\n{f_res.get('output', '')}")
 
+            t0 = time.time()
             b_res = build_report(ticker, select_for_dashboard=True)
-            logs.append(f"3. 리포트 빌드: {'성공' if b_res.get('success') else '실패'}\n{b_res.get('output', '') or b_res.get('error', '')}")
+            elapsed = time.time() - t0
+            logs.append(f"3. 리포트 빌드: {'성공' if b_res.get('success') else '실패'} [{elapsed:.1f}s]\n{b_res.get('output', '') or b_res.get('error', '')}")
 
+            t0 = time.time()
             a_res = generate_ai_analysis(ticker)
-            logs.append(f"4. Bob AI 투자 판단: {'성공' if a_res.get('success') else '실패'}\n{a_res.get('output', '') or a_res.get('error', '')}")
+            elapsed = time.time() - t0
+            logs.append(f"4. Bob AI 투자 판단: {'성공' if a_res.get('success') else '실패'} [{elapsed:.1f}s]\n{a_res.get('output', '') or a_res.get('error', '')}")
 
             self._send_json({
                 "success": a_res.get("success", False),
@@ -390,10 +423,17 @@ class APIServerHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
-        # 7. 오늘 시세 자동 업데이트 실행
+        # 7. 오늘 시세 자동 업데이트 실행 (백그라운드 — 연결 끊김 방지)
         if path == "/api/auto-update":
-            result = check_and_update_prices()
-            self._send_json(result)
+            with _auto_update_lock:
+                if _auto_update_state["running"]:
+                    self._send_json({"started": False, "reason": "already_running"})
+                    return
+                _auto_update_state["running"] = True
+                _auto_update_state["result"] = None
+            t = threading.Thread(target=_run_auto_update_bg, daemon=True)
+            t.start()
+            self._send_json({"started": True}, status=HTTPStatus.ACCEPTED)
             return
 
         self._send_json({"error": "Not Found"}, status=HTTPStatus.NOT_FOUND)

@@ -118,6 +118,32 @@ def _put_config(_query, body) -> Response:
     return 200, {"config": saved, "errors": [], "smtp_password_set": watch_notify.smtp_password_present()}
 
 
+# ── 투자자 정책 ─────────────────────────────────────────────────────────
+
+def _get_investor_policy(_query, _body) -> Response:
+    from cio.policy import load_policy, POLICY_PATH
+    raw_exists = POLICY_PATH.exists()
+    data, errors = load_policy()
+    return 200, {"policy": data, "errors": errors, "exists": raw_exists}
+
+
+def _put_investor_policy(_query, body) -> Response:
+    import json
+    from cio.policy import load_policy, validate_policy, POLICY_PATH, POLICY_SCHEMA
+    if not isinstance(body, dict):
+        return 400, {"error": "본문은 JSON 객체여야 한다"}
+    existing_data, _ = load_policy()
+    merged = {**(existing_data or {}), **body}
+    merged["schema_version"] = POLICY_SCHEMA
+    errors = validate_policy(merged)
+    if errors:
+        return 400, {"error": "정책 형식이 올바르지 않다", "errors": errors}
+    POLICY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    POLICY_PATH.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+    data, _ = load_policy()
+    return 200, {"policy": data, "errors": []}
+
+
 # ── 시험 메일 · 수동 실행 ───────────────────────────────────────────────
 
 def _test_email(_query, _body) -> Response:
@@ -153,4 +179,6 @@ _ROUTES = {
     ("POST", "config"): _put_config,
     ("POST", "test-email"): _test_email,
     ("POST", "run-once"): _run_once,
+    ("GET", "investor-policy"): _get_investor_policy,
+    ("PUT", "investor-policy"): _put_investor_policy,
 }

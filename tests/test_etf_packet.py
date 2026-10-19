@@ -153,19 +153,23 @@ class TestThinPriceHistory(PriceFiles):
     def test_one_bar_is_not_a_drawdown_of_zero(self):
         """한 행이면 고점이 곧 현재가라 0.0 이 나왔다. 관측이 아니다."""
         summary = self.summary("000300.SS", [4310.28])
+        assert summary is not None
         self.assertIsNone(summary["drawdown_from_12m_high_pct"])
         self.assertEqual(summary["history_bars"], 1)
         self.assertIn("1행뿐", summary["_history_warning"])
 
     def test_a_series_shorter_than_a_year_says_so(self):
         summary = self.summary("NEW.KS", [100 + i for i in range(60)])
+        assert summary is not None
         self.assertEqual(summary["history_bars"], 60)
         self.assertIn("12개월 창보다 짧다", summary["_history_warning"])
+        assert summary["returns_pct"] is not None
         self.assertIsNotNone(summary["returns_pct"]["1m"])
         self.assertIsNone(summary["returns_pct"]["12m"])
 
     def test_a_full_history_carries_no_warning(self):
         summary = self.summary("OLD.KS", [100 + i % 7 for i in range(300)])
+        assert summary is not None
         self.assertNotIn("_history_warning", summary)
         self.assertNotIn("history_bars", summary)
 
@@ -230,19 +234,24 @@ class TestIssuerFacts(unittest.TestCase):
 
     def test_same_day_settled_close_is_compared_with_nav(self):
         block, source = self.facts(self.price())
+        assert block is not None
+        assert source is not None
         self.assertEqual(block["price_vs_nav_pct"], -0.08)
         self.assertEqual(source["source_id"], "ETF_ISSUER:0053L0")
 
     def test_a_different_date_is_not_compared(self):
         block, _ = self.facts(self.price(as_of="2026-10-12"))
+        assert block is not None
         self.assertIsNone(block["price_vs_nav_pct"])
 
     def test_an_unsettled_bar_is_not_compared(self):
         block, _ = self.facts(self.price(settled=False))
+        assert block is not None
         self.assertIsNone(block["price_vs_nav_pct"])
 
     def test_the_hedge_statement_is_kept_verbatim(self):
         block, _ = self.facts(self.price())
+        assert block is not None
         self.assertEqual(block["hedge_statement"], "환헤지를 하지 아니함")
 
 
@@ -254,6 +263,7 @@ class TestRefreshPlanning(unittest.TestCase):
 
     def test_a_supported_issuer_gets_a_collection_command(self):
         task = self.tasks(ETF)["holdings:0053L0"]
+        assert task.command is not None
         self.assertIn("collectors.kr_etf_holdings", task.command)
         self.assertTrue(task.required)
 
@@ -262,6 +272,7 @@ class TestRefreshPlanning(unittest.TestCase):
         asset = {**ETF, "etf": {**ETF["etf"], "issuer": "SOMEONE_ELSE"}}
         task = self.tasks(asset)["holdings:0053L0"]
         self.assertIsNone(task.command)
+        assert task.reason is not None
         self.assertIn("etf.issuer", task.reason)
 
     def test_an_issuer_without_an_isin_is_manual(self):
@@ -306,6 +317,7 @@ class TestConstituentsContractInRefresh(unittest.TestCase):
     def test_material_on_older_holdings_is_refused(self):
         """구성이 바뀌었는데 옛 재료를 실으면 빠진 종목의 배수가 실린다."""
         error = self.check(material_as_of="2026-09-30", holdings_as_of="2026-10-08")
+        assert error is not None
         self.assertIn("2026-09-30", error)
 
 

@@ -144,11 +144,7 @@ def run_bob_shell(
             stdout_msg = output[:300].strip()
             return f"[ERROR] Bob 실행 실패 (코드 {proc.returncode}): {stderr_msg or stdout_msg}"
         return _extract_final_response_json(output)
-    except subprocess.TimeoutExpired as exc:
-        try:
-            exc.process.kill()
-        except Exception:
-            pass
+    except subprocess.TimeoutExpired:
         return f"[ERROR] Bob 실행 타임아웃 ({_BOB_TIMEOUT}초 초과)"
     except FileNotFoundError:
         return f"[ERROR] '{_BOB_BIN}' 실행 파일을 찾을 수 없습니다."

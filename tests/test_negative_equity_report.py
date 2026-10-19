@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 _spec = importlib.util.spec_from_file_location(
     "build_decision_report", ROOT / "dashboard" / "scripts" / "build_decision_report.py")
+assert _spec is not None and _spec.loader is not None
 bdr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bdr)
 

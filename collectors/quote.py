@@ -27,7 +27,7 @@ import json
 import math
 import urllib.error
 import urllib.request
-from typing import Any, Callable
+from typing import Any, Callable, TypeGuard
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from cio import watch_store
@@ -51,7 +51,7 @@ class QuoteError(Exception):
     pass
 
 
-def _is_number(value: Any) -> bool:
+def _is_number(value: Any) -> TypeGuard[int | float]:
     return (
         isinstance(value, (int, float))
         and not isinstance(value, bool)

@@ -292,7 +292,7 @@ class TestOptionalValueStaleness(unittest.TestCase):
         )
         self.assertEqual(value, 0.0)
         self.assertEqual(basis, "STALE_EXCLUDED")
-        self.assertIn("2021-03-31", note)
+        self.assertIn("2021-03-31", note)  # pyright: ignore[reportArgumentType]
 
     def test_fresh_value_is_kept(self):
         value, basis, note = resolve_optional_value(

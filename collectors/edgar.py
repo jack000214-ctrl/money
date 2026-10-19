@@ -451,6 +451,7 @@ def ticker_map(ua, refresh=False):
     if cache_is_fresh and not refresh:
         return json.loads(cache.read_text(encoding="utf-8"))
     data = get(TICKERS_URL, ua)
+    assert data is not None  # tolerate_404 를 쓰지 않으므로 404 는 fail 로 끝난다
     m = {v["ticker"].upper(): {"cik": str(v["cik_str"]).zfill(10), "name": v["title"]}
          for v in data.values()}
     save_json(cache, m)
@@ -654,14 +655,16 @@ def fiscal_quarters(points):
                   3: selected.get((fy, "Q3S")), 4: selected.get((fy, "Q4S"))}
         rows = {}
         for quarter in (1, 2, 3, 4):
-            if direct[quarter]:
-                rows[quarter] = {"source": direct[quarter],
-                                 "val": direct[quarter]["val"], "derived": False}
-            elif (quarter > 1 and ytd[quarter] and ytd[quarter - 1]
-                  and ytd[quarter]["start"] == ytd[quarter - 1]["start"]):
+            direct_point = direct[quarter]
+            current, previous = ytd[quarter], ytd.get(quarter - 1)
+            if direct_point:
+                rows[quarter] = {"source": direct_point,
+                                 "val": direct_point["val"], "derived": False}
+            elif (quarter > 1 and current and previous
+                  and current["start"] == previous["start"]):
                 rows[quarter] = {
-                    "source": ytd[quarter],
-                    "val": ytd[quarter]["val"] - ytd[quarter - 1]["val"],
+                    "source": current,
+                    "val": current["val"] - previous["val"],
                     "derived": True,
                 }
         # 1분기가 그 뒤의 서류에서 재작성됐는가. 반기 누계와 2분기 3개월 값이
@@ -1022,6 +1025,7 @@ def derive_us_fundamentals(raw):
             income[key] = {"tag": tag, "ttm": None, "quarters": [],
                            "absent_reason": reason}
             continue
+        assert total is not None  # total 이 None 이면 위에서 reason 이 세워져 continue 했다
         income[key] = {
             "tag": tag, "ttm": float(total),
             "quarters": [_quarter_row(q) for q in recent],
@@ -1126,8 +1130,9 @@ def replay_fundamentals(snapshot, raw):
 
     → 어긋난 것을 설명하는 문장 목록(같으면 빈 목록).
     """
+    captured = io.StringIO()
     try:
-        with contextlib.redirect_stderr(io.StringIO()) as captured:
+        with contextlib.redirect_stderr(captured):
             derived = derive_us_fundamentals(raw)
     except SystemExit:
         reason = captured.getvalue().strip().splitlines()

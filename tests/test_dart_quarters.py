@@ -172,8 +172,8 @@ class TestSharesCrossCheck(unittest.TestCase):
         self.assertEqual(shares_cross_check_pct(1000.0, 1000.0), 0.0)
 
     def test_a_gap_is_reported_as_an_absolute_percentage(self):
-        self.assertAlmostEqual(shares_cross_check_pct(1100.0, 1000.0), 10.0)
-        self.assertAlmostEqual(shares_cross_check_pct(900.0, 1000.0), 10.0)
+        self.assertAlmostEqual(shares_cross_check_pct(1100.0, 1000.0), 10.0)  # pyright: ignore[reportArgumentType, reportCallIssue]
+        self.assertAlmostEqual(shares_cross_check_pct(900.0, 1000.0), 10.0)  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     def test_a_missing_side_yields_nothing_rather_than_zero(self):
         """0% 어긋남과 '비교할 수 없다'는 다른 사건이다."""

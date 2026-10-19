@@ -37,7 +37,7 @@ def summary(data, fundamentals=None):
     quarter_effect = None
     if calendar_ytd and prior_date and end.endswith("03-31"):
         quarter_effect = current_effect
-    elif calendar_ytd and current_effect is not None and prior_effect is not None and prior_date[:4] == end[:4] and prior.get("report_period_start") == latest["report_period_start"]:
+    elif calendar_ytd and current_effect is not None and prior_effect is not None and prior and prior_date and prior_date[:4] == end[:4] and prior.get("report_period_start") == latest["report_period_start"]:
         quarter_effect = current_effect - prior_effect
     latest_provision = value(latest, "loss_provision_balance")
     prior_provision = value(prior, "loss_provision_balance") if prior else None
@@ -59,7 +59,7 @@ def summary(data, fundamentals=None):
     expected_ends = {f"{end[:4]}-{month:02d}-{calendar.monthrange(int(end[:4]), month)[1]}" for month in range(3, int(end[5:7]) + 1, 3)}
     complete = {row.get("end") for row in ytd_rows} == expected_ends and len(ytd_rows) == len(expected_ends) and bool(expected_ends)
     amounts = [numeric(row.get("operating_income")) for row in ytd_rows]
-    op_ytd = sum(amounts) if complete and all(v is not None for v in amounts) else None
+    op_ytd = sum(v for v in amounts if v is not None) if complete and all(v is not None for v in amounts) else None
     math_block["operating_income_ytd_krw"] = op_ytd if same_period and calendar_ytd else None
     math_block["estimate_change_effect_pct_of_ytd_operating_income"] = round(current_effect / op_ytd * 100, 4) if same_period and calendar_ytd and current_effect is not None and op_ytd and op_ytd > 0 else None
     math_block["fundamentals_period_match"] = same_period

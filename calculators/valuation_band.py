@@ -18,6 +18,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
 from collectors.dart import (
@@ -100,7 +101,7 @@ def is_eps_account(account_nm):
     return (account_nm or "").replace(" ", "") in EPS_NAMES
 
 
-def fail(msg):
+def fail(msg) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -148,6 +149,7 @@ def kr_filing_dates(corp_code, key, years):
         data = dart_request("list.json", {
             "corp_code": corp_code, "bgn_de": f"{year}0101", "end_de": f"{year}1231",
             "pblntf_ty": "A", "page_count": "100"}, key)
+        assert data is not None  # allow_empty 를 쓰지 않으므로 빈 응답(013)은 fail 로 끝난다
         for r in data.get("list", []):
             nm = r["report_nm"]
             if "분기보고서" in nm or "반기보고서" in nm or "사업보고서" in nm:

@@ -191,6 +191,7 @@ class TestRegistryAndRouting(unittest.TestCase):
                 tasks = tasks_for(asset_id)
                 events = [t for t in tasks if t.capability == "EVENTS"]
                 self.assertEqual(len(events), 1)
+                assert events[0].command is not None
                 self.assertEqual(events[0].command[2], module)
 
     def test_us_event_packet_depends_on_the_filing_index(self):

@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import NoReturn
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,7 +102,7 @@ def session_state(meta: dict, last_date: str) -> str:
     period = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
     session_start = period.get("start")
     session_end = period.get("end")
-    if not all(type(value) is int for value in (market_time, session_end)):
+    if not (isinstance(market_time, int) and isinstance(session_end, int)):
         return "UNKNOWN"
 
     # Quote time and currentTradingPeriod need not belong to the same session.
@@ -130,12 +131,12 @@ def session_state(meta: dict, last_date: str) -> str:
         quote_date = datetime.fromtimestamp(market_time, exchange_zone).date()
         end_date = datetime.fromtimestamp(session_end, exchange_zone).date()
         start_date = datetime.fromtimestamp(session_start, exchange_zone).date() \
-            if type(session_start) is int else None
+            if isinstance(session_start, int) else None
     except (ValueError, OverflowError, OSError):
         return "UNKNOWN"
     if quote_date < bar_date:
         return "UNKNOWN"
-    if start_date is not None:
+    if start_date is not None and isinstance(session_start, int):
         if session_start >= session_end:
             return "UNKNOWN"
         if bar_date < start_date:
@@ -153,7 +154,7 @@ def session_state(meta: dict, last_date: str) -> str:
     return "UNKNOWN"
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"오류: {message}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -191,7 +192,7 @@ def fetch(symbol: str, range_name: str) -> tuple[dict, list[dict]]:
         fail(f"연결 실패 — {exc.reason}")
 
     results = (data.get("chart") or {}).get("result")
-    if not results:
+    if not isinstance(results, list) or not results:
         fail(f"{symbol}: 데이터 없음 {(data.get('chart') or {}).get('error')}")
     result = results[0]
     # 파일 이름이 정체성을 만들면 안 된다. 요청한 종목과 다른 종목의 응답이 와도

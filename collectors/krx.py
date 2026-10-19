@@ -611,15 +611,25 @@ def main():
         # "구멍 없음"조차 기록하지 못한다. 실제로 부를 때 처음 읽는다.
         cached: list[str] = []
 
-        def key() -> str:
+        def key_fn() -> str:
             if not cached:
                 cached.append(load_key())
             return cached[0]
+
+        backfill_handlers = {
+            "backfill": cmd_backfill,
+            "backfill-stock": cmd_backfill_stock,
+        }
+        backfill_handlers[a.cmd](a, key_fn)
     else:
         key = load_key()
-    {"verify": cmd_verify, "snapshot": cmd_snapshot, "history": cmd_history,
-     "index": cmd_index, "backfill": cmd_backfill,
-     "backfill-stock": cmd_backfill_stock}[a.cmd](a, key)
+        handlers = {
+            "verify": cmd_verify,
+            "snapshot": cmd_snapshot,
+            "history": cmd_history,
+            "index": cmd_index,
+        }
+        handlers[a.cmd](a, key)
 
 
 if __name__ == "__main__":

@@ -470,7 +470,7 @@ class TestUsFilingLinkage(unittest.TestCase):
         entry = catalog["available"][0]
         self.assertIsNone(entry["filing_date"])
         self.assertEqual(entry["fetched_at"], "2026-07-30T00:00:00+00:00")
-        context_row = documents_for_context("TSLA")["searchable"][0]
+        context_row = documents_for_context("TSLA")["searchable"][0]  # pyright: ignore[reportOptionalSubscript]
         self.assertIsNone(context_row["filing_date"])
         self.assertEqual(context_row["fetched_at"], entry["fetched_at"])
         result = search_asset("TSLA", "Total revenues")
@@ -487,6 +487,7 @@ class TestUsFilingLinkage(unittest.TestCase):
 class TestContextBlock(DocumentSearchTest):
     def test_block_names_documents_without_carrying_their_body(self):
         block = documents_for_context("005930")
+        assert block is not None
         self.assertEqual(block["searchable_total"], 1)
         self.assertEqual(block["not_fetched_total"], 1)
         serialized = json.dumps(block, ensure_ascii=False)
@@ -495,6 +496,7 @@ class TestContextBlock(DocumentSearchTest):
 
     def test_block_tells_the_model_how_to_search(self):
         block = documents_for_context("005930")
+        assert block is not None
         self.assertIn("cio search", block["_role"])
 
 

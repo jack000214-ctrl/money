@@ -134,7 +134,7 @@ class TestWithoutPositionDataNothingIsAsserted(unittest.TestCase):
         self.assertEqual(_errors(context, "TRIM", 40), [])
 
     def test_held_without_quantity_leaves_quantity_unchecked(self):
-        context = _packet(quantity=None)
+        context = _packet(quantity=None)  # pyright: ignore[reportArgumentType]
         self.assertEqual(_errors(context, "TRIM", 40), [])
 
 

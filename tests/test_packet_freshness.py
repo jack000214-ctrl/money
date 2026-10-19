@@ -45,7 +45,7 @@ class Workspace(unittest.TestCase):
         for target, values in (
                 (context, {"ROOT": self.root, "KNOWLEDGE_DIR": self.knowledge}),
                 (refresh, {"ROOT": self.root})):
-            patcher = patch.multiple(target, **values)
+            patcher = patch.multiple(target, **values)  # pyright: ignore[reportCallIssue,reportArgumentType]
             patcher.start()
             self.addCleanup(patcher.stop)
         fx = patch.object(context, "_fx_quarters", return_value=(None, None))
@@ -105,6 +105,7 @@ class TestMissingIsNotZero(Workspace):
         self.write_flow("2026-10-08,100,,,50\n2026-10-12,101,,,50\n")
         task = next(t for t in self.tasks() if t.capability == "KR_FLOW")
         self.assertEqual(task.state, "STALE")
+        assert task.contract_error is not None
         self.assertIn("결측을 0 으로 읽지 않는다", task.contract_error)
         summaries, sources = self.summaries()
         self.assertEqual(summaries["kr_flow"]["state"], "INVALID")
@@ -116,6 +117,7 @@ class TestMissingIsNotZero(Workspace):
             "# 005930 투자자별 순매수 / 단위 주\n# 수집일 2026-10-13 / 출처 합성\n"
             "date,foreign_pct\n2026-10-12,50\n", encoding="utf-8")
         task = next(t for t in self.tasks() if t.capability == "KR_FLOW")
+        assert task.contract_error is not None
         self.assertIn("필수 열", task.contract_error)
 
 
@@ -192,10 +194,12 @@ class TestSegmentsBelongToTheCompany(Workspace):
             **kr_segments.extract(SEGMENT_DOCUMENT),
         }
 
-    def errors(self, data=None, index="default"):
+    def errors(self, data=None, index: "dict | str" = "default"):
+        resolved_index = self.index if index == "default" else index
         return kr_segments.contract_errors(
             self.data if data is None else data, "005930",
-            index=self.index if index == "default" else index, root=self.root)
+            index=resolved_index if isinstance(resolved_index, dict) else None,  # pyright: ignore[reportArgumentType]
+            root=self.root)
 
     def test_material_that_replays_from_its_report_passes(self):
         self.assertEqual(self.errors(), [])
@@ -273,6 +277,7 @@ class TestStaleEtfMaterial(unittest.TestCase):
                 coverage = context._etf_data_coverage(
                     asset, {"as_of": "2026-09-01", "lookthrough": block})
         self.assertEqual(task.state, "STALE")
+        assert block is not None
         self.assertEqual(block["valuation"]["forward_pe"], 20.0)
         self.assertEqual(block["freshness"], "STALE")
         self.assertEqual(coverage["lookthrough_valuation"]["state"], "STALE")

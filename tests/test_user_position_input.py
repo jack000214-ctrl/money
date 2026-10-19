@@ -20,7 +20,7 @@ class TestUserPosition(unittest.TestCase):
         options = dict(intent="HOLD_REVIEW", amount=None, held_quantity=100,
                        average_cost=40000, price_value=50000)
         options.update(kwargs)
-        return _build_packet(**options)
+        return _build_packet(**options)  # pyright: ignore[reportArgumentType]
 
     def test_explicit_position_survives_a_conflicting_ledger(self):
         packet = self.packet()
@@ -155,7 +155,7 @@ class TestCurrencyBasis(unittest.TestCase):
         inputs = dict(quantity=10, price=5, asset_currency="USD", average_cost=6000,
                       cost_currency="KRW", fx_krw_per_usd=1400, fx_as_of="2026-09-18")
         inputs.update(kwargs)
-        return position_value_by_currency(**inputs)
+        return position_value_by_currency(**inputs)  # pyright: ignore[reportArgumentType]
 
     def test_changing_fx_changes_krw_gain_without_rewriting_acquisition_cost(self):
         low = self.calculate(fx_krw_per_usd=1000)

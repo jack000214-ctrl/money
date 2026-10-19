@@ -457,7 +457,7 @@ def plan(statement: dict[str, Any], mapping: dict[str, str] | None = None) -> di
         asset_id = key if info["market"] == "KR" else mapping.get(key)
         path = TRADES_DIR / f"{asset_id}.csv" if asset_id else None
         rows = by_security.get(key, [])
-        if path is not None and path.exists():
+        if asset_id is not None and path is not None and path.exists():
             asset_of[key] = asset_id
             header, fields, old = read_ledger_file(path)
             new = [ledger_row(row, label) for row in rows]

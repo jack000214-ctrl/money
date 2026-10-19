@@ -21,7 +21,7 @@ def section(asset):
         report = load_json(path)
         errors = contract_errors(report, asset["asset_id"], index=index)
     except (ValueError, OSError) as exc:
-        errors = [str(exc)]
+        return {"state": "INVALID", "problems": [str(exc)]}, []
     if errors:
         return {"state": "INVALID", "problems": errors}, []
     source_id = f"CAPITAL:{asset['asset_id']}"

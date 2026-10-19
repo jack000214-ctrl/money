@@ -131,19 +131,20 @@ class TestReadingTheStatisticsPage(unittest.TestCase):
 class TestRouting(unittest.TestCase):
     def test_hong_kong_codes_are_zero_padded(self):
         routed = constituents.route("425.HK", "HK")
+        assert routed is not None
         self.assertEqual(routed["yahoo"], ["0425.HK"])
         self.assertEqual(routed["stats"], "/quote/hkg/0425/statistics/")
 
     def test_shenzhen_and_shanghai_go_to_different_pages(self):
-        self.assertIn("/she/", constituents.route("300124.SZ", "CN")["stats"])
-        self.assertIn("/sha/", constituents.route("603501.SS", "CN")["stats"])
+        self.assertIn("/she/", constituents.route("300124.SZ", "CN")["stats"])  # pyright: ignore[reportOptionalSubscript]
+        self.assertIn("/sha/", constituents.route("603501.SS", "CN")["stats"])  # pyright: ignore[reportOptionalSubscript]
 
     def test_a_korean_code_tries_both_boards(self):
-        self.assertEqual(constituents.route("005930", "KR")["yahoo"],
+        self.assertEqual(constituents.route("005930", "KR")["yahoo"],  # pyright: ignore[reportOptionalSubscript]
                          ["005930.KS", "005930.KQ"])
 
     def test_a_us_class_share_uses_a_dash_for_prices(self):
-        self.assertEqual(constituents.route("BRK.B", "US")["yahoo"], ["BRK-B"])
+        self.assertEqual(constituents.route("BRK.B", "US")["yahoo"], ["BRK-B"])  # pyright: ignore[reportOptionalSubscript]
 
     def test_an_unknown_notation_is_not_guessed(self):
         self.assertIsNone(constituents.route("ABC_ZZ_EQUITY", ""))
@@ -191,7 +192,7 @@ class TestWeightedMultiples(unittest.TestCase):
     def test_a_loss_is_measured_by_margin_over_sales_multiple(self):
         """순이익÷시가총액은 통화가 섞인다. 비율끼리 나눈다."""
         value, basis = lookthrough.earnings_yield(holding("LOSS", 1, ps=12, margin=-24))
-        self.assertAlmostEqual(value, -0.02)
+        self.assertAlmostEqual(value, -0.02)  # pyright: ignore[reportArgumentType, reportCallIssue]
         self.assertEqual(basis, "TRAILING_MARGIN_OVER_PS")
 
     def test_a_holding_with_nothing_is_no_data_not_zero(self):

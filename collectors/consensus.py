@@ -34,6 +34,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import NoReturn
 
 from cio.display import ABSENT, cell, pad
 
@@ -63,7 +64,7 @@ REVISION_WINDOW_DAYS = 90
 RECENT_WINDOW_DAYS = 30
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"오류: {message}", file=sys.stderr)
     raise SystemExit(1)
 

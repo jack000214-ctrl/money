@@ -92,7 +92,7 @@ class TestParse(unittest.TestCase):
     def test_non_positive_or_non_numeric_price_is_refused(self):
         for bad in (0, -1, None, "100", float("nan"), True):
             with self.subTest(bad), self.assertRaises(quote.QuoteError):
-                quote.parse_meta("005930.KS", meta(price=bad), at(10, 15), "KRW")
+                quote.parse_meta("005930.KS", meta(price=bad), at(10, 15), "KRW")  # pyright: ignore[reportArgumentType]
 
     def test_future_quote_time_is_refused(self):
         future = dt.datetime(2026, 10, 19, 12, 0, tzinfo=KST)

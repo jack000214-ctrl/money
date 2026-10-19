@@ -30,7 +30,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from calculators.contracts import write_json
 from cio.assets import get_asset
@@ -85,7 +85,7 @@ KRX_CODE_RE = re.compile(r"^[0-9][0-9A-Z]{5}$")
 CASH_NAME_WORDS = ("예금", "현금", "예수금", "CASH")
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"오류: {message}", file=sys.stderr)
     raise SystemExit(1)
 

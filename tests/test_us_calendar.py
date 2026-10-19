@@ -62,8 +62,9 @@ class TestFilingLag(unittest.TestCase):
             filing("10-K", "2025-12-31", "2026-03-01"),   # 60일
             filing("10-K", "2024-12-31", "2025-03-01"),   # 60일
         ])
-        self.assertEqual(lag["median_lag_days_by_class"]["INTERIM"], 40)
-        self.assertEqual(lag["median_lag_days_by_class"]["ANNUAL"], 60)
+        assert lag["median_lag_days_by_class"] is not None
+        self.assertEqual(lag["median_lag_days_by_class"]["INTERIM"], 40)  # pyright: ignore[reportArgumentType, reportCallIssue, reportIndexIssue]
+        self.assertEqual(lag["median_lag_days_by_class"]["ANNUAL"], 60)  # pyright: ignore[reportArgumentType, reportCallIssue, reportIndexIssue]
         self.assertEqual(lag["sample_size_by_class"], {"ANNUAL": 2, "INTERIM": 2})
 
     def test_non_periodic_forms_are_ignored(self):
@@ -95,12 +96,13 @@ class TestFilingLag(unittest.TestCase):
         ]
         lag = filing_lag(rows)
         self.assertEqual(lag["observation_count"], 11)
-        self.assertEqual(len(lag["observations"]), 6)
+        self.assertEqual(len(lag["observations"]), 6)  # pyright: ignore[reportArgumentType]
 
     def test_duplicate_periods_do_not_manufacture_a_sample(self):
         row = filing("10-Q", "2026-03-31", "2026-05-10")
         lag = filing_lag([row, dict(row)])
-        self.assertEqual(lag["sample_size_by_class"]["INTERIM"], 1)
+        assert lag["sample_size_by_class"] is not None
+        self.assertEqual(lag["sample_size_by_class"]["INTERIM"], 1)  # pyright: ignore[reportArgumentType, reportCallIssue, reportIndexIssue]
 
 
 class TestBuild(unittest.TestCase):

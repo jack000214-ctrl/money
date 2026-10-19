@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 import json
+from pathlib import Path
+from typing import Any
 import unittest
 
 import helpers  # noqa: F401
@@ -90,11 +92,15 @@ class TestEventPriceMath(unittest.TestCase):
 
 
 class TestEventPriceBinding(unittest.TestCase):
+    context: dict[str, Any]
+    knowledge: Path
+    root: Path
+
     # Reuse fixture construction, without inheriting and rerunning its test suite.
     setUp = persistence.TestAssumptionPersistence.setUp
 
     def decision(self, report):
-        decision = persistence.TestAssumptionPersistence.decision(self, report)
+        decision = persistence.TestAssumptionPersistence.decision(self, report)  # pyright: ignore[reportArgumentType]
         decision["method"]["valuation_family"] = "EVENT_REPRICING"
         decision["horizon_months"] = 3
         return decision
@@ -109,7 +115,7 @@ class TestEventPriceBinding(unittest.TestCase):
         self.assertEqual(validate_decision(decision, context=self.context), [])
         write_json(self.knowledge / "contexts" / "TSLA" / f"{self.context['context_id']}.json", self.context)
         path = record_decision_file(write_json(self.root / "event-decision.json", decision))
-        saved = json.loads(path.read_text())
+        saved = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(saved["method"]["valuation_family"], "EVENT_REPRICING")
         self.assertEqual(saved["assumption_review"]["analysis_id"], report["analysis_id"])
 
@@ -126,7 +132,7 @@ class TestEventPriceBinding(unittest.TestCase):
         self.assertTrue(validate_review(decision, self.context))
         # Binding must also hold in the opposite direction.
         earnings = create_analysis(spec_fixture(), self.context)
-        wrong = persistence.TestAssumptionPersistence.decision(self, earnings)
+        wrong = persistence.TestAssumptionPersistence.decision(self, earnings)  # pyright: ignore[reportArgumentType]
         wrong["method"]["valuation_family"] = "EVENT_REPRICING"
         self.assertTrue(validate_review(wrong, self.context))
 
@@ -140,6 +146,7 @@ class TestEventPriceBinding(unittest.TestCase):
             with self.subTest(version=version):
                 loaded = load_analysis("TSLA", report["analysis_id"], self.context)
                 self.assertEqual(loaded["outputs"], original["outputs"])
+        report = deepcopy(original)
         report["engine_version"] = "99.0.0"
         report["analysis_id"] = analysis_id(report)
         write_json(report_path("TSLA", report["analysis_id"]), report)

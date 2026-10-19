@@ -93,52 +93,62 @@ class TestFilingIndex(PacketPart):
         """출처를 지우면 '안 모았다'와 '모을 곳이 없다'가 구분되지 않는다."""
         summary, source = self.summarize()
         self.assertIsNone(summary)
+        assert source is not None
         self.assertEqual(source["source_id"], "FILINGS:TSLA")
         self.assertIn("filings/TSLA.json", source["path"])
 
     def test_unreadable_json_becomes_a_contract_error(self):
         self.write("filings/TSLA.json", "{ 망가진")
         summary, _source = context._filing_summary(self.ASSET)
+        assert summary is not None
         self.assertIn("공시 색인 JSON을 읽을 수 없다", summary["contract_errors"])
 
     def test_a_wrong_schema_version_is_refused(self):
         summary, _ = self.summarize(self.index(schema_version="0.9.0"))
+        assert summary is not None
         self.assertIn("filing-index/1.0.0이 아니다", summary["contract_errors"])
 
     def test_an_index_for_another_asset_is_refused(self):
         """다른 종목의 공시를 이 종목 판단에 싣는 것이 최악이다."""
         summary, _ = self.summarize(self.index(asset_id="IBM"))
+        assert summary is not None
         self.assertIn("공시 색인의 asset_id가 registry와 다르다",
                       summary["contract_errors"])
 
     def test_an_empty_index_is_refused(self):
         summary, _ = self.summarize(self.index(filings=[]))
+        assert summary is not None
         self.assertIn("공시 색인에 제출 문서가 없다", summary["contract_errors"])
 
     def test_an_index_without_a_periodic_report_is_refused(self):
         """8-K 만 있는 색인은 정기보고서를 못 받았다는 뜻이다."""
         summary, _ = self.summarize(self.index(filings=[filing("8-K")]))
+        assert summary is not None
         self.assertIn("공시 색인의 제출 문서가 유효하지 않다",
                       summary["contract_errors"])
 
     def test_periodic_reports_and_events_are_separated(self):
         summary, _ = self.summarize(self.index())
+        assert summary is not None
         self.assertEqual(len(summary["latest_primary_reports"]), 1)
         self.assertEqual(summary["latest_primary_reports"][0]["form"], "10-Q")
         self.assertEqual(summary["latest_material_events"][0]["form"], "8-K")
 
     def test_the_collection_time_becomes_the_source_date(self):
         _summary, source = self.summarize(self.index())
+        assert source is not None
         self.assertEqual(source["data_as_of"], "2026-08-07T22:00:00+09:00")
 
     def test_empty_keys_are_dropped_rather_than_sent_as_null(self):
         """DART 는 report_date 를 주지 않는다. null 8건이 매번 실려 나갔다."""
         summary, _ = self.summarize(self.index())
+        assert summary is not None
         self.assertNotIn("report_date", summary["latest_primary_reports"][0])
 
     def test_a_present_key_survives(self):
         summary, _ = self.summarize(self.index(
             filings=[filing("10-Q", report_date="2026-06-30")]))
+        assert summary is not None
         self.assertEqual(
             summary["latest_primary_reports"][0]["report_date"], "2026-06-30")
 
@@ -146,6 +156,7 @@ class TestFilingIndex(PacketPart):
         """8-K 31건이 전부 '8-K' 면 임상 결과와 임원 교체가 구분되지 않는다."""
         summary, _ = self.summarize(self.index(filings=[
             filing("10-Q"), filing("8-K", item_labels=["Item 2.02"])]))
+        assert summary is not None
         self.assertEqual(
             summary["latest_material_events"][0]["item_labels"], ["Item 2.02"])
 
@@ -154,17 +165,20 @@ class TestFilingIndex(PacketPart):
             [filing("10-Q", f"2026-0{i}-01") for i in range(1, 7)]
             + [filing("8-K", f"2026-0{i}-02") for i in range(1, 10)]
         )))
+        assert summary is not None
         self.assertEqual(len(summary["latest_primary_reports"]), 4)
         self.assertEqual(len(summary["latest_material_events"]), 8)
 
     def test_a_non_object_filing_is_skipped_not_crashed(self):
         summary, _ = self.summarize(self.index(
             filings=[filing("10-Q"), "망가진 행"]))
+        assert summary is not None
         self.assertEqual(len(summary["latest_primary_reports"]), 1)
 
     def test_the_note_says_the_index_may_be_incomplete(self):
         """'여기 없으면 없다'로 읽히면 안 된다."""
         summary, _ = self.summarize(self.index())
+        assert summary is not None
         self.assertIn("원문을 직접", summary["_note"])
 
 
@@ -186,7 +200,9 @@ class TestKoreanFilingIndex(PacketPart):
         }
         data.update(overrides)
         self.write("filings/000660.json", data)
-        return context._filing_summary(self.ASSET)[0]
+        summary = context._filing_summary(self.ASSET)[0]
+        assert summary is not None
+        return summary
 
     def test_dart_report_forms_are_recognised(self):
         summary = self.summarize()
@@ -238,6 +254,7 @@ class TestMarketRegime(PacketPart):
     def test_a_missing_file_reports_where_it_would_be(self):
         summary, source = context._market_summary("KR")
         self.assertIsNone(summary)
+        assert source is not None
         self.assertIn("regime-KR.json", source["path"])
 
     def test_broken_json_yields_nothing_rather_than_a_crash(self):
@@ -255,6 +272,7 @@ class TestMarketRegime(PacketPart):
 
     def test_the_regime_and_its_score_are_carried(self):
         summary, _ = self.regime()
+        assert summary is not None
         self.assertEqual(summary["regime"], "RISK_ON")
         self.assertEqual(summary["score"], 62.0)
         self.assertEqual(summary["notes"], ["외국인 순매수"])
@@ -262,20 +280,24 @@ class TestMarketRegime(PacketPart):
     def test_freshness_is_the_oldest_input_not_the_collection_time(self):
         """가장 낡은 입력이 이 블록의 나이다 — 수집 시각은 그걸 감춘다."""
         _summary, source = self.regime()
+        assert source is not None
         self.assertEqual(source["data_as_of"], "2026-08-05")
 
     def test_without_input_dates_the_collection_time_is_used(self):
         _summary, source = self.regime(input_sources=[])
+        assert source is not None
         self.assertEqual(source["data_as_of"], "2026-08-07")
 
     def test_macro_falls_back_to_a_flat_series(self):
         """옛 파일은 시장별로 나뉘어 있지 않다."""
         summary, _ = self.regime(
             macro={"series": [{"name": "미 10년물", "value": 4.1}]})
+        assert summary is not None
         self.assertEqual(summary["macro"][0]["name"], "미 10년물")
 
     def test_the_block_says_it_is_not_an_instruction(self):
         summary, _ = self.regime()
+        assert summary is not None
         self.assertIn("지시가 아니다", summary["_role"])
 
 

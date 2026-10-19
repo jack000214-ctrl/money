@@ -59,7 +59,9 @@ class TestLendingChangeReachesThePacket(unittest.TestCase):
                 "market": "KR",
                 "optional_collectors": ["KR_LENDING"],
             })
-        return summaries.get("kr_lending")
+        block = summaries.get("kr_lending")
+        assert block is not None
+        return block
 
     def rows(self, *balances):
         return [{"date": f"2026-08-{i + 1:02d}", "balance_shares": str(b)}
@@ -104,8 +106,10 @@ class TestPeerGapReachesThePacket(unittest.TestCase):
                     "forward_period": "2026-12"}
 
         with patch("cio.context._forward_multiple_row", side_effect=fake_row):
-            return _peer_multiples({"asset_id": "000660", "name": "SK하이닉스",
-                                    "peers": peers})
+            block = _peer_multiples({"asset_id": "000660", "name": "SK하이닉스",
+                                     "peers": peers})
+        assert block is not None
+        return block
 
     def test_the_gap_the_screen_shows_is_in_the_packet(self):
         block = self.multiples(4.11, 5.13)
@@ -164,10 +168,12 @@ class TestPeersAreComparedWithinOneForwardPeriod(unittest.TestCase):
                     "as_of": as_of, "forward_period": period, "forward_per": per}
 
         with patch("cio.context._forward_multiple_row", side_effect=fake_row):
-            return _peer_multiples({
+            block = _peer_multiples({
                 "asset_id": "SUBJ", "name": "대상",
                 "peers": [{"asset_id": f"PEER{i}", "name": f"동종{i}"}
                           for i in range(len(peers))]})
+        assert block is not None
+        return block
 
     def test_a_peer_from_another_forward_year_does_not_move_the_median(self):
         block = self.block(("2026-12", 15.0, "2026-10-12"),

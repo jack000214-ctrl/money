@@ -47,7 +47,7 @@ class TestEpcExtraction(unittest.TestCase):
         self.assertIsNone(result['values']['loss_provision_reported_charge']['amount_krw'])
 
     def test_missing_units_and_period_are_not_guessed(self):
-        result = extract(document(unit=None), '2026-06-30')
+        result = extract(document(unit=None), '2026-06-30')  # pyright: ignore[reportArgumentType]
         self.assertIsNone(result['values']['unbilled_balance']['amount_krw'])
         source = document().split('</P>', 1)[1]
         result = extract(source, '2026-06-30')

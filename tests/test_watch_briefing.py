@@ -53,7 +53,7 @@ class TestBuild(unittest.TestCase):
                     not_monitored=[{"item": "review.stale_after_days", "reason": "정하지 않음(null)"}],
                     today=NOW.date(), open_requests=ok_requests, evaluation_summary=ok_eval)
         args.update(kw)
-        return wb.build_briefing(**args)
+        return wb.build_briefing(**args)  # pyright: ignore[reportArgumentType]
 
     def test_contains_facts(self):
         text = self.build()["body"]

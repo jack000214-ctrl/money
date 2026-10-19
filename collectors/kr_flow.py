@@ -22,6 +22,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
 FLOW_DIR = ROOT / "knowledge" / "flows"
@@ -51,7 +52,7 @@ SOURCE_NOTE = ("네이버 금융(KRX 집계 재배포) · 2차 출처이므로 E
                "평가가격으로 쓰지 않는다. 기타법인 수급은 제공하지 않는다")
 
 
-def fail(msg: str) -> None:
+def fail(msg: str) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -113,7 +114,7 @@ def parse_market_page(html: str) -> list[dict]:
         if len(c) < len(MARKET_FIELDS) or not re.fullmatch(r"\d{2}\.\d{2}\.\d{2}", c[0]):
             continue
         yy, mm, dd = c[0].split(".")
-        row = {"date": f"20{yy}-{mm}-{dd}"}
+        row: dict[str, str | float | None] = {"date": f"20{yy}-{mm}-{dd}"}
         for field, text in zip(MARKET_FIELDS[1:], c[1:]):
             row[field] = num(text)
         out.append(row)

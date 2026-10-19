@@ -124,7 +124,7 @@ def calculation(**overrides):
     data.setdefault(
         "calculation_id",
         calculation_id_for(data["model"], data["model_version"],
-                           data.get("inputs"), data.get("outputs")),
+                           data.get("inputs"), data.get("outputs")),  # pyright: ignore[reportArgumentType]
     )
     return data
 

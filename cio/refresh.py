@@ -115,7 +115,7 @@ def event_contract_errors(
         errors.append("이벤트 packet의 가격 심볼이 registry와 다르다")
     collected_at = data.get("collected_at")
     try:
-        collected_time = dt.datetime.fromisoformat(collected_at)
+        collected_time = dt.datetime.fromisoformat(collected_at or "")
     except (TypeError, ValueError):
         collected_time = None
         errors.append("이벤트 packet의 수집시각 형식이 잘못됐다")
@@ -935,8 +935,8 @@ def _latest_ttm_period(data: dict[str, Any]) -> str | None:
     순서를 믿지 않고 최대값을 고른다 — 정렬은 생성기의 약속이고, 여기서
     확인하려는 것이 바로 그 생성기의 산출물이다.
     """
-    periods = [
-        row.get("period_end")
+    periods: list[str] = [
+        row.get("period_end")  # type: ignore[misc]
         for row in (data.get("ttm_series") or [])
         if isinstance(row, dict) and isinstance(row.get("period_end"), str)
     ]
@@ -1278,6 +1278,7 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             not isinstance(digest, str)
             or not re.fullmatch(r"[0-9a-f]{64}", digest)
             or data.get("raw_locator") != expected_locator
+            or expected_locator is None
             or not (ROOT / expected_locator).is_file()
         ):
             return "재무 스냅샷의 내용 주소형 원문이 없다"
@@ -1344,6 +1345,7 @@ def _artifact_contract_error(task: RefreshTask, path: Path) -> str | None:
             not isinstance(digest, str)
             or not re.fullmatch(r"[0-9a-f]{64}", digest)
             or data.get("raw_locator") != expected_locator
+            or expected_locator is None
             or not (ROOT / expected_locator).is_file()
         ):
             return "공시 색인의 원문 지문 또는 위치가 유효하지 않다"

@@ -103,7 +103,9 @@ class TestSectorWindowReturn(unittest.TestCase):
 
     def test_return_is_measured_over_exactly_n_trading_days(self):
         series = self.series([100, 101, 102, 103, 110])
-        self.assertAlmostEqual(sector_strength.window_return(series, 4), 10.0)
+        result = sector_strength.window_return(series, 4)
+        assert result is not None
+        self.assertAlmostEqual(result, 10.0)
 
     def test_short_history_returns_none_instead_of_a_partial_window(self):
         """모자란 구간을 있는 만큼으로 계산하면 1개월과 12개월이 같은 값이 된다."""
@@ -116,7 +118,9 @@ class TestSectorWindowReturn(unittest.TestCase):
 
     def test_a_fall_is_negative(self):
         series = self.series([100, 100, 50])
-        self.assertAlmostEqual(sector_strength.window_return(series, 2), -50.0)
+        result = sector_strength.window_return(series, 2)
+        assert result is not None
+        self.assertAlmostEqual(result, -50.0)
 
 
 class TestSectorCloses(unittest.TestCase):

@@ -39,6 +39,7 @@ class TestClip(unittest.TestCase):
 
     def test_long_text_says_it_was_cut(self):
         clipped = _clip("가" * 300, 100)
+        assert clipped is not None
         self.assertTrue(clipped.startswith("가" * 100))
         self.assertIn("300자 중 100자", clipped)
 
@@ -49,9 +50,11 @@ class TestClip(unittest.TestCase):
 
 class TestPriorPlanCheck(unittest.TestCase):
     def check(self, close):
-        return _prior_plan_check(
+        result = _prior_plan_check(
             PLAN, latest_close=close, close_date="2026-07-28", close_is_settled=True
         )
+        assert result is not None
+        return result
 
     def test_untouched_plan_reports_no_trigger(self):
         result = self.check(228000)
@@ -90,6 +93,7 @@ class TestPriorPlanCheck(unittest.TestCase):
             close_date="2026-07-29",
             close_is_settled=False,
         )
+        assert result is not None
         self.assertIs(result["close_is_settled"], False)
 
     def test_missing_inputs_give_none(self):
@@ -109,6 +113,7 @@ class TestPriorPlanCheck(unittest.TestCase):
         result = _prior_plan_check(
             plan, latest_close=100, close_date=None, close_is_settled=True
         )
+        assert result is not None
         self.assertIsNone(result["stop_breached"])
         self.assertNotIn("stop_price", result["triggered"])
 
@@ -122,13 +127,15 @@ class TestPriorPlanAcrossASplit(unittest.TestCase):
     """
 
     def check(self, close, factor):
-        return _prior_plan_check(
+        result = _prior_plan_check(
             PLAN,
             latest_close=close,
             close_date="2026-07-28",
             close_is_settled=True,
             split_factor=factor,
         )
+        assert result is not None
+        return result
 
     def test_a_split_does_not_manufacture_a_stop_breach(self):
         # 분할 전 기준 228,000 이던 종가가 분할 후 114,000 이다.
@@ -183,13 +190,15 @@ class TestIntradayTouch(unittest.TestCase):
     ]
 
     def check(self, close, bars=None):
-        return _prior_plan_check(
+        result = _prior_plan_check(
             PLAN,
             latest_close=close,
             close_date="2026-08-07",
             close_is_settled=True,
             bars=self.BARS if bars is None else bars,
         )
+        assert result is not None
+        return result
 
     def test_close_based_triggers_are_unchanged_by_bars(self):
         # 회귀 방지: 봉을 넘겨도 종가 기준 결과는 그대로여야 한다.
@@ -200,6 +209,7 @@ class TestIntradayTouch(unittest.TestCase):
             close_date="2026-08-07",
             close_is_settled=True,
         )
+        assert without is not None
         for key in (
             "triggered",
             "stop_breached",
@@ -261,33 +271,35 @@ class TestIntradayTouch(unittest.TestCase):
     def test_no_bars_means_no_intraday_block_not_a_false_one(self):
         # 봉이 없으면 "안 스쳤다"가 아니라 "모른다"다. false 로 채우면
         # 관측하지 않은 것이 관측된 음성으로 둔갑한다.
-        self.assertIsNone(
-            _prior_plan_check(
-                PLAN,
-                latest_close=228000,
-                close_date="2026-08-07",
-                close_is_settled=True,
-                bars=[],
-            )["intraday"]
+        empty_bars = _prior_plan_check(
+            PLAN,
+            latest_close=228000,
+            close_date="2026-08-07",
+            close_is_settled=True,
+            bars=[],
         )
-        self.assertIsNone(
-            _prior_plan_check(
-                PLAN,
-                latest_close=228000,
-                close_date="2026-08-07",
-                close_is_settled=True,
-            )["intraday"]
+        assert empty_bars is not None
+        self.assertIsNone(empty_bars["intraday"])
+        no_bars = _prior_plan_check(
+            PLAN,
+            latest_close=228000,
+            close_date="2026-08-07",
+            close_is_settled=True,
         )
+        assert no_bars is not None
+        self.assertIsNone(no_bars["intraday"])
 
     def test_null_levels_are_skipped_without_crashing(self):
         plan = {**PLAN, "stop_price": None, "scale_out_start": None}
-        result = _prior_plan_check(
+        checked = _prior_plan_check(
             plan,
             latest_close=228000,
             close_date="2026-08-07",
             close_is_settled=True,
             bars=self.BARS,
-        )["intraday"]
+        )
+        assert checked is not None
+        result = checked["intraday"]
         self.assertIsNone(result["stop_touched_on"])
         self.assertNotIn("stop_price", result["touched"])
         self.assertIn("reask_below", result["touched"])

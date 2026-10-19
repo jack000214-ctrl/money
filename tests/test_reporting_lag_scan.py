@@ -57,7 +57,7 @@ class TestWhatCountsAsAResultDisclosure(unittest.TestCase):
 
     def test_an_8k_with_no_item_information_is_not_assumed_harmless(self):
         """옛 색인 행에는 Item 이 없다. 모르는 것을 '실적 아님'으로 넘기지 않는다."""
-        row = current(None)
+        row = current(None)  # pyright: ignore[reportArgumentType]
         self.assertTrue(_is_result_disclosure(row))
 
     def test_the_compact_row_carries_labels_instead_of_codes(self):
@@ -87,13 +87,15 @@ class TestTheScanSeesTheWholeIndex(unittest.TestCase):
                 return context._filing_summary(ASSET)[0]
 
     def test_results_pushed_out_by_eight_later_filings_are_still_found(self):
-        noise = [current(None, form="S-3", filed=f"2026-08-{day:02d}", number=100 + day)
+        noise = [current(None, form="S-3", filed=f"2026-08-{day:02d}", number=100 + day)  # pyright: ignore[reportArgumentType]
                  for day in range(20, 12, -1)]
         summary = self.summary([*noise, current(), periodic()])
+        assert summary is not None
         self.assertEqual(len(summary["latest_material_events"]), 8)
         self.assertNotIn(current()["accession_number"], [
             row["accession_number"] for row in summary["latest_material_events"]])
         lag = _reporting_lag(LOCAL, summary)
+        assert lag is not None
         self.assertEqual(len(lag["disclosures_after_local_period"]), 1)
 
     def test_a_newer_period_pushed_out_by_four_amendments_is_still_found(self):
@@ -101,19 +103,22 @@ class TestTheScanSeesTheWholeIndex(unittest.TestCase):
                       for day in range(20, 16, -1)]
         summary = self.summary(
             [*amendments, periodic("2026-06-30", "2026-08-01", number=300), periodic()])
+        assert summary is not None
         self.assertEqual({row["report_date"] for row in
                           summary["latest_primary_reports"]}, {"2025-12-31"})
-        self.assertTrue(_reporting_lag(LOCAL, summary)["newer_periodic_report_filed"])
+        self.assertTrue(_reporting_lag(LOCAL, summary)["newer_periodic_report_filed"])  # pyright: ignore[reportOptionalSubscript]
 
     def test_an_officer_change_is_not_unreflected_earnings(self):
         summary = self.summary([current("5.02"), periodic()])
+        assert summary is not None
         self.assertEqual(
-            _reporting_lag(LOCAL, summary)["disclosures_after_local_period"], [])
+            _reporting_lag(LOCAL, summary)["disclosures_after_local_period"], [])  # pyright: ignore[reportOptionalSubscript]
 
     def test_a_summary_without_the_scan_still_works(self):
         lag = _reporting_lag(LOCAL, {
             "latest_primary_reports": [periodic()],
             "latest_material_events": [current("2.02", form="8-K/A")]})
+        assert lag is not None
         self.assertEqual(len(lag["disclosures_after_local_period"]), 1)
 
 

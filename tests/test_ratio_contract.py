@@ -16,7 +16,7 @@ from calculators.contracts import change_pct, ratio_pct
 
 class TestChangePct(unittest.TestCase):
     def test_growth_from_a_positive_base(self):
-        self.assertAlmostEqual(change_pct(79_318_746, 22_231_952), 256.78, places=2)
+        self.assertAlmostEqual(change_pct(79_318_746, 22_231_952), 256.78, places=2)  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     def test_a_fall_is_negative(self):
         self.assertEqual(change_pct(50, 100), -50.0)
@@ -51,8 +51,8 @@ class TestChangePct(unittest.TestCase):
 
 class TestRatioPct(unittest.TestCase):
     def test_margin_from_revenue(self):
-        self.assertAlmostEqual(
-            ratio_pct(60_542_608, 79_318_746), 76.33, places=2
+        self.assertAlmostEqual(  # pyright: ignore[reportCallIssue]
+            ratio_pct(60_542_608, 79_318_746), 76.33, places=2  # pyright: ignore[reportArgumentType]
         )
 
     def test_an_operating_loss_gives_a_negative_margin(self):

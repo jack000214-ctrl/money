@@ -111,7 +111,7 @@ class TestSharedJudgement(unittest.TestCase):
         seen = {}
         for asset_id in ("005930", "IBM"):
             summary, _ = _event_summary(get_asset(asset_id))
-            for move in summary["recent_moves"]:
+            for move in summary["recent_moves"]:  # pyright: ignore[reportOptionalSubscript]
                 for row in move["candidate_filings"]:
                     seen.setdefault(asset_id, set()).update(row)
         self.assertIn("rcept_no", seen.get("005930", set()))

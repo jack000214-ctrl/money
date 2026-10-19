@@ -192,6 +192,7 @@ class TestCoverageIsStatedNotImplied(unittest.TestCase):
             )
             with patch("cio.context.KNOWLEDGE_DIR", knowledge), patch("cio.context.ROOT", knowledge):
                 summary, _ = _latest_fundamentals(get_asset("TSLA"))
+        assert summary is not None
         self.assertEqual(summary["share_count_basis"], basis)
         self.assertIn("ASC842", summary["debt_by_category"]["_role"])
         self.assertNotIn("IFRS16", summary["debt_by_category"]["_role"])

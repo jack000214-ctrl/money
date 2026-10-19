@@ -60,12 +60,12 @@ class RuleTable:
     table: tuple = ()
 
     def test_each_rule_fires(self):
-        self.assertTrue(self.table, "표가 비어 있다")
+        self.assertTrue(self.table, "표가 비어 있다")  # pyright: ignore[reportAttributeAccessIssue]
         for label, mutate, expected in self.table:
-            with self.subTest(label):
+            with self.subTest(label):  # pyright: ignore[reportAttributeAccessIssue]
                 errors = broken(mutate)
                 joined = "\n".join(errors)
-                self.assertIn(
+                self.assertIn(  # pyright: ignore[reportAttributeAccessIssue]
                     expected,
                     joined,
                     f"[{label}] 규칙이 발화하지 않았다. 나온 오류:\n{joined}",

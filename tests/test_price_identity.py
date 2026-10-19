@@ -83,6 +83,7 @@ class TestTheResponseMustBeTheRequestedSymbol(unittest.TestCase):
 
     def test_the_requested_symbol_is_accepted_whatever_its_case(self):
         result, _ = fetch(chart(DAYS, [100, 101, 102], symbol="tsla"))
+        assert result is not None
         self.assertEqual(len(result[1]), 3)
 
     def test_a_response_that_does_not_name_a_symbol_is_not_blocked(self):
@@ -98,9 +99,11 @@ class TestTheResponseMustBeTheRequestedSymbol(unittest.TestCase):
         """
         result, _ = fetch(chart(DAYS, [1340, 1341, 1346], symbol="USDKRW=X"),
                           symbol="KRW=X")
+        assert result is not None
         self.assertEqual(len(result[1]), 3)
         result, _ = fetch(chart(DAYS, [1340, 1341, 1346], symbol="KRW=X"),
                           symbol="USDKRW=X")
+        assert result is not None
         self.assertEqual(len(result[1]), 3)
 
     def test_another_currency_or_a_cross_pair_is_still_refused(self):
@@ -121,6 +124,7 @@ class TestBrokenAndFutureBars(unittest.TestCase):
     def test_a_missing_close_is_still_just_a_skipped_day(self):
         """휴장일에도 날짜만 실려 온다. 값이 없는 것과 깨진 것은 다르다."""
         result, _ = fetch(chart(DAYS, [100, None, 102]))
+        assert result is not None
         self.assertEqual([row["date"] for row in result[1]],
                          ["2026-10-07", "2026-10-09"])
 
@@ -135,6 +139,7 @@ class TestBrokenAndFutureBars(unittest.TestCase):
         payload["chart"]["result"][0]["indicators"]["quote"][0]["high"] = [
             101, "bad", 103]
         result, _ = fetch(payload)
+        assert result is not None
         self.assertIsNone(result[1][1]["high"])
 
 
@@ -158,17 +163,17 @@ class TestAMissingAdjustedCloseIsNotFilledIn(unittest.TestCase):
         return payload
 
     def test_a_response_without_the_adjusted_block_leaves_every_bar_blank(self):
-        (meta, rows), _ = fetch(self.without_adjusted(chart(DAYS, [100, 95, 90])))
+        (meta, rows), _ = fetch(self.without_adjusted(chart(DAYS, [100, 95, 90])))  # pyright: ignore[reportGeneralTypeIssues]
         self.assertEqual([row["close"] for row in rows], [100, 95, 90])
         self.assertEqual([row["adjusted_close"] for row in rows], [None] * 3)
 
     def test_only_the_bar_that_lacks_it_is_blank(self):
-        (meta, rows), _ = fetch(
+        (meta, rows), _ = fetch(  # pyright: ignore[reportGeneralTypeIssues]
             self.without_adjusted(chart(DAYS, [100, 95, 90]), indexes=[1]))
         self.assertEqual([row["adjusted_close"] for row in rows], [100.0, None, 90.0])
 
     def test_the_blank_survives_the_file_and_is_not_read_back_as_a_price(self):
-        (meta, rows), _ = fetch(
+        (meta, rows), _ = fetch(  # pyright: ignore[reportGeneralTypeIssues]
             self.without_adjusted(chart(DAYS, [100, 95, 90]), indexes=[0]))
         with tempfile.TemporaryDirectory() as tmp, \
                 patch.object(price, "PRICE_DIR", Path(tmp)):
@@ -232,14 +237,16 @@ class TestReturnsUseOnePriceBasis(unittest.TestCase):
 
     def test_a_fully_adjusted_window_is_a_total_return(self):
         summary = self.summary(self.bars(30))
+        assert summary is not None
         self.assertEqual(summary["returns_basis"], "ADJUSTED_CLOSE")
         self.assertEqual(summary["returns_pct"]["1m"], 0.0)
-        self.assertNotIn("_returns_basis_warning", summary)
+        self.assertNotIn("_returns_basis_warning", summary)  # pyright: ignore[reportArgumentType]
 
     def test_one_blank_bar_in_the_window_moves_every_return_to_raw_prices(self):
         """기준 봉에만 조정종가가 없다. 그 봉만 원가격으로 읽으면 100→90(조정)
         이라는, 어느 기준도 아닌 −10% 가 조정종가 기준으로 실린다."""
         summary = self.summary(self.bars(30, blank={8}))
+        assert summary is not None
         self.assertEqual(summary["returns_basis"], "RAW_CLOSE_FALLBACK")
         self.assertEqual(summary["returns_pct"]["1m"], -10.0)
         self.assertIn("가격 수익률", summary["_returns_basis_warning"])
@@ -249,6 +256,7 @@ class TestReturnsUseOnePriceBasis(unittest.TestCase):
 
     def test_a_blank_bar_older_than_the_longest_window_changes_nothing(self):
         summary = self.summary(self.bars(300, blank={0, 1, 2}))
+        assert summary is not None
         self.assertEqual(summary["returns_basis"], "ADJUSTED_CLOSE")
         self.assertEqual(summary["returns_pct"]["12m"], 0.0)
 
@@ -292,7 +300,7 @@ class TestRetrievedNowIsNotObservedNow(PriceContract):
     def test_a_series_that_ended_long_ago_is_not_fresh_however_recently_fetched(self):
         task = self.inspect(self.series("2025-09-29"))
         self.assertEqual(task.state, "STALE")
-        self.assertIn("현재 시세로 쓸 수 없다", task.contract_error)
+        self.assertIn("현재 시세로 쓸 수 없다", task.contract_error)  # pyright: ignore[reportArgumentType]
 
     def test_a_long_holiday_is_not_mistaken_for_a_dead_series(self):
         """추석 연휴와 주말이 겹쳐도 마지막 봉은 열흘 안쪽이다."""
@@ -301,14 +309,14 @@ class TestRetrievedNowIsNotObservedNow(PriceContract):
     def test_a_series_ending_in_the_future_is_not_an_observation(self):
         task = self.inspect(self.series("2027-01-06"))
         self.assertEqual(task.state, "STALE")
-        self.assertIn("관측이 아니다", task.contract_error)
+        self.assertIn("관측이 아니다", task.contract_error)  # pyright: ignore[reportArgumentType]
 
     def test_a_last_row_whose_close_is_not_a_number_fails_the_contract(self):
         rows = self.series("2026-10-12")
-        rows[-1] = (rows[-1][0], "not-a-number")
+        rows[-1] = (rows[-1][0], "not-a-number")  # pyright: ignore[reportArgumentType, reportCallIssue]
         task = self.inspect(rows)
         self.assertEqual(task.state, "STALE")
-        self.assertIn("숫자가 아니다", task.contract_error)
+        self.assertIn("숫자가 아니다", task.contract_error)  # pyright: ignore[reportArgumentType]
 
 
 KR_STOCK = {

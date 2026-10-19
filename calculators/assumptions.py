@@ -91,6 +91,7 @@ def calculate(inputs):
         keys(row, fields, label=f"scenarios.{name}")
         number(row["probability_pct"], "probability_pct", positive=True, high=100)
         number(row["conditional_win_probability_pct"], "conditional_win_probability_pct", low=0, high=100)
+        raw_value = None
         try:
             if inputs["method"] == "EVENT_PRICE":
                 value = number(row["terminal_price"], "terminal_price", low=0)
@@ -129,7 +130,7 @@ def calculate(inputs):
         except (OverflowError, ZeroDivisionError) as exc:
             raise AssumptionError("가정에서 유한한 계산 결과가 나오지 않는다") from exc
         output[name] = {"value_per_share": value, "total_return_pct": total, "annualized_return_pct": annual}
-        if dcf is not None or inputs["method"] == "EQUITY_BRIDGE":
+        if raw_value is not None:
             output[name]["raw_equity_value_per_share"] = raw_value
     if not math.isclose(sum(row["probability_pct"] for row in inputs["scenarios"].values()), 100, abs_tol=1e-8):
         raise AssumptionError("시나리오 확률의 합은 100이어야 한다")

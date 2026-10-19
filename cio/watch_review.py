@@ -167,10 +167,10 @@ def staleness_conditions(
         base = {"type": STALE_ASSESSMENT, "ticker": ticker, "name": holding["name"],
                 "detected_at": now_iso}
         if assessment is None:
-            # 임계값이 필요 없는 사실: 보유하는데 계약을 통과한 판단이 없다.
+            # 임계값이 필요 없는 사실: 보유 중인데 유효한 판단이 없다.
             conditions[f"{PREFIX}STALE|none|{ticker}"] = {
                 **base, "reason": "NO_LIVE_ASSESSMENT",
-                "message_detail": "계약을 통과하는 판단이 없다",
+                "qty": holding.get("qty"),
             }
             continue
         assessment_id = assessment.get("assessment_id")

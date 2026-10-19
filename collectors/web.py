@@ -28,7 +28,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from calculators.contracts import ContractError, canonical_payload_hash, load_json
 from cio.paths import DATA_DIR, KNOWLEDGE_DIR, ROOT
@@ -43,7 +43,7 @@ TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(2)
 

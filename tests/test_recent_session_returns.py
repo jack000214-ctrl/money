@@ -32,7 +32,7 @@ class TestRecentSessionReturns(unittest.TestCase):
                 '2026-09-18,121,121,1,121,121,1\n'
                 '2026-09-21,130,133.1,1,130,130,1\n')
             with patch('cio.context.KNOWLEDGE_DIR', root), patch('cio.context.ROOT', root):
-                return _price_summary('TEST')[0]['settled_session_returns']
+                return _price_summary('TEST')[0]['settled_session_returns']  # pyright: ignore[reportOptionalSubscript]
 
     def test_weekend_uses_sessions_and_adjusted_returns(self):
         result = self.summary('SETTLED')

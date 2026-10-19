@@ -118,6 +118,8 @@ class TestWeights(TempPortfolio):
         """
         before = weights("AAA", 5000000.0)
         after = weights("AAA", 6000000.0, added_krw=1000000.0)
+        assert before is not None
+        assert after is not None
         self.assertEqual(
             before["denominators_krw"]["total_assets"],
             after["denominators_krw"]["total_assets"],
@@ -127,6 +129,8 @@ class TestWeights(TempPortfolio):
         """슬리브에는 현금이 없으므로 현금→주식 이동만큼 실제로 커진다."""
         before = weights("AAA", 5000000.0)
         after = weights("AAA", 6000000.0, added_krw=1000000.0)
+        assert before is not None
+        assert after is not None
         self.assertAlmostEqual(
             after["denominators_krw"]["equity_sleeve"]
             - before["denominators_krw"]["equity_sleeve"],
@@ -135,15 +139,19 @@ class TestWeights(TempPortfolio):
 
     def test_added_amount_is_not_double_counted_in_the_sleeve(self):
         # 슬리브 9,400,000 중 AAA 5,000,000 → 53.19%
+        w1 = weights("AAA", 5000000.0)
+        assert w1 is not None
         self.assertAlmostEqual(
-            weights("AAA", 5000000.0)["equity_sleeve_pct"], 53.1915, places=3
+            w1["equity_sleeve_pct"], 53.1915, places=3
         )
         # 100만 추가 → AAA 600만 / 슬리브 1,040만 = 57.69%
         after = weights("AAA", 6000000.0, added_krw=1000000.0)
+        assert after is not None
         self.assertAlmostEqual(after["equity_sleeve_pct"], 57.6923, places=3)
 
     def test_cash_is_excluded_from_sleeve_but_not_from_total(self):
         result = weights("AAA", 5000000.0)
+        assert result is not None
         self.assertEqual(result["denominators_krw"]["total_assets"], 11400000.0)
         self.assertEqual(result["denominators_krw"]["equity_sleeve"], 9400000.0)
 
@@ -302,6 +310,7 @@ class TestJudgmentBoundary(TempPortfolio):
             "\n".join(rows) + "\n", encoding="utf-8"
         )
         found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        assert found is not None
         self.assertEqual(found["trade_count"], 8)
         self.assertEqual(found["last_date"], "2026-01-08")
         self.assertEqual(found["days_since_last"], 52)
@@ -323,6 +332,7 @@ class TestJudgmentBoundary(TempPortfolio):
             "\n".join(rows) + "\n", encoding="utf-8"
         )
         found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        assert found is not None
         self.assertEqual(found["trade_count"], 8)
         self.assertIsNone(found["quantity_per_trade"])
 
@@ -336,6 +346,7 @@ class TestJudgmentBoundary(TempPortfolio):
             "\n".join(rows) + "\n", encoding="utf-8"
         )
         found = position_module.recurring_pattern("AAA", dt.date(2026, 3, 1))
+        assert found is not None
         self.assertIsNone(found["quantity_per_trade"])
 
 

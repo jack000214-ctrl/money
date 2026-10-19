@@ -18,6 +18,7 @@ import math
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
+from typing import Any, NoReturn
 
 from cio.display import display_width
 
@@ -28,7 +29,7 @@ MARKET_TO_CURRENCY = {"KR": "KRW", "US": "USD"}
 PASSTHROUGH_TYPES = {"STOCK", "CASH", "BOND", "REIT"}
 
 
-def fail(msg):
+def fail(msg) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -138,7 +139,7 @@ def analyze(holdings, constituents, limits):
     if total <= 0:
         fail("포트폴리오 평가금액 합계가 0 이하다")
 
-    exposure = defaultdict(
+    exposure: defaultdict[str, dict[str, Any]] = defaultdict(
         lambda: {"name": "", "asset_type": None, "value_krw": 0.0, "paths": []}
     )
     currency = defaultdict(float)

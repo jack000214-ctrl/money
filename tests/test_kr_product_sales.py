@@ -73,27 +73,32 @@ class TestParsing(unittest.TestCase):
         for label, period in (("26.2분기", "2026Q2"), ("25.2Q", "2025Q2")):
             parsed = ps.parse_breakdown(quarterly_text(
                 label, "2026-04-01", "2026-06-30", 178705, 324805, Q2_26))
+            assert parsed is not None
             self.assertEqual(parsed["period"], period)
             self.assertEqual(parsed["label_in_source"], label)
 
     def test_keeps_every_item_in_source_order_with_spaced_colons(self):
         parsed = ps.parse_breakdown(annual_text("25.4Q", "2025-12-31", 535722606417, Q4_25))
+        assert parsed is not None
         self.assertEqual(list(parsed["items"]), [name for name, _ in Q4_25])
         self.assertEqual(parsed["items"]["의료기기(내수)"], 59691)
 
     def test_a_negative_item_keeps_its_sign(self):
         # 4Q25 기타(내수)는 -1,889 다. 부호를 놓치면 합이 3,778 어긋난다.
         parsed = ps.parse_breakdown(annual_text("25.4Q", "2025-12-31", 535722606417, Q4_25))
+        assert parsed is not None
         self.assertEqual(parsed["items"]["기타(내수)"], -1889)
 
     def test_text_after_the_list_is_not_read_as_an_item(self):
         parsed = ps.parse_breakdown(quarterly_text(
             "26.2분기", "2026-04-01", "2026-06-30", 178705, 324805, Q2_26))
+        assert parsed is not None
         self.assertEqual(len(parsed["items"]), 8)
 
     def test_a_unit_other_than_million_won_is_refused_not_rescaled(self):
         parsed = ps.parse_breakdown(quarterly_text(
             "26.2분기", "2026-04-01", "2026-06-30", 178705, 324805, Q2_26, unit="억원"))
+        assert parsed is not None
         self.assertEqual(parsed["problem"], "UNSUPPORTED_UNIT")
 
     def test_a_document_without_the_breakdown_is_none(self):
@@ -189,7 +194,7 @@ class TestPacketSummary(unittest.TestCase):
         ])
 
     def test_change_rates_are_arithmetic_against_the_right_quarters(self):
-        latest = ps.packet_summary(self.series())["latest"]
+        latest = ps.packet_summary(self.series())["latest"]  # pyright: ignore[reportOptionalSubscript]
         domestic = latest["items"]["의료기기(내수)"]
         self.assertEqual(domestic["value"], 64497)
         self.assertEqual(domestic["qoq_pct"], round((64497 / 58404 - 1) * 100, 1))
@@ -199,14 +204,15 @@ class TestPacketSummary(unittest.TestCase):
     def test_a_missing_or_non_positive_base_gives_no_rate(self):
         data = self.series()
         data["quarters"] = [r for r in data["quarters"] if r["period"] != "2025Q2"]
-        latest = ps.packet_summary(data)["latest"]
+        latest = ps.packet_summary(data)["latest"]  # pyright: ignore[reportOptionalSubscript]
         self.assertIsNone(latest["items"]["의료기기(내수)"]["yoy_pct"])
         self.assertEqual(ps.change_pct(10, -5), None)
 
     def test_the_table_is_aligned_to_one_item_order(self):
         summary = ps.packet_summary(self.series())
+        assert summary is not None
         order = summary["items"]
-        for row in summary["quarters"]:
+        for row in summary["quarters"]:  # pyright: ignore[reportOptionalSubscript]
             self.assertEqual(len(row["values"]), len(order))
         q2_25 = next(r for r in summary["quarters"] if r["period"] == "2025Q2")
         self.assertEqual(q2_25["values"][order.index("의료기기(내수)")], 60717)
@@ -253,7 +259,9 @@ class TestWiring(unittest.TestCase):
                     {"asset_id": "214450", "asset_type": "STOCK", "optional_collectors": []})
                 wired, _ = context._earnings_calendar_section(
                     {"asset_id": "214450", "asset_type": "STOCK", "optional_collectors": ["KR_PRODUCT_SALES"]})
+        assert plain is not None
         self.assertNotIn("_product_sales_note", plain["next_provisional_result"])
+        assert wired is not None
         self.assertIn("kr_product_sales", wired["next_provisional_result"]["_product_sales_note"])
 
     def test_packet_carries_the_series_and_coverage_says_available(self):

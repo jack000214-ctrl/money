@@ -217,7 +217,7 @@ class TestTheSavedPacketIsWhatTheBudgetMeasured(unittest.TestCase):
                 patch.object(context, "KNOWLEDGE_DIR", root / "knowledge"))
             packet, path = context.build_context(
                 "TSLA", price=100, amount=1000, amount_currency="USD", save=True)
-            return packet, path.read_text(encoding="utf-8")
+            return packet, path.read_text(encoding="utf-8")  # pyright: ignore[reportOptionalMemberAccess]
 
     def test_the_file_holds_exactly_the_packet(self):
         packet, text = self.saved_packet()

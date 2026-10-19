@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -27,6 +28,7 @@ import zipfile
 from xml.etree import ElementTree as ET
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import NoReturn
 from xml.etree import ElementTree
 
 from calculators.contracts import change_pct, ratio_pct
@@ -74,7 +76,7 @@ STATUS_MESSAGES = {
 }
 
 
-def fail(msg):
+def fail(msg) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -206,6 +208,7 @@ def xbrl_facts(rcept_no, reprt, key, concept, want_dims=("ConsolidatedMember",),
     """
     blob = request("fnlttXbrl.xml", {"rcept_no": rcept_no, "reprt_code": reprt},
                    key, binary=True)
+    assert isinstance(blob, bytes)
     if blob[:1] != b"P":
         return []
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
@@ -259,6 +262,7 @@ def xbrl_facts_many(rcept_no, reprt, key, concepts,
     """
     blob = request("fnlttXbrl.xml", {"rcept_no": rcept_no, "reprt_code": reprt},
                    key, binary=True)
+    assert isinstance(blob, bytes)
     if blob[:1] != b"P":
         return {}
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
@@ -324,6 +328,7 @@ def corp_code_map(key, refresh=False):
         return json.loads(cache.read_text(encoding="utf-8"))
 
     blob = request("corpCode.xml", {}, key, binary=True)
+    assert isinstance(blob, bytes)
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         xml = z.read(z.namelist()[0])
 
@@ -483,6 +488,7 @@ def fetch_document(rcept_no, key):
     if not re.fullmatch(r"\d{14}", rcept_no):
         fail("접수번호는 14자리 숫자다")
     blob = request("document.xml", {"rcept_no": rcept_no}, key, binary=True)
+    assert isinstance(blob, bytes)
     try:
         archive = zipfile.ZipFile(io.BytesIO(blob))
         names = [n for n in archive.namelist() if not n.endswith("/")]
@@ -650,6 +656,7 @@ def cmd_filings(a, key):
     until = (a.until or date.today().strftime("%Y%m%d")).replace("-", "")
     raw_sources = []
     row_groups = []
+    path = None
     for type_code, type_name in DART_FILING_TYPES:
         data = request(
             "list.json",
@@ -721,6 +728,7 @@ def cmd_filings(a, key):
         if tmp and Path(tmp).exists():
             Path(tmp).unlink()
 
+    assert path is not None  # rows 가 있으면 원문을 받은 유형이 하나는 있다
     print(f"{info['corp_name']} 공시 {len(rows)}건  ({a.since} ~ {a.until or '오늘'})")
     print(f"원본 저장: {path.relative_to(ROOT)}")
     print(f"색인 저장: {index_path.relative_to(ROOT)}")
@@ -1397,7 +1405,8 @@ def resolve_debt(bs_report):
         if row.get("sj_div") != "BS":
             continue
         category = classify_debt_row(row)
-        if category is None or amount(row) is None:
+        row_amount = amount(row)
+        if category is None or row_amount is None:
             continue
         # 같은 행이 두 번 실려 와도 한 번만 센다. 계정명만으로 묶으면 유동·비유동이
         # 같은 이름·같은 금액일 때 한쪽이 사라지므로 코드와 행 순번도 넣는다.
@@ -1406,11 +1415,11 @@ def resolve_debt(bs_report):
         if marker in seen:
             continue
         seen.add(marker)
-        debt += float(amount(row))
+        debt += float(row_amount)
         debt_detail.append({"label": row.get("account_nm"),
                             "account_id": row.get("account_id"),
                             "category": category,
-                            "value": float(amount(row))})
+                            "value": float(row_amount)})
     if debt_detail:
         # 차입 합이 부채총계를 넘으면 같은 돈을 두 번 셌다는 뜻이다 (합산행과 그
         # 구성항목을 같이 잡는 경우). 틀린 순부채를 쓰느니 멈춘다.
@@ -1456,7 +1465,7 @@ def _total_eps(rows, basis):
         f"ifrs-full_{stem}EarningsLossPerShareFrom{scope}Operations"
     ])) for scope in ("Continuing", "Discontinued")]
     if all(value is not None for value in components):
-        return sum(components)
+        return sum(c for c in components if c is not None)
     return None
 
 
@@ -1646,9 +1655,10 @@ def derive_fundamentals(raw, *, fs, period_end=None, income_quarters=8):
         fail(f"{period_end} 재무상태표를 찾지 못했다")
 
     cash_row = acct(bs_report, "BS", BS_CASH_IDS, ["현금및현금성자산"])
-    if cash_row is None:
+    cash_amount = amount(cash_row)
+    if cash_row is None or cash_amount is None:
         fail("현금및현금성자산을 찾지 못했다. 0 으로 때우면 순부채가 틀린다")
-    cash = float(amount(cash_row))
+    cash = float(cash_amount)
 
     short_inv, short_inv_detail, short_inv_unclassified = (
         resolve_short_investments(bs_report))
@@ -1725,8 +1735,9 @@ def replay_fundamentals(snapshot, raw):
     """
     income = snapshot.get("income_statement") or {}
     quarters = len((income.get("revenue") or {}).get("quarters") or []) or 8
+    captured = io.StringIO()
     try:
-        with contextlib.redirect_stderr(io.StringIO()) as captured:
+        with contextlib.redirect_stderr(captured):
             derived = derive_fundamentals(
                 raw, fs=snapshot.get("fs_div") or "CFS",
                 period_end=snapshot.get("period_end"), income_quarters=quarters)
@@ -1751,17 +1762,28 @@ def cmd_fundamentals(a, key):
     years = list(range(a.year - 2, a.year + 1))
 
     raw, supplemented = {}, []
+    _t0_all = time.time()
     for year in years:
         for report, _ in REPORT_SEQUENCE:
+            _t = time.time()
             data = fetch_all(corp, year, report, a.fs, key)
+            elapsed = time.time() - _t
             if data:
                 raw[f"{year}_{report}"] = data
+                print(f"  fetch {year} {report}: {elapsed:.1f}s OK", file=sys.stderr)
                 continue
+            print(f"  fetch {year} {report}: {elapsed:.1f}s 013(없음)", file=sys.stderr)
             # 013 — XBRL 원본으로 보충한다. 없는 채로 두면 4분기 복원이 막힌다.
+            _t = time.time()
             rows = xbrl_rows(corp, year, report, key)
+            elapsed = time.time() - _t
             if rows:
                 raw[f"{year}_{report}_xbrl"] = rows
                 supplemented.append(f"{year} {report}")
+                print(f"  xbrl  {year} {report}: {elapsed:.1f}s OK", file=sys.stderr)
+            else:
+                print(f"  xbrl  {year} {report}: {elapsed:.1f}s 없음", file=sys.stderr)
+    print(f"  fetch 전체: {time.time()-_t0_all:.1f}s", file=sys.stderr)
     if supplemented:
         print(f"※ fnlttSinglAcntAll 이 013 이라 XBRL 원본으로 보충: "
               f"{', '.join(supplemented)}", file=sys.stderr)
@@ -1953,6 +1975,7 @@ def cmd_financials(a, key):
         },
         key,
     )
+    assert data is not None  # allow_empty 를 쓰지 않으므로 빈 응답(013)은 fail 로 끝난다
     path = save_raw(f"fs_{a.stock_code}_{a.year}_{a.report}_{a.fs}", data)
     rows = data.get("list", [])
 

@@ -198,7 +198,7 @@ class TestRefreshContractReplays(unittest.TestCase):
         snapshot["values"]["fcf_ttm"] = 800.0 - snapshot["values"]["capex_ttm"]
         task = self.inspect(snapshot, raw)
         self.assertEqual(task.state, "STALE")
-        self.assertIn("그대로 다시 나오지 않는다", task.contract_error)
+        self.assertIn("그대로 다시 나오지 않는다", task.contract_error)  # pyright: ignore[reportArgumentType]
 
 
 class TestXbrlInterimPeriods(unittest.TestCase):

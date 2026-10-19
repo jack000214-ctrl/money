@@ -24,7 +24,7 @@ class TestRawSnapshots(unittest.TestCase):
         for module in (dart, edgar):
             with self.subTest(module=module.__name__), tempfile.TemporaryDirectory() as tmp:
                 original = module.RAW_DIR
-                module.RAW_DIR = Path(tmp)
+                module.RAW_DIR = Path(tmp)  # pyright: ignore[reportAttributeAccessIssue]
                 try:
                     path = module.save_raw("fixture", payload)
                     again = module.save_raw("another_name", payload)
@@ -39,7 +39,7 @@ class TestRawSnapshots(unittest.TestCase):
                         with self.assertRaises(ContractError):
                             module.save_raw("fixture", payload)
                 finally:
-                    module.RAW_DIR = original
+                    module.RAW_DIR = original  # pyright: ignore[reportAttributeAccessIssue]
 
 
 if __name__ == "__main__":

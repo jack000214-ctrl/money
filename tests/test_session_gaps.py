@@ -54,11 +54,13 @@ class TestSessionGaps(unittest.TestCase):
     def test_a_day_only_another_index_kept_is_reported(self):
         without = [day for day in SESSIONS if day != "2026-10-12"]
         gaps, _ = self._gaps(asset_dates=without, kq_dates=without, ks_dates=SESSIONS)
+        assert gaps is not None
         self.assertEqual(gaps["dates"], ["2026-10-12"])
         self.assertEqual(gaps["checked_against"], ["^KS11", "^KQ11"])
 
     def test_a_complete_series_reports_an_empty_list_not_silence(self):
         gaps, _ = self._gaps(asset_dates=SESSIONS, kq_dates=SESSIONS, ks_dates=SESSIONS)
+        assert gaps is not None
         self.assertEqual(gaps["dates"], [])
         self.assertNotIn("_warning", gaps)
 
@@ -67,16 +69,20 @@ class TestSessionGaps(unittest.TestCase):
         gaps, _ = self._gaps(
             asset_dates=without, kq_dates=without, ks_dates=without,
             extra="# missing_sessions 2026-10-12 / 봉이 저장됐다가 사라졌다\n")
+        assert gaps is not None
         self.assertEqual(gaps["dates"], ["2026-10-12"])
 
     def test_a_reference_running_ahead_is_not_a_gap(self):
         """지수가 종목보다 하루 더 수집됐다고 종목에 구멍이 난 것은 아니다."""
         gaps, _ = self._gaps(asset_dates=SESSIONS[:-1], kq_dates=SESSIONS, ks_dates=SESSIONS)
+        assert gaps is not None
         self.assertEqual(gaps["dates"], [])
 
     def test_session_returns_across_a_gap_are_withheld(self):
         without = [day for day in SESSIONS if day != "2026-10-12"]
         gaps, summary = self._gaps(asset_dates=without, kq_dates=without, ks_dates=SESSIONS)
+        assert gaps is not None
+        assert summary is not None
         self.assertIn("1", summary["settled_session_returns"]["windows"])
         _apply_session_gaps(summary, gaps)
         returns = summary["settled_session_returns"]
@@ -89,6 +95,8 @@ class TestSessionGaps(unittest.TestCase):
         dates = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", *SESSIONS]
         without = [day for day in dates if day != "2026-09-29"]
         gaps, summary = self._gaps(asset_dates=without, kq_dates=dates, ks_dates=dates)
+        assert gaps is not None
+        assert summary is not None
         self.assertEqual(gaps["dates"], ["2026-09-29"])
         _apply_session_gaps(summary, gaps)
         self.assertEqual(

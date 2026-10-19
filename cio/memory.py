@@ -1224,7 +1224,7 @@ def evaluate_assessment(
         "calibration": {
             "predicted_win_probability_pct": assessment["win_probability_pct"],
             "brier_score": round((probability - float(win_observed)) ** 2, 6)
-            if complete and probability is not None
+            if complete and probability is not None and win_observed is not None
             else None,
             "expected_return_pct": weighted_expected,
             "return_error_pct_points": round(realized - weighted_expected, 4)
@@ -1236,11 +1236,12 @@ def evaluate_assessment(
             "여러 평가를 모아 모델·프롬프트별로 회고한다"
         ),
     }
+    review_rows: dict[str, list[dict[str, Any]]] = {
+        "entry_plan_checks": [], "exit_plan_checks": [],
+    }
+    decision_date = ""
     if assessment.get("entry_plan") or assessment.get("exit_plan"):
         from zoneinfo import ZoneInfo
-        review_rows: dict[str, list[dict[str, Any]]] = {
-            "entry_plan_checks": [], "exit_plan_checks": [],
-        }
         zone = ZoneInfo("Asia/Seoul" if asset["market"] == "KR" else "America/New_York")
         for path in (KNOWLEDGE_DIR / "assessments" / assessment["asset_id"]).glob("CIO-*.json"):
             try:
@@ -1505,7 +1506,9 @@ def score_asset(asset_id: str) -> dict[str, Any]:
         if not out.exists():
             write_json(out, evaluation)
         superseded += _prune_superseded_evaluations(
-            directory, assessment_id=stored_id, keep=evaluation["evaluation_id"]
+            directory,
+            assessment_id=evaluation["assessment_id"],
+            keep=evaluation["evaluation_id"],
         )
         row = {
             "assessment_id": stored_id,

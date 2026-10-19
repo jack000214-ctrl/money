@@ -27,6 +27,7 @@ import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parent.parent
 from calculators.contracts import (
@@ -50,7 +51,7 @@ MARGIN_BOUNDS = (0.0001, 0.95)
 BISECTION_STEPS = 200
 
 
-def fail(msg):
+def fail(msg) -> NoReturn:
     print(f"오류: {msg}", file=sys.stderr)
     sys.exit(1)
 

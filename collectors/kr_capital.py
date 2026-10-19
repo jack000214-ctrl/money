@@ -125,8 +125,11 @@ def extract(documents, *, corp_code, description):
 
 
 def make_report(asset_id, index, row, raw=None, raw_path=None):
-    observations = extract(raw["payload"]["documents"], corp_code=index["corp_code"], description=row["description"]) if row else {
-        "state": "NO_EVENTS", "events": [], "share_bases": {}, "unresolved": []}
+    if row:
+        assert raw is not None  # 선택된 공시가 있으면 호출부가 원문을 함께 넘긴다
+        observations = extract(raw["payload"]["documents"], corp_code=index["corp_code"], description=row["description"])
+    else:
+        observations = {"state": "NO_EVENTS", "events": [], "share_bases": {}, "unresolved": []}
     return {"schema_version": SCHEMA, "asset_id": asset_id,
             "created_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "filing": row, "corp_code": index.get("corp_code"),

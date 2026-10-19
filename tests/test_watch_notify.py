@@ -36,7 +36,7 @@ ALL_EVENTS = [
     {"type": "POLICY_BREACH", "ticker": "005930", "name": "삼성전자",
      "limit": {"name": "max_single_position_pct_of_total", "value": 20, "unit": "PCT"},
      "measured": {"value": 25.0, "unit": "PCT"}, "basis": "보유 종목 단위 근사"},
-    {"type": "STALE_ASSESSMENT", "ticker": "005930", "name": "삼성전자", "reason": "NO_LIVE_ASSESSMENT"},
+    {"type": "STALE_ASSESSMENT", "ticker": "005930", "name": "삼성전자", "reason": "NO_LIVE_ASSESSMENT", "qty": 10.0},
     {"type": "STALE_ASSESSMENT", "ticker": "005930", "name": "삼성전자", "reason": "AGE",
      "assessment_id": "CIO-x", "measured": {"value": 20, "unit": "DAYS"},
      "limit": {"name": "stale_after_days", "value": 14, "unit": "DAYS"}},
@@ -64,9 +64,16 @@ class TestFormatter(unittest.TestCase):
         for phrase in wn.FORBIDDEN_PHRASES:
             self.assertNotIn(phrase, digest["title"] + digest["body"])
 
-    def test_every_message_states_it_is_not_a_judgment(self):
-        for event in ALL_EVENTS:
-            self.assertIn("매매 판단이 아니다", wn.format_event(event)["body"])
+    def test_every_event_yields_title_and_body(self):
+        for index, event in enumerate(ALL_EVENTS):
+            with self.subTest(index=index):
+                text = wn.format_event(event)
+                self.assertTrue(text["title"])
+                self.assertTrue(text["body"])
+
+    def test_requeue_packet_defers_judgment_to_model(self):
+        body = wn.format_event(STAGE_EVENT)["body"]
+        self.assertIn("새 판단은 모델이 낸다", body)
 
     def test_price_event_states_facts(self):
         body = wn.format_event(PRICE_EVENT)["body"]

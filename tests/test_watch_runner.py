@@ -80,7 +80,7 @@ class Harness(unittest.TestCase):
             dispatch_message=lambda s, b, c: {},
         )
         base.update(over)
-        return wr.Deps(**base)
+        return wr.Deps(**base)  # pyright: ignore[reportArgumentType]
 
 
 class TestGate(Harness):

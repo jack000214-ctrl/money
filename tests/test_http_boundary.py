@@ -31,7 +31,7 @@ class Response(io.BytesIO):
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc):  # pyright: ignore[reportIncompatibleMethodOverride]
         self.close()
         return False
 
@@ -45,7 +45,7 @@ def responds(payload, *, status=None):
 
     def raise_http(*a, **k):
         raise urllib.error.HTTPError(
-            "https://example", status, "err", {}, Response(body))
+            "https://example", status, "err", {}, Response(body))  # pyright: ignore[reportArgumentType]
     return raise_http
 
 
@@ -71,6 +71,7 @@ class TestDartResponses(Boundary):
 
     def test_a_normal_payload_comes_through(self):
         data = self.request({"status": "000", "list": [{"a": 1}]})
+        assert data is not None
         self.assertEqual(data["list"], [{"a": 1}])
 
     def test_an_http_error_never_prints_the_key(self):
@@ -110,6 +111,7 @@ class TestDartResponses(Boundary):
     def test_binary_payloads_skip_json_parsing(self):
         """XBRL 원본은 zip 이다. JSON 으로 읽으면 터진다."""
         blob = self.request(b"PK\x03\x04zip", binary=True)
+        assert blob is not None
         self.assertEqual(blob[:2], b"PK")
 
     def test_redaction_covers_any_message(self):

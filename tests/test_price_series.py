@@ -240,19 +240,19 @@ class TestPriceSessionHeaderIntegrity(unittest.TestCase):
                 with self.subTest(state=state, header_date=header_date):
                     checked = self.inspect(header_date, state)
                     self.assertEqual(checked.state, "STALE")
-                    self.assertIn("last_bar 날짜", checked.reason)
+                    self.assertIn("last_bar 날짜", checked.reason)  # pyright: ignore[reportArgumentType]
             with self.subTest(state=state, header_date="matching"):
                 self.assertEqual(self.inspect("2026-07-29", state).state, "FRESH")
 
     def test_no_rows_cannot_validate_a_session_header(self):
-        checked = self.inspect("2026-07-29", last_row=None)
+        checked = self.inspect("2026-07-29", last_row=None)  # pyright: ignore[reportArgumentType]
         self.assertEqual(checked.state, "STALE")
-        self.assertIn("데이터 행", checked.reason)
+        self.assertIn("데이터 행", checked.reason)  # pyright: ignore[reportArgumentType]
 
     def test_matching_but_impossible_dates_are_invalid(self):
         checked = self.inspect("2026-07-99", last_row="2026-07-99")
         self.assertEqual(checked.state, "STALE")
-        self.assertIn("날짜", checked.reason)
+        self.assertIn("날짜", checked.reason)  # pyright: ignore[reportArgumentType]
 
 
 class TestBenchmarkCalendarAlignment(unittest.TestCase):
@@ -376,7 +376,7 @@ class TestBackfillRecordVerifiesItself(unittest.TestCase):
             with patch("cio.refresh.ROOT", root):
                 checked = inspect_task(self._task(), now=now)
         self.assertEqual(checked.state, "STALE")
-        self.assertIn("다시 사라졌다", checked.reason)
+        self.assertIn("다시 사라졌다", checked.reason)  # pyright: ignore[reportArgumentType]
 
 
 class TestPriceConsumers(unittest.TestCase):
@@ -425,6 +425,7 @@ class TestPriceConsumers(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _price_summary("TEST")
+        assert summary is not None
         self.assertEqual(summary["returns_pct"]["1m"], 10.0)
         # 이 표본은 종가가 전부 100 이라 고가=저가다. 범위가 없으면 그 안의
         # 위치도 없다 — 여기는 packet 이라 50 을 넣으면 모델이 "구간 중간"을
@@ -457,6 +458,7 @@ class TestPriceConsumers(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _price_summary("TEST")
+        assert summary is not None
         self.assertEqual(summary["last_bar"]["session"], "UNSETTLED")
         self.assertFalse(summary["last_bar"]["is_settled_close"])
         self.assertIn("확정 종가가 아니다", summary["last_bar"]["_warning"])
@@ -483,6 +485,7 @@ class TestPriceConsumers(unittest.TestCase):
                 patch("cio.context.ROOT", knowledge),
             ):
                 summary, _source = _price_summary("TEST")
+        assert summary is not None
         return summary["last_bar"]
 
     def test_an_undecidable_session_is_not_reported_as_unsettled(self):
@@ -614,7 +617,7 @@ class TestScoringKeepsTheThirdSessionState(unittest.TestCase):
             with patch("cio.refresh.ROOT", root):
                 checked = inspect_task(task, now=now)
             self.assertEqual(checked.state, "STALE")
-            self.assertIn("세션 상태", checked.reason)
+            self.assertIn("세션 상태", checked.reason)  # pyright: ignore[reportArgumentType]
             path.write_text(
                 "# schema_version price-series/2.1.0\n"
                 "# symbol TEST / currency USD\n"
@@ -637,7 +640,7 @@ class TestScoringKeepsTheThirdSessionState(unittest.TestCase):
             with patch("cio.refresh.ROOT", root):
                 checked = inspect_task(task, now=now)
             self.assertEqual(checked.state, "STALE")
-            self.assertGreater(checked.age_hours, 12)
+            self.assertGreater(checked.age_hours, 12)  # pyright: ignore[reportArgumentType, reportCallIssue]
             path.write_text(
                 path.read_text(encoding="utf-8")
                 .replace(
@@ -875,7 +878,7 @@ class TestDailyGranularityContract(unittest.TestCase):
             with patch("cio.refresh.ROOT", root):
                 checked = inspect_task(task, now=now)
             self.assertEqual(checked.state, "STALE")
-            self.assertIn("일봉", checked.reason)
+            self.assertIn("일봉", checked.reason)  # pyright: ignore[reportArgumentType]
 
             daily = "".join(
                 f"2026-07-{day:02d},100,100,1,101,99,1\n"

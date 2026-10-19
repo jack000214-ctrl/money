@@ -79,6 +79,7 @@ class EventLagCase(unittest.TestCase):
 class TestEventLag(EventLagCase):
     def test_estimate_older_than_an_earnings_release_is_flagged(self):
         lag = self.lag("2026-07-28")
+        assert lag is not None
         self.assertEqual(lag["estimates_as_of"], "2026-07-28")
         self.assertEqual(lag["latest_event_date"], "2026-08-07")
         # 분기보고서(2026-05-15)는 기준일보다 앞이라 세지 않는다. 기준일
@@ -88,6 +89,7 @@ class TestEventLag(EventLagCase):
     def test_the_flagged_events_are_named_not_just_counted(self):
         # "사건이 있었다"만으로는 무엇을 다시 봐야 하는지 알 수 없다.
         lag = self.lag("2026-07-28")
+        assert lag is not None
         newest = lag["events"][0]
         self.assertEqual(newest["form"], "PROVISIONAL_RESULT")
         self.assertEqual(newest["accession_number"], "20260807900190")
@@ -108,6 +110,7 @@ class TestEventLag(EventLagCase):
             ]
         }
         lag = self.lag("2026-07-28", filings=filings)
+        assert lag is not None
         self.assertEqual(lag["events_since"], 2)
         self.assertEqual(lag["latest_event_date"], "2026-08-14")
         self.assertEqual(
@@ -119,6 +122,7 @@ class TestEventLag(EventLagCase):
         # IR 개최 공시는 추정을 낡게 만들지 않는다. 전부 사건으로 세면
         # 이 표시는 항상 켜져 있게 되고 그러면 아무것도 말하지 않는다.
         lag = self.lag("2026-07-28")
+        assert lag is not None
         forms = [row["form"] for row in lag["events"]]
         self.assertNotIn("OTHER", forms)
 
@@ -140,7 +144,8 @@ class TestEventLag(EventLagCase):
     def test_it_says_what_to_do_about_it(self):
         # 사실만 있고 무엇이 문제인지 없으면 모델이 그냥 지나친다.
         lag = self.lag("2026-07-28")
-        self.assertIn("_role", lag)
+        self.assertIn("_role", lag)  # pyright: ignore[reportArgumentType]
+        assert lag is not None
         self.assertTrue(lag["_role"])
 
 
@@ -157,6 +162,7 @@ class TestFilingsWithoutDates(EventLagCase):
             ]
         }
         lag = self.lag("2026-07-28", filings=filings)
+        assert lag is not None
         self.assertEqual(lag["events_since"], 1)
         self.assertEqual(lag["events"][0]["accession_number"], "y")
 
@@ -240,6 +246,7 @@ class TestItReachesThePacket(unittest.TestCase):
             "214450",
             as_of_key="consensus_as_of",
         )
+        assert block is not None
         self.assertEqual(
             block["stale_across_event"]["latest_event_date"], "2026-08-07"
         )
@@ -250,8 +257,8 @@ class TestItReachesThePacket(unittest.TestCase):
             "214450",
             as_of_key="consensus_as_of",
         )
-        self.assertNotIn("stale_across_event", block)
-        self.assertNotIn("unverified_across_event", block)
+        self.assertNotIn("stale_across_event", block)  # pyright: ignore[reportArgumentType]
+        self.assertNotIn("unverified_across_event", block)  # pyright: ignore[reportArgumentType]
 
     def test_target_report_date_is_not_the_estimate_date(self):
         """목표가 보고일은 EPS 전망의 갱신일이 아니다.
@@ -282,7 +289,8 @@ class TestItReachesThePacket(unittest.TestCase):
             "214450",
             as_of_key="consensus_as_of",
         )
-        self.assertNotIn("stale_across_event", block)
+        self.assertNotIn("stale_across_event", block)  # pyright: ignore[reportArgumentType]
+        assert block is not None
         self.assertEqual(
             block["unverified_across_event"]["latest_event_date"], "2026-08-07"
         )

@@ -59,7 +59,7 @@ class ArtifactCase(unittest.TestCase):
 
     def assertFlags(self, payload, needle, **kwargs):
         error = self.check(payload, **kwargs)
-        self.assertIsNotNone(error, f"{needle!r} 를 기대했는데 통과했다")
+        assert error is not None, f"{needle!r} 를 기대했는데 통과했다"
         self.assertIn(needle, error)
 
 

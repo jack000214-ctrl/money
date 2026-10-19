@@ -84,6 +84,7 @@ class TestQuartersSurviveCompression(unittest.TestCase):
 
     def test_all_eight_quarters_reach_the_packet(self):
         bridge = _earnings_bridge(fundamentals(), today=dt.date(2026, 8, 7))
+        assert bridge is not None
         self.assertEqual(len(bridge["rows"]), 8)
         self.assertEqual(
             [row["period"] for row in bridge["rows"]],
@@ -167,6 +168,7 @@ class TestMissingIsSaidOutLoud(unittest.TestCase):
         data = fundamentals()
         data["income_statement"]["operating_income"] = {"tag": None, "quarters": []}
         bridge = _earnings_bridge(data, today=dt.date(2026, 8, 7))
+        assert bridge is not None
         self.assertIn("operating_income", bridge["metrics_absent"])
 
     def test_no_quarterly_data_at_all_yields_no_bridge(self):
@@ -179,14 +181,17 @@ class TestStalenessSitsNextToTheNumbers(unittest.TestCase):
 
     def test_covered_through_is_the_local_period_end(self):
         bridge = _earnings_bridge(fundamentals(), today=dt.date(2026, 8, 7))
+        assert bridge is not None
         self.assertEqual(bridge["covered_through"], "2026-03-31")
 
     def test_completed_quarters_after_the_local_period_are_counted(self):
         bridge = _earnings_bridge(fundamentals(), today=dt.date(2026, 8, 7))
+        assert bridge is not None
         self.assertEqual(bridge["quarter_ends_after_covered"], ["2026-06-30"])
 
     def test_no_elapsed_quarter_means_an_empty_list(self):
         bridge = _earnings_bridge(fundamentals(), today=dt.date(2026, 4, 20))
+        assert bridge is not None
         self.assertEqual(bridge["quarter_ends_after_covered"], [])
 
     def test_disclosures_after_the_local_period_are_attached_to_the_table(self):
@@ -205,9 +210,10 @@ class TestStalenessSitsNextToTheNumbers(unittest.TestCase):
                 ],
             },
         )
+        assert bridge is not None
         self.assertEqual(len(bridge["unreflected_result_disclosures"]), 1)
         self.assertIn("2026-07-31", json.dumps(bridge, ensure_ascii=False))
-        self.assertIn("_warning", bridge)
+        self.assertIn("_warning", bridge)  # pyright: ignore[reportArgumentType]
 
     def test_without_newer_disclosures_no_warning_is_manufactured(self):
         bridge = _earnings_bridge(fundamentals(), today=dt.date(2026, 4, 20))
@@ -215,8 +221,9 @@ class TestStalenessSitsNextToTheNumbers(unittest.TestCase):
             bridge,
             {"local_period_end": "2026-03-31", "disclosures_after_local_period": []},
         )
+        assert bridge is not None
         self.assertEqual(bridge["unreflected_result_disclosures"], [])
-        self.assertNotIn("_warning", bridge)
+        self.assertNotIn("_warning", bridge)  # pyright: ignore[reportArgumentType]
 
 
 class TestJudgmentBoundary(unittest.TestCase):
